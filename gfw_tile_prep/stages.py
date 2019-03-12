@@ -1,63 +1,44 @@
-from parallelpipe import stage
 from gfw_tile_prep.utils import get_top, get_left, get_tile_id
 import os
 import logging
 import subprocess as sp
 
 
-WORKERS = 1
-
-
-@stage(workers=WORKERS, qsize=WORKERS)
-def import_vector(files, name, **kwargs):
-    for src in files:
-        cmd = [
-            "ogr2ogr",
-            "-overwrite",
-            "-t_srs",
-            "EPSG:4326",
-            "-f",
-            "PostgreSQL",
-            "PG:dbname=gfw port=5432 host=localhost user=postgres password=postgres",
-            src,
-            "-nln",
-            name,
-        ]
-        sp.check_call(cmd)
-        yield name
-
-
-@stage(workers=WORKERS, qsize=WORKERS)
-def rasterize(tiles, name, **kwargs):
+def rasterize(tiles, layer, **kwargs):
 
     tile_size = kwargs["tile_size"]
+    pg_conn = kwargs["pg_conn"]
+    pixel_size = kwargs["pixel_size"]
+    nodata = kwargs["nodata"]
+    data_type = kwargs["nodata"]
+
     for tile in tiles:
 
         row, col, min_x, min_y, max_x, max_y = tile
         tile_id = "{}_{}".format(get_top(int(max_y)), get_left(int(min_x)))
-        output = "{}_{}.tif".format(name, tile_id)
+        output = "{}_{}.tif".format(layer, tile_id)
 
         logging.info("Create raster " + output)
         cmd = [
             "gdal_rasterize",
             "-a",
-            "id",
+            "oid",
             "-sql",
-            "select * from {}_xy where row={} and col={}".format(name, row, col),
+            "select * from {}_10_10 where row={} and col={}".format(layer, row, col),
             "-te",
             min_x,
             min_y,
             max_x,
             max_y,
             "-tr",
-            "0.00025",
-            "0.00025",
+            str(pixel_size),
+            str(pixel_size),
             "-a_srs",
             "EPSG:4326",
             "-ot",
-            "UInt16",
+            data_type,
             "-a_nodata",
-            "0",
+            str(nodata),
             "-co",
             "COMPRESS=LZW",
             "-co",
@@ -67,24 +48,32 @@ def rasterize(tiles, name, **kwargs):
             "-co",
             "BLOCKYSIZE={}".format(tile_size),
             # "-co", "SPARSE_OK=TRUE",
-            "PG:dbname=gfw port=5432 host=localhost user=postgres password=postgres",
+            pg_conn,
             output,
         ]
-        sp.check_call(cmd)
-        yield output
+        try:
+            logging.info("Rasterize tile " + tile_id)
+            sp.check_call(cmd)
+        except sp.CalledProcessError as e:
+            logging.warning("Could not rasterize file " + output)
+            logging.warning(e)
+        else:
+            yield output
 
 
-@stage(workers=WORKERS, qsize=WORKERS)
-def translate(tiles, name, data_type="UInt16", nodata=0, **kwargs):
+def translate(tiles, name, **kwargs):
 
+    src = kwargs["src"]
     tile_size = kwargs["tile_size"]
+    data_type = kwargs["data_type"]
+    nodata = kwargs["nodata"]
 
     for tile in tiles:
 
-        tile_id = get_tile_id(tile)
-
+        row, col, min_x, min_y, max_x, max_y = tile
+        tile_id = "{}_{}".format(get_top(int(max_y)), get_left(int(min_x)))
         output = "{}_{}.tif".format(name, tile_id)
-        print("Create raster " + output)
+
         cmd = [
             "gdal_translate",
             "-ot",
@@ -100,27 +89,43 @@ def translate(tiles, name, data_type="UInt16", nodata=0, **kwargs):
             "-co",
             "BLOCKYSIZE={}".format(tile_size),
             # "-co", "SPARSE_OK=TRUE",
-            tile,
+            src,
             output,
         ]
 
-        sp.check_call(cmd)
-        yield output
+        try:
+            logging.info("Translate tile " + tile_id)
+            sp.check_call(cmd)
+        except sp.CalledProcessError as e:
+            logging.warning("Could not translate file " + output)
+            logging.warning(e)
+        else:
+            yield output
 
 
-@stage(workers=WORKERS)
 def upload_file(tiles, **kwargs):
+    target = kwargs["target"]
+
     for tile in tiles:
-        s3_path = "s3://gfw2-data/analyses/gadm/tiles/adm2/{}".format(tile)
-        print("Upload to " + s3_path)
+        tile_id = get_tile_id(tile)
+        s3_path = target.format(tile_id=tile_id)
         cmd = ["aws", "s3", "cp", tile, s3_path]
-        sp.check_call(cmd)
-        yield tile
+        try:
+            logging.info("Upload to " + s3_path)
+            sp.check_call(cmd)
+        except sp.CalledProcessError as e:
+            logging.warning("Could not upload file " + tile)
+            logging.warning(e)
+        else:
+            yield tile
 
 
-@stage(workers=WORKERS)
 def delete_file(tiles, **kwargs):
     for tile in tiles:
-        print("Delete file " + tile)
-        os.remove(tile)
-        yield tile
+        try:
+            logging.info("Delete file " + tile)
+            os.remove(tile)
+        except Exception as e:
+            logging.error("Could not delete file " + tile)
+            logging.error(e)
+            yield tile

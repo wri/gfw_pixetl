@@ -1,3 +1,4 @@
 parallelpipe
+psycopg2
 pytest
 pre-commit
