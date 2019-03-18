@@ -61,6 +61,30 @@ def rasterize(tiles, layer, **kwargs):
             yield output
 
 
+def info(tiles, path, exclude_existing=False):
+
+    for tile in tiles:
+
+        row, col, min_x, min_y, max_x, max_y = tile
+        tile_id = "{}_{}".format(get_top(int(max_y)), get_left(int(min_x)))
+
+        src = path.format(protocol="/vsis3", tile_id=tile_id)
+
+        cmd = ["gdalinfo", src]
+
+        try:
+            logging.info("Check if tile exist " + src)
+            sp.check_call(cmd)
+        except sp.CalledProcessError as e:
+            logging.warning("Could not find tile file " + src)
+            logging.warning(e)
+            if exclude_existing:
+                yield tile
+        else:
+            if not exclude_existing:
+                yield tile
+
+
 def translate(tiles, name, **kwargs):
 
     src = kwargs["src"]
@@ -89,7 +113,7 @@ def translate(tiles, name, **kwargs):
             "-co",
             "BLOCKYSIZE={}".format(tile_size),
             # "-co", "SPARSE_OK=TRUE",
-            src,
+            src.format(protocol="/vsis3", tile_id=tile_id),
             output,
         ]
 
@@ -104,11 +128,11 @@ def translate(tiles, name, **kwargs):
 
 
 def upload_file(tiles, **kwargs):
-    target = kwargs["target"]
+    target = kwargs["s3_target"]
 
     for tile in tiles:
         tile_id = get_tile_id(tile)
-        s3_path = target.format(tile_id=tile_id)
+        s3_path = target.format(protocol="s3:/", tile_id=tile_id)
         cmd = ["aws", "s3", "cp", tile, s3_path]
         try:
             logging.info("Upload to " + s3_path)

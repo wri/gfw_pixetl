@@ -1,4 +1,4 @@
-from gfw_tile_prep.stages import rasterize, translate, upload_file, delete_file
+from gfw_tile_prep.stages import rasterize, translate, upload_file, delete_file, info
 from gfw_tile_prep.postgis import prep_layers, import_vector
 from parallelpipe import Stage
 import csv
@@ -6,7 +6,7 @@ import logging
 import argparse
 
 # parallel workers
-WORKERS = 10
+WORKERS = 5
 
 # tile specifications
 TILE_SIZE = 400
@@ -26,50 +26,64 @@ PG_CONN = "PG:dbname={} port={} host={} user={} password={}".format(
 SRC = {
     "loss": {
         "type": "raster",
-        "src": "",
-        "target": "",
+        "src": "{protocol}/gfw2-data/forest_change/hansen_2018/{tile_id}.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/loss/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0,
     },
-    "tcd": {
+    "gain": {
         "type": "raster",
-        "src": "",
-        "target": "",
+        "src": "{protocol}/gfw2-data/forest_change/tree_cover_gain/gaindata_2012/Hansen_GFC2015_gain_{tile_id}.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/gain/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0,
+    },
+    "tcd_2000": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/forest_cover/2000_treecover/Hansen_GFC2014_treecover2000_{tile_id}.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/tcd_2000/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0,
+    },
+    "tcd_2010": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/forest_cover/2010_treecover_27m/treecover2010_{tile_id}.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/tcd_2010/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0,
     },
     "co2_pixel": {
         "type": "raster",
-        "src": "",
-        "target": "",
-        "data_type": "Byte",
+        "src": "{protocol}/gfw2-data/climate/WHRC_biomass/WHRC_V4/t_co2_pixel/{tile_id}_t_co2_pixel_2000.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/co2_pixel/{tile_id}.tif",
+        "data_type": "Float32",
         "nodata": 0,
     },
     "primary_forest": {
         "type": "raster",
         "src": "",
-        "target": "",
+        "s3_target": "",
         "data_type": "Byte",
         "nodata": 0,
     },
     "ifl": {
         "type": "raster",
         "src": "",
-        "target": "",
+        "s3_target": "",
         "data_type": "Byte",
         "nodata": 0,
     },
-    "gadm2": {
+    "gadm36": {
         "type": "raster",
-        "src": "",
-        "target": "",
-        "data_type": "Byte",
+        "src": "{protocol}/gfw2-data/analyses/gadm/tiles/adm2/gadm_adm2_{tile_id}.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/gadm36/{tile_id}.tif",
+        "data_type": "UInt16",
         "nodata": 0,
     },
     "wdpa": {
         "type": "vector",
         "src": "",
-        "target": "",
+        "s3_target": "",
         "oid": None,
         "data_type": "Byte",
         "nodata": 0,
@@ -77,7 +91,7 @@ SRC = {
     "plantations": {
         "type": "vector",
         "src": "",
-        "target": "",
+        "s3_target": "",
         "oid": None,
         "data_type": "Byte",
         "nodata": 0,
@@ -85,7 +99,7 @@ SRC = {
     "logging": {
         "type": "vector",
         "src": "",
-        "target": "",
+        "s3_target": "",
         "oid": None,
         "data_type": "Byte",
         "nodata": 0,
@@ -93,7 +107,7 @@ SRC = {
     "mining": {
         "type": "vector",
         "src": "",
-        "target": "",
+        "s3_target": "",
         "oid": None,
         "data_type": "Byte",
         "nodata": 0,
@@ -101,26 +115,37 @@ SRC = {
 }
 
 
-def get_tiles():
+def get_tiles(**kwargs):
     tiles = list()
     with open("tiles.csv") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         for row in csv_reader:
             tiles.append(row)
-    return tiles
+
+    pipe = (
+        tiles
+        | Stage(info, kwargs["src"]).setup(workers=WORKERS)
+        | Stage(info, kwargs["s3_target"], True).setup(workers=WORKERS)
+    )
+
+    tiles_to_process = list()
+    for output in pipe.results():
+        tiles_to_process.append(output)
+
+    return tiles_to_process
 
 
 def raster_pipe(layer):
 
-    kwargs = SRC["layer"]
+    kwargs = SRC[layer]
     kwargs["tile_size"] = TILE_SIZE
     kwargs["pg_conn"] = PG_CONN
     kwargs["pixel_size"] = PIXEL_SIZE
 
-    tiles = get_tiles()
+    tiles = get_tiles(**kwargs)
     pipe = (
         tiles
-        | Stage(translate, layer, **kwargs).setup(workers=WORKERS, qsize=WORKERS)
+        | Stage(translate, name=layer, **kwargs).setup(workers=WORKERS, qsize=WORKERS)
         | Stage(upload_file, **kwargs).setup(workers=WORKERS)
         | Stage(delete_file, **kwargs).setup(workers=WORKERS)
     )
@@ -144,11 +169,11 @@ def vector_pipe(layer):
     import_vector(layer, **kwargs)
     prep_layers(layer, **kwargs)
 
-    tiles = get_tiles()
+    tiles = get_tiles(**kwargs)
 
     pipe = (
         tiles
-        | Stage(rasterize, layer, **kwargs).setup(workers=WORKERS, qsize=WORKERS)
+        | Stage(rasterize, name=layer, **kwargs).setup(workers=WORKERS, qsize=WORKERS)
         | Stage(upload_file, **kwargs).setup(workers=WORKERS)
         | Stage(delete_file, **kwargs).setup(workers=WORKERS)
     )
