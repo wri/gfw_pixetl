@@ -4,6 +4,7 @@ from parallelpipe import Stage
 import csv
 import logging
 import argparse
+import os
 
 # parallel workers
 WORKERS = 5
@@ -117,7 +118,8 @@ SRC = {
 
 def get_tiles(**kwargs):
     tiles = list()
-    with open("tiles.csv") as csv_file:
+    dir = os.path.dirname(__file__)
+    with open(os.path.join(dir, "csv/tiles.csv")) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         for row in csv_reader:
             tiles.append(row)
