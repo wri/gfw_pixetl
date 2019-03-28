@@ -1,5 +1,6 @@
 from gfw_tile_prep.stages import rasterize, translate, upload_file, delete_file, info
 from gfw_tile_prep.postgis import prep_layers, import_vector
+from gfw_tile_prep.utils import str2bool
 from parallelpipe import Stage
 import csv
 import logging
@@ -60,12 +61,51 @@ SRC = {
         "data_type": "Float32",
         "nodata": 0,
     },
-    "primary_forest": {
+    "biomass": {
         "type": "raster",
-        "src": "",
-        "s3_target": "",
+        "src": "{protocol}/gfw2-data/climate/WHRC_biomass/WHRC_V4/Processed/{tile_id}_t_aboveground_biomass_ha_2000.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/biomass/{tile_id}.tif",
+        "data_type": "Int16",
+        "nodata": 0,
+    },
+    "mangrove_biomass": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/mangrove_biomass/processed/20190220/{tile_id}_mangrove_agb_t_ha_2000.tif",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/mangrove_biomass/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "drivers": {
+        "type": "raster",
+        "src": "{protocol}/wri-users/tmaschler/prep_tiles/raw/drivers/drivers.vrt",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/drivers/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 16,
+        "single_tile": True,
+    },
+    "global_landcover": {
+        "type": "raster",
+        "src": "{protocol}/wri-users/tmaschler/prep_tiles/raw/global_landcover/global_landcover.vrt",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/global_landcover/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0,
+        "single_tile": True,
+    },
+    "primary_forest": {
+        "type": "raster",
+        "src": "{protocol}/wri-users/tmaschler/prep_tiles/raw/primary_forest/primary_forest.vrt",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/primary_forest/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0,
+        "single_tile": True,
+    },
+    "erosion": {
+        "type": "raster",
+        "src": "{protocol}/wri-users/tmaschler/prep_tiles/raw/erosion/erosion.vrt",
+        "s3_target": "{protocol}/wri-users/tmaschler/prep_tiles/erosion/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0,
+        "single_tile": True,
     },
     "ifl": {
         "type": "raster",
@@ -116,8 +156,13 @@ SRC = {
 }
 
 
-def get_tiles(**kwargs):
+def get_tiles(overwrite=False, **kwargs):
     tiles = list()
+
+    if "single_tile" in kwargs.keys():
+        single_tile = kwargs["single_tile"]
+    else:
+        single_tile = False
     dir = os.path.dirname(__file__)
     with open(os.path.join(dir, "csv/tiles.csv")) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
@@ -126,8 +171,10 @@ def get_tiles(**kwargs):
 
     pipe = (
         tiles
-        | Stage(info, kwargs["src"]).setup(workers=WORKERS)
-        | Stage(info, kwargs["s3_target"], True).setup(workers=WORKERS)
+        | Stage(info, kwargs["src"], single_tile=single_tile).setup(workers=WORKERS)
+        | Stage(
+            info, kwargs["s3_target"], include_existing=overwrite, exclude_missing=False
+        ).setup(workers=WORKERS)
     )
 
     tiles_to_process = list()
@@ -137,14 +184,14 @@ def get_tiles(**kwargs):
     return tiles_to_process
 
 
-def raster_pipe(layer):
+def raster_pipe(layer, overwrite):
 
     kwargs = SRC[layer]
     kwargs["tile_size"] = TILE_SIZE
     kwargs["pg_conn"] = PG_CONN
     kwargs["pixel_size"] = PIXEL_SIZE
 
-    tiles = get_tiles(**kwargs)
+    tiles = get_tiles(overwrite, **kwargs)
     pipe = (
         tiles
         | Stage(translate, name=layer, **kwargs).setup(workers=WORKERS, qsize=WORKERS)
@@ -156,7 +203,7 @@ def raster_pipe(layer):
         logging.info(output)
 
 
-def vector_pipe(layer):
+def vector_pipe(layer, overwrite):
 
     kwargs = SRC["layer"]
     kwargs["tile_size"] = TILE_SIZE
@@ -171,7 +218,7 @@ def vector_pipe(layer):
     import_vector(layer, **kwargs)
     prep_layers(layer, **kwargs)
 
-    tiles = get_tiles(**kwargs)
+    tiles = get_tiles(overwrite, **kwargs)
 
     pipe = (
         tiles
@@ -192,9 +239,18 @@ if __name__ == "__main__":
 
     parser.add_argument("--layer", "-l", type=str, choices=layers)
 
+    parser.add_argument(
+        "--overwrite",
+        type=str2bool,
+        nargs="?",
+        default=False,
+        const=True,
+        help="Overwrite existing output files",
+    )
+
     args = parser.parse_args()
 
     if SRC[args.layer]["type"] == "raster":  # type: ignore
-        raster_pipe(args.layer)
+        raster_pipe(args.layer, args.overwrite)
     else:
-        vector_pipe(args.layer)
+        vector_pipe(args.layer, args.overwrite)

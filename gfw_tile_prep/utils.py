@@ -1,4 +1,5 @@
 import re
+import argparse
 
 
 def get_top(coord):
@@ -29,3 +30,17 @@ def get_tile_id(f):
         return m.group(0)
     else:
         return None
+
+
+def str2bool(v):
+    """
+    Convert various strings to boolean
+    :param v: String
+    :return: Boolean
+    """
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")

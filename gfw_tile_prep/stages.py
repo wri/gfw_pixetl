@@ -1,4 +1,6 @@
 from gfw_tile_prep.utils import get_top, get_left, get_tile_id
+from pathlib import Path
+import xml.etree.ElementTree as ET
 import os
 import logging
 import subprocess as sp
@@ -61,7 +63,7 @@ def rasterize(tiles, layer, **kwargs):
             yield output
 
 
-def info(tiles, path, exclude_existing=False):
+def info(tiles, path, single_tile=False, include_existing=True, exclude_missing=True):
 
     for tile in tiles:
 
@@ -70,19 +72,39 @@ def info(tiles, path, exclude_existing=False):
 
         src = path.format(protocol="/vsis3", tile_id=tile_id)
 
-        cmd = ["gdalinfo", src]
+        if single_tile:
 
-        try:
-            logging.info("Check if tile exist " + src)
-            sp.check_call(cmd)
-        except sp.CalledProcessError as e:
-            logging.warning("Could not find tile file " + src)
-            logging.warning(e)
-            if exclude_existing:
+            found = False
+            for x in [min_x, max_x]:
+                for y in [min_y, max_y]:
+                    cmd = ["gdallocationinfo", "-xml", "-wgs84", src, x, y]
+                    p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+                    o, e = p.communicate()
+                    if p.returncode == 0 and ET.fromstring(o)[0].tag == "BandReport":
+                        found = True
+            if found:
+                logging.info("Tile {} intersects with {}".format(tile_id, src))
                 yield tile
+            else:
+                logging.warning(
+                    "Tile {} does not intersect with {}".format(tile_id, src)
+                )
+
         else:
-            if not exclude_existing:
-                yield tile
+            cmd = ["gdalinfo", src]
+
+            try:
+                logging.info("Check if tile exist " + src)
+                sp.check_call(cmd)
+            except sp.CalledProcessError as pe:
+                logging.warning("Could not find tile file " + src)
+                logging.warning(pe)
+
+                if not exclude_missing:
+                    yield tile
+            else:
+                if include_existing:
+                    yield tile
 
 
 def translate(tiles, name, **kwargs):
@@ -91,6 +113,8 @@ def translate(tiles, name, **kwargs):
     tile_size = kwargs["tile_size"]
     data_type = kwargs["data_type"]
     nodata = kwargs["nodata"]
+    xres = kwargs["pixel_size"]
+    yres = kwargs["pixel_size"]
 
     for tile in tiles:
 
@@ -100,10 +124,22 @@ def translate(tiles, name, **kwargs):
 
         cmd = [
             "gdal_translate",
+            "-strict",
             "-ot",
             data_type,
             "-a_nodata",
             str(nodata),
+            # "-outsize",
+            # "40000",
+            # "40000",
+            "-tr",
+            str(xres),
+            str(yres),
+            "-projwin",
+            str(min_x),
+            str(max_y),
+            str(max_x),
+            str(min_y),
             "-co",
             "COMPRESS=LZW",
             "-co",
