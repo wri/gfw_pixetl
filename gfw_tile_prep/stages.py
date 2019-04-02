@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import os
 import logging
 import subprocess as sp
+import psycopg2
 
 
 def rasterize(tiles, layer, **kwargs):
@@ -12,7 +13,10 @@ def rasterize(tiles, layer, **kwargs):
     pg_conn = kwargs["pg_conn"]
     pixel_size = kwargs["pixel_size"]
     nodata = kwargs["nodata"]
-    data_type = kwargs["nodata"]
+    data_type = kwargs["data_type"]
+    oid = kwargs["oid"]
+    order = kwargs["order"]
+    src = kwargs["src"]
 
     for tile in tiles:
 
@@ -24,14 +28,16 @@ def rasterize(tiles, layer, **kwargs):
         cmd = [
             "gdal_rasterize",
             "-a",
-            "oid",
+            oid,
             "-sql",
-            "select * from {}_10_10 where row={} and col={}".format(layer, row, col),
+            "select * from {} where row={} and col={} order by {} {}".format(
+                src, row, col, oid, order
+            ),
             "-te",
-            min_x,
-            min_y,
-            max_x,
-            max_y,
+            str(min_x),
+            str(min_y),
+            str(max_x),
+            str(max_y),
             "-tr",
             str(pixel_size),
             str(pixel_size),
@@ -63,7 +69,7 @@ def rasterize(tiles, layer, **kwargs):
             yield output
 
 
-def info(tiles, path, single_tile=False, include_existing=True, exclude_missing=True):
+def info(tiles, path, include_existing=True, exclude_missing=True, **kwargs):
 
     for tile in tiles:
 
@@ -72,7 +78,7 @@ def info(tiles, path, single_tile=False, include_existing=True, exclude_missing=
 
         src = path.format(protocol="/vsis3", tile_id=tile_id)
 
-        if single_tile:
+        if kwargs["single_tile"]:
 
             found = False
             for x in [min_x, max_x]:
@@ -89,6 +95,28 @@ def info(tiles, path, single_tile=False, include_existing=True, exclude_missing=
                 logging.warning(
                     "Tile {} does not intersect with {}".format(tile_id, src)
                 )
+
+        elif kwargs["is_vector"] and include_existing:
+
+            conn = psycopg2.connect(
+                dbname=kwargs["dbname"],
+                user=kwargs["dbuser"],
+                password=kwargs["password"],
+                host=kwargs["host"],
+                port=kwargs["port"],
+            )
+            cursor = conn.cursor()
+            exists_query = "select exists (select 1 from {} where row = {} and col = {})".format(
+                kwargs["src"], row, col
+            )
+            cursor.execute(exists_query)
+            exists = cursor.fetchone()[0]
+            cursor.close()
+            conn.close()
+
+            print(row, col, exists)
+            if exists:
+                yield tile
 
         else:
             cmd = ["gdalinfo", src]
