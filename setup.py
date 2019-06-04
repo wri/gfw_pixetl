@@ -7,6 +7,6 @@ setup(
     packages=["gfw_tile_prep"],
     author="Thomas Maschler",
     license="MIT",
-    install_requires=["parallelpipe", "psycopg2-binary"],
+    install_requires=["parallelpipe", "psycopg2-binary", "rasterio", "boto3"],
     scripts=["gfw_tile_prep/prep_tiles.py"],
 )

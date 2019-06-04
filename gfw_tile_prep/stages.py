@@ -1,5 +1,4 @@
 from gfw_tile_prep.utils import get_top, get_left, get_tile_id
-from pathlib import Path
 import xml.etree.ElementTree as ET
 import os
 import logging
@@ -78,7 +77,7 @@ def info(tiles, path, include_existing=True, exclude_missing=True, **kwargs):
 
         src = path.format(protocol="/vsis3", tile_id=tile_id)
 
-        if kwargs["single_tile"]:
+        if "single_tile" in kwargs.keys() and kwargs["single_tile"]:
 
             found = False
             for x in [min_x, max_x]:

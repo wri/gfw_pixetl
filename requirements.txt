@@ -1,4 +1,6 @@
 parallelpipe
 psycopg2-binary
+rasterio
+boto3
 pytest
 pre-commit
