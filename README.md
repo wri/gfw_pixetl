@@ -10,6 +10,9 @@ Upload all tiles to S3.
 
 # Usage
 
+Install required packages:
+`pip install -e .` in the gfw_tile_prep folder
+
 ```bash
 prep_tiles.py [-h]
               [--layer {loss,tcd,co2_pixel,primary_forest,ifl,gadm2,wdpa,plantations,logging,mining}]

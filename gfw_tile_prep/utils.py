@@ -4,16 +4,16 @@ import argparse
 
 def get_top(coord):
     if coord >= 0:
-        return f"{coord:02}" + "N"
+        return str(coord).zfill(2) + "N"
     else:
-        return f"{-coord:02}" + "S"
+        return str(-coord).zfill(2) + "S"
 
 
 def get_left(coord):
     if coord >= 0:
-        return f"{coord:003}" + "E"
+        return str(coord).zfill(3) + "E"
     else:
-        return f"{-coord:003}" + "W"
+        return str(-coord).zfill(3) + "W"
 
 
 def get_tile_id(f):
