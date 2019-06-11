@@ -11,12 +11,12 @@ Upload all tiles to S3.
 # Usage
 
 ## On a spot machine
-- `git clone https://github.com/wri/gfw_tile_prep` 
-- `cd gfw_tile_prep` 
-- `sudo apt-get update` 
+- `git clone https://github.com/wri/gfw_tile_prep`
+- `cd gfw_tile_prep`
+- `sudo apt-get update`
 - `sudo apt-get install python3 python3-pip` (install python3 and pip3 on the spot machine)
 - `pip3 install -e .`  (installs the required packages)
-- `cd gfw_tile_prep` 
+- `cd gfw_tile_prep`
 - `nano prep_tiles.py` and change the number of processes to 15 or whatever number is appropriate
 
 To run the tile prep script:
