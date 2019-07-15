@@ -123,17 +123,31 @@ SRC = {
         "data_type": "Float32",
         "nodata": 0,
     },
-    "gross_emissions_co2": {
+    "gross_emissions_co2_gas_co2e": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/20190523/{tile_id}_all_drivers_t_CO2_ha_gross_emis_year.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_co2/{tile_id}.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_co2_gas_co2e/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
-    "net_flux_co2": {
+    "gross_emissions_non_co2_gas_co2e": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/20190523/{tile_id}_all_drivers_t_CO2_ha_gross_emis_year.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_gas_co2e/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "gross_emissions_all_gas_co2e": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/20190523/{tile_id}_all_drivers_t_CO2_ha_gross_emis_year.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_all_gas_co2e/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "net_flux_co2e": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/20190524/{tile_id}_net_flux_t_CO2_ha_2001_15.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/net_flux_co2/{tile_id}.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/net_flux_co2e/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
