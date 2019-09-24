@@ -130,10 +130,10 @@ SRC = {
         "data_type": "Float32",
         "nodata": 0,
     },
-    "gross_emissions_non_co2_gas_co2e": {
+    "gross_emissions_non_co2_co2e": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/20190523/{tile_id}_non_CO2_all_drivers_t_CO2e_ha_gross_emis_year.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_gas_co2e/{tile_id}.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_co2e/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
