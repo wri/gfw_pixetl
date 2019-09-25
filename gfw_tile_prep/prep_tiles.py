@@ -144,6 +144,20 @@ SRC = {
         "data_type": "Float32",
         "nodata": 0,
     },
+    "peatlands_flux": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/peatlands/processed/20190429/{tile_id}_peat_mask_processed.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/peatlands_flux/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0
+    },
+    "ifl_primary": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/ifl_primary_merged/processed/20190905/{tile_id}_ifl_2000_primary_2001_merged.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/ifl_primary/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0
+    },
     "area": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/analyses/area_28m/hanson_2013_area_{tile_id}.tif",
@@ -206,22 +220,6 @@ SRC = {
         "s3_target": "{protocol}/gfw-files/2018_update/drivers/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 16,
-        "single_tile": True,
-    },
-    "peatlands_flux": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/peatlands/processed/20190429/{tile_id}_peat_mask_processed.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/peatlands_flux/{tile_id}.tif",
-        "data_type": "Byte",
-        "nodata": 0,
-        "single_tile": True,
-    },
-    "ifl_primary": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/ifl_primary_merged/processed/20190905/{tile_id}_ifl_2000_primary_2001_merged.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/ifl_primary/{tile_id}.tif",
-        "data_type": "Byte",
-        "nodata": 0,
         "single_tile": True,
     },
     "global_landcover": {
