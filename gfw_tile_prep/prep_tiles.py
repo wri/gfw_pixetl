@@ -35,7 +35,7 @@ SRC = {
     "gross_cumul_removals_co2": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/climate/carbon_model/cumulative_gain_AGCO2_BGCO2_all_forest_types/20190906/{tile_id}_cumul_gain_AGCO2_BGCO2_t_ha_all_forest_types_2001_15.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/gross_cumul_removals_carbon/{tile_id}.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_cumul_removals_co2/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
