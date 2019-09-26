@@ -139,7 +139,7 @@ SRC = {
     },
     "net_flux_co2e": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/20190923/{tile_id}_net_flux_t_CO2e_ha_2001_15.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/20190923/{tile_id}_net_flux_t_CO2e_ha_2001_15_biomass_soil.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/net_flux_co2e/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
