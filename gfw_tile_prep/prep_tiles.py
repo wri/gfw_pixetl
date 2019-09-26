@@ -25,58 +25,58 @@ PG_CONN = "PG:dbname={} port={} host={} user={} password={}".format(
 
 # data sources
 SRC = {
-    "gross_annual_removals_carbon": {
+    "gross_annual_removals_biomass": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/annual_gain_rate_all_forest_types/20190228/{tile_id}_annual_gain_rate_AGB_BGB_t_ha_all_forest_types.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/gross_annual_removals_carbon/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/annual_gain_rate_all_forest_types/20190906/{tile_id}_annual_gain_rate_AGB_BGB_t_ha_all_forest_types.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_annual_removals_biomass/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
-    "gross_cumul_removals_carbon": {
+    "gross_cumul_removals_co2": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/cumulative_gain_all_forest_types/20190228/{tile_id}_cumul_gain_AGC_BGC_t_ha_all_forest_types_2001_15.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/gross_cumul_removals_carbon/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/cumulative_gain_AGCO2_BGCO2_all_forest_types/20190906/{tile_id}_cumul_gain_AGCO2_BGCO2_t_ha_all_forest_types_2001_15.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_cumul_removals_co2/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "agc_emis_year": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/20190418/{tile_id}_t_AGC_ha_emis_year.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/20190912/{tile_id}_t_AGC_ha_emis_year.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/agc_emis_year/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "bgc_emis_year": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/belowground_carbon/loss_pixels/20190430/{tile_id}_t_BGC_ha_emis_year.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/belowground_carbon/loss_pixels/20190912/{tile_id}_t_BGC_ha_emis_year.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/bgc_emis_year/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "deadwood_carbon_emis_year": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/loss_pixels/20190430/{tile_id}_t_deadwood_C_ha_emis_year_2000.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/loss_pixels/20190912/{tile_id}_t_deadwood_C_ha_emis_year_2000.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/deadwood_carbon_emis_year/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "litter_carbon_emis_year": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/loss_pixels/20190430/{tile_id}_t_litter_C_ha_emis_year_2000.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/loss_pixels/20190912/{tile_id}_t_litter_C_ha_emis_year_2000.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/litter_carbon_emis_year/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "soil_carbon_emis_year": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/20190430/{tile_id}_t_soil_C_ha_emis_year_2000.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/20190912/{tile_id}_t_soil_C_ha_emis_year_2000.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/soil_carbon_emis_year/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "total_carbon_emis_year": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/total_carbon/loss_pixels/20190430/{tile_id}_t_total_C_ha_emis_year.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/total_carbon/loss_pixels/20190912/{tile_id}_t_total_C_ha_emis_year.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/total_carbon_emis_year/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
@@ -123,19 +123,40 @@ SRC = {
         "data_type": "Float32",
         "nodata": 0,
     },
-    "gross_emissions_co2": {
+    "gross_emissions_co2_only_co2e": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/20190523/{tile_id}_all_drivers_t_CO2_ha_gross_emis_year.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_co2/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/20190923/{tile_id}_CO2_only_all_drivers_t_CO2e_ha_gross_emis_year.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_co2_only_co2e/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
-    "net_flux_co2": {
+    "gross_emissions_non_co2_co2e": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/20190524/{tile_id}_net_flux_t_CO2_ha_2001_15.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/net_flux_co2/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/20190923/{tile_id}_non_CO2_all_drivers_t_CO2e_ha_gross_emis_year.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_co2e/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
+    },
+    "net_flux_co2e": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/20190923/{tile_id}_net_flux_t_CO2e_ha_2001_15_biomass_soil.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/net_flux_co2e/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "peatlands_flux": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/peatlands/processed/20190429/{tile_id}_peat_mask_processed.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/peatlands_flux/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0
+    },
+    "ifl_primary": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/ifl_primary_merged/processed/20190905/{tile_id}_ifl_2000_primary_2001_merged.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/ifl_primary/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0
     },
     "area": {
         "type": "raster",
