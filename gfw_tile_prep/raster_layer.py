@@ -1,9 +1,10 @@
 import logging
 import subprocess as sp
-from typing import Iterator, List
+from typing import Iterator, List, Optional
 
 from parallelpipe import stage
 
+from gfw_tile_prep.grid import Grid
 from gfw_tile_prep.layer import Layer
 from gfw_tile_prep.tile import Tile
 
@@ -16,16 +17,16 @@ class RasterLayer(Layer):
 
     def __init__(
         self,
-        name,
-        version,
-        value,
-        src_path,
-        grid,
-        data_type,
-        no_data=0,
-        nbits=None,
-        single_tile=False,
-        resampling="nearest",
+        name: str,
+        version: str,
+        value: str,
+        src_path: str,
+        grid: Grid,
+        data_type: str,
+        no_data: int = 0,
+        nbits: Optional[int] = None,
+        single_tile: bool = False,
+        resampling: str = "nearest",
     ):
         self.src = src_path
         self.resampling = resampling

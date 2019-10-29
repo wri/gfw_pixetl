@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 class Layer(object):
     def __init__(
         self,
-        name,
-        version,
-        value,
-        src_type,
-        src_path,
+        name: str,
+        version: str,
+        value: str,
+        src_type: str,
+        src_path: str,
         grid: Grid,
-        data_type,
-        no_data,
-        nbits,
+        data_type: str,
+        no_data: int,
+        nbits: int,
     ):
         base_name = "gfw-data-lake/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{version}".format(
             name=name,
