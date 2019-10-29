@@ -1,0 +1,241 @@
+alliance_for_zero_extinction_site:
+    -
+        field: is
+        oid: val
+        order: desc
+        data_type: Boolean
+
+baseline_water_stress:
+    -
+        field: level
+        oid: val
+        order: asc
+        data_type: uint
+        nbits: 3
+
+bra_biomes:
+    -
+        field: name
+        oid: val
+        order: asc
+        data_type: uint
+        nbits: 3
+
+ecozones:
+    -
+        field: name
+        oid: val
+        order: asc
+        data_type: uint
+        nbits: 5
+
+endemic_bird_areas:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+gfw_land_rights:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+gfw_logging:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+gfw_mining:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+gfw_oil_gas:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+gfw_oil_palm:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+gfw_plantations:
+    -
+        field: type
+        oid: val
+        order: asc
+        data_type: uint
+        nbits: 4
+
+gfw_resource_rights:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+gfw_wood_fiber:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+idn_forest_area:
+    -
+        field: type
+        oid: val
+        order: asc
+        data_type: uint32
+        nbits: 17
+
+idn_forest_moratorium:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+idn_land_cover:
+    -
+        field: class
+        oid: val
+        order: asc
+        data_type: uint16
+
+intact_forest_landscapes:
+    -
+        field: year
+        oid: val
+        order: asc
+        data_type: uint16
+
+key_biodiversity_area:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+landmark:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+mangroves_1996:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+mangroves_2016:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+mex_protected_areas:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+mex_psa:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+mex_forest_zoning:
+    -
+        field: zone
+        oid: val
+        order: asc
+        data_type: uint
+        nbits: 5
+
+peatlands:
+    -
+        fields: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+per_forest_concessions:
+    -
+        field: type
+        oid: val
+        order: asc
+        data_type: uint
+        nbits: 3
+
+per_permanent_production_forest:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+
+per_protected_areas:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+river_basins:
+     -
+        field: name
+        oid: val
+        order: asc
+        data_type: uint16
+        nbits: 13
+
+rspo_oil_palm:
+    -
+        field: certification_status
+        oid: val
+        order: asc
+        data_type: uint
+        nbits: 3
+
+tiger_landscapes:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+urban_water_intake:
+    -
+        field: is
+        oid: val
+        order: asc
+        data_type: boolean
+
+wdpa_protected_areas:
+    -
+        field: iucn_cat
+        oid: val
+        order: desc
+        data_type: uint
+        nbits: 2

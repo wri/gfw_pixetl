@@ -1,6 +1,7 @@
+boto3
 parallelpipe
 psycopg2-binary
 rasterio
-boto3
+shapely
 pytest
 pre-commit
