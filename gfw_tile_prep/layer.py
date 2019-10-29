@@ -57,13 +57,15 @@ class Layer(object):
 
     @staticmethod
     @stage
-    def filter_target_tiles(tiles, overwrite=True) -> Iterator[Tile]:
+    def filter_target_tiles(
+        tiles: Iterator[Tile], overwrite: bool = True
+    ) -> Iterator[Tile]:
         for tile in tiles:
-            if tile.target_exists() and overwrite:
+            if tile.uri_exists() and overwrite:
                 yield tile
 
     @stage
-    def delete_if_empty(self, tiles) -> Iterator[Tile]:
+    def delete_if_empty(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             if tile.is_empty():
                 os.remove(tile.uri)
@@ -71,7 +73,7 @@ class Layer(object):
                 yield tile
 
     @stage
-    def upload_file(self, tiles) -> Iterator[Tile]:
+    def upload_file(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
 
         for tile in tiles:
             s3_path = "s3://" + tile.uri
@@ -87,7 +89,7 @@ class Layer(object):
 
     @staticmethod
     @stage
-    def delete_file(tiles) -> Iterator[Tile]:
+    def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             try:
                 logger.info("Delete file " + tile.uri)

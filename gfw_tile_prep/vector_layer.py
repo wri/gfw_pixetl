@@ -42,7 +42,7 @@ class VectorLayer(Layer):
         self.order: str = order
         self.rasterize_method = rasterize_method
         super().__init__(
-            name, version, value, grid, self.type, src_path, data_type, no_data, nbits
+            name, version, value, self.type, src_path, grid, data_type, no_data, nbits
         )
 
     def create_tiles(self) -> None:
@@ -62,13 +62,13 @@ class VectorLayer(Layer):
 
     @staticmethod
     @stage
-    def filter_src_tiles(tiles) -> Iterator[Tile]:
+    def filter_src_tiles(tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             if tile.src_vector_intersects():
                 yield tile
 
     @stage
-    def rasterize(self, tiles) -> Iterator[Tile]:
+    def rasterize(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
 
         if self.rasterize_method == "count":
             cmd_method: List[str] = ["-burn", "1", "-add"]

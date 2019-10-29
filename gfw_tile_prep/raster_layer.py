@@ -55,7 +55,7 @@ class RasterLayer(Layer):
             pass
 
     @stage
-    def filter_src_tiles(self, tiles) -> Iterator[Tile]:
+    def filter_src_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             if self.src_type == "tiled" and tile.src_tile_exists():
                 yield tile
@@ -63,7 +63,7 @@ class RasterLayer(Layer):
                 yield tile
 
     @stage
-    def translate(self, tiles) -> Iterator[Tile]:
+    def translate(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
 
         for tile in tiles:
 
