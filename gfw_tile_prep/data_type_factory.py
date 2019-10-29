@@ -4,7 +4,7 @@ from gfw_tile_prep.data_type import DataType
 
 
 def data_type_factory(
-    data_type: str, nbits: Optional[int] = None, no_data: Optional[int] = None
+    data_type: str, nbits: Optional[int] = None, no_data: Optional[int] = None, **kwargs
 ) -> DataType:
     if data_type.lower() == "boolean":
         return DataType(data_type="Byte", no_data=0, nbits=1, compression="CCITTFAX4")

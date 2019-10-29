@@ -14,6 +14,7 @@ setup(
         "rasterio[s3]~=1.1.0",
         "shapely~=1.6.4.post2",
         "pyproj~=2.4.0",
+        "pyyaml~=5.1.2",
     ],
-    scripts=["gfw_tile_prep/prep_tiles.py"],
+    scripts=["gfw_tile_prep/tile_prep.py"],
 )

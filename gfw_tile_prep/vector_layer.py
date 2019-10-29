@@ -1,12 +1,14 @@
 import logging
 import subprocess as sp
-from typing import Iterator, List, Optional
+from typing import Iterator, List
 
 from parallelpipe import stage
 
+from gfw_tile_prep.data_type import DataType
 from gfw_tile_prep.grid import Grid
 from gfw_tile_prep.layer import Layer
 from gfw_tile_prep.tile import Tile
+from gfw_tile_prep.source import VectorSource
 
 logger = logging.getLogger(__name__)
 
@@ -14,43 +16,31 @@ logger = logging.getLogger(__name__)
 class VectorLayer(Layer):
 
     type = "vector"
-    db_host = "localhost"
-    db_port = 5432
-    db_name = "gadm"
-    db_user = "postgres"
-    db_password = "postgres"  # TODO: make a secret call
-    pg_conn = "PG:dbname={} port={} host={} user={} password={}".format(
-        db_name, db_port, db_host, db_user, db_password
-    )
 
     def __init__(
         self,
         name: str,
         version: str,
-        value: str,
-        src_path: str,
+        field: str,
         grid: Grid,
-        data_type: str,
-        no_data: int = 0,
-        nbits: Optional[int] = None,
-        oid: str = "val",
+        data_type: DataType,
         order: str = "asc",
-        rasterize_method: str = "oid",
+        rasterize_method: str = "value",
     ):
 
-        self.oid: str = oid
+        self.field: str = field
         self.order: str = order
         self.rasterize_method = rasterize_method
-        super().__init__(
-            name, version, value, self.type, src_path, grid, data_type, no_data, nbits
-        )
+        self.src = VectorSource("{}_{}".format(name, version))
 
-    def create_tiles(self) -> None:
+        super().__init__(name, version, field, grid, data_type, self.src)
+
+    def create_tiles(self, overwrite=True) -> None:
 
         pipe = (
             self.get_grid_tiles()
             | self.filter_src_tiles()
-            | self.filter_target_tiles()
+            | self.filter_target_tiles(overwrite)
             | self.rasterize()
             | self.delete_if_empty()
             | self.upload_file()
@@ -73,7 +63,12 @@ class VectorLayer(Layer):
         if self.rasterize_method == "count":
             cmd_method: List[str] = ["-burn", "1", "-add"]
         else:
-            cmd_method = ["-a", self.oid]
+            cmd_method = ["-a", self.field]
+
+        if self.data_type.no_data:
+            cmd_no_data: List[str] = ["-a_nodata", str(self.data_type.no_data)]
+        else:
+            cmd_no_data = list()
 
         for tile in tiles:
 
@@ -102,8 +97,9 @@ class VectorLayer(Layer):
                     "EPSG:4326",
                     "-ot",
                     self.data_type.data_type,
-                    "-a_nodata",
-                    str(self.data_type.no_data),
+                ]
+                + cmd_no_data
+                + [
                     "-co",
                     "COMPRESS={}".format(self.data_type.compression),
                     "-co",
@@ -113,7 +109,7 @@ class VectorLayer(Layer):
                     "-co",
                     "BLOCKYSIZE={}".format(self.grid.blockxsize),
                     # "-co", "SPARSE_OK=TRUE",
-                    self.pg_conn,
+                    self.src.pg_conn,
                     tile.uri,
                 ]
             )

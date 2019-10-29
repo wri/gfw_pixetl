@@ -4,12 +4,13 @@ import os
 import subprocess as sp
 from typing import Iterator, List, Set
 
+
 from parallelpipe import stage
 
 from gfw_tile_prep.data_type import DataType
-from gfw_tile_prep.data_type_factory import data_type_factory
 from gfw_tile_prep.grid import Grid
 from gfw_tile_prep.tile import Tile
+from gfw_tile_prep.source import Source
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +20,12 @@ class Layer(object):
         self,
         name: str,
         version: str,
-        value: str,
-        src_type: str,
-        src_path: str,
+        field: str,
         grid: Grid,
-        data_type: str,
-        no_data: int,
-        nbits: int,
+        data_type: DataType,
+        src: Source,
     ):
-        base_name = "gfw-data-lake/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{version}".format(
+        base_name = "gfw-data-lake/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{field}".format(
             name=name,
             version=version,
             srs_authority=grid.srs.to_authority()[0].lower(),
@@ -35,24 +33,21 @@ class Layer(object):
             width=grid.width,
             height=grid.height,
             resolution=grid.xres,
-            value=value,
+            field=field,
         )
         self.name = name
         self.version = version
-        self.data_type: DataType = data_type_factory(
-            data_type, no_data=no_data, nbits=nbits
-        )
+        self.data_type: DataType = data_type
         self.grid = grid
-        self.src_type = src_type
-        self.src_path = src_path
-        self.s3_path = base_name + "/{tile_id}.tif"
+        self.uri = base_name + "/{tile_id}.tif"
+        self.src = src
 
     def get_grid_tiles(self) -> Set[Tile]:
         tiles = set()
         with open(os.path.join(os.path.dirname(__file__), "csv/tiles.csv")) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=",")
             for row in csv_reader:
-                tiles.add(Tile(row[2], row[5], self))
+                tiles.add(Tile(row[2], row[5], self.grid, self.src, self.uri))
         return tiles
 
     @staticmethod
@@ -82,7 +77,7 @@ class Layer(object):
                 logger.info("Upload to " + s3_path)
                 sp.check_call(cmd)
             except sp.CalledProcessError as e:
-                logger.warning("Could not upload file " + tile)
+                logger.warning("Could not upload file " + tile.uri)
                 logger.warning(e)
             else:
                 yield tile

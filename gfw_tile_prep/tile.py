@@ -7,9 +7,7 @@ import psycopg2
 import rasterio
 from shapely.geometry import Point
 
-from gfw_tile_prep.layer import Layer
-from gfw_tile_prep.raster_layer import RasterLayer
-from gfw_tile_prep.vector_layer import VectorLayer
+from gfw_tile_prep.grid import Grid
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +17,23 @@ class Tile(object):
     A tile object which represents a single tile within a given grid
     """
 
-    def __init__(self, minx: int, maxy: int, layer: Layer) -> None:
+    def __init__(self, minx: int, maxy: int, grid: Grid, src, uri) -> None:
         self.minx: int = minx
-        self.maxx: int = minx + layer.grid.width
+        self.maxx: int = minx + grid.width
         self.maxy: int = maxy
-        self.miny: int = maxy - layer.grid.height
-        self.tile_id: str = layer.grid.pointGridId(Point(minx, maxy))
-        self.layer: Layer = layer
-        if layer.src_type == "tiled":
-            self.src_uri: str = "/vsis3/" + layer.src_path.format(self.tile_id)
-        else:
-            self.src_uri: str = "/vsis3/" + layer.src_path
-        self.uri: str = layer.s3_path.format(tile_id=self.tile_id)
+        self.miny: int = maxy - grid.height
+        self.tile_id: str = grid.pointGridId(Point(minx, maxy))
+        self.src = src
+        self.grid = grid
+
+        # self.layer: Layer = layer
+        if src.format == "raster":
+            if src.type == "tiled":
+                self.src_uri: str = "/vsis3/" + src.uri.format(self.tile_id)
+            else:
+                self.src_uri: str = "/vsis3/" + src.uri
+
+        self.uri: str = uri.format(tile_id=self.tile_id)
 
     def uri_exists(self) -> bool:
         if not self.uri:
@@ -38,7 +41,7 @@ class Tile(object):
         return self._tile_exists("/vsis3/" + self.uri)
 
     def src_tile_exists(self) -> bool:
-        if not isinstance(self.layer, RasterLayer):
+        if self.src.format != "raster":
             raise Exception("Must be Raster Layer")
 
         if not self.src_uri:
@@ -46,7 +49,7 @@ class Tile(object):
         return self._tile_exists(self.src_uri)
 
     def src_tile_intersects(self) -> bool:
-        if not isinstance(self.layer, RasterLayer):
+        if self.src.format != "raster":
             raise Exception("Must be Raster Layer")
 
         if not self.uri or not self.src_uri:
@@ -70,22 +73,19 @@ class Tile(object):
         return intersects
 
     def src_vector_intersects(self) -> bool:
-        if not isinstance(self.layer, VectorLayer):
+        if self.src.format != "vector":
             raise Exception("Must be Vector Layer")
 
         conn = psycopg2.connect(
-            dbname=self.layer.db_name,
-            user=self.layer.db_user,
-            password=self.layer.db_password,
-            host=self.layer.db_host,
-            port=self.layer.db_port,
+            dbname=self.src.conn.db_name,
+            user=self.src.db_user,
+            password=self.src.db_password,
+            host=self.src.db_host,
+            port=self.src.db_port,
         )
         cursor = conn.cursor()
-        exists_query = "select exists (select 1 from {name}_{version} where tile_id__{grid} = {tile_id})".format(
-            name=self.layer.name,
-            version=self.layer.version,
-            grid=self.layer.grid.name,
-            tile_id=self.tile_id,
+        exists_query = "select exists (select 1 from {name_name} where tile_id__{grid} = {tile_id})".format(
+            name=self.src.table_name, grid=self.grid.name, tile_id=self.tile_id
         )
         cursor.execute(exists_query)
         exists = cursor.fetchone()[0]
@@ -96,8 +96,8 @@ class Tile(object):
 
     def is_empty(self) -> bool:
 
-        with rasterio.open(self.uri) as src:
-            msk = src.read_masks(1).astype(bool)
+        with rasterio.open(self.uri) as img:
+            msk = img.read_masks(1).astype(bool)
         if msk[msk].size == 0:
             return True
         else:

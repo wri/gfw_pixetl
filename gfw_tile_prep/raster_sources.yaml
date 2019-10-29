@@ -9,7 +9,7 @@ aboveground_carbon_stock_2000:
         field: Mg
         src_uri: gfw-files/2018_update/agc_2000/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 
 aboveground_carbon_stock_in_emissions_year:
@@ -17,21 +17,21 @@ aboveground_carbon_stock_in_emissions_year:
         field: Mg
         src_uri: gfw-files/2018_update/agc_emis_year/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 belowground_carbon_stock_2000:
     -
         field: Mg
         src_uri: gfw-files/2018_update/bgc_2000/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 belowground_carbon_stock_in_emissions_year:
     -
         field: Mg
         src_uri: gfw-files/2018_update/bgc_emis_year/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 
 biodiversity_intactness:
@@ -39,28 +39,28 @@ biodiversity_intactness:
         field: index
         src_uri: gfw-files/2018_update/biodiversity_intactness/{tile_id}.tif
         data_type: Float64
-        nodata: 0
+        no_data: 0
 
 biodiversity_significance:
     -
         field: index
         src_uri: gfw-files/2018_update/biodiversity_significance/{tile_id}.tif
         data_type: Float64
-        nodata: 0
+        no_data: 0
 
 deadwood_carbon_stock_2000:
     -
         field: Mg
         src_uri: gfw-files/2018_update/deadwood_carbon_2000/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 deadwood_carbon_stock_in_emissions_year:
     -
         field: Mg
         src_uri: gfw-files/2018_update/deadwood_carbon_emis_year/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 erosion_risk:
     -
@@ -77,35 +77,31 @@ global_landcover_2000: #TODO verify year
 
 gross_annual_removals_biomass:
     -
-        field:
+        field: Mg
         src_uri: gfw-files/2018_update/gross_annual_removals_biomass/standard/{tile_id}.tif
         data_type: float32
-        nodata: 0
+        no_data: 0
 
 gross_cumul_removals_co2:
     -
-        field:
+        field: Mg
         src_uri: gfw-files/2018_update/gross_cumul_removals_co2/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
-
-gross_emissions_co2e_all_gases__Mg:
-    -
-        field: Mg # No longer pre-processed because it is the sum of CO2 only and non-CO2 layers. Delete.
+        no_data: 0
 
 gross_emissions_co2e_co2_only:
     -
         field: Mg
         src_uri: gfw-files/2018_update/gross_emissions_co2_only_co2e/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 gross_emissions_co2e_non_co2:
     -
         field: Mg
         src_uri: gfw-files/2018_update/gross_emissions_non_co2_co2e/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 idn_primary_forest:
     -
@@ -124,29 +120,28 @@ litter_carbon_stock_2000:
         field: Mg
         src_uri: gfw-files/2018_update/litter_carbon_2000/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
-
+        no_data: 0
 
 litter_carbon_stock_in_emissions_year:
     -
         field: Mg
         src_uri: gfw-files/2018_update/litter_carbon_emis_year/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 mangrove_aboveground_biomass_stock_2000:
     -
         field: Mg_ha-1
         src_uri: gfw-files/2018_update/mangrove_biomass/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 net_flux_co2_2001-2015:
     -
         field: Mg
         src_uri: gfw-files/2018_update/net_flux_co2e/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 peatlands_flux:
     -
@@ -171,14 +166,14 @@ soil_carbon_stock_in_emissions_year:
         field: Mg
         src_uri: gfw-files/2018_update/soil_carbon_emis_year/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 soil_carbon_stock_2000:
     -
         field: Mg
         src_uri: gfw-files/2018_update/soil_carbon_2000/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 tcs_drivers_2000-2015:
     -
@@ -193,15 +188,14 @@ total_carbon_stock_2000:
         field: Mg
         src_uri: gfw-files/2018_update/total_carbon_2000/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
+        no_data: 0
 
 total_carbon_stock_in_emissions_year:
     -
         field: Mg
         src_uri: gfw-files/2018_update/total_carbon_emis_year/standard/{tile_id}.tif
         data_type: Float32
-        nodata: 0
-
+        no_data: 0
 
 treecover_loss:
     -
