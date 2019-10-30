@@ -1,6 +1,9 @@
 from typing import Optional
 
+from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.data_type import DataType
+
+logger = get_module_logger(__name__)
 
 
 def data_type_factory(

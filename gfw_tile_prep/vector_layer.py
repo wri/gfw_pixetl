@@ -2,15 +2,16 @@ import logging
 import subprocess as sp
 from typing import Iterator, List
 
-from parallelpipe import stage
+from parallelpipe import Stage
 
+from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.data_type import DataType
 from gfw_tile_prep.grid import Grid
 from gfw_tile_prep.layer import Layer
 from gfw_tile_prep.tile import Tile
 from gfw_tile_prep.source import VectorSource
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
 class VectorLayer(Layer):
@@ -26,38 +27,42 @@ class VectorLayer(Layer):
         data_type: DataType,
         order: str = "asc",
         rasterize_method: str = "value",
+        env: str = "dev",
     ):
-
+        logger.debug("Initializing Vector layer")
         self.field: str = field
         self.order: str = order
         self.rasterize_method = rasterize_method
         self.src = VectorSource("{}_{}".format(name, version))
 
-        super().__init__(name, version, field, grid, data_type, self.src)
+        super().__init__(name, version, field, grid, data_type, self.src, env)
+        logger.debug("Initialized Vector layer")
 
     def create_tiles(self, overwrite=True) -> None:
 
+        logging.debug("Start Vector Pipe")
+
         pipe = (
             self.get_grid_tiles()
-            | self.filter_src_tiles()
-            | self.filter_target_tiles(overwrite)
-            | self.rasterize()
-            | self.delete_if_empty()
-            | self.upload_file()
-            | self.delete_file()
+            | Stage(self.filter_src_tiles)
+            | Stage(self.filter_target_tiles, overwrite=overwrite)
+            | Stage(self.rasterize)
+            | Stage(self.delete_if_empty)
+            | Stage(self.upload_file)
+            | Stage(self.delete_file)
         )
 
         for output in pipe.results():
             pass
 
+        logger.debug("Start Finished Pipe")
+
     @staticmethod
-    @stage
     def filter_src_tiles(tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             if tile.src_vector_intersects():
                 yield tile
 
-    @stage
     def rasterize(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
 
         if self.rasterize_method == "count":

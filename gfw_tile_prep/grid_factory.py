@@ -1,4 +1,10 @@
+import logging
+
+from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.grid import Grid
+
+
+logger = get_module_logger(__name__)
 
 
 def grid_factory(grid_name) -> Grid:
@@ -21,3 +27,8 @@ def grid_factory(grid_name) -> Grid:
     # MODIS Fire alerts
     elif grid_name == "epsg_4326_90x90" or grid_name == "90x90":
         return Grid("epsg:4326", 90, 10000, 500)
+
+    else:
+        message = "Unknown grid name: {}".format(grid_name)
+        logger.exception(message)
+        raise ValueError(message)

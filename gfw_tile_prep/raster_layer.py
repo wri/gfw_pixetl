@@ -2,15 +2,16 @@ import logging
 import subprocess as sp
 from typing import Iterator, List
 
-from parallelpipe import stage
+from parallelpipe import Stage
 
+from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.data_type import DataType
 from gfw_tile_prep.grid import Grid
 from gfw_tile_prep.tile import Tile
 from gfw_tile_prep.layer import Layer
 from gfw_tile_prep.source import RasterSource
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
 class RasterLayer(Layer):
@@ -26,8 +27,9 @@ class RasterLayer(Layer):
         src_path: str,
         resampling: str = "nearest",
         single_tile: bool = False,
+        env: str = "dev",
     ):
-
+        logger.debug("Initializing Raster layer")
         self.resampling = resampling
 
         if single_tile:
@@ -36,24 +38,28 @@ class RasterLayer(Layer):
             src_type = "tiled"
         self.src = RasterSource(src_path, src_type)
 
-        super().__init__(name, version, field, grid, data_type, self.src)
+        super().__init__(name, version, field, grid, data_type, self.src, env)
+        logger.debug("Initialized Raster layer")
 
     def create_tiles(self, overwrite=True) -> None:
 
+        logger.debug("Start Raster Pipe")
+
         pipe = (
             self.get_grid_tiles()
-            | self.filter_src_tiles()
-            | self.filter_target_tiles(overwrite)
-            | self.translate()
-            | self.delete_if_empty()
-            | self.upload_file()
-            | self.delete_file()
+            | Stage(self.filter_src_tiles)
+            | Stage(self.filter_target_tiles, overwrite=overwrite)
+            | Stage(self.translate)
+            | Stage(self.delete_if_empty)
+            | Stage(self.upload_file)
+            | Stage(self.delete_file)
         )
 
         for output in pipe.results():
             pass
 
-    @stage
+        logger.debug("Finished Raster Pipe")
+
     def filter_src_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             if self.src.type == "tiled" and tile.src_tile_exists():
@@ -61,7 +67,6 @@ class RasterLayer(Layer):
             elif self.src.type == "single_tile" and tile.src_tile_intersects():
                 yield tile
 
-    @stage
     def translate(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
 
         if self.data_type.no_data:

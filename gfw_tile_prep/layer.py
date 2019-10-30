@@ -1,21 +1,22 @@
 import csv
 import logging
+import multiprocessing
 import os
 import subprocess as sp
 from typing import Iterator, List, Set
 
-
-from parallelpipe import stage
-
+from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.data_type import DataType
 from gfw_tile_prep.grid import Grid
 from gfw_tile_prep.tile import Tile
-from gfw_tile_prep.source import Source
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
 class Layer(object):
+
+    workers = multiprocessing.cpu_count()
+
     def __init__(
         self,
         name: str,
@@ -23,9 +24,17 @@ class Layer(object):
         field: str,
         grid: Grid,
         data_type: DataType,
-        src: Source,
+        src,
+        env: str,
     ):
-        base_name = "gfw-data-lake/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{field}".format(
+
+        if env == "dev":
+            bucket = "gfw-data-lake-dev"
+        else:
+            bucket = "gfw-data-lake"
+
+        base_name = "{bucket}/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{field}".format(
+            bucket=bucket,
             name=name,
             version=version,
             srs_authority=grid.srs.to_authority()[0].lower(),
@@ -42,6 +51,9 @@ class Layer(object):
         self.uri = base_name + "/{tile_id}.tif"
         self.src = src
 
+    def create_tiles(self, overwrite=True) -> None:
+        raise NotImplementedError()
+
     def get_grid_tiles(self) -> Set[Tile]:
         tiles = set()
         with open(
@@ -49,11 +61,10 @@ class Layer(object):
         ) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=",")
             for row in csv_reader:
-                tiles.add(Tile(row[2], row[5], self.grid, self.src, self.uri))
+                tiles.add(Tile(int(row[2]), int(row[5]), self.grid, self.src, self.uri))
         return tiles
 
     @staticmethod
-    @stage
     def filter_target_tiles(
         tiles: Iterator[Tile], overwrite: bool = True
     ) -> Iterator[Tile]:
@@ -61,7 +72,6 @@ class Layer(object):
             if tile.uri_exists() and overwrite:
                 yield tile
 
-    @stage
     def delete_if_empty(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             if tile.is_empty():
@@ -69,7 +79,6 @@ class Layer(object):
             else:
                 yield tile
 
-    @stage
     def upload_file(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
 
         for tile in tiles:
@@ -85,7 +94,6 @@ class Layer(object):
                 yield tile
 
     @staticmethod
-    @stage
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
             try:

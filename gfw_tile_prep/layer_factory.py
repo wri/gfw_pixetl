@@ -4,13 +4,14 @@ from typing import Any, Dict
 
 import yaml
 
+from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.data_type_factory import data_type_factory
 from gfw_tile_prep.layer import Layer
 from gfw_tile_prep.vector_layer import VectorLayer
 from gfw_tile_prep.raster_layer import RasterLayer
 
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
 def layer_factory(layer_type, **kwargs) -> Layer:

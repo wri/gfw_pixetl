@@ -5,7 +5,10 @@ from typing import Optional
 from pyproj import CRS
 from shapely.geometry import Point
 
-logger = logging.getLogger(__name__)
+from gfw_tile_prep import get_module_logger
+
+
+logger = get_module_logger(__name__)
 
 
 class Grid(object):

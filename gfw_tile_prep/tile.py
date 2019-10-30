@@ -7,9 +7,11 @@ import psycopg2
 import rasterio
 from shapely.geometry import Point
 
+from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.grid import Grid
 
-logger = logging.getLogger(__name__)
+
+logger = get_module_logger(__name__)
 
 
 class Tile(object):
@@ -17,14 +19,21 @@ class Tile(object):
     A tile object which represents a single tile within a given grid
     """
 
-    def __init__(self, minx: int, maxy: int, grid: Grid, src, uri) -> None:
+    def __init__(
+        self,
+        minx: int,
+        maxy: int,
+        grid: Grid,
+        src,
+        uri: str,  # TODO figure out how to provide type hints for src
+    ) -> None:
         self.minx: int = minx
         self.maxx: int = minx + grid.width
         self.maxy: int = maxy
         self.miny: int = maxy - grid.height
         self.tile_id: str = grid.pointGridId(Point(minx, maxy))
-        self.src = src
         self.grid = grid
+        self.src = src
 
         # self.layer: Layer = layer
         if src.format == "raster":
@@ -74,23 +83,32 @@ class Tile(object):
 
     def src_vector_intersects(self) -> bool:
         if self.src.format != "vector":
-            raise Exception("Must be Vector Layer")
+            message = "Must be Vector Layer"
+            logger.exception(message)
+            raise Exception(message)
 
-        conn = psycopg2.connect(
-            dbname=self.src.conn.db_name,
-            user=self.src.db_user,
-            password=self.src.db_password,
-            host=self.src.db_host,
-            port=self.src.db_port,
-        )
-        cursor = conn.cursor()
-        exists_query = "select exists (select 1 from {name_name} where tile_id__{grid} = {tile_id})".format(
-            name=self.src.table_name, grid=self.grid.name, tile_id=self.tile_id
-        )
-        cursor.execute(exists_query)
-        exists = cursor.fetchone()[0]
-        cursor.close()
-        conn.close()
+        try:
+            conn = psycopg2.connect(
+                dbname=self.src.conn.db_name,
+                user=self.src.conn.db_user,
+                password=self.src.conn.db_password,
+                host=self.src.conn.db_host,
+                port=self.src.conn.db_port,
+            )
+            cursor = conn.cursor()
+            exists_query = "select exists (select 1 from {name} where tile_id__{grid} = '{tile_id}')".format(
+                name=self.src.table_name, grid=self.grid.name, tile_id=self.tile_id
+            )
+            cursor.execute(exists_query)
+            exists = cursor.fetchone()[0]
+            cursor.close()
+            conn.close()
+        except psycopg2.Error as e:
+            logger.exception(
+                "There was an issue when trying to connect to the database"
+            )
+            raise e
+
         logger.info(self.tile_id, exists)
         return exists
 

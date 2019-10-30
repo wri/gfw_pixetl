@@ -1,5 +1,9 @@
 from typing import Optional
 
+from gfw_tile_prep import get_module_logger
+
+logger = get_module_logger(__name__)
+
 
 class DataType(object):
     def __init__(
