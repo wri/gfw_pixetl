@@ -19,8 +19,8 @@ logger = get_module_logger(__name__)
 @click.option("--field", default=None)
 @click.option("--grid_name", default="10x10")
 @click.option("--env", default="dev")
-@click.option("--overwrite", is_flag=True)
-@click.option("--debug", is_flag=False)
+@click.option("--overwrite", is_flag=True, default=True)
+@click.option("--debug", is_flag=True, default=False)
 def cli(
     name: str,
     version: str,

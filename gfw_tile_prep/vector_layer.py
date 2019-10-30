@@ -84,7 +84,7 @@ class VectorLayer(Layer):
                 + cmd_method
                 + [
                     "-sql",
-                    "select * from {name}_{version} where tile_id__{grid} = {tile_id}".format(
+                    "select * from {name}_{version}__1_1 where tile_id__{grid} = {tile_id}".format(
                         name=self.name,
                         version=self.version,
                         grid=self.grid.name,

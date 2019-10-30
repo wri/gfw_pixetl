@@ -1,4 +1,3 @@
-import logging
 import subprocess as sp
 import xml.etree.ElementTree as ET
 from typing import List
@@ -67,6 +66,7 @@ class Tile(object):
         intersects = False
         for x in [self.minx, self.maxx]:
             for y in [self.miny, self.maxy]:
+                logger.debug("Check if tile intersects with single tile")
                 cmd: List[str] = [
                     "gdallocationinfo",
                     "-xml",
@@ -88,6 +88,7 @@ class Tile(object):
             raise Exception(message)
 
         try:
+            logger.debug("Check if tile intersects with postgis table")
             conn = psycopg2.connect(
                 dbname=self.src.conn.db_name,
                 user=self.src.conn.db_user,
@@ -96,7 +97,7 @@ class Tile(object):
                 port=self.src.conn.db_port,
             )
             cursor = conn.cursor()
-            exists_query = "select exists (select 1 from {name} where tile_id__{grid} = '{tile_id}')".format(
+            exists_query = "SELECT exists (SELECT 1 FROM {name}__1_1 WHERE tile_id__{grid} = '{tile_id}' LIMIT 1)".format(
                 name=self.src.table_name, grid=self.grid.name, tile_id=self.tile_id
             )
             cursor.execute(exists_query)
@@ -109,11 +110,23 @@ class Tile(object):
             )
             raise e
 
-        logger.info(self.tile_id, exists)
+        if exists:
+            logger.info(
+                "Tile id {} exists in database table {}".format(
+                    self.tile_id, self.src.table_name
+                )
+            )
+        else:
+            logger.info(
+                "Tile id {} does not exists in database table {}".format(
+                    self.tile_id, self.src.table_name
+                )
+            )
         return exists
 
     def is_empty(self) -> bool:
 
+        logger.debug("Check if tile is empty")
         with rasterio.open(self.uri) as img:
             msk = img.read_masks(1).astype(bool)
         if msk[msk].size == 0:
@@ -124,14 +137,15 @@ class Tile(object):
     @staticmethod
     def _tile_exists(uri: str) -> bool:
 
+        logger.debug("Check if tile {} exists".format(uri))
+
         cmd = ["gdalinfo", uri]
 
         try:
-            logging.info("Check if tile exist " + uri)
             sp.check_call(cmd)
         except sp.CalledProcessError as pe:
-            logging.warning("Could not find tile file " + uri)
-            logging.warning(pe)
+            logger.warning("Could not find tile file " + uri)
+            logger.warning(pe)
             return False
         else:
             return True

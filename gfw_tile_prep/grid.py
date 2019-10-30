@@ -52,6 +52,6 @@ class Grid(object):
         lng: str = str(col).zfill(3) + "E" if (col >= 0) else str(-col).zfill(3) + "W"
 
         row: int = math.ceil(point.y / self.height) * self.height
-        lat: str = str(row).zfill(2) + "N" if (row >= 0) else str(-row).zfill(3) + "W"
+        lat: str = str(row).zfill(2) + "N" if (row >= 0) else str(-row).zfill(2) + "S"
 
         return "{}_{}".format(lat, lng)
