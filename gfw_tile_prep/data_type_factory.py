@@ -82,4 +82,4 @@ def data_type_factory(
         )
 
     else:
-        raise Exception("Unknown data type")
+        raise Exception("Unknown data type {}".format(data_type))

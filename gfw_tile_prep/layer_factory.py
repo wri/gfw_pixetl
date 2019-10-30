@@ -26,7 +26,7 @@ def layer_factory(layer_type, **kwargs) -> Layer:
 
 def _vector_layer_factory(**kwargs) -> VectorLayer:
 
-    with open(os.path.join(_cur_dir(), "vector_sources.yaml"), "r") as stream:
+    with open(os.path.join(_cur_dir(), "fixures/vector_sources.yaml"), "r") as stream:
         sources = yaml.load(stream, Loader=yaml.BaseLoader)
     try:
         source = _get_source_by_field(sources[kwargs["name"]], kwargs["field"])
@@ -46,7 +46,7 @@ def _vector_layer_factory(**kwargs) -> VectorLayer:
 
 def _raster_layer_factory(**kwargs) -> RasterLayer:
 
-    with open(os.path.join(_cur_dir(), "raster_sources.yaml"), "r") as stream:
+    with open(os.path.join(_cur_dir(), "fixures/raster_sources.yaml"), "r") as stream:
         sources = yaml.load(stream, Loader=yaml.BaseLoader)
 
     try:

@@ -44,7 +44,9 @@ class Layer(object):
 
     def get_grid_tiles(self) -> Set[Tile]:
         tiles = set()
-        with open(os.path.join(os.path.dirname(__file__), "csv/tiles.csv")) as csv_file:
+        with open(
+            os.path.join(os.path.dirname(__file__), "fixures/tiles.csv")
+        ) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=",")
             for row in csv_reader:
                 tiles.add(Tile(row[2], row[5], self.grid, self.src, self.uri))

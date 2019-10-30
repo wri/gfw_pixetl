@@ -66,7 +66,7 @@ erosion_risk:
     -
         field: level
         src_uri: gfw-files/2018_update/erosion/{tile_id}.tif
-        data_type: Byte
+        data_type: uint
         nbits: 3
 
 global_landcover_2000: #TODO verify year

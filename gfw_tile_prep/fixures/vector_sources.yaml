@@ -128,7 +128,7 @@ mex_forest_zoning:
 
 peatlands:
     -
-        fields: is
+        field: is
         data_type: boolean
 
 per_forest_concessions:
