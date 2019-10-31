@@ -5,8 +5,8 @@ from typing import Optional
 import click
 
 from gfw_tile_prep import get_module_logger
-from gfw_tile_prep.grid_factory import grid_factory
-from gfw_tile_prep.layer_factory import layer_factory
+from gfw_tile_prep.grid import grid_factory
+from gfw_tile_prep.layer import layer_factory
 from gfw_tile_prep.logo import logo
 
 logger = get_module_logger(__name__)

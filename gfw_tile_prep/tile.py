@@ -8,6 +8,7 @@ from shapely.geometry import Point
 
 from gfw_tile_prep import get_module_logger
 from gfw_tile_prep.grid import Grid
+from gfw_tile_prep.source import VectorSource, RasterSource
 
 
 logger = get_module_logger(__name__)
@@ -23,7 +24,6 @@ class Tile(object):
         minx: int,
         maxy: int,
         grid: Grid,
-        src,
         uri: str,  # TODO figure out how to provide type hints for src
     ) -> None:
         self.minx: int = minx
@@ -32,15 +32,6 @@ class Tile(object):
         self.miny: int = maxy - grid.height
         self.tile_id: str = grid.pointGridId(Point(minx, maxy))
         self.grid = grid
-        self.src = src
-
-        # self.layer: Layer = layer
-        if src.format == "raster":
-            if src.type == "tiled":
-                self.src_uri: str = "/vsis3/" + src.uri.format(self.tile_id)
-            else:
-                self.src_uri: str = "/vsis3/" + src.uri
-
         self.uri: str = uri.format(tile_id=self.tile_id)
 
     def uri_exists(self) -> bool:
@@ -48,44 +39,42 @@ class Tile(object):
             raise Exception("Tile URI needs to be set")
         return self._tile_exists("/vsis3/" + self.uri)
 
-    def src_tile_exists(self) -> bool:
-        if self.src.format != "raster":
-            raise Exception("Must be Raster Layer")
+    def is_empty(self) -> bool:
 
-        if not self.src_uri:
-            raise Exception("Tile source URI needs to be set")
-        return self._tile_exists(self.src_uri)
+        logger.debug("Check if tile is empty")
+        with rasterio.open(self.uri) as img:
+            msk = img.read_masks(1).astype(bool)
+        if msk[msk].size == 0:
+            return True
+        else:
+            return False
 
-    def src_tile_intersects(self) -> bool:
-        if self.src.format != "raster":
-            raise Exception("Must be Raster Layer")
+    @staticmethod
+    def _tile_exists(uri: str) -> bool:
 
-        if not self.uri or not self.src_uri:
-            raise Exception("Tile URI and Tile source URI need to be set")
+        logger.debug("Check if tile {} exists".format(uri))
 
-        intersects = False
-        for x in [self.minx, self.maxx]:
-            for y in [self.miny, self.maxy]:
-                logger.debug("Check if tile intersects with single tile")
-                cmd: List[str] = [
-                    "gdallocationinfo",
-                    "-xml",
-                    "-wgs84",
-                    self.src_uri,
-                    str(x),
-                    str(y),
-                ]
-                p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-                o, e = p.communicate()
-                if p.returncode == 0 and ET.fromstring(o)[0].tag == "BandReport":
-                    intersects = True
-        return intersects
+        cmd = ["gdalinfo", uri]
+
+        try:
+            sp.check_call(cmd)
+        except sp.CalledProcessError as pe:
+            logger.warning("Could not find tile file " + uri)
+            logger.warning(pe)
+            return False
+        else:
+            return True
+
+
+class VectorSrcTile(Tile):
+    def __init__(
+        self, minx: int, maxy: int, grid: Grid, src: VectorSource, uri: str
+    ) -> None:
+
+        self.src: VectorSource = src
+        super().__init__(minx, maxy, grid, uri)
 
     def src_vector_intersects(self) -> bool:
-        if self.src.format != "vector":
-            message = "Must be Vector Layer"
-            logger.exception(message)
-            raise Exception(message)
 
         try:
             logger.debug("Check if tile intersects with postgis table")
@@ -124,28 +113,46 @@ class Tile(object):
             )
         return exists
 
-    def is_empty(self) -> bool:
 
-        logger.debug("Check if tile is empty")
-        with rasterio.open(self.uri) as img:
-            msk = img.read_masks(1).astype(bool)
-        if msk[msk].size == 0:
-            return True
+class RasterSrcTile(Tile):
+    def __init__(
+        self, minx: int, maxy: int, grid: Grid, src: RasterSource, uri: str
+    ) -> None:
+
+        self.src: RasterSource = src
+
+        if src.type == "tiled":
+            self.src_uri: str = "/vsis3/" + src.uri.format(self.tile_id)
         else:
-            return False
+            self.src_uri: str = "/vsis3/" + src.uri
 
-    @staticmethod
-    def _tile_exists(uri: str) -> bool:
+        super().__init__(minx, maxy, grid, uri)
 
-        logger.debug("Check if tile {} exists".format(uri))
+    def src_tile_exists(self) -> bool:
 
-        cmd = ["gdalinfo", uri]
+        if not self.src_uri:
+            raise Exception("Tile source URI needs to be set")
+        return self._tile_exists(self.src_uri)
 
-        try:
-            sp.check_call(cmd)
-        except sp.CalledProcessError as pe:
-            logger.warning("Could not find tile file " + uri)
-            logger.warning(pe)
-            return False
-        else:
-            return True
+    def src_tile_intersects(self) -> bool:
+
+        if not self.uri or not self.src_uri:
+            raise Exception("Tile URI and Tile source URI need to be set")
+
+        intersects = False
+        for x in [self.minx, self.maxx]:
+            for y in [self.miny, self.maxy]:
+                logger.debug("Check if tile intersects with single tile")
+                cmd: List[str] = [
+                    "gdallocationinfo",
+                    "-xml",
+                    "-wgs84",
+                    self.src_uri,
+                    str(x),
+                    str(y),
+                ]
+                p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+                o, e = p.communicate()
+                if p.returncode == 0 and ET.fromstring(o)[0].tag == "BandReport":
+                    intersects = True
+        return intersects
