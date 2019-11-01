@@ -1,47 +1,80 @@
-# GFW Tile preprocessing
+# GFW Pixel ETL
 
-Preprocess GFW tiles for SPARK pipeline.
 
-For existing rasters, make sure they are all saved as Cloud Optimized GeoTIFF (without overviews).
+Reads source files and converts data into Cloud Optimized GeoTIFF (without overviews) clipped to specified grid size.
 
-For vector layers, slice up original geometries with 10x10 degree grid and simplify to 0.0001 degree. Save as materialized view. Rasterize geometries to Cloud Optimized GeoTiff
+Upload all tiles to GFW data lake following GFW naming convention.
 
-Upload all tiles to S3.
+Raster sources: If source layer consists of multiple tiles you must provide a URI to a VRT which includes all tiles. Make sure the extent of the VRT is align with desired output grid.
+
+Vector sources: Source files must be already loaded into Postgres/ Aurora database. Geometries must be validated and clipped to your output grid. There must be a column present called tile_id__{grid} which lists in which tile given geometry falls. You must make sure that the value field you specify is a numeric field. Values will be used while rasterizing geometry.
 
 # Usage
 
-## On a spot machine
-- `git clone https://github.com/wri/gfw_tile_prep`
-- `cd gfw_tile_prep`
-- `sudo apt-get update`
-- `sudo apt-get install python3 python3-pip` (install python3 and pip3 on the spot machine)
-- `pip3 install -e .`  (installs the required packages)
-- `cd gfw_tile_prep`
-- `nano prep_tiles.py` and change the number of processes to 15 or whatever number is appropriate
+CLI
+```
+Usage: pixetl [OPTIONS] NAME
 
-To run the tile prep script:
-```bash
-prep_tiles.py [-h]
-              [--layer {loss,tcd,co2_pixel,primary_forest,ifl,gadm2,wdpa,plantations,logging,mining, etc.}]
+  NAME: Name of dataset
+
+Options:
+  -v, --version TEXT                        Version of dataset
+  -s, --source_type [raster|vector]         Type of input file(s)
+  -f, --field TEXT                          Field represented in output dataset
+  -g, --grid_name [3x3|10x10|30x30|90x90]   Grid size of output dataset
+  -e, --env [dev|prod]                      Environment
+  -o, --overwrite                           Overwrite existing tile in output location
+  -d, --debug                               Log debug messages
+  --help                                    Show this message and exit.
 ```
 
-# Add new layers or update existing once
-You can define layers in the `SRC` variable in `prep_tiles.py`.
+# Data sources
+You can define layer sources in `.yaml` files located in `fixures/` sub directory.
 
-Raster layers have the following options:
- - `type`: Must by "raster"
- - `src`: path to source file. For remote files on s3 use GDAL synax `/vsis3/...`
- - `target`: path to target location on S3. Use AWS syntax `S3://...`,
- - `data_type`: GDAL pixel type `Byte`, `UInt16`, ...
- -  `nodata`: No data value for output file
+Layer sources definition follow this pattern
+
+```yaml
+wdpa_protected_areas:           # Layer name
+    -                           # Default source description
+        field: iucn_cat  
+        order: desc  
+        data_type: uint  
+        nbits: 2  
+     -                          # Optional alternative source description
+        field: is
+        ...
+
+```
+
+Supported Options:
+
+Raster Sources:
+
+| Option | Mandatory | Description |
+|--------|-----------|-------------|
+|field| yes | Field/ Value represented by pixel |
+| src_uri | yes | URI of source file on S3 |
+| data_type | yes | data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
+| no_data | no | No data value |
+| nbits | no | Max number of bits used for given datatype |
+| resampling | no | resampling method (nearest, mod, avg, etc) |
+| single_tile | no | source file is single file |
 
 
-Vector layers have the following options:
- - `type`: Must by "vector"
- - `src`: path to source file. For remote files on s3 use GDAL synax `/vsis3/...`
- - `target`: path to target location on S3. Use AWS syntax `S3://...`,
- - `data_type`: GDAL pixel type `Byte`, `UInt16`, ...
- -  `nodata`: No data value for output file
- - `oid`: ID field which should be used for output raster. Use `None` if you want to create a binary raster.
+Vector Sources
+
+| Option | Mandatory | Description |
+|--------|-----------|-------------|
+| field| yes | Field in source table used for pixel value |
+| data_type | yes | data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
+| no_data | no | No data value |
+| nbits | no | Max number of bits used for given datatype |
+| order | no | how to order field values of source table (asc, desc) |
+| rasterize_method | no | how to rasterize tile (value/ count). `Value` uses value from table, `count` counts number of features intersecting with pixel |
 
 
+# Extending ETL
+
+Don't find the ETL you are looking for?
+
+Create a subclass of Layer and write your own ETL.

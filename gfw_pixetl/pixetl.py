@@ -19,7 +19,7 @@ logger = get_module_logger(__name__)
     "-s",
     "--source_type",
     type=click.Choice(["raster", "vector"]),
-    help="type of input file(s)",
+    help="Type of input file(s)",
 )
 @click.option(
     "-f", "--field", type=str, default=None, help="Field represented in output dataset"

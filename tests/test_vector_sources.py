@@ -2,8 +2,7 @@ import os
 
 import yaml
 
-from gfw_pixetl.data_type import DataType
-from gfw_pixetl.data_type_factory import data_type_factory
+from gfw_pixetl.data_type import DataType, data_type_factory
 
 
 FIXURES = os.path.join(
