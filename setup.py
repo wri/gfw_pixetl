@@ -19,5 +19,6 @@ setup(
     ],
     entry_points="""
             [console_scripts]
-            pixelator=yourscript:cli""",
+            pixetl=gfw_pixetl.pixetl:cli
+            """,
 )

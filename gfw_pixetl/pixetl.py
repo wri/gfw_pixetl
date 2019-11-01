@@ -13,14 +13,35 @@ logger = get_module_logger(__name__)
 
 
 @click.command()
-@click.option("--name")
-@click.option("--version")
-@click.option("--source_type")
-@click.option("--field", default=None)
-@click.option("--grid_name", default="10x10")
-@click.option("--env", default="dev")
-@click.option("--overwrite", is_flag=True, default=False)
-@click.option("--debug", is_flag=True, default=False)
+@click.argument("name", type=str)
+@click.option("-v", "--version", type=str, help="Version of dataset")
+@click.option(
+    "-s",
+    "--source_type",
+    type=click.Choice(["raster", "vector"]),
+    help="type of input file(s)",
+)
+@click.option(
+    "-f", "--field", type=str, default=None, help="Field represented in output dataset"
+)
+@click.option(
+    "-g",
+    "--grid_name",
+    type=click.Choice(["3x3", "10x10", "30x30", "90x90"]),
+    default="10x10",
+    help="Grid size of output dataset",
+)
+@click.option(
+    "-e", "--env", type=click.Choice(["dev", "prod"]), default="dev", help="Environment"
+)
+@click.option(
+    "-o",
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing tile in output location",
+)
+@click.option("-d", "--debug", is_flag=True, default=False, help="Log debug messages")
 def cli(
     name: str,
     version: str,
@@ -31,11 +52,12 @@ def cli(
     overwrite: bool,
     debug: bool,
 ) -> None:
+    """NAME: Name of dataset"""
 
     if debug:
         logger.setLevel(logging.DEBUG)
 
-    print(logo)
+    click.echo(logo)
 
     logger.info(
         "Start tile prepartion for Layer {name}, Version {version}, grid {grid_name}, source type {source_type}, field {field} with overwrite set to {overwrite}".format(
@@ -71,6 +93,12 @@ def _verify_version_pattern(version: str) -> None:
     - v20191001
     - v1.1.2
     """
+
+    if not version:
+        message = "No version number provided"
+        logger.error(message)
+        raise ValueError(message)
+
     p = re.compile(r"^v\d{,8}\.?\d{,3}\.?\d{,3}$")
     m = p.match(version)
     if not m:

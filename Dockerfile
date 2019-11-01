@@ -25,4 +25,4 @@ COPY gfw_pixetl gfw_tile_prep/
 
 RUN pip3 install -e .
 
-CMD []
+ENTRYPOINT []
