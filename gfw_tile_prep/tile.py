@@ -86,7 +86,7 @@ class VectorSrcTile(Tile):
                 port=self.src.conn.db_port,
             )
             cursor = conn.cursor()
-            exists_query = "SELECT exists (SELECT 1 FROM {name}__1_1 WHERE tile_id__{grid} = '{tile_id}' LIMIT 1)".format(
+            exists_query = "SELECT exists (SELECT 1 FROM {name}__{grid} WHERE tile_id__{grid} = '{tile_id}' LIMIT 1)".format(
                 name=self.src.table_name, grid=self.grid.name, tile_id=self.tile_id
             )
             cursor.execute(exists_query)

@@ -35,7 +35,7 @@ class Layer(object):
         else:
             bucket = "gfw-data-lake"
 
-        base_name = "{bucket}/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{field}".format(
+        self.base_name = "{bucket}/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{field}".format(
             bucket=bucket,
             name=name,
             version=version,
@@ -46,11 +46,13 @@ class Layer(object):
             resolution=grid.xres,
             field=field,
         )
+        if not os.path.exists(self.base_name):
+            os.makedirs(self.base_name)
         self.name = name
         self.version = version
         self.data_type: DataType = data_type
         self.grid = grid
-        self.uri = base_name + "/{tile_id}.tif"
+        self.uri = self.base_name + "/{tile_id}.tif"
 
     def create_tiles(self, overwrite=True) -> None:
         raise NotImplementedError()
@@ -60,8 +62,8 @@ class Layer(object):
         tiles: Iterator[Tile], overwrite: bool = True
     ) -> Iterator[Tile]:
         for tile in tiles:
-            if overwrite:
-                if tile.uri_exists():
+            if not overwrite:
+                if not tile.uri_exists():
                     yield tile
             else:
                 yield tile
@@ -131,12 +133,14 @@ class VectorLayer(Layer):
 
         pipe = (
             self.get_grid_tiles()
-            | Stage(self.filter_src_tiles, workers=self.workers)
-            | Stage(self.filter_target_tiles, overwrite=overwrite, workers=self.workers)
-            | Stage(self.rasterize, workers=self.workers, qsize=self.workers)
-            | Stage(self.delete_if_empty, workers=self.workers)
-            | Stage(self.upload_file, workers=self.workers)
-            | Stage(self.delete_file, workers=self.workers)
+            | Stage(self.filter_src_tiles).setup(workers=self.workers)
+            | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
+                workers=self.workers
+            )
+            | Stage(self.rasterize).setup(workers=self.workers, qsize=self.workers)
+            | Stage(self.delete_if_empty).setup(workers=self.workers)
+            | Stage(self.upload_file).setup(workers=self.workers)
+            | Stage(self.delete_file).setup(workers=self.workers)
         )
 
         for output in pipe.results():
@@ -185,7 +189,7 @@ class VectorLayer(Layer):
                 + cmd_method
                 + [
                     "-sql",
-                    "select * from {name}_{version}__1_1 where tile_id__{grid} = {tile_id}".format(
+                    "select * from {name}_{version}__{grid} where tile_id__{grid} = '{tile_id}'".format(
                         name=self.name,
                         version=self.version,
                         grid=self.grid.name,
@@ -262,12 +266,14 @@ class RasterLayer(Layer):
 
         pipe = (
             self.get_grid_tiles()
-            | Stage(self.filter_src_tiles, workers=self.workers)
-            | Stage(self.filter_target_tiles, overwrite=overwrite, workers=self.workers)
-            | Stage(self.translate, workers=self.workers, qsize=self.workers)
-            | Stage(self.delete_if_empty, workers=self.workers)
-            | Stage(self.upload_file, workers=self.workers)
-            | Stage(self.delete_file, workers=self.workers)
+            | Stage(self.filter_src_tiles).setup(workers=self.workers)
+            | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
+                workers=self.workers
+            )
+            | Stage(self.translate).setup(workers=self.workers, qsize=self.workers)
+            | Stage(self.delete_if_empty).setup(workers=self.workers)
+            | Stage(self.upload_file).setup(workers=self.workers)
+            | Stage(self.delete_file).setup(workers=self.workers)
         )
 
         for output in pipe.results():
