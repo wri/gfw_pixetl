@@ -7,11 +7,11 @@ from typing import Any, Dict, Iterator, List, Set
 import yaml
 from parallelpipe import Stage
 
-from gfw_tile_prep import get_module_logger
-from gfw_tile_prep.data_type import DataType, data_type_factory
-from gfw_tile_prep.grid import Grid
-from gfw_tile_prep.tile import Tile, VectorSrcTile, RasterSrcTile
-from gfw_tile_prep.source import VectorSource, RasterSource
+from gfw_pixetl import get_module_logger
+from gfw_pixetl.data_type import DataType, data_type_factory
+from gfw_pixetl.grid import Grid
+from gfw_pixetl.tile import Tile, VectorSrcTile, RasterSrcTile
+from gfw_pixetl.source import VectorSource, RasterSource
 
 logger = get_module_logger(__name__)
 

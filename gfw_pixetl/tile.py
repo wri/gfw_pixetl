@@ -6,9 +6,9 @@ import psycopg2
 import rasterio
 from shapely.geometry import Point
 
-from gfw_tile_prep import get_module_logger
-from gfw_tile_prep.grid import Grid
-from gfw_tile_prep.source import VectorSource, RasterSource
+from gfw_pixetl import get_module_logger
+from gfw_pixetl.grid import Grid
+from gfw_pixetl.source import VectorSource, RasterSource
 
 
 logger = get_module_logger(__name__)

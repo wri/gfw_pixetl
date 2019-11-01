@@ -1,4 +1,4 @@
-from gfw_tile_prep import get_module_logger
+from gfw_pixetl import get_module_logger
 
 logger = get_module_logger(__name__)
 

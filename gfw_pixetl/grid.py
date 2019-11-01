@@ -4,7 +4,7 @@ from typing import Optional
 from pyproj import CRS
 from shapely.geometry import Point
 
-from gfw_tile_prep import get_module_logger
+from gfw_pixetl import get_module_logger
 
 
 logger = get_module_logger(__name__)

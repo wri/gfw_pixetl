@@ -2,14 +2,12 @@ import os
 
 import yaml
 
-from gfw_tile_prep.data_type import DataType
-from gfw_tile_prep.data_type_factory import data_type_factory
+from gfw_pixetl.data_type import DataType
+from gfw_pixetl.data_type_factory import data_type_factory
 
 
 FIXURES = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "gfw_tile_prep",
-    "fixures",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gfw_pixetl", "fixures"
 )
 
 with open(os.path.join(FIXURES, "raster_sources.yaml"), "r") as stream:
