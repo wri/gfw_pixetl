@@ -243,7 +243,7 @@ class RasterLayer(Layer):
         field: str,
         grid: Grid,
         data_type: DataType,
-        src_path: str,
+        src_uri: str,
         resampling: str = "nearest",
         single_tile: bool = False,
         env: str = "dev",
@@ -255,7 +255,7 @@ class RasterLayer(Layer):
             src_type = "single_tile"
         else:
             src_type = "tiled"
-        self.src: RasterSource = RasterSource(src_path, src_type)
+        self.src: RasterSource = RasterSource(src_uri, src_type)
 
         super().__init__(name, version, field, grid, data_type, env)
         logger.debug("Initialized Raster layer")
@@ -336,7 +336,7 @@ class RasterLayer(Layer):
                     # "-co", "SPARSE_OK=TRUE",
                     "-r",
                     self.resampling,
-                    tile.src.uri,
+                    tile.src_uri,
                     tile.uri,
                 ]
             )

@@ -31,7 +31,7 @@ Options:
 # Data sources
 You can define layer sources in `.yaml` files located in `fixures/` sub directory.
 
-Layer sources definition follow this pattern
+Layer source definitions follow this pattern
 
 ```yaml
 wdpa_protected_areas:           # Layer name

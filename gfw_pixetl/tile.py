@@ -119,14 +119,14 @@ class RasterSrcTile(Tile):
         self, minx: int, maxy: int, grid: Grid, src: RasterSource, uri: str
     ) -> None:
 
+        super().__init__(minx, maxy, grid, uri)
+
         self.src: RasterSource = src
 
-        if src.type == "tiled":
-            self.src_uri: str = "/vsis3/" + src.uri.format(self.tile_id)
-        else:
+        if src.type == "single_tile":
             self.src_uri: str = "/vsis3/" + src.uri
-
-        super().__init__(minx, maxy, grid, uri)
+        else:
+            self.src_uri: str = "/vsis3/" + src.uri.format(tile_id=self.tile_id)
 
     def src_tile_exists(self) -> bool:
 
