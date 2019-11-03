@@ -11,7 +11,6 @@ aboveground_carbon_stock_2000:
         data_type: Float32
         no_data: 0
 
-
 aboveground_carbon_stock_in_emissions_year:
     -
         field: Mg
@@ -32,7 +31,6 @@ belowground_carbon_stock_in_emissions_year:
         src_uri: gfw-files/2018_update/bgc_emis_year/standard/{tile_id}.tif
         data_type: Float32
         no_data: 0
-
 
 biodiversity_intactness:
     -
@@ -216,6 +214,12 @@ treecover_density_2000:
         src_uri: gfw-files/2018_update/tcd_2000/{tile_id}.tif
         data_type: uint
         nbits: 7
+    -
+        field: threshold
+        src_uri: gfw-files/2018_update/tcd_2000/{tile_id}.tif
+        data_type: uint
+        nbits: 3
+        calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
 
 treecover_density_2010:
     -
@@ -223,3 +227,9 @@ treecover_density_2010:
         src_uri: gfw-files/2018_update/tcd_2010/{tile_id}.tif
         data_type: uint
         nbits: 7
+    -
+        field: threshold
+        src_uri: gfw-files/2018_update/tcd_2010/{tile_id}.tif
+        data_type: uint
+        nbits: 3
+        calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)

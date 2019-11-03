@@ -121,6 +121,8 @@ class RasterSrcTile(Tile):
 
         super().__init__(minx, maxy, grid, uri)
 
+        self.calc_uri: str = uri.format(tile_id=self.tile_id + "__calc")
+
         self.src: RasterSource = src
 
         if src.type == "single_tile":

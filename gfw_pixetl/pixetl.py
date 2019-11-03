@@ -18,7 +18,7 @@ logger = get_module_logger(__name__)
 @click.option(
     "-s",
     "--source_type",
-    type=click.Choice(["raster", "vector"]),
+    type=click.Choice(["raster", "vector", "tcd_raster"]),
     help="Type of input file(s)",
 )
 @click.option(

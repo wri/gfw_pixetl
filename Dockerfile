@@ -15,14 +15,17 @@ RUN dnf install -y \
     python3 \
     python3-devel \
     gdal \
+    gdal-python-tools \
     && dnf clean all
+
+RUN pip3 install psycopg2~=2.8.4
 
 COPY . app/
 WORKDIR app
 
 COPY setup.py setup.py
-COPY gfw_pixetl gfw_tile_prep/
+COPY gfw_pixetl gfw_pixetl/
 
 RUN pip3 install -e .
 
-ENTRYPOINT []
+ENTRYPOINT ["pixetl"]

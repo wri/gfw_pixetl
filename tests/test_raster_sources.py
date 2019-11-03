@@ -13,7 +13,7 @@ with open(os.path.join(FIXURES, "raster_sources.yaml"), "r") as stream:
     SOURCES = yaml.load(stream, Loader=yaml.BaseLoader)
 
 MANDATORY = ["field", "src_uri", "data_type"]
-OPTIONAL = ["no_data", "nbits", "resampling", "single_tile"]
+OPTIONAL = ["no_data", "nbits", "resampling", "single_tile", "calc"]
 
 
 def test_mandatory_fields():

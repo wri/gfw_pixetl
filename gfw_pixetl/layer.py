@@ -104,9 +104,6 @@ class Layer(object):
 
 
 class VectorLayer(Layer):
-
-    type = "vector"
-
     def __init__(
         self,
         name: str,
@@ -219,6 +216,7 @@ class VectorLayer(Layer):
                     "-co",
                     "BLOCKYSIZE={}".format(self.grid.blockxsize),
                     # "-co", "SPARSE_OK=TRUE",
+                    "-q",
                     self.src.conn.pg_conn,
                     tile.uri,
                 ]
@@ -234,8 +232,6 @@ class VectorLayer(Layer):
 
 
 class RasterLayer(Layer):
-    type = "raster"
-
     def __init__(
         self,
         name: str,
@@ -328,6 +324,8 @@ class RasterLayer(Layer):
                     "-co",
                     "COMPRESS={}".format(self.data_type.compression),
                     "-co",
+                    "NBITS={}".format(self.data_type.nbits),
+                    "-co",
                     "TILED=YES",
                     "-co",
                     "BLOCKXSIZE={}".format(self.grid.blockxsize),
@@ -336,6 +334,7 @@ class RasterLayer(Layer):
                     # "-co", "SPARSE_OK=TRUE",
                     "-r",
                     self.resampling,
+                    "-q",
                     tile.src_uri,
                     tile.uri,
                 ]
@@ -347,6 +346,155 @@ class RasterLayer(Layer):
             except sp.CalledProcessError as e:
                 logger.warning("Could not translate file " + tile.uri)
                 logger.warning(e)
+            else:
+                yield tile
+
+
+class CalcRasterLayer(RasterLayer):
+    def __init__(
+        self,
+        name: str,
+        version: str,
+        field: str,
+        grid: Grid,
+        data_type: DataType,
+        src_uri: str,
+        calc: str,
+        resampling: str = "nearest",
+        single_tile: bool = False,
+        env: str = "dev",
+    ):
+        logger.debug("Initializing Calc Raster layer")
+
+        self.calc = calc
+
+        super().__init__(
+            name, version, field, grid, data_type, src_uri, resampling, single_tile, env
+        )
+        logger.debug("Initialized Calc Raster layer")
+
+    def create_tiles(self, overwrite=True) -> None:
+
+        logger.debug("Start TCD Raster Pipe")
+
+        pipe = (
+            self.get_grid_tiles()
+            | Stage(self.filter_src_tiles).setup(workers=self.workers)
+            | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
+                workers=self.workers
+            )
+            | Stage(self.translate).setup(workers=self.workers, qsize=self.workers)
+            | Stage(self.calculate).setup(workers=self.workers, qsize=self.workers)
+            | Stage(self.delete_calc_file).setup(workers=self.workers)
+            | Stage(self.delete_if_empty).setup(workers=self.workers)
+            | Stage(self.upload_file).setup(workers=self.workers)
+            | Stage(self.delete_file).setup(workers=self.workers)
+        )
+
+        for output in pipe.results():
+            pass
+
+        logger.debug("Finished Raster Pipe")
+
+    def translate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+        """
+        In this version, we only create the tile using the correct extent and pixel size.
+        We do not change the data type, compression or nbits value
+        We need the keep the ordinal data type, since we still want to change the values afterwards
+        We also unset the no data value, otherwise gdal_calc in the next step will use the default no data value
+        in case one of the calculated values is equal to user submitted No Data value
+        """
+
+        for tile in tiles:
+
+            cmd: List[str] = (
+                [
+                    "gdal_translate",
+                    "-strict",
+                    "-a_nodata",
+                    "none",  # ! important
+                    "-tr",
+                    str(self.grid.xres),
+                    str(self.grid.yres),
+                    "-projwin",
+                    str(tile.minx),
+                    str(tile.maxy),
+                    str(tile.maxx),
+                    str(tile.miny),
+                    "-co",
+                    "TILED=YES",
+                    "-co",
+                    "BLOCKXSIZE={}".format(self.grid.blockxsize),
+                    "-co",
+                    "BLOCKYSIZE={}".format(self.grid.blockysize),
+                    "-r",
+                    self.resampling,
+                    "-q",
+                    tile.src_uri,
+                    tile.calc_uri,
+                ]
+            )
+
+            try:
+                logger.info("Translate tile " + tile.tile_id)
+                sp.check_call(cmd)
+            except sp.CalledProcessError as e:
+                logger.warning("Could not translate file " + tile.uri)
+                logger.warning(e)
+            else:
+                yield tile
+
+    def calculate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+
+        if self.data_type.no_data:
+            cmd_no_data: List[str] = ["--NoDataValue", str(self.data_type.no_data)]
+        else:
+            cmd_no_data = list()
+
+        for tile in tiles:
+
+            calc_uri = os.path.join(self.base_name, tile.tile_id + "__calc.tif")
+
+            cmd: List[str] = (
+                ["gdal_calc.py", "--type", self.data_type.data_type]
+                + cmd_no_data
+                + [
+                    "-A",
+                    tile.calc_uri,
+                    "--calc={}".format(self.calc),
+                    "--outfile={}".format(tile.uri),
+                    "--co",
+                    "COMPRESS={}".format(self.data_type.compression),
+                    "--co",
+                    "NBITS={}".format(self.data_type.nbits),
+                    "--co",
+                    "TILED=YES",
+                    "--co",
+                    "BLOCKXSIZE={}".format(self.grid.blockxsize),
+                    "--co",
+                    "BLOCKYSIZE={}".format(self.grid.blockysize),
+                    "--quiet",
+                ]
+            )
+
+            try:
+                logger.info("Calculate tile " + tile.tile_id)
+                sp.check_call(cmd)
+            except sp.CalledProcessError as e:
+                logger.exception("Could not calculate file " + calc_uri)
+                raise e
+            else:
+                yield tile
+
+    @staticmethod
+    def delete_calc_file(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+        for tile in tiles:
+            try:
+                logger.info("Delete file " + tile.calc_uri)
+                os.remove(tile.calc_uri)
+            except Exception as e:
+                logger.exception("Could not delete file " + tile.calc_uri)
+                raise e
             else:
                 yield tile
 
@@ -363,9 +511,27 @@ def layer_factory(layer_type, **kwargs) -> Layer:
 
 
 def _vector_layer_factory(**kwargs) -> VectorLayer:
-
     with open(os.path.join(_cur_dir(), "fixures/vector_sources.yaml"), "r") as stream:
-        sources = yaml.load(stream, Loader=yaml.BaseLoader)
+        sources: Dict[str, Any] = yaml.load(stream, Loader=yaml.BaseLoader)
+
+    kwargs = _enrich_vector_kwargs(sources, **kwargs)
+
+    return VectorLayer(**kwargs)
+
+
+def _raster_layer_factory(**kwargs) -> RasterLayer:
+    with open(os.path.join(_cur_dir(), "fixures/raster_sources.yaml"), "r") as stream:
+        sources: Dict[str, Any] = yaml.load(stream, Loader=yaml.BaseLoader)
+
+    kwargs = _enrich_raster_kwargs(sources, **kwargs)
+    if "calc" in kwargs.keys():
+        return CalcRasterLayer(**kwargs)
+    else:
+        return RasterLayer(**kwargs)
+
+
+def _enrich_vector_kwargs(sources: Dict[str, Any], **kwargs) -> Dict[str, Any]:
+
     try:
         source = _get_source_by_field(sources[kwargs["name"]], kwargs["field"])
     except KeyError:
@@ -379,13 +545,10 @@ def _vector_layer_factory(**kwargs) -> VectorLayer:
     if "rasterize_method" in source.keys():
         kwargs["rasterize_method"] = source["rasterize_method"]
 
-    return VectorLayer(**kwargs)
+    return kwargs
 
 
-def _raster_layer_factory(**kwargs) -> RasterLayer:
-
-    with open(os.path.join(_cur_dir(), "fixures/raster_sources.yaml"), "r") as stream:
-        sources = yaml.load(stream, Loader=yaml.BaseLoader)
+def _enrich_raster_kwargs(sources: Dict[str, Any], **kwargs) -> Dict[str, Any]:
 
     try:
         source = _get_source_by_field(sources[kwargs["name"]], kwargs["field"])
@@ -399,8 +562,10 @@ def _raster_layer_factory(**kwargs) -> RasterLayer:
         kwargs["single_tile"] = source["single_tile"]
     if "resampling" in source.keys():
         kwargs["resampling"] = source["resampling"]
+    if "calc" in source.keys():
+        kwargs["calc"] = source["calc"]
 
-    return RasterLayer(**kwargs)
+    return kwargs
 
 
 def _get_source_by_field(sources, field) -> Dict[str, Any]:
