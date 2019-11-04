@@ -13,7 +13,7 @@ class VectorSource(Source):
         db_port = 5432
         db_name = "gadm"
         db_user = "postgres"
-        db_password = "postgres"  # TODO: make a secret call
+        db_password = "postgres"  # pragma: allowlist secret
         pg_conn = "PG:dbname={} port={} host={} user={} password={}".format(
             db_name, db_port, db_host, db_user, db_password
         )

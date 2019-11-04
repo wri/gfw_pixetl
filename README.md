@@ -1,18 +1,20 @@
-# GFW Pixel ETL
+# GFW pixETL
 
 
 Reads source files and converts data into Cloud Optimized GeoTIFF (without overviews) clipped to specified grid size.
 
 Upload all tiles to GFW data lake following GFW naming convention.
 
-Raster sources: If source layer consists of multiple tiles you must provide a URI to a VRT which includes all tiles. Make sure the extent of the VRT is align with desired output grid.
+### Raster sources
+If source layer consists of multiple tiles you must provide a URI to a VRT which includes all tiles. Make sure the extent of the VRT is align with desired output grid.
 
-Vector sources: Source files must be already loaded into Postgres/ Aurora database. Geometries must be validated and clipped to your output grid. There must be a column present called tile_id__{grid} which lists in which tile given geometry falls. You must make sure that the value field you specify is a numeric field. Values will be used while rasterizing geometry.
+### Vector sources
+Source files must be loaded into Postgres/ Aurora database prior to running this pipeline. Geometries must be validated and clipped to your output grid. There must be a column present called tile_id__{grid} which lists in which tile given geometry falls. You must make sure that the value field you specify is a numeric field. Values will be used while rasterizing geometry.
 
 # Usage
 
-CLI
-```
+### CLI
+```bash
 Usage: pixetl [OPTIONS] NAME
 
   NAME: Name of dataset
@@ -25,7 +27,41 @@ Options:
   -e, --env [dev|prod]                      Environment
   -o, --overwrite                           Overwrite existing tile in output location
   -d, --debug                               Log debug messages
+  -w, --cwd                                 Work directory (default /tmp)
   --help                                    Show this message and exit.
+```
+
+### Docker
+Make sure you map a local directory to container's /tmp directory.
+
+Also add you aws credentials as environment variables.
+
+Use dame Options and Name as listed above
+```bash
+
+docker build . -t globalforestwatch/pixetl
+docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  
+
+```
+
+
+### AWS Batch
+
+Create a new Job Definition and add it to the pixETL Job Queue. This will make sure you will use a EC2 instance with ephemeral-storage.
+Link to globalforestwatch/pixetl docker container on Docker hub
+
+```
+PixETLDefinition:
+    Properties:
+      ContainerProperties:
+        MountPoints:
+          - ContainerPath: /tmp
+            SourceVolume: /tmp
+        Volumes:
+          - Host:
+              SourcePath: /tmp
+            Name: /tmp
+
 ```
 
 # Data sources
@@ -52,14 +88,14 @@ Raster Sources:
 
 | Option | Mandatory | Description |
 |--------|-----------|-------------|
-|field| yes | Field/ Value represented by pixel |
+| field | yes | Field/ Value represented by pixel |
 | src_uri | yes | URI of source file on S3 |
 | data_type | yes | data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
 | no_data | no | No data value |
 | nbits | no | Max number of bits used for given datatype |
 | resampling | no | resampling method (nearest, mod, avg, etc) |
 | single_tile | no | source file is single file |
-
+| calc | no | Numpy calculation to be performed on the tile. Use same syntax as for [gdal_calc](https://gdal.org/programs/gdal_calc.html) . Refer to tile as `A` |
 
 Vector Sources
 

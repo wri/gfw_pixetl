@@ -1,6 +1,7 @@
 import logging
+import os
 import re
-from typing import Optional
+from typing import List, Optional
 
 import click
 
@@ -32,6 +33,9 @@ logger = get_module_logger(__name__)
     help="Grid size of output dataset",
 )
 @click.option(
+    "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
+)
+@click.option(
     "-e", "--env", type=click.Choice(["dev", "prod"]), default="dev", help="Environment"
 )
 @click.option(
@@ -42,17 +46,25 @@ logger = get_module_logger(__name__)
     help="Overwrite existing tile in output location",
 )
 @click.option("-d", "--debug", is_flag=True, default=False, help="Log debug messages")
+@click.option("-w", "--cwd", default="/tmp", help="Work directory")
 def cli(
     name: str,
     version: str,
-    grid_name: str,
     source_type: str,
     field: Optional[str],
+    grid_name: str,
+    subset: Optional[List[str]],
     env: str,
     overwrite: bool,
     debug: bool,
+    cwd: str,
 ) -> None:
     """NAME: Name of dataset"""
+
+    # Set current work directory to /tmp. This is important when running as AWS Batch job
+    # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
+    # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
+    os.chdir(cwd)
 
     if debug:
         logger.setLevel(logging.DEBUG)
@@ -60,7 +72,7 @@ def cli(
     click.echo(logo)
 
     logger.info(
-        "Start tile prepartion for Layer {name}, Version {version}, grid {grid_name}, source type {source_type}, field {field} with overwrite set to {overwrite}".format(
+        "Start tile prepartion for Layer {name}, Version {version}, grid {grid_name}, source type {source_type}, field {field} with overwrite set to {overwrite}.".format(
             name=name,
             version=version,
             grid_name=grid_name,
@@ -70,12 +82,23 @@ def cli(
         )
     )
 
+    if subset:
+        logger.info("Running on subset: {}".format(subset))
+    else:
+        logger.info("Running on full extent")
+
     _verify_version_pattern(version)
 
     grid = grid_factory(grid_name)
 
     layer = layer_factory(
-        source_type, name=name, version=version, grid=grid, field=field, env=env
+        source_type,
+        name=name,
+        version=version,
+        grid=grid,
+        field=field,
+        env=env,
+        subset=subset,
     )
 
     layer.create_tiles(overwrite)

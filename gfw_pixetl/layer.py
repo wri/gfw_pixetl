@@ -2,7 +2,7 @@ import csv
 import multiprocessing
 import os
 import subprocess as sp
-from typing import Any, Dict, Iterator, List, Set
+from typing import Any, Dict, Iterator, List, Optional, Set
 
 import yaml
 from parallelpipe import Stage
@@ -28,6 +28,7 @@ class Layer(object):
         grid: Grid,
         data_type: DataType,
         env: str,
+        subset: Optional[List[str]] = None,
     ):
 
         if env == "dev":
@@ -48,24 +49,27 @@ class Layer(object):
         )
         if not os.path.exists(self.base_name):
             os.makedirs(self.base_name)
-        self.name = name
-        self.version = version
+        self.name: str = name
+        self.version: str = version
         self.data_type: DataType = data_type
-        self.grid = grid
-        self.uri = self.base_name + "/{tile_id}.tif"
+        self.grid: Grid = grid
+        self.uri: str = self.base_name + "/{tile_id}.tif"
+        self.subset: Optional[List[str]] = subset
 
     def create_tiles(self, overwrite=True) -> None:
         raise NotImplementedError()
+
+    def filter_subset_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
+        for tile in tiles:
+            if self.subset and tile.tile_id in self.subset:
+                yield tile
 
     @staticmethod
     def filter_target_tiles(
         tiles: Iterator[Tile], overwrite: bool = True
     ) -> Iterator[Tile]:
         for tile in tiles:
-            if not overwrite:
-                if not tile.uri_exists():
-                    yield tile
-            else:
+            if overwrite or not tile.uri_exists():
                 yield tile
 
     @staticmethod
@@ -91,16 +95,19 @@ class Layer(object):
             else:
                 yield tile
 
-    @staticmethod
-    def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
+    def delete_file(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
-            try:
-                logger.info("Delete file " + tile.uri)
-                os.remove(tile.uri)
-            except Exception as e:
-                logger.error("Could not delete file " + tile.uri)
-                logger.error(e)
-                yield tile
+            self._delete_file(tile.uri)
+            yield tile
+
+    @staticmethod
+    def _delete_file(f: str) -> None:
+        try:
+            logger.info("Delete file " + f)
+            os.remove(f)
+        except Exception as e:
+            logger.exception("Could not delete file " + f)
+            raise e
 
 
 class VectorLayer(Layer):
@@ -114,6 +121,7 @@ class VectorLayer(Layer):
         order: str = "asc",
         rasterize_method: str = "value",
         env: str = "dev",
+        subset: Optional[List[str]] = None,
     ):
         logger.debug("Initializing Vector layer")
         self.field: str = field
@@ -121,7 +129,7 @@ class VectorLayer(Layer):
         self.rasterize_method: str = rasterize_method
         self.src: VectorSource = VectorSource("{}_{}".format(name, version))
 
-        super().__init__(name, version, field, grid, data_type, env)
+        super().__init__(name, version, field, grid, data_type, env, subset)
         logger.debug("Initialized Vector layer")
 
     def create_tiles(self, overwrite=True) -> None:
@@ -130,6 +138,7 @@ class VectorLayer(Layer):
 
         pipe = (
             self.get_grid_tiles()
+            | Stage(self.filter_subset_tiles).setup(workers=self.workers)
             | Stage(self.filter_src_tiles).setup(workers=self.workers)
             | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
                 workers=self.workers
@@ -189,7 +198,7 @@ class VectorLayer(Layer):
                     "select * from {name}_{version}__{grid} where tile_id__{grid} = '{tile_id}'".format(
                         name=self.name,
                         version=self.version,
-                        grid=self.grid.name,
+                        grid=tile.grid.name,
                         tile_id=tile.tile_id,
                     ),
                     "-te",
@@ -198,8 +207,8 @@ class VectorLayer(Layer):
                     str(tile.maxx),
                     str(tile.maxy),
                     "-tr",
-                    str(self.grid.xres),
-                    str(self.grid.yres),
+                    str(tile.grid.xres),
+                    str(tile.grid.yres),
                     "-a_srs",
                     "EPSG:4326",
                     "-ot",
@@ -212,9 +221,9 @@ class VectorLayer(Layer):
                     "-co",
                     "TILED=YES",
                     "-co",
-                    "BLOCKXSIZE={}".format(self.grid.blockxsize),
+                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
                     "-co",
-                    "BLOCKYSIZE={}".format(self.grid.blockxsize),
+                    "BLOCKYSIZE={}".format(tile.grid.blockxsize),
                     # "-co", "SPARSE_OK=TRUE",
                     "-q",
                     self.src.conn.pg_conn,
@@ -243,6 +252,7 @@ class RasterLayer(Layer):
         resampling: str = "nearest",
         single_tile: bool = False,
         env: str = "dev",
+        subset: Optional[List[str]] = None,
     ):
         logger.debug("Initializing Raster layer")
         self.resampling = resampling
@@ -253,7 +263,7 @@ class RasterLayer(Layer):
             src_type = "tiled"
         self.src: RasterSource = RasterSource(src_uri, src_type)
 
-        super().__init__(name, version, field, grid, data_type, env)
+        super().__init__(name, version, field, grid, data_type, env, subset)
         logger.debug("Initialized Raster layer")
 
     def create_tiles(self, overwrite=True) -> None:
@@ -262,6 +272,7 @@ class RasterLayer(Layer):
 
         pipe = (
             self.get_grid_tiles()
+            | Stage(self.filter_subset_tiles).setup(workers=self.workers)
             | Stage(self.filter_src_tiles).setup(workers=self.workers)
             | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
                 workers=self.workers
@@ -314,8 +325,8 @@ class RasterLayer(Layer):
                 + cmd_no_data
                 + [
                     "-tr",
-                    str(self.grid.xres),
-                    str(self.grid.yres),
+                    str(tile.grid.xres),
+                    str(tile.grid.yres),
                     "-projwin",
                     str(tile.minx),
                     str(tile.maxy),
@@ -328,9 +339,9 @@ class RasterLayer(Layer):
                     "-co",
                     "TILED=YES",
                     "-co",
-                    "BLOCKXSIZE={}".format(self.grid.blockxsize),
+                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
                     "-co",
-                    "BLOCKYSIZE={}".format(self.grid.blockysize),
+                    "BLOCKYSIZE={}".format(tile.grid.blockysize),
                     # "-co", "SPARSE_OK=TRUE",
                     "-r",
                     self.resampling,
@@ -363,13 +374,23 @@ class CalcRasterLayer(RasterLayer):
         resampling: str = "nearest",
         single_tile: bool = False,
         env: str = "dev",
+        subset: Optional[List[str]] = None,
     ):
         logger.debug("Initializing Calc Raster layer")
 
         self.calc = calc
 
         super().__init__(
-            name, version, field, grid, data_type, src_uri, resampling, single_tile, env
+            name,
+            version,
+            field,
+            grid,
+            data_type,
+            src_uri,
+            resampling,
+            single_tile,
+            env,
+            subset,
         )
         logger.debug("Initialized Calc Raster layer")
 
@@ -379,14 +400,16 @@ class CalcRasterLayer(RasterLayer):
 
         pipe = (
             self.get_grid_tiles()
+            | Stage(self.filter_subset_tiles).setup(workers=self.workers)
             | Stage(self.filter_src_tiles).setup(workers=self.workers)
             | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
                 workers=self.workers
             )
             | Stage(self.translate).setup(workers=self.workers, qsize=self.workers)
+            | Stage(self.delete_calc_if_empty).setup(workers=self.workers)
             | Stage(self.calculate).setup(workers=self.workers, qsize=self.workers)
-            | Stage(self.delete_calc_file).setup(workers=self.workers)
-            | Stage(self.delete_if_empty).setup(workers=self.workers)
+            | Stage(self.delete_calc).setup(workers=self.workers)
+            # | Stage(self.set_no_data).setup(workers=self.workers)
             | Stage(self.upload_file).setup(workers=self.workers)
             | Stage(self.delete_file).setup(workers=self.workers)
         )
@@ -414,8 +437,8 @@ class CalcRasterLayer(RasterLayer):
                     "-a_nodata",
                     "none",  # ! important
                     "-tr",
-                    str(self.grid.xres),
-                    str(self.grid.yres),
+                    str(tile.grid.xres),
+                    str(tile.grid.yres),
                     "-projwin",
                     str(tile.minx),
                     str(tile.maxy),
@@ -424,9 +447,9 @@ class CalcRasterLayer(RasterLayer):
                     "-co",
                     "TILED=YES",
                     "-co",
-                    "BLOCKXSIZE={}".format(self.grid.blockxsize),
+                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
                     "-co",
-                    "BLOCKYSIZE={}".format(self.grid.blockysize),
+                    "BLOCKYSIZE={}".format(tile.grid.blockysize),
                     "-r",
                     self.resampling,
                     "-q",
@@ -446,18 +469,17 @@ class CalcRasterLayer(RasterLayer):
 
     def calculate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
 
-        if self.data_type.no_data:
-            cmd_no_data: List[str] = ["--NoDataValue", str(self.data_type.no_data)]
-        else:
-            cmd_no_data = list()
-
         for tile in tiles:
-
-            calc_uri = os.path.join(self.base_name, tile.tile_id + "__calc.tif")
+            if (
+                self.data_type.no_data == 0 or self.data_type.no_data
+            ):  # 0 evaluate as false, so need to list it here
+                no_data_cmd: List[str] = ["--NoDataValue", str(self.data_type.no_data)]
+            else:
+                no_data_cmd = list()
 
             cmd: List[str] = (
                 ["gdal_calc.py", "--type", self.data_type.data_type]
-                + cmd_no_data
+                + no_data_cmd
                 + [
                     "-A",
                     tile.calc_uri,
@@ -470,9 +492,9 @@ class CalcRasterLayer(RasterLayer):
                     "--co",
                     "TILED=YES",
                     "--co",
-                    "BLOCKXSIZE={}".format(self.grid.blockxsize),
+                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
                     "--co",
-                    "BLOCKYSIZE={}".format(self.grid.blockysize),
+                    "BLOCKYSIZE={}".format(tile.grid.blockysize),
                     "--quiet",
                 ]
             )
@@ -481,20 +503,40 @@ class CalcRasterLayer(RasterLayer):
                 logger.info("Calculate tile " + tile.tile_id)
                 sp.check_call(cmd)
             except sp.CalledProcessError as e:
-                logger.exception("Could not calculate file " + calc_uri)
+                logger.exception("Could not calculate file " + tile.calc_uri)
                 raise e
             else:
                 yield tile
 
-    @staticmethod
-    def delete_calc_file(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+    def set_no_data(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         for tile in tiles:
-            try:
-                logger.info("Delete file " + tile.calc_uri)
-                os.remove(tile.calc_uri)
-            except Exception as e:
-                logger.exception("Could not delete file " + tile.calc_uri)
-                raise e
+            if self.data_type.no_data:
+                cmd: List[str] = [
+                    "gdal_edit.py",
+                    "-a_nodata",
+                    str(self.data_type.no_data),
+                    tile.uri,
+                ]
+                try:
+                    logger.info("Set No Data Value for file " + tile.uri)
+                    sp.check_call(cmd)
+                except sp.CalledProcessError as e:
+                    logger.exception("Could not set No Data value for file " + tile.uri)
+                    raise e
+
+            yield tile
+
+    def delete_calc(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+        for tile in tiles:
+            self._delete_file(tile.calc_uri)
+            yield tile
+
+    def delete_calc_if_empty(
+        self, tiles: Iterator[RasterSrcTile]
+    ) -> Iterator[RasterSrcTile]:
+        for tile in tiles:
+            if tile.calc_is_empty():
+                self._delete_file(tile.calc_uri)
             else:
                 yield tile
 
@@ -507,7 +549,7 @@ def layer_factory(layer_type, **kwargs) -> Layer:
     elif layer_type == "raster":
         return _raster_layer_factory(**kwargs)
     else:
-        raise ValueError("Unknown layer type")
+        raise ValueError("Unknown layer type: {}".format(layer_type))
 
 
 def _vector_layer_factory(**kwargs) -> VectorLayer:

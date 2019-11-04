@@ -36,17 +36,22 @@ class Tile(object):
 
     def uri_exists(self) -> bool:
         if not self.uri:
-            raise Exception("Tile URI needs to be set")
+            raise Exception("Tile URI is not set")
         return self._tile_exists("/vsis3/" + self.uri)
 
     def is_empty(self) -> bool:
+        return self._is_empty(self.uri)
 
-        logger.debug("Check if tile is empty")
-        with rasterio.open(self.uri) as img:
+    @staticmethod
+    def _is_empty(f: str) -> bool:
+        logger.debug("Check if tile {} is empty".format(f))
+        with rasterio.open(f) as img:
             msk = img.read_masks(1).astype(bool)
         if msk[msk].size == 0:
+            logger.debug("Tile {} is empty".format(f))
             return True
         else:
+            logger.debug("Tile {} is not empty".format(f))
             return False
 
     @staticmethod
@@ -63,6 +68,7 @@ class Tile(object):
             logger.warning(pe)
             return False
         else:
+            logger.info("Found tile " + uri)
             return True
 
 
@@ -158,3 +164,6 @@ class RasterSrcTile(Tile):
                 if p.returncode == 0 and ET.fromstring(o)[0].tag == "BandReport":
                     intersects = True
         return intersects
+
+    def calc_is_empty(self) -> bool:
+        return self._is_empty(self.calc_uri)

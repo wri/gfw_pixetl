@@ -1,10 +1,10 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="gfw_pixetl",
     version="0.2.0",
     description="Tool to preprocess GFW tiles",
-    packages=["gfw_pixetl"],
+    packages=find_packages(),
     author="Thomas Maschler",
     license="MIT",
     install_requires=[
