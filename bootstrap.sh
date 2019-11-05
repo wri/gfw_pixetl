@@ -1,3 +1,10 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+
+--==MYBOUNDARY==
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+
 #!/bin/bash
 
 # Source: https://forums.aws.amazon.com/thread.jspa?threadID=289427
@@ -43,3 +50,5 @@ sed -i '$ a "data-root": "/mnt/docker_ext/"' ${DOCKER_CFG_FILE}
 sed -i '$ a }' ${DOCKER_CFG_FILE}
 
 service docker start
+
+--==MYBOUNDARY==--

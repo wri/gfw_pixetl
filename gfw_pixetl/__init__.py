@@ -11,6 +11,6 @@ def get_module_logger(name):
 
     logger = logging.getLogger(name)
     logger.addHandler(sh)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
     return logger

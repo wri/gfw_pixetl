@@ -61,7 +61,7 @@ class Layer(object):
 
     def filter_subset_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         for tile in tiles:
-            if self.subset and tile.tile_id in self.subset:
+            if not self.subset or (self.subset and tile.tile_id in self.subset):
                 yield tile
 
     @staticmethod
@@ -396,7 +396,7 @@ class CalcRasterLayer(RasterLayer):
 
     def create_tiles(self, overwrite=True) -> None:
 
-        logger.debug("Start TCD Raster Pipe")
+        logger.debug("Start Calc Raster Pipe")
 
         pipe = (
             self.get_grid_tiles()
