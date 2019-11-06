@@ -18,7 +18,7 @@ logger = get_module_logger(__name__)
 
 class Layer(object):
 
-    workers = multiprocessing.cpu_count()
+    workers = multiprocessing.cpu_count() / 2
 
     def __init__(
         self,
