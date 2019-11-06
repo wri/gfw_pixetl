@@ -61,11 +61,14 @@ class Tile(object):
 
         cmd = ["gdalinfo", uri]
 
-        try:
-            sp.check_call(cmd)
-        except sp.CalledProcessError as pe:
+        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        o, e = p.communicate()
+
+        if p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "4:":
+            logger.exception(e)
+            raise Exception(e)
+        elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "4:":
             logger.warning("Could not find tile file " + uri)
-            logger.warning(pe)
             return False
         else:
             logger.info("Found tile " + uri)

@@ -86,12 +86,15 @@ class Layer(object):
         for tile in tiles:
             s3_path = "s3://" + tile.uri
             cmd: List[str] = ["aws", "s3", "cp", tile.uri, s3_path]
-            try:
-                logger.info("Upload to " + s3_path)
-                sp.check_call(cmd)
-            except sp.CalledProcessError as e:
-                logger.warning("Could not upload file " + tile.uri)
-                logger.warning(e)
+
+            logger.info("Upload to " + s3_path)
+            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            o, e = p.communicate()
+
+            if p.returncode != 0:
+                logger.error("Could not upload file " + tile.uri)
+                logger.exception(e)
+                raise Exception(e)
             else:
                 yield tile
 
@@ -230,12 +233,15 @@ class VectorLayer(Layer):
                     tile.uri,
                 ]
             )
-            try:
-                logger.info("Rasterize tile " + tile.tile_id)
-                sp.check_call(cmd)
-            except sp.CalledProcessError as e:
-                logger.warning("Could not rasterize file " + tile.uri)
-                logger.warning(e)
+
+            logger.info("Rasterize tile " + tile.tile_id)
+            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            o, e = p.communicate()
+
+            if p.returncode != 0:
+                logger.error("Could not rasterize tile " + tile.tile_id)
+                logger.exception(e)
+                raise Exception(e)
             else:
                 yield tile
 
@@ -351,12 +357,14 @@ class RasterLayer(Layer):
                 ]
             )
 
-            try:
-                logger.info("Translate tile " + tile.tile_id)
-                sp.check_call(cmd)
-            except sp.CalledProcessError as e:
-                logger.warning("Could not translate file " + tile.uri)
-                logger.warning(e)
+            logger.info("Translate tile " + tile.tile_id)
+            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            o, e = p.communicate()
+
+            if p.returncode != 0:
+                logger.error("Could not translate file " + tile.uri)
+                logger.exception(e)
+                raise Exception(e)
             else:
                 yield tile
 
@@ -458,12 +466,14 @@ class CalcRasterLayer(RasterLayer):
                 ]
             )
 
-            try:
-                logger.info("Translate tile " + tile.tile_id)
-                sp.check_call(cmd)
-            except sp.CalledProcessError as e:
-                logger.warning("Could not translate file " + tile.uri)
-                logger.warning(e)
+            logger.info("Translate tile " + tile.tile_id)
+            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            o, e = p.communicate()
+
+            if p.returncode != 0:
+                logger.error("Could not translate file " + tile.uri)
+                logger.exception(e)
+                raise Exception(e)
             else:
                 yield tile
 
@@ -499,12 +509,14 @@ class CalcRasterLayer(RasterLayer):
                 ]
             )
 
-            try:
-                logger.info("Calculate tile " + tile.tile_id)
-                sp.check_call(cmd)
-            except sp.CalledProcessError as e:
-                logger.exception("Could not calculate file " + tile.calc_uri)
-                raise e
+            logger.info("Calculate tile " + tile.tile_id)
+            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            o, e = p.communicate()
+
+            if p.returncode != 0:
+                logger.error("Could not calculate file " + tile.calc_uri)
+                logger.exception(e)
+                raise Exception(e)
             else:
                 yield tile
 
@@ -517,14 +529,17 @@ class CalcRasterLayer(RasterLayer):
                     str(self.data_type.no_data),
                     tile.uri,
                 ]
-                try:
-                    logger.info("Set No Data Value for file " + tile.uri)
-                    sp.check_call(cmd)
-                except sp.CalledProcessError as e:
-                    logger.exception("Could not set No Data value for file " + tile.uri)
-                    raise e
 
-            yield tile
+                logger.info("Set No Data Value for file " + tile.uri)
+                p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+                o, e = p.communicate()
+
+                if p.returncode != 0:
+                    logger.error("Could not set No Data value for file " + tile.uri)
+                    logger.exception(e)
+                    raise Exception(e)
+                else:
+                    yield tile
 
     def delete_calc(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         for tile in tiles:

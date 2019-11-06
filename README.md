@@ -1,6 +1,5 @@
 # GFW pixETL
 
-
 Reads source files and converts data into Cloud Optimized GeoTIFF (without overviews) clipped to specified grid size.
 
 Upload all tiles to GFW data lake following GFW naming convention.
@@ -15,6 +14,13 @@ Source files must be loaded into Postgres/ Aurora database prior to running this
 
 ### CLI
 ```bash
+ ██████╗ ███████╗██╗    ██╗    ██████╗ ██╗██╗  ██╗███████╗████████╗██╗
+██╔════╝ ██╔════╝██║    ██║    ██╔══██╗██║╚██╗██╔╝██╔════╝╚══██╔══╝██║
+██║  ███╗█████╗  ██║ █╗ ██║    ██████╔╝██║ ╚███╔╝ █████╗     ██║   ██║
+██║   ██║██╔══╝  ██║███╗██║    ██╔═══╝ ██║ ██╔██╗ ██╔══╝     ██║   ██║
+╚██████╔╝██║     ╚███╔███╔╝    ██║     ██║██╔╝ ██╗███████╗   ██║   ███████╗
+ ╚═════╝ ╚═╝      ╚══╝╚══╝     ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝
+
 Usage: pixetl [OPTIONS] NAME
 
   NAME: Name of dataset
