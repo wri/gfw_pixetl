@@ -98,4 +98,6 @@ def data_type_factory(
         )
 
     else:
-        raise Exception("Unknown data type {}".format(data_type))
+        message = "Unknown data type {}".format(data_type)
+        logger.exception(message)
+        raise ValueError(message)

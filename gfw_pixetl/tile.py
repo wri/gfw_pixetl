@@ -64,10 +64,10 @@ class Tile(object):
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
         o, e = p.communicate()
 
-        if p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "4:":
+        if p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "13:":
             logger.exception(e)
             raise Exception(e)
-        elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "4:":
+        elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "13:":
             logger.warning("Could not find tile file " + uri)
             return False
         else:
@@ -102,11 +102,11 @@ class VectorSrcTile(Tile):
             exists = cursor.fetchone()[0]
             cursor.close()
             conn.close()
-        except psycopg2.Error as e:
+        except psycopg2.Error:
             logger.exception(
                 "There was an issue when trying to connect to the database"
             )
-            raise e
+            raise
 
         if exists:
             logger.info(
@@ -142,13 +142,13 @@ class RasterSrcTile(Tile):
     def src_tile_exists(self) -> bool:
 
         if not self.src_uri:
-            raise Exception("Tile source URI needs to be set")
+            raise ValueError("Tile source URI needs to be set")
         return self._tile_exists(self.src_uri)
 
     def src_tile_intersects(self) -> bool:
 
         if not self.uri or not self.src_uri:
-            raise Exception("Tile URI and Tile source URI need to be set")
+            raise ValueError("Tile URI and Tile source URI need to be set")
 
         intersects = False
         for x in [self.minx, self.maxx]:

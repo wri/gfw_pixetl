@@ -1,0 +1,2 @@
+class GDALError(Exception):
+    pass

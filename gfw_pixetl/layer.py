@@ -5,11 +5,15 @@ import os
 import subprocess as sp
 from typing import Any, Dict, Iterator, List, Optional, Set
 
-import yaml
+import boto3
+from botocore.exceptions import ClientError
 from parallelpipe import Stage
+import yaml
+
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
+from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grid import Grid
 from gfw_pixetl.tile import Tile, VectorSrcTile, RasterSrcTile
 from gfw_pixetl.source import VectorSource, RasterSource
@@ -85,17 +89,17 @@ class Layer(object):
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
 
         for tile in tiles:
-            s3_path = "s3://" + tile.uri
-            cmd: List[str] = ["aws", "s3", "cp", tile.uri, s3_path]
 
-            logger.info("Upload to " + s3_path)
-            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-            o, e = p.communicate()
+            bucket = tile.uri.split("/")[0]
+            obj = "/".join(tile.uri.split("/")[1:])
 
-            if p.returncode != 0:
-                logger.error("Could not upload file " + tile.uri)
-                logger.exception(e)
-                raise Exception(e)
+            s3 = boto3.client("s3")
+
+            try:
+                s3.upload_file(tile.uri, bucket, obj)
+            except ClientError:
+                logger.exception("Could not upload file " + tile.uri)
+                raise
             else:
                 yield tile
 
@@ -109,9 +113,9 @@ class Layer(object):
         try:
             logger.info("Delete file " + f)
             os.remove(f)
-        except Exception as e:
+        except Exception:
             logger.exception("Could not delete file " + f)
-            raise e
+            raise
 
 
 class VectorLayer(Layer):
@@ -242,7 +246,7 @@ class VectorLayer(Layer):
             if p.returncode != 0:
                 logger.error("Could not rasterize tile " + tile.tile_id)
                 logger.exception(e)
-                raise Exception(e)
+                raise GDALError(e)
             else:
                 yield tile
 
@@ -365,7 +369,7 @@ class RasterLayer(Layer):
             if p.returncode != 0:
                 logger.error("Could not translate file " + tile.uri)
                 logger.exception(e)
-                raise Exception(e)
+                raise GDALError(e)
             else:
                 yield tile
 
@@ -474,7 +478,7 @@ class CalcRasterLayer(RasterLayer):
             if p.returncode != 0:
                 logger.error("Could not translate file " + tile.uri)
                 logger.exception(e)
-                raise Exception(e)
+                raise GDALError(e)
             else:
                 yield tile
 
@@ -517,7 +521,7 @@ class CalcRasterLayer(RasterLayer):
             if p.returncode != 0:
                 logger.error("Could not calculate file " + tile.calc_uri)
                 logger.exception(e)
-                raise Exception(e)
+                raise GDALError(e)
             else:
                 yield tile
 
@@ -538,7 +542,7 @@ class CalcRasterLayer(RasterLayer):
                 if p.returncode != 0:
                     logger.error("Could not set No Data value for file " + tile.uri)
                     logger.exception(e)
-                    raise Exception(e)
+                    raise GDALError(e)
                 else:
                     yield tile
 
@@ -593,7 +597,9 @@ def _enrich_vector_kwargs(sources: Dict[str, Any], **kwargs) -> Dict[str, Any]:
     try:
         source = _get_source_by_field(sources[kwargs["name"]], kwargs["field"])
     except KeyError:
-        raise ValueError("No such data layer")
+        message = "No such data layer"
+        logger.exception(message)
+        raise ValueError(message)
 
     kwargs["field"] = source["field"]
     kwargs["data_type"] = data_type_factory(**source)
@@ -611,7 +617,9 @@ def _enrich_raster_kwargs(sources: Dict[str, Any], **kwargs) -> Dict[str, Any]:
     try:
         source = _get_source_by_field(sources[kwargs["name"]], kwargs["field"])
     except KeyError:
-        raise ValueError("No such data layer")
+        message = "No such data layer"
+        logger.exception(message)
+        raise ValueError(message)
 
     kwargs["field"] = source["field"]
     kwargs["data_type"] = data_type_factory(**source)
@@ -633,11 +641,15 @@ def _get_source_by_field(sources, field) -> Dict[str, Any]:
             for source in sources:
                 if source["field"] == field:
                     return source
-            raise ValueError("No such data field in source definition")
+            message = "No such data field in source definition"
+            logger.exception(message)
+            raise ValueError(message)
         else:
             return sources[0]
     except KeyError:
-        raise ValueError("No such data field in source definition")
+        message = "No such data field in source definition"
+        logger.exception()
+        raise ValueError(message)
 
 
 def _cur_dir():
