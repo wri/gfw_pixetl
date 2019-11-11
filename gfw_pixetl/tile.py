@@ -7,6 +7,7 @@ import rasterio
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.errors import GDALAccessDeniedError
 from gfw_pixetl.grid import Grid
 from gfw_pixetl.source import VectorSource, RasterSource
 
@@ -64,16 +65,10 @@ class Tile(object):
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
         o, e = p.communicate()
 
-        if p.returncode != 0 and (
-            e.decode("utf-8").split(" ")[1] != "13:"
-            and e.decode("utf-8").split(" ")[1] != "4:"
-        ):
+        if p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "14:":
             logger.exception(e)
-            raise Exception(e)
-        elif p.returncode != 0 and (
-            e.decode("utf-8").split(" ")[1] == "13:"
-            or e.decode("utf-8").split(" ")[1] == "4:"
-        ):
+            raise GDALAccessDeniedError
+        elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "14:":
             logger.warning("Could not find tile file " + uri)
             return False
         else:
