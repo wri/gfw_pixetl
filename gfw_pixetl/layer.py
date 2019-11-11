@@ -6,14 +6,15 @@ import subprocess as sp
 from typing import Any, Dict, Iterator, List, Optional, Set
 
 import boto3
+import yaml
 from botocore.exceptions import ClientError
 from parallelpipe import Stage
-import yaml
+from retrying import retry
 
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
-from gfw_pixetl.errors import GDALError
+from gfw_pixetl.errors import GDALError, GDALNoneTypeError, retry_if_none_type_error
 from gfw_pixetl.grid import Grid
 from gfw_pixetl.tile import Tile, VectorSrcTile, RasterSrcTile
 from gfw_pixetl.source import VectorSource, RasterSource
@@ -22,9 +23,6 @@ logger = get_module_logger(__name__)
 
 
 class Layer(object):
-
-    workers = math.ceil(multiprocessing.cpu_count() / 2)
-
     def __init__(
         self,
         name: str,
@@ -60,6 +58,7 @@ class Layer(object):
         self.grid: Grid = grid
         self.uri: str = self.base_name + "/{tile_id}.tif"
         self.subset: Optional[List[str]] = subset
+        self.workers: int = math.ceil(multiprocessing.cpu_count() / 2)
 
     def create_tiles(self, overwrite=True) -> None:
         raise NotImplementedError()
@@ -363,15 +362,29 @@ class RasterLayer(Layer):
             )
 
             logger.info("Translate tile " + tile.tile_id)
-            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-            o, e = p.communicate()
 
-            if p.returncode != 0:
+            try:
+                self._translate(cmd, tile)
+            except GDALError as e:
                 logger.error("Could not translate file " + tile.uri)
                 logger.exception(e)
-                raise GDALError(e)
+                raise
             else:
                 yield tile
+
+    @retry(
+        retry_on_exception=retry_if_none_type_error,
+        stop_max_attempt_number=7,
+        wait_fixed=2000,
+    )
+    def _translate(self, cmd, tile):
+        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        o, e = p.communicate()
+
+        if p.returncode != 0 and not e:
+            raise GDALNoneTypeError(e)
+        elif p.returncode != 0:
+            raise GDALError(e)
 
 
 class CalcRasterLayer(RasterLayer):
@@ -405,6 +418,7 @@ class CalcRasterLayer(RasterLayer):
             env,
             subset,
         )
+        self.workers: int = math.ceil(multiprocessing.cpu_count() / 3)
         logger.debug("Initialized Calc Raster layer")
 
     def create_tiles(self, overwrite=True) -> None:
@@ -472,13 +486,13 @@ class CalcRasterLayer(RasterLayer):
             )
 
             logger.info("Translate tile " + tile.tile_id)
-            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-            o, e = p.communicate()
 
-            if p.returncode != 0:
+            try:
+                self._translate(cmd, tile)
+            except GDALError as e:
                 logger.error("Could not translate file " + tile.uri)
                 logger.exception(e)
-                raise GDALError(e)
+                raise
             else:
                 yield tile
 

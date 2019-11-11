@@ -15,6 +15,7 @@ setup(
         "pyproj~=2.4.0",
         "pyyaml~=5.1.2",
         "rasterio[s3]~=1.1.0",
+        "retrying~=1.3.3",
         "shapely~=1.6.4.post2",
     ],
     entry_points="""
