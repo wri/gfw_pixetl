@@ -66,7 +66,7 @@ class Tile(object):
 
         if p.returncode != 0 and (
             e.decode("utf-8").split(" ")[1] != "13:"
-            or e.decode("utf-8").split(" ")[1] != "4:"
+            and e.decode("utf-8").split(" ")[1] != "4:"
         ):
             logger.exception(e)
             raise Exception(e)
