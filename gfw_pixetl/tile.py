@@ -64,10 +64,16 @@ class Tile(object):
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
         o, e = p.communicate()
 
-        if p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "13:":
+        if p.returncode != 0 and (
+            e.decode("utf-8").split(" ")[1] != "13:"
+            or e.decode("utf-8").split(" ")[1] != "4:"
+        ):
             logger.exception(e)
             raise Exception(e)
-        elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "13:":
+        elif p.returncode != 0 and (
+            e.decode("utf-8").split(" ")[1] == "13:"
+            or e.decode("utf-8").split(" ")[1] == "4:"
+        ):
             logger.warning("Could not find tile file " + uri)
             return False
         else:
