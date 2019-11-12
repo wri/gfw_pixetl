@@ -58,7 +58,7 @@ def test_translate_src_tile():
             assert trg_profile["height"] == grid.cols
             assert trg_profile["interleave"] == "band"
             assert trg_profile["nodata"] == datatype.no_data
-            assert trg_profile["tiled"] == True
+            assert trg_profile["tiled"] is True
             # assert trg_profile['transform']: Affine(30.0, 0.0, 381885.0, 0.0, -30.0, 2512815.0),
             assert trg_profile["width"] == grid.rows
 

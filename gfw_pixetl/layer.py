@@ -323,7 +323,9 @@ class RasterLayer(Layer):
 
     def translate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
 
-        if self.data_type.no_data:
+        if (
+            self.data_type.no_data == 0 or self.data_type.no_data
+        ):  # 0 evaluate as false, so need to list it here
             cmd_no_data: List[str] = ["-a_nodata", str(self.data_type.no_data)]
         else:
             cmd_no_data = list()
