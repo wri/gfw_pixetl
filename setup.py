@@ -1,12 +1,25 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
-    name="gfw_tile_prep",
-    version="0.1.0",
+    name="gfw_pixetl",
+    version="0.2.0",
     description="Tool to preprocess GFW tiles",
-    packages=["gfw_tile_prep"],
+    packages=find_packages(),
     author="Thomas Maschler",
     license="MIT",
-    install_requires=["parallelpipe", "psycopg2-binary", "rasterio", "boto3"],
-    scripts=["gfw_tile_prep/prep_tiles.py"],
+    install_requires=[
+        "boto3~=1.10.1",
+        "click~=7.0",
+        "parallelpipe~=0.2.6",
+        "psycopg2~=2.8.4",
+        "pyproj~=2.4.0",
+        "pyyaml~=5.1.2",
+        "rasterio[s3]~=1.1.0",
+        "retrying~=1.3.3",
+        "shapely~=1.6.4.post2",
+    ],
+    entry_points="""
+            [console_scripts]
+            pixetl=gfw_pixetl.pixetl:cli
+            """,
 )

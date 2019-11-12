@@ -97,3 +97,9 @@ config/hot_export_token.txt
 *.xlsx
 debug.py
 
+.mypy_cache/*
+.pytest_cache/*
+gfw-data-lake-dev/*
+gfw-data-lake/*
+
+venv/*

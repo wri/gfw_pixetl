@@ -1,0 +1,6 @@
+.mypy_cache/*
+.pytest_cache/*
+gfw-data-lake-dev/*
+gfw-data-lake/*
+.egg-info
+venv/*
