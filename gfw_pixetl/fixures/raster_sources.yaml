@@ -1,0 +1,235 @@
+aboveground_biomass_stock_2000:
+    -
+        field: Mg_ha-1
+        src_uri: gfw-files/2018_update/biomass/{tile_id}.tif
+        data_type: uint16
+
+aboveground_carbon_stock_2000:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/agc_2000/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+aboveground_carbon_stock_in_emissions_year:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/agc_emis_year/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+belowground_carbon_stock_2000:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/bgc_2000/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+belowground_carbon_stock_in_emissions_year:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/bgc_emis_year/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+biodiversity_intactness:
+    -
+        field: index
+        src_uri: gfw-files/2018_update/biodiversity_intactness/{tile_id}.tif
+        data_type: Float64
+        no_data: 0
+
+biodiversity_significance:
+    -
+        field: index
+        src_uri: gfw-files/2018_update/biodiversity_significance/{tile_id}.tif
+        data_type: Float64
+        no_data: 0
+
+deadwood_carbon_stock_2000:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/deadwood_carbon_2000/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+deadwood_carbon_stock_in_emissions_year:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/deadwood_carbon_emis_year/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+erosion_risk:
+    -
+        field: level
+        src_uri: gfw-files/2018_update/erosion/{tile_id}.tif
+        data_type: uint
+        nbits: 3
+
+global_landcover_2000: #TODO verify year
+    -
+        field: class
+        src_uri: gfw-files/2018_update/global_landcover/{tile_id}.tif
+        data_type: uint
+
+gross_annual_removals_biomass:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/gross_annual_removals_biomass/standard/{tile_id}.tif
+        data_type: float32
+        no_data: 0
+
+gross_cumul_removals_co2:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/gross_cumul_removals_co2/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+gross_emissions_co2e_co2_only:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/gross_emissions_co2_only_co2e/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+gross_emissions_co2e_non_co2:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/gross_emissions_non_co2_co2e/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+idn_primary_forest:
+    -
+        field: is
+        src_uri: gfw-files/2018_update/idn_primary_forest/{tile_id}.tif
+        data_type: boolean
+
+intact_primary_forest:
+    -
+        field: is
+        src_uri: gfw-files/2018_update/ifl_primary/{tile_id}.tif
+        data_type: boolean
+
+litter_carbon_stock_2000:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/litter_carbon_2000/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+litter_carbon_stock_in_emissions_year:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/litter_carbon_emis_year/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+mangrove_aboveground_biomass_stock_2000:
+    -
+        field: Mg_ha-1
+        src_uri: gfw-files/2018_update/mangrove_biomass/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+net_flux_co2_2001-2015:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/net_flux_co2e/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+peatlands_flux:
+    -
+        field: is
+        src_uri: gfw-files/2018_update/peatlands_flux/{tile_id}.tif
+        data_type: boolean
+
+pixel_area:
+    -
+        field: m2
+        src_uri: gfw-files/2018_update/area/{tile_id}.tif
+        data_type: Float32
+
+regional_primary_forest:
+    -
+        field: is
+        src_uri: gfw-files/2018_update/primary_forest/{tile_id}.tif
+        data_type: boolean
+
+soil_carbon_stock_in_emissions_year:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/soil_carbon_emis_year/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+soil_carbon_stock_2000:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/soil_carbon_2000/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+tcs_drivers_2000-2015:
+    -
+        field: type
+        src_uri: gfw-files/2018_update/drivers/{tile_id}.tif
+        data_type: uint
+        nbits: 3
+        no_data: 0 #TODO: verify no data value
+
+total_carbon_stock_2000:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/total_carbon_2000/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+total_carbon_stock_in_emissions_year:
+    -
+        field: Mg
+        src_uri: gfw-files/2018_update/total_carbon_emis_year/standard/{tile_id}.tif
+        data_type: Float32
+        no_data: 0
+
+treecover_loss:
+    -
+        field: year
+        src_uri: gfw-files/2018_update/loss/{tile_id}.tif
+        data_type: uint
+        nbits: 5
+
+treecover_gain_2000-2012:
+    -
+        field: is
+        src_uri: gfw-files/2018_update/gain/{tile_id}.tif
+        data_type: boolean
+
+treecover_density_2000:
+    -
+        field: percent
+        src_uri: gfw-files/2018_update/tcd_2000/{tile_id}.tif
+        data_type: uint
+        nbits: 7
+    -
+        field: threshold
+        src_uri: gfw-files/2018_update/tcd_2000/{tile_id}.tif
+        data_type: uint
+        nbits: 3
+        calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
+
+treecover_density_2010:
+    -
+        field: percent
+        src_uri: gfw-files/2018_update/tcd_2010/{tile_id}.tif
+        data_type: uint
+        nbits: 7
+    -
+        field: threshold
+        src_uri: gfw-files/2018_update/tcd_2010/{tile_id}.tif
+        data_type: uint
+        nbits: 3
+        calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)

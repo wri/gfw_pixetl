@@ -6,10 +6,11 @@ repos:
     hooks:
     - id: black
       language_version: python3.6
-
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v1.2.3
     hooks:
+    - id: detect-aws-credentials
+    - id: detect-private-key
     - id: trailing-whitespace
     - id: flake8
       args: ['--ignore=E203, E266, E501, W503, F403, F401']
@@ -17,3 +18,9 @@ repos:
     rev: v0.650
     hooks:
     -   id: mypy
+-   repo: https://github.com/Yelp/detect-secrets
+    rev: v0.13.0
+    hooks:
+    -   id: detect-secrets
+        args: ['--baseline', '.secrets.baseline'] # run: `pip install detect-secrets` to establish baseline
+        exclude: .*/tests/.*
