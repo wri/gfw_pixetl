@@ -18,10 +18,10 @@ RUN dnf install -y \
     gdal-python-tools \
     && dnf clean all
 
-RUN pip3 install psycopg2~=2.8.4
-
 COPY . app/
 WORKDIR app
+
+RUN pip3 install -r requirements.txt
 
 COPY setup.py setup.py
 COPY gfw_pixetl gfw_pixetl/
