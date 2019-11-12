@@ -24,5 +24,8 @@ jobs:
       run: |
         ./scripts/build.sh
     - name: Test with pytest inside Docker
+      env:
+        AWS_ACCESS_KEY: ${{ secrets.aws_key_dev }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret_dev }}
       run: |
-        ./scripts/test.sh
+        ./scripts/test.sh -k ${AWS_ACCESS_KEY} -s ${AWS_SECRET_ACCESS_KEY}
