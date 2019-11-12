@@ -10,7 +10,7 @@ while getopts k:s: option
 do
 case "${option}"
 in
-k) AWS_ACCESS_KEY=${OPTARG};;
+k) AWS_ACCESS_KEY_ID=${OPTARG};;
 s) AWS_SECRET_ACCESS_KEY=${OPTARG};;
 esac
 done
@@ -18,4 +18,4 @@ done
 cur_dir=$(dirname "$0")
 ${cur_dir}/build.sh
 
-docker run -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} -v /tmp:/tmp --entrypoint pytest globalforestwatch/pixetl  # pragma: allowlist secret
+docker run -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} -v /tmp:/tmp --entrypoint pytest globalforestwatch/pixetl  # pragma: allowlist secret

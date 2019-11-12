@@ -46,7 +46,7 @@ Use dame Options and Name as listed above
 ```bash
 
 docker build . -t globalforestwatch/pixetl
-docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  
+docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY_ID=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  # pragma: allowlist secret  
 
 ```
 
