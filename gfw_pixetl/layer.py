@@ -326,24 +326,36 @@ class RasterLayer(Layer):
         if (
             self.data_type.no_data == 0 or self.data_type.no_data
         ):  # 0 evaluate as false, so need to list it here
-            cmd_no_data: List[str] = ["-a_nodata", str(self.data_type.no_data)]
+            cmd_no_data: List[str] = ["-dstnodata", str(self.data_type.no_data)]
         else:
             cmd_no_data = list()
 
         for tile in tiles:
 
             cmd: List[str] = (
-                ["gdal_translate", "-strict", "-ot", self.data_type.data_type]
+                [
+                    "gdalwarp",
+                    "-s_srs",
+                    "epsg:54052",  # TODO get input srs when checking file
+                    "-t_srs",
+                    tile.grid.srs.srs,
+                    "-ot",
+                    self.data_type.data_type,
+                ]
                 + cmd_no_data
                 + [
                     "-tr",
                     str(tile.grid.xres),
                     str(tile.grid.yres),
-                    "-projwin",
+                    "-te",
                     str(tile.minx),
                     str(tile.maxy),
                     str(tile.maxx),
                     str(tile.miny),
+                    "-te_srs",
+                    tile.grid.srs.srs,
+                    "-ovr",
+                    "NONE",
                     "-co",
                     "COMPRESS={}".format(self.data_type.compression),
                     "-co",
@@ -356,8 +368,9 @@ class RasterLayer(Layer):
                     "BLOCKYSIZE={}".format(tile.grid.blockysize),
                     # "-co", "SPARSE_OK=TRUE",
                     "-r",
-                    self.resampling,
+                    "near",  # TODO normalize: self.resampling,
                     "-q",
+                    "-overwrite",
                     tile.src_uri,
                     tile.uri,
                 ]

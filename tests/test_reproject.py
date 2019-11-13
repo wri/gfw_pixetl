@@ -1,6 +1,7 @@
 import os
 
 import rasterio
+import pytest
 
 from gfw_pixetl.data_type import data_type_factory
 from gfw_pixetl.grid import grid_factory, Grid
@@ -36,6 +37,11 @@ tile = RasterSrcTile(minx, maxy, layer.grid, layer.src, layer.uri)
 with rasterio.open("s3://" + src_uri) as src:
     src_profile = src.profile
 
+# @pytest.fixture(autouse=True)
+# def run_after_tests():
+#     yield
+#     os.removedirs("gfw-test-data")
+
 
 def test_find_src_tiles_in_different_projection():
     assert tile.src_tile_intersects()
@@ -55,11 +61,11 @@ def test_reproject_src_tile():
             assert trg_profile["crs"] == {"init": grid.srs.srs}
             assert trg_profile["driver"] == "GTiff"
             assert trg_profile["dtype"] == "uint8"
-            assert trg_profile["height"] == grid.height
+            assert trg_profile["height"] == grid.cols
             assert trg_profile["interleave"] == "band"
             assert trg_profile["nodata"] == datatype.no_data
             assert trg_profile["tiled"] is True
             # assert trg_profile['transform']: Affine(30.0, 0.0, 381885.0, 0.0, -30.0, 2512815.0),
-            assert trg_profile["width"] == grid.width
+            assert trg_profile["width"] == grid.rows
 
         os.remove(t.uri)
