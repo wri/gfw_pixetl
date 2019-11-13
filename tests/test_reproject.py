@@ -33,9 +33,7 @@ layer: RasterLayer = RasterLayer(
 )
 
 tile = RasterSrcTile(minx, maxy, layer.grid, layer.src, layer.uri)
-
-with rasterio.open("s3://" + src_uri) as src:
-    src_profile = src.profile
+tile.src_tile_exists()
 
 # @pytest.fixture(autouse=True)
 # def run_after_tests():
@@ -48,6 +46,7 @@ def test_find_src_tiles_in_different_projection():
 
 
 def test_reproject_src_tile():
+
     tiles = layer.translate([tile])
 
     for t in tiles:

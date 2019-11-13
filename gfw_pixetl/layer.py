@@ -336,7 +336,7 @@ class RasterLayer(Layer):
                 [
                     "gdalwarp",
                     "-s_srs",
-                    "epsg:54052",  # TODO get input srs when checking file
+                    tile.src_profile["crs"].to_proj4(),
                     "-t_srs",
                     tile.grid.srs.srs,
                     "-ot",

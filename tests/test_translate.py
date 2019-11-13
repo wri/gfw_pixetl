@@ -32,9 +32,7 @@ layer: RasterLayer = RasterLayer(
 )
 
 tile = RasterSrcTile(minx, maxy, layer.grid, layer.src, layer.uri)
-
-with rasterio.open("s3://" + src_uri) as src:
-    src_profile = src.profile
+tile.src_tile_exists()
 
 
 def test_find_src_tiles():

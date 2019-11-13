@@ -1,6 +1,6 @@
 import subprocess as sp
 import xml.etree.ElementTree as ET
-from typing import List
+from typing import Any, Dict, List, Optional
 
 import psycopg2
 import rasterio
@@ -38,7 +38,11 @@ class Tile(object):
     def uri_exists(self) -> bool:
         if not self.uri:
             raise Exception("Tile URI is not set")
-        return self._tile_exists("/vsis3/" + self.uri)
+        if self._tile_exists("/vsis3/" + self.uri):
+            return True
+        else:
+            return False
+        # return self._tile_exists("/vsis3/" + self.uri)
 
     def is_empty(self) -> bool:
         return self._is_empty(self.uri)
@@ -56,24 +60,33 @@ class Tile(object):
             return False
 
     @staticmethod
-    def _tile_exists(uri: str) -> bool:
+    def _tile_exists(uri: str) -> Dict[str, Any]:
 
         logger.debug("Check if tile {} exists".format(uri))
 
-        cmd = ["gdalinfo", uri]
-
-        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-        o, e = p.communicate()
-
-        if p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "14:":
-            logger.exception(e)
-            raise GDALAccessDeniedError
-        elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "14:":
-            logger.warning("Could not find tile file " + uri)
-            return False
+        try:
+            with rasterio.open(uri) as src:
+                src_profile = src.profile
+        except Exception:
+            return {}
         else:
-            logger.info("Found tile " + uri)
-            return True
+            return src_profile
+
+        #
+        # cmd = ["gdalinfo", uri]
+        #
+        # p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        # o, e = p.communicate()
+        #
+        # if p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "14:":
+        #     logger.exception(e)
+        #     raise GDALAccessDeniedError
+        # elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "14:":
+        #     logger.warning("Could not find tile file " + uri)
+        #     return False
+        # else:
+        #     logger.info("Found tile " + uri)
+        #     return True
 
 
 class VectorSrcTile(Tile):
@@ -131,6 +144,8 @@ class RasterSrcTile(Tile):
 
         super().__init__(minx, maxy, grid, uri)
 
+        self.src_profile: Dict[str, Any] = dict()
+
         self.calc_uri: str = uri.format(tile_id=self.tile_id + "__calc")
 
         self.src: RasterSource = src
@@ -144,7 +159,12 @@ class RasterSrcTile(Tile):
 
         if not self.src_uri:
             raise ValueError("Tile source URI needs to be set")
-        return self._tile_exists(self.src_uri)
+        self.src_profile = self._tile_exists(self.src_uri)
+        if self.src_profile:
+            return True
+        else:
+            return True
+        # return self._tile_exists(self.src_uri)
 
     def src_tile_intersects(self) -> bool:
 
