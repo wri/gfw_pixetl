@@ -35,10 +35,13 @@ layer: RasterLayer = RasterLayer(
 tile = RasterSrcTile(minx, maxy, layer.grid, layer.src, layer.uri)
 tile.src_tile_exists()
 
+# os.chdir("/tmp")
+#
+#
 # @pytest.fixture(autouse=True)
 # def run_after_tests():
 #     yield
-#     os.removedirs("gfw-test-data")
+#     os.removedirs("/tmp/gfw-test-data")
 
 
 def test_find_src_tiles_in_different_projection():

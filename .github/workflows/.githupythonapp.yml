@@ -35,7 +35,4 @@ jobs:
       run: |
         ./cc-test-reporter before-build
         ./scripts/test.sh -k ${AWS_ACCESS_KEY_ID} -s ${AWS_SECRET_ACCESS_KEY}
-        echo "####################"
-        find / -name coverage.xml
-        echo "####################"
         ./cc-test-reporter after-build -t coverage.py -p ${PWD} --exit-code $?

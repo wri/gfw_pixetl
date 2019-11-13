@@ -1,5 +1,7 @@
 FROM fedora:30
 
+ENV DIR=/usr/local/app
+
 RUN sed -i '/^[fedora]/a\exclude=postgresql*' /etc/yum.repos.d/fedora.repo \
     && sed -i '/^[updates]/a\exclude=postgresql*' /etc/yum.repos.d/fedora-updates.repo
 
@@ -18,11 +20,14 @@ RUN dnf install -y \
     gdal-python-tools \
     && dnf clean all
 
-COPY requirements.txt app/
-RUN pip3 install -r app/requirements.txt
 
-COPY . app/
-WORKDIR app
+RUN mkdir -p ${DIR}
+WORKDIR ${DIR}
+
+COPY requirements.txt .
+RUN pip3 install -r requirements.txt
+
+COPY . .
 RUN pip3 install -e .
 
 ENTRYPOINT ["pixetl"]
