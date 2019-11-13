@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import psycopg2
 import rasterio
 from rasterio.coords import BoundingBox
+from rasterio.errors import RasterioIOError
 from pyproj import Transformer
 from shapely.geometry import Point
 
@@ -68,26 +69,13 @@ class Tile(object):
             with rasterio.open(uri) as src:
                 self.src_profile = src.profile
                 self.src_bounds = src.bounds
+        except RasterioIOError:
+            logger.error("Cannot read source file")
+            raise
         except Exception:
             return False
         else:
             return True
-
-        #
-        # cmd = ["gdalinfo", uri]
-        #
-        # p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-        # o, e = p.communicate()
-        #
-        # if p.returncode != 0 and e.decode("utf-8").split(" ")[1] == "14:":
-        #     logger.exception(e)
-        #     raise GDALAccessDeniedError
-        # elif p.returncode != 0 and e.decode("utf-8").split(" ")[1] != "14:":
-        #     logger.warning("Could not find tile file " + uri)
-        #     return False
-        # else:
-        #     logger.info("Found tile " + uri)
-        #     return True
 
 
 class VectorSrcTile(Tile):
