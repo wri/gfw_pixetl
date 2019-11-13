@@ -7,7 +7,7 @@ import argparse
 import os
 
 # parallel workers
-WORKERS = 5
+WORKERS = 22
 
 # tile specifications
 TILE_SIZE = 400
@@ -129,7 +129,7 @@ SRC = {
         "type": "raster",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/standard/20191106/{tile_id}_gross_emis_CO2_only_all_drivers_t_CO2e_ha_biomass_soil.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_co2_only_co2e/standard/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/maxgain/20191106/{tile_id}_gross_emis_CO2_only_all_drivers_t_CO2e_ha_biomass_soil.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/maxgain/20191106/{tile_id}_gross_emis_CO2_only_all_drivers_t_CO2e_ha_biomass_soil_maxgain.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_co2_only_co2e/maxgain/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
@@ -138,7 +138,7 @@ SRC = {
         "type": "raster",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/standard/20191106/{tile_id}_gross_emis_non_CO2_all_drivers_t_CO2e_ha_biomass_soil.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_co2e/standard/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/maxgain/20191106/{tile_id}_gross_emis_non_CO2_all_drivers_t_CO2e_ha_biomass_soil.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/maxgain/20191106/{tile_id}_gross_emis_non_CO2_all_drivers_t_CO2e_ha_biomass_soil_maxgain.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_co2e/maxgain/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
