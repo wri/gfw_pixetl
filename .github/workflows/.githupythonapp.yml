@@ -23,9 +23,12 @@ jobs:
     - name: Build Docker container
       run: |
         ./scripts/build.sh
-    - name: Test with pytest inside Docker
+    - name: Test & publish code coverage
+      uses: paambaati/codeclimate-action@v2.3.0
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.aws_key_dev }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret_dev }}
-      run: |
-        ./scripts/test.sh -k ${AWS_ACCESS_KEY_ID} -s ${AWS_SECRET_ACCESS_KEY}
+        CC_TEST_REPORTER_ID: ${{ secrets.test_report_id }}
+      with:
+        coverageCommand: ./scripts/test.sh -k ${AWS_ACCESS_KEY_ID} -s ${AWS_SECRET_ACCESS_KEY}
+        debug: true

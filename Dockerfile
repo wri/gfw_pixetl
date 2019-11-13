@@ -18,13 +18,18 @@ RUN dnf install -y \
     gdal-python-tools \
     && dnf clean all
 
+
+
+
+COPY requirements.txt app/
+
+
+RUN pip3 install -r app/requirements.txt
+
 COPY . app/
 WORKDIR app
-
-RUN pip3 install -r requirements.txt
-
-COPY setup.py setup.py
-COPY gfw_pixetl gfw_pixetl/
+#COPY setup.py setup.py
+#COPY gfw_pixetl gfw_pixetl/
 
 RUN pip3 install -e .
 
