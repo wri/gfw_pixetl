@@ -259,7 +259,7 @@ class RasterLayer(Layer):
         grid: Grid,
         data_type: DataType,
         src_uri: str,
-        resampling: str = "nearest",
+        resampling: str = "near",
         single_tile: bool = False,
         env: str = "dev",
         subset: Optional[List[str]] = None,
@@ -287,7 +287,7 @@ class RasterLayer(Layer):
             | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
                 workers=self.workers
             )
-            | Stage(self.translate).setup(workers=self.workers, qsize=self.workers)
+            | Stage(self.transform).setup(workers=self.workers, qsize=self.workers)
             | Stage(self.delete_if_empty).setup(workers=self.workers)
             | Stage(self.upload_file).setup(workers=self.workers)
             | Stage(self.delete_file).setup(workers=self.workers)
@@ -321,7 +321,7 @@ class RasterLayer(Layer):
             elif self.src.type == "single_tile" and tile.src_tile_intersects():
                 yield tile
 
-    def translate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+    def transform(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
 
         if (
             self.data_type.no_data == 0 or self.data_type.no_data
@@ -368,7 +368,7 @@ class RasterLayer(Layer):
                     "BLOCKYSIZE={}".format(tile.grid.blockysize),
                     # "-co", "SPARSE_OK=TRUE",
                     "-r",
-                    "near",  # TODO normalize: self.resampling,
+                    self.resampling,
                     "-q",
                     "-overwrite",
                     tile.src_uri,
@@ -379,7 +379,7 @@ class RasterLayer(Layer):
             logger.info("Translate tile " + tile.tile_id)
 
             try:
-                self._translate(cmd, tile)
+                self._transform(cmd, tile)
             except GDALError as e:
                 logger.error("Could not translate file " + tile.uri)
                 logger.exception(e)
@@ -392,7 +392,7 @@ class RasterLayer(Layer):
         stop_max_attempt_number=7,
         wait_fixed=2000,
     )
-    def _translate(self, cmd, tile):
+    def _transform(self, cmd, tile):
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
         o, e = p.communicate()
 
@@ -412,7 +412,7 @@ class CalcRasterLayer(RasterLayer):
         data_type: DataType,
         src_uri: str,
         calc: str,
-        resampling: str = "nearest",
+        resampling: str = "near",
         single_tile: bool = False,
         env: str = "dev",
         subset: Optional[List[str]] = None,
@@ -447,7 +447,7 @@ class CalcRasterLayer(RasterLayer):
             | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
                 workers=self.workers
             )
-            | Stage(self.translate).setup(workers=self.workers, qsize=self.workers)
+            | Stage(self.transform).setup(workers=self.workers, qsize=self.workers)
             | Stage(self.delete_calc_if_empty).setup(workers=self.workers)
             | Stage(self.calculate).setup(workers=self.workers, qsize=self.workers)
             | Stage(self.delete_calc).setup(workers=self.workers)
@@ -461,7 +461,7 @@ class CalcRasterLayer(RasterLayer):
 
         logger.debug("Finished Raster Pipe")
 
-    def translate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+    def transform(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         In this version, we only create the tile using the correct extent and pixel size.
         We do not change the data type, compression or nbits value
@@ -474,36 +474,45 @@ class CalcRasterLayer(RasterLayer):
 
             cmd: List[str] = (
                 [
-                    "gdal_translate",
-                    "-strict",
-                    "-a_nodata",
-                    "none",  # ! important
+                    "gdalwarp",
+                    "-s_srs",
+                    tile.src_profile["crs"].to_proj4(),
+                    "-t_srs",
+                    tile.grid.srs.srs,
+                    "-dstnodata",
+                    "None",  # ! important
                     "-tr",
                     str(tile.grid.xres),
                     str(tile.grid.yres),
-                    "-projwin",
+                    "-te",
                     str(tile.minx),
-                    str(tile.maxy),
-                    str(tile.maxx),
                     str(tile.miny),
+                    str(tile.maxx),
+                    str(tile.maxy),
+                    "-te_srs",
+                    tile.grid.srs.srs,
+                    "-ovr",
+                    "NONE",
                     "-co",
                     "TILED=YES",
                     "-co",
                     "BLOCKXSIZE={}".format(tile.grid.blockxsize),
                     "-co",
                     "BLOCKYSIZE={}".format(tile.grid.blockysize),
+                    # "-co", "SPARSE_OK=TRUE",
                     "-r",
                     self.resampling,
                     "-q",
+                    "-overwrite",
                     tile.src_uri,
-                    tile.calc_uri,
+                    tile.uri,
                 ]
             )
 
             logger.info("Translate tile " + tile.tile_id)
 
             try:
-                self._translate(cmd, tile)
+                self._transform(cmd, tile)
             except GDALError as e:
                 logger.error("Could not translate file " + tile.uri)
                 logger.exception(e)
