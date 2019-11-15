@@ -81,7 +81,7 @@ def test_reproject_src_tile_calc():
     tiles = calc_layer.transform([tile])
 
     for t in tiles:
-        with rasterio.open(t.uri) as trg:
+        with rasterio.open(t.calc_uri) as trg:
             trg_profile = trg.profile
 
         assert trg_profile["blockxsize"] == grid.blockxsize
@@ -94,9 +94,9 @@ def test_reproject_src_tile_calc():
         assert trg_profile["dtype"] == tile.src_profile["dtype"]
         assert trg_profile["height"] == grid.cols
         assert trg_profile["interleave"] == "band"
-        assert trg_profile["nodata"] is None
+        assert trg_profile["nodata"] == tile.src_profile["nodata"]
         assert trg_profile["tiled"] is True
         # assert trg_profile['transform']: Affine(30.0, 0.0, 381885.0, 0.0, -30.0, 2512815.0),
         assert trg_profile["width"] == grid.rows
 
-        os.remove(t.uri)
+        os.remove(t.calc_uri)
