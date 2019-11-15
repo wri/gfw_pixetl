@@ -153,7 +153,7 @@ class RasterSrcTile(Tile):
         Check if target tile extent intersects with source extent.
         """
 
-        if not self.src_bounds:
+        if not hasattr(self, "src_bounds"):
             self.src_tile_exists()
 
         proj = Transformer.from_crs(
@@ -184,21 +184,24 @@ class RasterSrcTile(Tile):
         cropped_bottom = inverse.transform(0, bottom)[1]
         cropped_right = inverse.transform(right, 0)[0]
 
-        logger.debug("World Extent:", world_left, world_top, world_right, world_bottom)
         logger.debug(
-            "SRC Extent: ",
-            self.src_bounds.left,
-            self.src_bounds.top,
-            self.src_bounds.right,
-            self.src_bounds.bottom,
+            "World Extent: {}, {}, {}, {}".format(
+                world_left, world_top, world_right, world_bottom
+            )
         )
-        logger.debug("Cropped Extent: ", left, top, right, bottom)
         logger.debug(
-            "Inverted Copped Extent: ",
-            cropped_left,
-            cropped_top,
-            cropped_right,
-            cropped_bottom,
+            "SRC Extent: {}, {}, {}, {}".format(
+                self.src_bounds.left,
+                self.src_bounds.top,
+                self.src_bounds.right,
+                self.src_bounds.bottom,
+            )
+        )
+        logger.debug("Cropped Extent: {}, {}, {}, {}".format(left, top, right, bottom))
+        logger.debug(
+            "Inverted Copped Extent: {}, {}, {}, {}".format(
+                cropped_left, cropped_top, cropped_right, cropped_bottom
+            )
         )
 
         src_bbox = BoundingBox(

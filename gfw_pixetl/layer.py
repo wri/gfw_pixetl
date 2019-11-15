@@ -3,12 +3,15 @@ import math
 import multiprocessing
 import os
 import subprocess as sp
-from typing import Any, Dict, Iterator, List, Optional, Set
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set
 
 import boto3
+import numpy as np
+import rasterio
 import yaml
 from botocore.exceptions import ClientError
 from parallelpipe import Stage
+from rasterio.windows import get_data_window
 from retrying import retry
 
 
@@ -95,6 +98,7 @@ class Layer(object):
             s3 = boto3.client("s3")
 
             try:
+                logger.info("Upload tile {} to s3".format(tile.uri))
                 s3.upload_file(tile.uri, bucket, obj)
             except ClientError:
                 logger.exception("Could not upload file " + tile.uri)
@@ -376,12 +380,12 @@ class RasterLayer(Layer):
                 ]
             )
 
-            logger.info("Translate tile " + tile.tile_id)
+            logger.info("Transform tile " + tile.tile_id)
 
             try:
                 self._transform(cmd, tile)
             except GDALError as e:
-                logger.error("Could not translate file " + tile.uri)
+                logger.error("Could not transform file " + tile.uri)
                 logger.exception(e)
                 raise
             else:
@@ -479,8 +483,8 @@ class CalcRasterLayer(RasterLayer):
                     tile.src_profile["crs"].to_proj4(),
                     "-t_srs",
                     tile.grid.srs.srs,
-                    "-dstnodata",
-                    "None",  # ! important
+                    # "-dstnodata",
+                    # "None",  # ! important
                     "-tr",
                     str(tile.grid.xres),
                     str(tile.grid.yres),
@@ -505,16 +509,16 @@ class CalcRasterLayer(RasterLayer):
                     "-q",
                     "-overwrite",
                     tile.src_uri,
-                    tile.uri,
+                    tile.calc_uri,
                 ]
             )
 
-            logger.info("Translate tile " + tile.tile_id)
+            logger.info("Transform tile " + tile.tile_id)
 
             try:
                 self._transform(cmd, tile)
             except GDALError as e:
-                logger.error("Could not translate file " + tile.uri)
+                logger.error("Could not transform file " + tile.uri)
                 logger.exception(e)
                 raise
             else:
@@ -523,45 +527,93 @@ class CalcRasterLayer(RasterLayer):
     def calculate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
 
         for tile in tiles:
-            if (
-                self.data_type.no_data == 0 or self.data_type.no_data
-            ):  # 0 evaluate as false, so need to list it here
-                no_data_cmd: List[str] = ["--NoDataValue", str(self.data_type.no_data)]
-            else:
-                no_data_cmd = list()
-
-            cmd: List[str] = (
-                ["gdal_calc.py", "--type", self.data_type.data_type]
-                + no_data_cmd
-                + [
-                    "-A",
-                    tile.calc_uri,
-                    "--calc={}".format(self.calc),
-                    "--outfile={}".format(tile.uri),
-                    "--co",
-                    "COMPRESS={}".format(self.data_type.compression),
-                    "--co",
-                    "NBITS={}".format(self.data_type.nbits),
-                    "--co",
-                    "TILED=YES",
-                    "--co",
-                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
-                    "--co",
-                    "BLOCKYSIZE={}".format(tile.grid.blockysize),
-                    "--quiet",
-                ]
-            )
-
             logger.info("Calculate tile " + tile.tile_id)
-            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-            o, e = p.communicate()
-
-            if p.returncode != 0:
-                logger.error("Could not calculate file " + tile.calc_uri)
-                logger.exception(e)
-                raise GDALError(e)
+            # if (
+            #     self.data_type.no_data == 0 or self.data_type.no_data
+            # ):  # 0 evaluate as false, so need to list it here
+            #     no_data_cmd: List[str] = ["--NoDataValue", str(self.data_type.no_data)]
+            # else:
+            #     no_data_cmd = list()
+            #
+            # cmd: List[str] = (
+            #     ["gdal_calc.py", "--type", self.data_type.data_type]
+            #     + no_data_cmd
+            #     + [
+            #         "-A",
+            #         tile.calc_uri,
+            #         "--calc={}".format(self.calc),
+            #         "--outfile={}".format(tile.uri),
+            #         "--co",
+            #         "COMPRESS={}".format(self.data_type.compression),
+            #         "--co",
+            #         "NBITS={}".format(self.data_type.nbits),
+            #         "--co",
+            #         "TILED=YES",
+            #         "--co",
+            #         "BLOCKXSIZE={}".format(tile.grid.blockxsize),
+            #         "--co",
+            #         "BLOCKYSIZE={}".format(tile.grid.blockysize),
+            #         "--quiet",
+            #     ]
+            # )
+            #
+            # logger.info("Calculate tile " + tile.tile_id)
+            # p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            # o, e = p.communicate()
+            #
+            # if p.returncode != 0:
+            #     logger.error("Could not calculate file " + tile.calc_uri)
+            #     logger.exception(e)
+            #     raise GDALError(e)
+            try:
+                self._calc(tile)
+            except Exception:
+                logger.exception("Calculation failed")
+                raise
             else:
                 yield tile
+
+    def _calc(self, tile):
+        with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+            with rasterio.open(tile.calc_uri) as src:
+
+                kwargs = src.meta.copy()
+                kwargs.update(
+                    {
+                        "dtype": self.data_type.to_numpy_dt(),
+                        "compress": self.data_type.compression,
+                        "tiled": True,
+                        "blockxsize": self.grid.blockxsize,
+                        "blockysize": self.grid.blockysize,
+                    }
+                )
+                if self.data_type.no_data == 0 or self.data_type.no_data:
+                    kwargs.update({"nodata": self.data_type.no_data})
+                else:
+                    kwargs.update({"nodata": None})
+
+                if self.data_type.nbits:
+                    kwargs.update({"nbits": self.data_type.nbits})
+
+                with rasterio.open(tile.uri, "w", **kwargs) as dst:
+
+                    for block_index, window in src.block_windows(1):
+                        data = src.read(window=window, masked=True)
+
+                        # apply user submitted calculation
+                        funcstr = "def f(A):\n    return {e}".format(e=self.calc)
+                        exec(funcstr, globals())
+                        data = f(data)  # noqa: F821
+
+                        # update no data value if wanted
+                        if self.data_type.no_data == 0 or self.data_type.no_data:
+                            data = np.ma.filled(data, self.data_type.no_data).astype(
+                                self.data_type.to_numpy_dt()
+                            )
+
+                        else:
+                            data = data.data.astype(self.data_type.to_numpy_dt())
+                        dst.write(data, window=window)
 
     def set_no_data(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         for tile in tiles:
