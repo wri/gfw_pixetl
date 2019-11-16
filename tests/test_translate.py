@@ -10,11 +10,11 @@ from gfw_pixetl.tile import RasterSrcTile
 
 minx: int = 10
 maxy: int = 10
-subset: str = "N10_010E"
+subset: str = "10N_010E"
 
 grid: Grid = grid_factory("10x10")
 
-src_uri: str = "gfw2-data/forest_change/hansen_2018/00N_010E.tif"
+src_uri: str = "gfw2-data/forest_change/hansen_2018/10N_010E.tif"
 
 datatype = data_type_factory("uint", 5)
 
@@ -52,7 +52,7 @@ def test_translate_src_tile():
         assert trg_profile["count"] == 1
         assert trg_profile["crs"] == {"init": grid.srs.srs}
         assert trg_profile["driver"] == "GTiff"
-        assert trg_profile["dtype"] == "uint8"
+        assert trg_profile["dtype"] == datatype.to_numpy_dt()
         assert trg_profile["height"] == grid.cols
         assert trg_profile["interleave"] == "band"
         assert trg_profile["nodata"] == datatype.no_data

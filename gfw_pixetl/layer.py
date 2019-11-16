@@ -42,17 +42,10 @@ class Layer(object):
         else:
             bucket = "gfw-data-lake"
 
-        self.base_name = "{bucket}/{name}/{version}/raster/{srs_authority}-{srs_code}/{width}x{height}/{resolution}/{field}".format(
-            bucket=bucket,
-            name=name,
-            version=version,
-            srs_authority=grid.srs.to_authority()[0].lower(),
-            srs_code=grid.srs.to_authority()[1],
-            width=grid.width,
-            height=grid.height,
-            resolution=grid.xres,
-            field=field,
-        )
+        srs_authority = grid.srs.to_authority()[0].lower()
+        srs_code = grid.srs.to_authority()[1]
+
+        self.base_name = f"{bucket}/{name}/{version}/raster/{srs_authority}-{srs_code}/{grid.width}x{grid.height}/{grid.xres}/{field}"
         if not os.path.exists(self.base_name):
             os.makedirs(self.base_name)
         self.name: str = name
@@ -98,10 +91,10 @@ class Layer(object):
             s3 = boto3.client("s3")
 
             try:
-                logger.info("Upload tile {} to s3".format(tile.uri))
+                logger.info(f"Upload tile {tile.uri} to s3")
                 s3.upload_file(tile.uri, bucket, obj)
             except ClientError:
-                logger.exception("Could not upload file " + tile.uri)
+                logger.exception(f"Could not upload file {tile.uri}")
                 raise
             else:
                 yield tile
@@ -114,10 +107,10 @@ class Layer(object):
     @staticmethod
     def _delete_file(f: str) -> None:
         try:
-            logger.info("Delete file " + f)
+            logger.info(f"Delete file {f}")
             os.remove(f)
         except Exception:
-            logger.exception("Could not delete file " + f)
+            logger.exception(f"Could not delete file {f}")
             raise
 
 
@@ -138,7 +131,7 @@ class VectorLayer(Layer):
         self.field: str = field
         self.order: str = order
         self.rasterize_method: str = rasterize_method
-        self.src: VectorSource = VectorSource("{}_{}".format(name, version))
+        self.src: VectorSource = VectorSource(f"{name}_{version}")
 
         super().__init__(name, version, field, grid, data_type, env, subset)
         logger.debug("Initialized Vector layer")
@@ -206,12 +199,7 @@ class VectorLayer(Layer):
                 + cmd_method
                 + [
                     "-sql",
-                    "select * from {name}_{version}__{grid} where tile_id__{grid} = '{tile_id}'".format(
-                        name=self.name,
-                        version=self.version,
-                        grid=tile.grid.name,
-                        tile_id=tile.tile_id,
-                    ),
+                    f"select * from {self.name}_{self.version}__{tile.grid.name} where tile_id__{tile.grid.name} = '{tile.tile_id}'"
                     "-te",
                     str(tile.minx),
                     str(tile.miny),
@@ -228,13 +216,13 @@ class VectorLayer(Layer):
                 + cmd_no_data
                 + [
                     "-co",
-                    "COMPRESS={}".format(self.data_type.compression),
+                    f"COMPRESS={self.data_type.compression}",
                     "-co",
                     "TILED=YES",
                     "-co",
-                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
+                    f"BLOCKXSIZE={tile.grid.blockxsize}",
                     "-co",
-                    "BLOCKYSIZE={}".format(tile.grid.blockxsize),
+                    f"BLOCKYSIZE={tile.grid.blockxsize}",
                     # "-co", "SPARSE_OK=TRUE",
                     "-q",
                     self.src.conn.pg_conn,
@@ -361,15 +349,15 @@ class RasterLayer(Layer):
                     "-ovr",
                     "NONE",
                     "-co",
-                    "COMPRESS={}".format(self.data_type.compression),
+                    f"COMPRESS={self.data_type.compression}",
                     "-co",
-                    "NBITS={}".format(self.data_type.nbits),
+                    f"NBITS={self.data_type.nbits}",
                     "-co",
                     "TILED=YES",
                     "-co",
-                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
+                    f"BLOCKXSIZE={tile.grid.blockxsize}",
                     "-co",
-                    "BLOCKYSIZE={}".format(tile.grid.blockysize),
+                    f"BLOCKYSIZE={tile.grid.blockysize}",
                     # "-co", "SPARSE_OK=TRUE",
                     "-r",
                     self.resampling,
@@ -380,12 +368,12 @@ class RasterLayer(Layer):
                 ]
             )
 
-            logger.info("Transform tile " + tile.tile_id)
+            logger.info(f"Transform tile {tile.tile_id}")
 
             try:
                 self._transform(cmd, tile)
             except GDALError as e:
-                logger.error("Could not transform file " + tile.uri)
+                logger.error(f"Could not transform file {tile.uri}")
                 logger.exception(e)
                 raise
             else:
@@ -500,9 +488,9 @@ class CalcRasterLayer(RasterLayer):
                     "-co",
                     "TILED=YES",
                     "-co",
-                    "BLOCKXSIZE={}".format(tile.grid.blockxsize),
+                    f"BLOCKXSIZE={tile.grid.blockxsize}",
                     "-co",
-                    "BLOCKYSIZE={}".format(tile.grid.blockysize),
+                    f"BLOCKYSIZE={tile.grid.blockysize}",
                     # "-co", "SPARSE_OK=TRUE",
                     "-r",
                     self.resampling,
@@ -513,12 +501,12 @@ class CalcRasterLayer(RasterLayer):
                 ]
             )
 
-            logger.info("Transform tile " + tile.tile_id)
+            logger.info(f"Transform tile {tile.tile_id}")
 
             try:
                 self._transform(cmd, tile)
             except GDALError as e:
-                logger.error("Could not transform file " + tile.uri)
+                logger.error(f"Could not transform file {tile.uri}")
                 logger.exception(e)
                 raise
             else:
@@ -527,44 +515,7 @@ class CalcRasterLayer(RasterLayer):
     def calculate(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
 
         for tile in tiles:
-            logger.info("Calculate tile " + tile.tile_id)
-            # if (
-            #     self.data_type.no_data == 0 or self.data_type.no_data
-            # ):  # 0 evaluate as false, so need to list it here
-            #     no_data_cmd: List[str] = ["--NoDataValue", str(self.data_type.no_data)]
-            # else:
-            #     no_data_cmd = list()
-            #
-            # cmd: List[str] = (
-            #     ["gdal_calc.py", "--type", self.data_type.data_type]
-            #     + no_data_cmd
-            #     + [
-            #         "-A",
-            #         tile.calc_uri,
-            #         "--calc={}".format(self.calc),
-            #         "--outfile={}".format(tile.uri),
-            #         "--co",
-            #         "COMPRESS={}".format(self.data_type.compression),
-            #         "--co",
-            #         "NBITS={}".format(self.data_type.nbits),
-            #         "--co",
-            #         "TILED=YES",
-            #         "--co",
-            #         "BLOCKXSIZE={}".format(tile.grid.blockxsize),
-            #         "--co",
-            #         "BLOCKYSIZE={}".format(tile.grid.blockysize),
-            #         "--quiet",
-            #     ]
-            # )
-            #
-            # logger.info("Calculate tile " + tile.tile_id)
-            # p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-            # o, e = p.communicate()
-            #
-            # if p.returncode != 0:
-            #     logger.error("Could not calculate file " + tile.calc_uri)
-            #     logger.exception(e)
-            #     raise GDALError(e)
+            logger.info(f"Calculate tile {tile.tile_id}")
             try:
                 self._calc(tile)
             except Exception:
@@ -573,47 +524,62 @@ class CalcRasterLayer(RasterLayer):
             else:
                 yield tile
 
-    def _calc(self, tile):
+    def _calc(self, tile: RasterSrcTile) -> None:
         with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
-            with rasterio.open(tile.calc_uri) as src:
+            src = rasterio.open(tile.calc_uri)
 
-                kwargs = src.meta.copy()
-                kwargs.update(
-                    {
-                        "dtype": self.data_type.to_numpy_dt(),
-                        "compress": self.data_type.compression,
-                        "tiled": True,
-                        "blockxsize": self.grid.blockxsize,
-                        "blockysize": self.grid.blockysize,
-                    }
-                )
-                if self.data_type.no_data == 0 or self.data_type.no_data:
-                    kwargs.update({"nodata": self.data_type.no_data})
-                else:
-                    kwargs.update({"nodata": None})
+            kwargs = self._dst_meta(src.meta)
 
-                if self.data_type.nbits:
-                    kwargs.update({"nbits": self.data_type.nbits})
+            dst = rasterio.open(tile.uri, "w", **kwargs)
 
-                with rasterio.open(tile.uri, "w", **kwargs) as dst:
+            for block_index, window in src.block_windows(1):
+                data = src.read(window=window, masked=True)
+                data = self._apply_calc(data)
+                data = self._set_no_data_calc(data)
+                dst.write(data, window=window)
+            src.close()
+            dst.close()
 
-                    for block_index, window in src.block_windows(1):
-                        data = src.read(window=window, masked=True)
+    def _dst_meta(self, meta):
+        kwargs = meta.copy()
+        kwargs.update(
+            {
+                "dtype": self.data_type.to_numpy_dt(),
+                "compress": self.data_type.compression,
+                "tiled": True,
+                "blockxsize": self.grid.blockxsize,
+                "blockysize": self.grid.blockysize,
+            }
+        )
+        if self.data_type.no_data == 0 or self.data_type.no_data:
+            kwargs.update({"nodata": self.data_type.no_data})
+        else:
+            kwargs.update({"nodata": None})
 
-                        # apply user submitted calculation
-                        funcstr = "def f(A):\n    return {e}".format(e=self.calc)
-                        exec(funcstr, globals())
-                        data = f(data)  # noqa: F821
+        if self.data_type.nbits:
+            kwargs.update({"nbits": self.data_type.nbits})
 
-                        # update no data value if wanted
-                        if self.data_type.no_data == 0 or self.data_type.no_data:
-                            data = np.ma.filled(data, self.data_type.no_data).astype(
-                                self.data_type.to_numpy_dt()
-                            )
+        return kwargs
 
-                        else:
-                            data = data.data.astype(self.data_type.to_numpy_dt())
-                        dst.write(data, window=window)
+    def _apply_calc(
+        self, data
+    ):  # can use type hints here b/c of the way we create function f from string. Mypy would thow an error
+        # apply user submitted calculation
+
+        funcstr = f"def f(A: np.ndarray) -> np.ndarray:\n    return {self.calc}"
+        exec(funcstr, globals())
+        return f(data)  # noqa: F821
+
+    def _set_no_data_calc(self, data):
+        # update no data value if wanted
+        if self.data_type.no_data == 0 or self.data_type.no_data:
+            data = np.ma.filled(data, self.data_type.no_data).astype(
+                self.data_type.to_numpy_dt()
+            )
+
+        else:
+            data = data.data.astype(self.data_type.to_numpy_dt())
+        return data
 
     def set_no_data(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         for tile in tiles:
@@ -625,12 +591,12 @@ class CalcRasterLayer(RasterLayer):
                     tile.uri,
                 ]
 
-                logger.info("Set No Data Value for file " + tile.uri)
+                logger.info(f"Set No Data Value for file {tile.uri}")
                 p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
                 o, e = p.communicate()
 
                 if p.returncode != 0:
-                    logger.error("Could not set No Data value for file " + tile.uri)
+                    logger.error(f"Could not set No Data value for file {tile.uri}")
                     logger.exception(e)
                     raise GDALError(e)
                 else:
@@ -659,7 +625,7 @@ def layer_factory(layer_type, **kwargs) -> Layer:
     elif layer_type == "raster":
         return _raster_layer_factory(**kwargs)
     else:
-        raise ValueError("Unknown layer type: {}".format(layer_type))
+        raise ValueError(f"Unknown layer type: {layer_type}")
 
 
 def _vector_layer_factory(**kwargs) -> VectorLayer:
