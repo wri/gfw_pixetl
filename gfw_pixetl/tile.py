@@ -69,12 +69,18 @@ class Tile(object):
             with rasterio.open(uri) as src:
                 self.src_profile = src.profile
                 self.src_bounds = src.bounds
-        except RasterioIOError:
-            logger.error("Cannot read source file")
-            raise
+        except RasterioIOError as e:
+            if str(e) == "Access Denied":
+                logger.error(f"Cannot check for file {uri}. Access Denied.")
+                raise
+            else:
+                logger.info(f"File does not exist {uri}")
+                return False
         except Exception:
+            logger.info(f"File does not exist {uri}")
             return False
         else:
+            logger.info(f"File {uri} already exists")
             return True
 
 
