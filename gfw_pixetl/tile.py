@@ -70,17 +70,22 @@ class Tile(object):
                 self.src_profile = src.profile
                 self.src_bounds = src.bounds
         except RasterioIOError as e:
-            if str(e) == "Access Denied":
-                logger.error(f"Cannot check for file {uri}. Access Denied.")
-                raise
-            else:
+            if (
+                str(e)
+                == f"'{uri}' does not exist in the file system, and is not recognized as a supported dataset name."
+                or str(e) == "The specified key does not exist."
+            ):
                 logger.info(f"File does not exist {uri}")
                 return False
+
+            else:
+                logger.exception(f"Cannot open {uri}")
+                raise
         except Exception:
-            logger.info(f"File does not exist {uri}")
-            return False
+            logger.exception(f"Cannot open {uri}")
+            raise
         else:
-            logger.info(f"File {uri} already exists")
+            logger.info(f"File {uri} exists")
             return True
 
 

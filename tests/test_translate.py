@@ -35,6 +35,14 @@ tile = RasterSrcTile(minx, maxy, layer.grid, layer.src, layer.uri)
 tile.src_tile_exists()
 
 
+def test_src_tile_exists():
+    assert tile.src_tile_exists()
+
+
+def test_uri_exists():
+    assert not tile.uri_exists()
+
+
 def test_find_src_tiles():
     assert tile.src_tile_intersects()
 
