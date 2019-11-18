@@ -105,6 +105,30 @@ class Layer(object):
             yield tile
 
     @staticmethod
+    def create_vrt(uris: List[str]) -> str:
+
+        vrt = "all.vrt"
+        tile_list = "tiles.txt"
+
+        with open(tile_list, "w") as input_tiles:
+            for uri in uris:
+                tile_uri = f"/vsis3/{uri}\n"
+                input_tiles.write(tile_uri)
+
+        cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
+
+        logger.info("Create VRT file")
+        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        o, e = p.communicate()
+
+        if p.returncode != 0:
+            logger.error("Could not create VRT file")
+            logger.exception(e)
+            raise GDALError(e)
+        else:
+            return vrt
+
+    @staticmethod
     def _delete_file(f: str) -> None:
         try:
             logger.info(f"Delete file {f}")
