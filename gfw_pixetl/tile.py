@@ -23,6 +23,20 @@ class Tile(object):
     A tile object which represents a single tile within a given grid
     """
 
+    def __str__(self):
+        return self.tile_id
+
+    def __repr__(self):
+        return f"Tile(tile_id={self.tile_id}, grid={self.grid.name})"
+
+    def __hash__(self):
+        return hash((self.tile_id, self.grid))
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self.tile_id == other.tile_id and self.grid == other.grid
+
     def __init__(
         self,
         minx: int,

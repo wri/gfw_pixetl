@@ -11,7 +11,6 @@ import rasterio
 import yaml
 from botocore.exceptions import ClientError
 from parallelpipe import Stage
-from rasterio.windows import get_data_window
 from retrying import retry
 
 
@@ -177,10 +176,14 @@ class VectorLayer(Layer):
             | Stage(self.delete_file).setup(workers=self.workers)
         )
 
-        for output in pipe.results():
-            pass
+        tile_uris: List[str] = list()
+        for tile in pipe.results():
+            tile_uris.append(tile.uri)
 
-        logger.debug("Start Finished Pipe")
+        # vrt: str = self.create_vrt(tile_uris)
+        # TODO upload vrt to s3
+
+    logger.debug("Start Finished Pipe")
 
     def get_grid_tiles(self) -> Set[VectorSrcTile]:
         tiles = set()
@@ -223,7 +226,7 @@ class VectorLayer(Layer):
                 + cmd_method
                 + [
                     "-sql",
-                    f"select * from {self.name}_{self.version}__{tile.grid.name} where tile_id__{tile.grid.name} = '{tile.tile_id}'"
+                    f"select * from {self.name}_{self.version}__{tile.grid.name} where tile_id__{tile.grid.name} = '{tile.tile_id}'",
                     "-te",
                     str(tile.minx),
                     str(tile.miny),
@@ -309,23 +312,32 @@ class RasterLayer(Layer):
             | Stage(self.delete_file).setup(workers=self.workers)
         )
 
-        for output in pipe.results():
-            pass
+        tile_uris: List[str] = list()
+        for tile in pipe.results():
+            tile_uris.append(tile.uri)
+
+        # vrt: str = self.create_vrt(tile_uris)
+        # TODO upload vrt to s3
 
         logger.debug("Finished Raster Pipe")
 
     def get_grid_tiles(self) -> Set[RasterSrcTile]:
+        logger.debug("Get grid Tiles")
         tiles = set()
         with open(
             os.path.join(os.path.dirname(__file__), "fixures/tiles.csv")
         ) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=",")
             for row in csv_reader:
+                origin = self.grid.xyGridOrigin(int(row[2]), int(row[5]))
                 tiles.add(
                     RasterSrcTile(
-                        int(row[2]), int(row[5]), self.grid, self.src, self.uri
+                        int(origin.x), int(origin.y), self.grid, self.src, self.uri
                     )
                 )
+        logger.debug(len(tiles))
+        print(tiles)
+
         return tiles
 
     def filter_src_tiles(
@@ -373,7 +385,7 @@ class RasterLayer(Layer):
                     "-ovr",
                     "NONE",
                     "-co",
-                    f"COMPRESS={self.data_type.compression}",
+                    f"COMPRESS=NONE",  # {self.data_type.compression}",
                     "-co",
                     f"NBITS={self.data_type.nbits}",
                     "-co",
@@ -472,10 +484,14 @@ class CalcRasterLayer(RasterLayer):
             | Stage(self.delete_file).setup(workers=self.workers)
         )
 
-        for output in pipe.results():
-            pass
+        tile_uris: List[str] = list()
+        for tile in pipe.results():
+            tile_uris.append(tile.uri)
 
-        logger.debug("Finished Raster Pipe")
+        # vrt: str = self.create_vrt(tile_uris)
+        # TODO upload vrt to s3
+
+    logger.debug("Finished Raster Pipe")
 
     def transform(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
@@ -605,26 +621,26 @@ class CalcRasterLayer(RasterLayer):
             data = data.data.astype(self.data_type.to_numpy_dt())
         return data
 
-    def set_no_data(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
-        for tile in tiles:
-            if self.data_type.no_data:
-                cmd: List[str] = [
-                    "gdal_edit.py",
-                    "-a_nodata",
-                    str(self.data_type.no_data),
-                    tile.uri,
-                ]
-
-                logger.info(f"Set No Data Value for file {tile.uri}")
-                p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-                o, e = p.communicate()
-
-                if p.returncode != 0:
-                    logger.error(f"Could not set No Data value for file {tile.uri}")
-                    logger.exception(e)
-                    raise GDALError(e)
-                else:
-                    yield tile
+    # def set_no_data(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+    #     for tile in tiles:
+    #         if self.data_type.no_data:
+    #             cmd: List[str] = [
+    #                 "gdal_edit.py",
+    #                 "-a_nodata",
+    #                 str(self.data_type.no_data),
+    #                 tile.uri,
+    #             ]
+    #
+    #             logger.info(f"Set No Data Value for file {tile.uri}")
+    #             p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+    #             o, e = p.communicate()
+    #
+    #             if p.returncode != 0:
+    #                 logger.error(f"Could not set No Data value for file {tile.uri}")
+    #                 logger.exception(e)
+    #                 raise GDALError(e)
+    #             else:
+    #                 yield tile
 
     def delete_calc(self, tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         for tile in tiles:
