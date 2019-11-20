@@ -1,0 +1,790 @@
+aboveground_biomass_stock_2000:
+    Mg_ha-1:
+        data_type: uint16
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/biomass/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+aboveground_carbon_stock_2000:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/agc_2000/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+aboveground_carbon_stock_in_emissions_year:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/agc_emis_year/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+
+belowground_carbon_stock_2000:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/bgc_2000/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+belowground_carbon_stock_in_emissions_year:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/bgc_emis_year/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+biodiversity_intactness:
+    index:
+        data_type: Float64
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/biodiversity_intactness/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+    top10:
+        data_type: boolean
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/biodiversity_intactness/all.vrt
+        calc: 1*(A>XXXX)  # TODO figure out what threshold should be
+        resampling: mode  # TODO figure out who to resample
+        grids:
+            - 10x10
+            - 90x90
+
+biodiversity_significance:
+    index:
+        data_type: Float64
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/biodiversity_significance/all.vrt
+        resampling: max
+        grids:
+            - 10x10
+            - 90x90
+    top10:
+        data_type: boolean
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/biodiversity_significance/all.vrt
+        calc: 1*(A>XXXX)  # TODO figure out what threshold should be
+        resampling: max  # TODO figure out who to resample
+        grids:
+            - 10x10
+            - 90x90
+
+deadwood_carbon_stock_2000:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/deadwood_carbon_2000/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+deadwood_carbon_stock_in_emissions_year:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/deadwood_carbon_emis_year/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+erosion_risk:
+    level:
+        data_type: uint
+        nbits: 3
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/erosion/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+global_landcover_2000: #TODO verify year
+    class:
+        data_type: uint
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/global_landcover/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gross_annual_removals_biomass:
+    Mg:
+        data_type: float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/gross_annual_removals_biomass/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+gross_cumul_removals_co2:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/gross_cumul_removals_co2/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+gross_emissions_co2e_co2_only:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+gross_emissions_co2e_non_co2:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+idn_primary_forest:
+    is:
+        data_type: boolean
+        src_uri: /vsis3/gfw-files/2018_update/idn_primary_forest/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+intact_primary_forest:
+    is:
+        data_type: boolean
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/ifl_primary/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+litter_carbon_stock_2000:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/litter_carbon_2000/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+litter_carbon_stock_in_emissions_year:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/litter_carbon_emis_year/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+mangrove_aboveground_biomass_stock_2000:
+    Mg_ha-1:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/mangrove_biomass/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+net_flux_co2_2001-2015:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/net_flux_co2e/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+peatlands_flux:
+    is:
+        data_type: boolean
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/peatlands_flux/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+pixel_area:
+    m2:
+        data_type: Float32
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/area/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+regional_primary_forest:
+    is:
+        data_type: boolean
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/primary_forest/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+soil_carbon_stock_in_emissions_year:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/soil_carbon_emis_year/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+soil_carbon_stock_2000:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/soil_carbon_2000/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+tcs_drivers_2000-2015:
+    type:
+        data_type: uint
+        nbits: 3
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/drivers/all.vrt
+        calc: A+1
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+tcs_drivers_2000-2018:
+    type:
+        data_type: uint
+        nbits: 3
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw2-data/forest_change/tsc/drivers2018.tif
+        calc: A+1
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+total_carbon_stock_2000:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/total_carbon_2000/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+total_carbon_stock_in_emissions_year:
+    Mg:
+        data_type: Float32
+        no_data: 0
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/total_carbon_emis_year/standard/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+treecover_loss:
+    year:
+        data_type: uint
+        nbits: 5
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/loss/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+treecover_gain_2000-2012:
+    is:
+        data_type: boolean
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/gain/all.vrt
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+treecover_density_2000:
+    percent:
+        data_type: uint
+        nbits: 7
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/tcd_2000/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+    threshold:
+        data_type: uint
+        nbits: 3
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/tcd_2000/all.vrt
+        calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+treecover_density_2010:
+    percent:
+        data_type: uint
+        nbits: 7
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/tcd_2010/all.vrt
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+    threshold:
+        data_type: uint
+        nbits: 3
+        src:
+			type: raster
+			uri: /vsis3/gfw-files/2018_update/tcd_2010/all.vrt
+        calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
+        resampling: average
+        grids:
+            - 10x10
+            - 90x90
+
+
+alliance_for_zero_extinction_site:
+	is:
+        data_type: Boolean
+        src:
+            type: vector
+        order: desc
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+baseline_water_stress:
+	level:
+        data_type: uint
+        nbits: 3
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+bra_biomes:
+	name:
+        data_type: uint
+        nbits: 3
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+ecozones:
+	name:
+        data_type: uint
+        nbits: 5
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+endemic_bird_areas:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_land_rights:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_logging:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_mining:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_oil_gas:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_oil_palm:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_plantations:
+	type:
+        data_type: uint
+        nbits: 4
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_resource_rights:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+gfw_wood_fiber:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+idn_forest_area:
+	type:
+        data_type: uint32
+        nbits: 17
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+idn_forest_moratorium:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+idn_land_cover:
+	class:
+        data_type: uint16
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+intact_forest_landscapes:
+	year:
+        data_type: uint16
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+key_biodiversity_area:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+landmark:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+mangroves_1996:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+mangroves_2016:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+mex_protected_areas:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+mex_psa:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+mex_forest_zoning:
+	zone:
+        data_type: uint
+        nbits: 5
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+peatlands:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+per_forest_concessions:
+	type:
+        data_type: uint
+        nbits: 3
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+per_permanent_production_forest:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+per_protected_areas:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+river_basins:
+ 	name:
+        data_type: uint16
+        nbits: 13
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+rspo_oil_palm:
+	certification_status:
+        data_type: uint
+        nbits: 3
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+tiger_landscapes:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+urban_water_intake:
+	is:
+        data_type: boolean
+        src:
+            type: vector
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90
+
+wdpa_protected_areas:
+	iucn_cat:
+        data_type: uint
+        nbits: 2
+        src:
+            type: vector
+        order: desc
+        resampling: mode
+        grids:
+            - 10x10
+            - 90x90

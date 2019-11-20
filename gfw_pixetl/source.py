@@ -1,4 +1,10 @@
+import os
+from typing import Any, Dict
+
+from rasterio.coords import BoundingBox
+
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.connection import PgConn
 
 logger = get_module_logger(__name__)
 
@@ -8,26 +14,29 @@ class Source(object):
 
 
 class VectorSource(Source):
-    class PgConn(object):
-        db_host = "localhost"
-        db_port = 5432
-        db_name = "gadm"
-        db_user = "postgres"
-        db_password = "postgres"  # pragma: allowlist secret
-        pg_conn = "PG:dbname={} port={} host={} user={} password={}".format(
-            db_name, db_port, db_host, db_user, db_password
-        )
-
-    format = "vector"
-    conn = PgConn()
-
     def __init__(self, table_name):
+        self.conn: PgConn = PgConn()
         self.table_name = table_name
 
 
 class RasterSource(Source):
-    format = "raster"
+    def __init__(self, profile: Dict[str, Any], bounds: BoundingBox, uri: str):
 
-    def __init__(self, uri, type):
+        self.profile = profile
+        self.bounds = bounds
         self.uri = uri
-        self.type = type
+
+
+class Destination(RasterSource):
+    @staticmethod
+    def get_bucket(env):
+        bucket = "gfw-data-lake"
+        if env != "production":
+            bucket += f"-{env}"
+        return bucket
+
+    def get_prefix(self):
+        return "/".join(self.uri.split("/")[:-1])
+
+    def get_filename(self):
+        return self.uri.split("/")[-1:]
