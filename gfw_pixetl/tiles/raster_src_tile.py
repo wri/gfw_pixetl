@@ -90,15 +90,17 @@ class RasterSrcTile(Tile):
 
         cmd: List[str] = ["gdalwarp"]
 
+        if is_final and self._dst_has_no_data():
+            cmd += ["-dstnodata", str(self.dst.profile["no_data"])]
+
         if is_final:
-            if self.dst.profile["no_data"] == 0 or self.dst.profile["no_data"]:
-                cmd += ["-dstnodata", str(self.dst.profile["no_data"])]
             cmd += [
                 "-ot",
                 self.dst.profile["data_type"],
                 "-co",
                 f"NBITS={self.dst.profile['nbits']}",
             ]
+
         cmd += [
             "-s_srs",
             self.src.profile["crs"].to_proj4(),
@@ -195,7 +197,7 @@ class RasterSrcTile(Tile):
 
     def _set_no_data_calc(self, data):
         # update no data value if wanted
-        if self.dst.profile["no_data"] == 0 or self.dst.profile["no_data"]:
+        if self._dst_has_no_data():
             data = np.ma.filled(data, self.dst.profile["no_data"]).astype(
                 self.dst.profile[
                     "data_type"

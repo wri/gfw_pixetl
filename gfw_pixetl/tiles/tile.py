@@ -116,3 +116,6 @@ class Tile(object):
             raise GDALNoneTypeError(e)
         elif p.returncode != 0:
             raise GDALError(e)
+
+    def _dst_has_no_data(self):
+        return self.dst.profile["no_data"] == 0 or self.dst.profile["no_data"]
