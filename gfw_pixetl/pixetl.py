@@ -6,8 +6,8 @@ from typing import List, Optional
 import click
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.grid import grid_factory
-from gfw_pixetl.layer import layer_factory
+from gfw_pixetl.grids import Grid, grid_factory
+from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
 
 logger = get_module_logger(__name__)
@@ -22,9 +22,7 @@ logger = get_module_logger(__name__)
     type=click.Choice(["raster", "vector", "tcd_raster"]),
     help="Type of input file(s)",
 )
-@click.option(
-    "-f", "--field", type=str, default=None, help="Field represented in output dataset"
-)
+@click.option("-f", "--field", type=str, help="Field represented in output dataset")
 @click.option(
     "-g",
     "--grid_name",
@@ -51,7 +49,7 @@ def cli(
     name: str,
     version: str,
     source_type: str,
-    field: Optional[str],
+    field: str,
     grid_name: str,
     subset: Optional[List[str]],
     env: str,
@@ -82,6 +80,8 @@ def cli(
         )
     )
 
+    os.environ["ENV"] = env
+
     if subset:
         logger.info("Running on subset: {}".format(subset))
     else:
@@ -89,17 +89,9 @@ def cli(
 
     _verify_version_pattern(version)
 
-    grid = grid_factory(grid_name)
+    grid: Grid = grid_factory(grid_name)
 
-    layer = layer_factory(
-        source_type,
-        name=name,
-        version=version,
-        grid=grid,
-        field=field,
-        env=env,
-        subset=subset,
-    )
+    layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
 
     layer.create_tiles(overwrite)
 

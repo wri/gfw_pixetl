@@ -5,7 +5,7 @@ from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import GDALError
-from gfw_pixetl.grid import Grid
+from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.tiles import Tile

@@ -7,7 +7,7 @@ from typing import Iterator, List, Optional, Set
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import GDALError
-from gfw_pixetl.grid import Grid
+from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.tiles.tile import Tile
 
@@ -57,7 +57,7 @@ class Pipe(object):
             csv_reader = csv.reader(csv_file, delimiter=",")
 
             for row in csv_reader:
-                origin = self.grid.xyGridOrigin(int(row[2]), int(row[5]))
+                origin = self.grid.xy_grid_origin(int(row[2]), int(row[5]))
                 tiles.add(Tile(origin=origin, grid=self.grid, layer=self.layer))
 
         logger.info(f"Found {len(tiles)} tile inside grid")

@@ -11,7 +11,7 @@ from shapely.geometry import Point
 from gfw_pixetl import get_module_logger
 from gfw_pixetl import utils
 from gfw_pixetl.errors import GDALError, GDALNoneTypeError, retry_if_none_type_error
-from gfw_pixetl.grid import Grid
+from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.sources import Destination, RasterSource
 
@@ -44,7 +44,7 @@ class Tile(object):
 
         self.local_src: RasterSource
 
-        self.tile_id: str = grid.pointGridId(origin)
+        self.tile_id: str = grid.point_grid_id(origin)
         self.bounds: BoundingBox = BoundingBox(
             left=origin.x,
             bottom=origin.y - grid.height,
@@ -63,7 +63,7 @@ class Tile(object):
         try:
             utils.get_src(self.dst.uri)
             return True
-        except FileExistsError:
+        except FileNotFoundError:
             return False
 
     def set_local_src(self, stage: str) -> None:

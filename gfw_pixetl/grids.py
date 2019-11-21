@@ -55,25 +55,25 @@ class Grid(object):
         self.yres: float = self.height / self.rows
         self.name: str = "{}x{}".format(self.width, self.height)
 
-    def xyGridOrigin(self, x: float, y: float) -> Point:
-        return self.pointGridOrigin(Point(x, y))
+    def xy_grid_origin(self, x: float, y: float) -> Point:
+        return self.point_grid_origin(Point(x, y))
 
-    def pointGridOrigin(self, point: Point) -> Point:
+    def point_grid_origin(self, point: Point) -> Point:
         lng: int = math.floor(point.x / self.width) * self.width
         lat: int = math.ceil(point.y / self.height) * self.height
 
         return Point(lng, lat)
 
-    def xyGridId(self, x: float, y: float) -> str:
-        return self.pointGridId(Point(x, y))
+    def xy_grid_id(self, x: float, y: float) -> str:
+        return self.point_grid_id(Point(x, y))
 
-    def pointGridId(self, point: Point) -> str:
+    def point_grid_id(self, point: Point) -> str:
         """
         Calculate the GRID ID based on a coordinate inside tile
         :param point: POINT(lng, lat)
         :return: Grid Id
         """
-        point = self.pointGridOrigin(point)
+        point = self.point_grid_origin(point)
         col = int(point.x)
         row = int(point.y)
         # col: int = math.floor(point.x / self.width) * self.width
@@ -90,17 +90,17 @@ def grid_factory(grid_name) -> Grid:
     Different Grid layout used for this project
     """
 
-    # RAAD alerts
-    if grid_name == "epsg_4326_3x3" or grid_name == "3x3":
-        return Grid("epsg:4326", 3, 50000, 250)
+    # # RAAD alerts
+    # if grid_name == "epsg_4326_3x3" or grid_name == "3x3":
+    #     return Grid("epsg:4326", 3, 50000, 250)
 
     # GLAD alerts and UMD Forest Loss Standard Grid
-    elif grid_name == "epsg_4326_10x10" or grid_name == "10x10":
+    if grid_name == "epsg_4326_10x10" or grid_name == "10x10":
         return Grid("epsg:4326", 10, 40000, 400)
 
-    # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
-    elif grid_name == "epsg_4326_8x8" or grid_name == "8x8":
-        return Grid("epsg:4326", 8, 32000, 400)
+    # # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
+    # elif grid_name == "epsg_4326_8x8" or grid_name == "8x8":
+    #     return Grid("epsg:4326", 8, 32000, 400)
 
     # VIIRS Fire alerts
     elif grid_name == "epsg_4326_90x90" or grid_name == "90x90":
