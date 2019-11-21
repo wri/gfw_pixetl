@@ -15,8 +15,9 @@ def get_src(uri: str) -> RasterSource:
             source: RasterSource = RasterSource(
                 uri=uri, profile=src.profile, bounds=src.bounds
             )
-    except RasterioIOError as e:
-        if (
+    except Exception as e:
+
+        if isinstance(e, RasterioIOError) and (
             str(e)
             == f"'{uri}' does not exist in the file system, and is not recognized as a supported dataset name."
             or str(e) == "The specified key does not exist."
@@ -26,9 +27,6 @@ def get_src(uri: str) -> RasterSource:
         else:
             logger.exception(f"Cannot open {uri}")
             raise
-    except Exception:
-        logger.exception(f"Cannot open {uri}")
-        raise
     else:
         logger.info(f"File {uri} exists")
         return source
