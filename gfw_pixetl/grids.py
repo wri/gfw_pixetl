@@ -69,7 +69,7 @@ class Grid(object):
     def point_grid_origin(self, point: Point) -> Point:
         """
         Calculate top left corner of corresponding grid tile for any given point.
-        In case tiles don't align with equator and central meridane we have to introduce an offset.
+        In case tiles don't align with equator and central meridian we have to introduce an offset.
         We always assume that grids and offset are whole numbers
         """
 

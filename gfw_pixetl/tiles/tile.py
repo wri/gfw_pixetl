@@ -9,11 +9,10 @@ from retrying import retry
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl import utils
 from gfw_pixetl.errors import GDALError, GDALNoneTypeError, retry_if_none_type_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.sources import Destination, RasterSource
+from gfw_pixetl.sources import Destination, RasterSource, get_src
 
 logger = get_module_logger(__name__)
 
@@ -61,7 +60,7 @@ class Tile(object):
         if not self.dst.uri:
             raise Exception("Tile URI is not set")
         try:
-            utils.get_src(self.dst.uri)
+            get_src(self.dst.uri)
             return True
         except FileNotFoundError:
             return False
@@ -71,7 +70,7 @@ class Tile(object):
             self.rm_local_src()
 
         uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
-        self.local_src = utils.get_src(uri)
+        self.local_src = get_src(uri)
 
     def local_src_is_empty(self) -> bool:
         logger.debug(f"Check if tile {self.local_src.uri} is empty")

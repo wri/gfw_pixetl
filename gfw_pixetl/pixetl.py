@@ -91,7 +91,10 @@ def cli(
     else:
         logger.info("Running on full extent")
 
-    utils.verify_version_pattern(version)
+    if not utils.verify_version_pattern(version):
+        message = "Version number does not match pattern"
+        logger.error(message)
+        raise ValueError(message)
 
     grid: Grid = grid_factory(grid_name)
     layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)

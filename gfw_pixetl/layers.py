@@ -3,11 +3,10 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-from gfw_pixetl import get_module_logger
-from gfw_pixetl import utils
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
-from gfw_pixetl.sources import VectorSource, RasterSource
+from gfw_pixetl.sources import VectorSource, RasterSource, get_src
 
 
 logger = get_module_logger(__name__)
@@ -107,7 +106,7 @@ class RasterSrcLayer(Layer):
             src_uri = self._source["grids"][grid.name]["uri"]
 
         try:
-            self.src: RasterSource = utils.get_src(src_uri)
+            self.src: RasterSource = get_src(src_uri)
         except FileNotFoundError:
             message = f"The source file {src_uri} for layer {self.name}/{self.field} does not exist"
             logger.error(message)
