@@ -47,46 +47,66 @@ def test_grid_factory():
 
 
 def test_get_tile_id():
+
+    # Grid IDs for 10x10 degree grid, 40000x40000 pixels
     grid: Grid = grid_factory("10/40000")
 
     point: Point = Point(0, 0)
     grid_id: str = grid.point_grid_id(point)
     assert grid_id == "00N_000E"
 
-    point: Point = Point(1, 1)
-    grid_id: str = grid.point_grid_id(point)
+    point = Point(1, 1)
+    grid_id = grid.point_grid_id(point)
     assert grid_id == "10N_000E"
 
-    point: Point = Point(90, 90)
-    grid_id: str = grid.point_grid_id(point)
+    point = Point(90, 90)
+    grid_id = grid.point_grid_id(point)
     assert grid_id == "90N_090E"
 
-    point: Point = Point(-1, -1)
-    grid_id: str = grid.point_grid_id(point)
+    point = Point(-1, -1)
+    grid_id = grid.point_grid_id(point)
     assert grid_id == "00N_010W"
 
-    point: Point = Point(-90, -90)
-    grid_id: str = grid.point_grid_id(point)
+    point = Point(-90, -90)
+    grid_id = grid.point_grid_id(point)
     assert grid_id == "90S_090W"
 
-    grid: Grid = grid_factory("8/32000")
+    # Grid IDs for 8x8 degree grid, 32000x32000 pixels
+    # This grid edges do not intersect with equator or central meridian
+    grid = grid_factory("8/32000")
 
-    point: Point = Point(0, 0)
-    grid_id: str = grid.point_grid_id(point)
-    assert grid_id == "00N_000E"
+    point = Point(0, 0)
+    grid_id = grid.point_grid_id(point)
+    assert grid_id == "04N_004W"
 
-    point: Point = Point(1, 1)
-    grid_id: str = grid.point_grid_id(point)
-    assert grid_id == "10N_000E"
+    point = Point(1, 1)
+    grid_id = grid.point_grid_id(point)
+    assert grid_id == "04N_004W"
 
-    point: Point = Point(90, 90)
-    grid_id: str = grid.point_grid_id(point)
-    assert grid_id == "90N_090E"
+    point = Point(-1, -1)
+    grid_id = grid.point_grid_id(point)
+    assert grid_id == "04N_004W"
 
-    point: Point = Point(-1, -1)
-    grid_id: str = grid.point_grid_id(point)
-    assert grid_id == "00N_010W"
+    point = Point(-5, 5)
+    grid_id = grid.point_grid_id(point)
+    assert grid_id == "12N_012W"
 
-    point: Point = Point(-90, -90)
-    grid_id: str = grid.point_grid_id(point)
-    assert grid_id == "90S_090W"
+    point = Point(5, -5)
+    grid_id = grid.point_grid_id(point)
+    assert grid_id == "04S_004E"
+
+    point = Point(-1, -1)
+    grid_id = grid.point_grid_id(point)
+    assert grid_id == "04N_004W"
+
+    point = Point(90, 90)
+    try:
+        grid.point_grid_id(point)
+    except Exception as e:
+        assert isinstance(e, AssertionError)
+
+    point = Point(-90, -90)
+    try:
+        grid.point_grid_id(point)
+    except Exception as e:
+        assert isinstance(e, AssertionError)

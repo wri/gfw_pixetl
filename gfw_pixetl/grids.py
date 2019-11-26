@@ -44,6 +44,13 @@ class Grid(object):
 
         assert not 360 % width, "Tiles must fully fit into 360 degree extent"
         assert not cols % 16, "Column number must be a multiple of 16"
+        if width % 2:
+            assert (
+                not (360 / width) % 2
+            ), "Uneven grid sizes cannot have a longitude offset"
+            assert (
+                not (180 / width) % 2
+            ), "Uneven grid sizes cannot have a latitude offset"
 
         self.srs: CRS = CRS.from_string(srs)
         self.width: int = width
@@ -60,19 +67,54 @@ class Grid(object):
         return self.point_grid_origin(Point(x, y))
 
     def point_grid_origin(self, point: Point) -> Point:
-        lng: int = math.floor(point.x / self.width) * self.width
-        lat: int = math.ceil(point.y / self.height) * self.height
+        """
+        Calculate top left corner of corresponding grid tile for any given point.
+        In case tiles don't align with equator and central meridane we have to introduce an offset.
+        We always assume that grids and offset are whole numbers
+        """
+
+        lng_offset: int = int(self.width / 2) if (360 / self.width) % 2 else 0
+        lat_offset: int = int(self.height / 2) if (180 / self.height) % 2 else 0
+
+        lng: int = (math.floor(point.x / self.width) * self.width)
+
+        # apply longitudinal offset and shift grid cell in case point doesn't fall into it
+        if lng == 0 and lng_offset:
+            lng = lng - lng_offset
+        elif lng_offset:
+            lng = lng - (lng_offset * int(lng / abs(lng)))
+        if lng_offset and point.x < lng:
+            lng -= self.width
+        elif lng_offset and point.x > lng + self.width:
+            lng += self.width
+
+        lat: int = (math.ceil(point.y / self.height) * self.height)
+
+        # apply latitudinal offset and shift grid cell in case point doesn't fall into it
+        if lat == 0 and lat_offset:
+            lat = lat + lat_offset
+        elif lat_offset:
+            lat = lat - (lat_offset * int(lat / abs(lat)))
+        if lat_offset and point.y > lat:
+            lat += self.height
+        elif lat_offset and point.y < lat - self.height:
+            lat -= self.height
+
+        # Make sure we are are still on earth
+        assert 180 >= lng >= -180, "Origin's Longitude is out of bounds"
+        assert 90 >= lat >= -90, "Origin's Latitude is out of bounds"
 
         return Point(lng, lat)
 
     def xy_grid_id(self, x: float, y: float) -> str:
+        """
+        Wrapper function, in case you want to pass points as x/y coordiantes
+        """
         return self.point_grid_id(Point(x, y))
 
     def point_grid_id(self, point: Point) -> str:
         """
         Calculate the GRID ID based on a coordinate inside tile
-        :param point: POINT(lng, lat)
-        :return: Grid Id
         """
         point = self.point_grid_origin(point)
         col = int(point.x)
