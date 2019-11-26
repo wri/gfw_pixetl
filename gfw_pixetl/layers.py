@@ -41,9 +41,6 @@ class Layer(object):
         )
         self.order = self._source["order"] if "order" in self._source.keys() else None
 
-    def create_tiles(self, overwrite: bool):
-        raise NotImplementedError
-
     def _get_prefix(
         self,
         name: Optional[str] = None,
@@ -63,7 +60,7 @@ class Layer(object):
         srs_authority = grid.srs.to_authority()[0].lower()
         srs_code = grid.srs.to_authority()[1]
 
-        return f"{name}/{version}/raster/{srs_authority}-{srs_code}/{grid.width}x{grid.height}/{field}"
+        return f"{name}/{version}/raster/{srs_authority}-{srs_code}/{grid.width}/{grid.cols}/{field}"
 
     def _set_dst_profile(self):
         data_type: DataType = data_type_factory(self._source["data_type"])
@@ -117,15 +114,18 @@ class RasterSrcLayer(Layer):
             raise FileNotFoundError(message)
 
 
-def layer_factory(name: str, version: str, field: str, grid: Grid):
-    source_type = _get_source_type(name, field, grid.name)
+def layer_factory(name: str, version: str, field: str, grid: Grid) -> Layer:
+
+    source_type: str = _get_source_type(name, field, grid.name)
 
     if source_type == "vector":
-        VectorSrcLayer(name, version, field, grid)
+        layer: Layer = VectorSrcLayer(name, version, field, grid)
     elif source_type == "raster":
-        RasterSrcLayer(name, version, field, grid)
+        layer = RasterSrcLayer(name, version, field, grid)
     else:
         raise NotImplementedError("Unknown source type")
+
+    return layer
 
 
 def _get_source(name: str, field: str) -> Dict[str, Any]:

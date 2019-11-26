@@ -87,13 +87,13 @@ class Tile(object):
     def get_stage_uri(self, stage):
         return f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
 
-    def upload(self, env):
+    def upload(self):
 
         s3 = boto3.client("s3")
 
         try:
             logger.info(f"Upload tile {self.tile_id} to s3")
-            s3.upload_file(self.local_src.uri, self.dst.get_bucket(env), self.dst.uri)
+            s3.upload_file(self.local_src.uri, self.dst.get_bucket(), self.dst.uri)
         except ClientError:
             logger.exception(f"Could not upload file {self.tile_id}")
             raise

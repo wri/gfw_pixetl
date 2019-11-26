@@ -1,14 +1,14 @@
 import logging
 import os
-import re
 from typing import List, Optional
 
 import click
 
-from gfw_pixetl import get_module_logger
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
+from gfw_pixetl.pipes import Pipe, pipe_factory
 
 logger = get_module_logger(__name__)
 
@@ -26,15 +26,19 @@ logger = get_module_logger(__name__)
 @click.option(
     "-g",
     "--grid_name",
-    type=click.Choice(["3x3", "10x10", "30x30", "90x90"]),
-    default="10x10",
+    type=click.Choice(["10/40000", "90/27008"]),
+    default="10/40000",
     help="Grid size of output dataset",
 )
 @click.option(
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
-    "-e", "--env", type=click.Choice(["dev", "prod"]), default="dev", help="Environment"
+    "-e",
+    "--env",
+    type=click.Choice(["test", "dev", "staging", "production"]),
+    default="dev",
+    help="Environment",
 )
 @click.option(
     "-o",
@@ -59,11 +63,6 @@ def cli(
 ) -> None:
     """NAME: Name of dataset"""
 
-    # Set current work directory to /tmp. This is important when running as AWS Batch job
-    # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
-    # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
-    os.chdir(cwd)
-
     if debug:
         logger.setLevel(logging.DEBUG)
 
@@ -80,6 +79,11 @@ def cli(
         )
     )
 
+    # Set current work directory to /tmp. This is important when running as AWS Batch job
+    # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
+    # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
+    os.chdir(cwd)
+
     os.environ["ENV"] = env
 
     if subset:
@@ -87,39 +91,13 @@ def cli(
     else:
         logger.info("Running on full extent")
 
-    _verify_version_pattern(version)
+    utils.verify_version_pattern(version)
 
     grid: Grid = grid_factory(grid_name)
-
     layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
+    pipe: Pipe = pipe_factory(layer, subset)
 
-    layer.create_tiles(overwrite)
-
-
-def _verify_version_pattern(version: str) -> None:
-    """
-    Verify if version matches general pattern
-    - Must start with a v
-    - Followed by up to three groups of digits seperated with a .
-    - First group can have up to 8 digits
-    - Second and third group up to 3 digits
-
-    Examples:
-    - v20191001
-    - v1.1.2
-    """
-
-    if not version:
-        message = "No version number provided"
-        logger.error(message)
-        raise ValueError(message)
-
-    p = re.compile(r"^v\d{,8}\.?\d{,3}\.?\d{,3}$")
-    m = p.match(version)
-    if not m:
-        message = "Version number does not match pattern"
-        logger.error(message)
-        raise ValueError(message)
+    pipe.create_tiles(overwrite)
 
 
 if __name__ == "__main__":

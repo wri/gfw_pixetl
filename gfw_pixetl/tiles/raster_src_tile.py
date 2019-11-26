@@ -151,7 +151,7 @@ class RasterSrcTile(Tile):
         dst = self.get_stage_uri(stage)
 
         cmd = [
-            "gda_translate",
+            "gdal_translate",
             "-co",
             f"COMPRESS={self.dst.profile['compression']}",
             self.local_src.uri,

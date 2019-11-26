@@ -22,17 +22,10 @@ class Pipe(object):
 
     workers: int = math.ceil(multiprocessing.cpu_count() / 2)
 
-    def __init__(
-        self,
-        grid: Grid,
-        layer: Layer,
-        subset: Optional[List[str]] = None,
-        env: str = "dev",
-    ) -> None:
-        self.grid = grid
+    def __init__(self, layer: Layer, subset: Optional[List[str]] = None) -> None:
+        self.grid = layer.grid
         self.layer = layer
         self.subset = subset
-        self.env = env
 
     def create_tiles(self, overwrite=True) -> None:
         """
@@ -97,12 +90,13 @@ class Pipe(object):
             else:
                 yield tile
 
-    def upload_file(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
+    @staticmethod
+    def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Upload tile to target location
         """
         for tile in tiles:
-            tile.upload(self.env)
+            tile.upload()
             yield tile
 
     @staticmethod

@@ -1,5 +1,4 @@
 import math
-from typing import Optional
 
 from pyproj import CRS
 from shapely.geometry import Point
@@ -34,26 +33,28 @@ class Grid(object):
             return NotImplemented
         return self.name == other.name
 
-    def __init__(
-        self,
-        srs: str,
-        width: int,
-        cols: int,
-        blockxsize: int,
-        height: Optional[int] = None,
-        rows: Optional[int] = None,
-        blockysize: Optional[int] = None,
-    ) -> None:
+    def __init__(self, srs: str, width: int, cols: int) -> None:
+        """
+        Generate tile grid.
+        Grid must have equal width and height.
+        Pixel row and column must be a multiple of 16, to be able to devide tile into blocks.
+        Tiles must fully fit into 360 degree extent.
+        If tile height does not fully fit into 180 degree extent, extent will be equally cropped at top and bottom.
+        """
+
+        assert not 360 % width, "Tiles must fully fit into 360 degree extent"
+        assert not cols % 16, "Column number must be a multiple of 16"
+
         self.srs: CRS = CRS.from_string(srs)
         self.width: int = width
-        self.height: int = width if not height else height
+        self.height: int = width  # if not height else height
         self.cols: int = cols
-        self.rows: int = cols if not rows else rows
-        self.blockxsize: int = blockxsize
-        self.blockysize: int = blockxsize if not blockysize else blockysize
+        self.rows: int = cols  # if not rows else rows
+        self.blockxsize: int = self._get_block_size()
+        self.blockysize: int = self._get_block_size()
         self.xres: float = self.width / self.cols
         self.yres: float = self.height / self.rows
-        self.name: str = "{}x{}".format(self.width, self.height)
+        self.name: str = f"{self.width}/{self.cols}"
 
     def xy_grid_origin(self, x: float, y: float) -> Point:
         return self.point_grid_origin(Point(x, y))
@@ -77,12 +78,39 @@ class Grid(object):
         col = int(point.x)
         row = int(point.y)
         # col: int = math.floor(point.x / self.width) * self.width
-        lng: str = str(col).zfill(3) + "E" if (col >= 0) else str(-col).zfill(3) + "W"
+        lng: str = f"{str(col).zfill(3)}E" if (col >= 0) else f"{str(-col).zfill(3)}W"
 
         # row: int = math.ceil(point.y / self.height) * self.height
-        lat: str = str(row).zfill(2) + "N" if (row >= 0) else str(-row).zfill(2) + "S"
+        lat: str = f"{str(row).zfill(2)}N" if (row >= 0) else f"{str(-row).zfill(2)}S"
 
-        return "{}_{}".format(lat, lng)
+        return f"{lat}_{lng}"
+
+    def _get_block_size(self):
+        """
+        Try to divide tile into blocks between 128 and 512 pixels.
+        Blocks must be a multiple of 16.
+        """
+
+        min_block_size = 128
+        max_block_size = 512
+        block_width = None
+        x = 0
+        while True:
+            x += 1
+            nblocks = self.cols / (16 * x)
+            bwidth = self.cols / nblocks
+            if (
+                bwidth >= min_block_size
+                and bwidth.is_integer()
+                and (self.cols / bwidth).is_integer()
+            ):
+                block_width = bwidth
+            if bwidth > max_block_size:
+                break
+        if not block_width:
+            raise ValueError("Cannot create blocks between 128 and 512 pixels")
+
+        return int(block_width)
 
 
 def grid_factory(grid_name) -> Grid:
@@ -95,22 +123,22 @@ def grid_factory(grid_name) -> Grid:
     #     return Grid("epsg:4326", 3, 50000, 250)
 
     # GLAD alerts and UMD Forest Loss Standard Grid
-    if grid_name == "epsg_4326_10x10" or grid_name == "10x10":
-        return Grid("epsg:4326", 10, 40000, 400)
+    if grid_name == "epsg-4326/10/40000" or grid_name == "10/40000":
+        return Grid("epsg:4326", 10, 40000)
 
-    # # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
-    # elif grid_name == "epsg_4326_8x8" or grid_name == "8x8":
-    #     return Grid("epsg:4326", 8, 32000, 400)
+    # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
+    elif grid_name == "epsg-4326/8/32000" or grid_name == "8/32000":
+        return Grid("epsg:4326", 8, 32000)
 
     # VIIRS Fire alerts
-    elif grid_name == "epsg_4326_90x90" or grid_name == "90x90":
-        return Grid("epsg:4326", 90, 27008, 128)
-    #
-    # # MODIS Fire alerts
-    # elif grid_name == "epsg_4326_90x90" or grid_name == "90x90":
-    #     return Grid("epsg:4326", 90, 10000, 500)
+    elif grid_name == "epsg-4326/90/27008" or grid_name == "90/27008":
+        return Grid("epsg:4326", 90, 27008)
+
+    # MODIS Fire alerts
+    elif grid_name == "epsg-4326/90/9984" or grid_name == "90/9984":
+        return Grid("epsg:4326", 90, 9984)
 
     else:
-        message = "Unknown grid name: {}".format(grid_name)
+        message = f"Unknown grid name: {grid_name}"
         logger.exception(message)
         raise ValueError(message)
