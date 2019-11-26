@@ -8,7 +8,7 @@ from rasterio.coords import BoundingBox
 from retrying import retry
 from shapely.geometry import Point
 
-from gfw_pixetl import get_module_logger
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.errors import GDALError, GDALNoneTypeError, retry_if_none_type_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
@@ -92,7 +92,7 @@ class Tile(object):
 
         try:
             logger.info(f"Upload tile {self.tile_id} to s3")
-            s3.upload_file(self.local_src.uri, self.dst.get_bucket(), self.dst.uri)
+            s3.upload_file(self.local_src.uri, utils.get_bucket(), self.dst.uri)
         except ClientError:
             logger.exception(f"Could not upload file {self.tile_id}")
             raise

@@ -7,6 +7,7 @@ from pyproj import Transformer
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.data_type import to_gdal_dt
 from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
@@ -90,16 +91,17 @@ class RasterSrcTile(Tile):
 
         cmd: List[str] = ["gdalwarp"]
 
+        if is_final:
+            cmd += ["-ot", to_gdal_dt(self.dst.profile["data_type"])]
+
+        if is_final and "pixeltype" in self.dst.profile:
+            cmd += ["-co", f"PIXELTYPE={self.dst.profile['pixeltype']}"]
+
+        if is_final and "nbits" in self.dst.profile:
+            cmd += ["-co", f"NBITS={self.dst.profile['nbits']}"]
+
         if is_final and self._dst_has_no_data():
             cmd += ["-dstnodata", str(self.dst.profile["no_data"])]
-
-        if is_final:
-            cmd += [
-                "-ot",
-                self.dst.profile["data_type"],
-                "-co",
-                f"NBITS={self.dst.profile['nbits']}",
-            ]
 
         cmd += [
             "-s_srs",
@@ -199,11 +201,9 @@ class RasterSrcTile(Tile):
         # update no data value if wanted
         if self._dst_has_no_data():
             data = np.ma.filled(data, self.dst.profile["no_data"]).astype(
-                self.dst.profile[
-                    "data_type"
-                ].to_numpy_dt()  # TODO find new home for to_numpy_dt(
+                self.dst.profile["data_type"]
             )
 
         else:
-            data = data.data.astype(self.dst.profile["data_type"].to_numpy_dt())
+            data = data.data.astype(self.dst.profile["data_type"])
         return data

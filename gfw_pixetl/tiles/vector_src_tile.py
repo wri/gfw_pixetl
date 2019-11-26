@@ -4,6 +4,7 @@ import psycopg2
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.data_type import to_gdal_dt
 from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import VectorSrcLayer
@@ -83,7 +84,7 @@ class VectorSrcTile(Tile):
             "-a_srs",
             "EPSG:4326",
             "-ot",
-            self.dst.profile["data_type"],
+            to_gdal_dt(self.dst.profile["data_type"]),
             "-co",
             f"COMPRESS={self.dst.profile['compression']}",
             "-co",

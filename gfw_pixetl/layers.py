@@ -65,7 +65,7 @@ class Layer(object):
         data_type: DataType = data_type_factory(self._source["data_type"])
 
         self.dst_profile: Dict[str, Any] = {
-            "dtype": data_type.to_numpy_dt(),
+            "dtype": data_type.data_type,
             "compress": data_type.compression,
             "tiled": True,
             "blockxsize": self.grid.blockxsize,
@@ -79,6 +79,11 @@ class Layer(object):
 
         if data_type.nbits:
             self.dst_profile.update({"nbits": data_type.nbits})
+
+        if data_type.signed_byte:
+            self.dst_profile.update({"pixeltype": "SIGNEDBYTE"})
+        else:
+            self.dst_profile.update({"pixeltype": "DEFAULT"})
 
 
 class VectorSrcLayer(Layer):

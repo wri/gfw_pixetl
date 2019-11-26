@@ -5,6 +5,23 @@ from gfw_pixetl import get_module_logger
 logger = get_module_logger(__name__)
 
 
+dtypes_dict = {
+    "boolean": ("Byte", "bool_"),
+    "uint": ("Byte", "uint8"),
+    "int": ("Byte", "int8"),
+    "uint16": ("UInt16", "uint16"),
+    "int16": ("Int16", "int16"),
+    "uint32": ("UInt32", "uint32"),
+    "int32": ("Int32", "int32"),
+    "float16": ("Float32", "float16"),
+    "half": ("Float32", "float16"),
+    "float32": ("Float32", "float32"),
+    "single": ("Float32", "float32"),
+    "float64": ("Float64", "float64"),
+    "double": ("Float64", "float64"),
+}
+
+
 class DataType(object):
     def __init__(
         self,
@@ -18,15 +35,10 @@ class DataType(object):
         self.nbits: Optional[int] = nbits
         self.compression: str = compression
 
-    def to_numpy_dt(self):
-        if self.data_type == "Byte" and self.nbits == 1:
-            return "bool_"
-        elif self.data_type == "Byte":
-            return "uint8"
-        elif self.data_type == "Float32" and self.nbits == 16:
-            return "float16"
+        if data_type == "int8":
+            self.signed_byte = True
         else:
-            return self.data_type.lower()
+            self.signed_byte = False
 
 
 def data_type_factory(
@@ -39,37 +51,45 @@ def data_type_factory(
     no_data_0: int = 0 if not no_data else no_data
     no_data_none: Optional[int] = None if not no_data else no_data
 
-    dtype: str = data_type.lower()
+    dtype = data_type.lower()
+    try:
+        dtype_numpy: str = dtypes_dict[dtype][1]
+    except KeyError:
+        message = "Unknown data type {}".format(data_type)
+        logger.exception(message)
+        raise ValueError(message)
 
     if dtype == "boolean":
-        dt = DataType(data_type="Byte", no_data=0, nbits=1, compression="CCITTFAX4")
+        dt = DataType(
+            data_type=dtype_numpy, no_data=0, nbits=1, compression="CCITTFAX4"
+        )
 
     elif dtype == "uint":
-        return DataType(data_type="Byte", no_data=no_data_0, nbits=_8bits)
+        return DataType(data_type=dtype_numpy, no_data=no_data_0, nbits=_8bits)
 
     elif dtype == "int":
-        dt = DataType(data_type="Byte", no_data=no_data_none, nbits=_8bits)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=_8bits)
 
     elif dtype == "uint16":
-        dt = DataType(data_type="UInt16", no_data=no_data_0, nbits=_16bits)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_0, nbits=_16bits)
 
     elif dtype == "int16":
-        dt = DataType(data_type="Int16", no_data=no_data_none, nbits=_16bits)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=_16bits)
 
     elif dtype == "uint32":
-        dt = DataType(data_type="UInt32", no_data=no_data_0, nbits=_32bits)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_0, nbits=_32bits)
 
     elif dtype == "int32":
-        dt = DataType(data_type="Int32", no_data=no_data_none, nbits=_32bits)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=_32bits)
 
     elif dtype == "float16" or dtype == "half":
-        dt = DataType(data_type="Float32", no_data=no_data_none, nbits=16)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=16)
 
     elif dtype == "float32" or dtype == "single":
-        dt = DataType(data_type="Float32", no_data=no_data_none)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_none)
 
     elif dtype == "float64" or dtype == "double":
-        dt = DataType(data_type="Float64", no_data=no_data_none)
+        dt = DataType(data_type=dtype_numpy, no_data=no_data_none)
 
     else:
         message = "Unknown data type {}".format(data_type)
@@ -77,3 +97,14 @@ def data_type_factory(
         raise ValueError(message)
 
     return dt
+
+
+def to_gdal_dt(data_type):
+    if data_type == "bool_" or data_type == "uint8" or data_type == "int8":
+        return "Byte"
+    elif data_type == "float16":
+        return "Float32"
+    elif data_type[0] == "u":
+        return "U" + data_type[1:].capitalize()
+    else:
+        return data_type.capitalize()
