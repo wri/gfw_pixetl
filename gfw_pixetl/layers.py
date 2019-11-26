@@ -97,10 +97,10 @@ class RasterSrcLayer(Layer):
         super().__init__(name, version, field, grid)
 
         if "depends_on" in self._source["grids"][grid.name].keys():
-            src_name, src_field, src_grid_name = self._source["grids"][grid.name][
-                "depends_on"
-            ].split("/")
-            src_grid = grid_factory(src_grid_name)
+            src_name, src_field, src_grid_width, src_grid_cols = self._source["grids"][
+                grid.name
+            ]["depends_on"].split("/")
+            src_grid = grid_factory("/".join([src_grid_width, src_grid_cols]))
             prefix = self._get_prefix(
                 name=src_name, version=version, field=src_field, grid=src_grid
             )
