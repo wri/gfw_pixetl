@@ -70,20 +70,12 @@ class Layer(object):
             "tiled": True,
             "blockxsize": self.grid.blockxsize,
             "blockysize": self.grid.blockysize,
+            "pixeltype": "SIGNEDBYTE" if data_type.nbits else "DEFAULT",
+            "nodata": data_type.no_data if data_type.has_no_data() else None,
         }
-
-        if data_type.no_data == 0 or data_type.no_data:
-            self.dst_profile.update({"nodata": data_type.no_data})
-        else:
-            self.dst_profile.update({"nodata": None})
 
         if data_type.nbits:
             self.dst_profile.update({"nbits": data_type.nbits})
-
-        if data_type.signed_byte:
-            self.dst_profile.update({"pixeltype": "SIGNEDBYTE"})
-        else:
-            self.dst_profile.update({"pixeltype": "DEFAULT"})
 
 
 class VectorSrcLayer(Layer):

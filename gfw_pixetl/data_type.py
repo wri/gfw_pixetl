@@ -40,6 +40,9 @@ class DataType(object):
         else:
             self.signed_byte = False
 
+    def has_no_data(self):
+        return self.no_data == 0 or self.no_data
+
 
 def data_type_factory(
     data_type: str, nbits: Optional[int] = None, no_data: Optional[int] = None

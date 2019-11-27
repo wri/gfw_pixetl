@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from gfw_pixetl import get_module_logger
 

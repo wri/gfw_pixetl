@@ -92,16 +92,7 @@ class RasterSrcTile(Tile):
         cmd: List[str] = ["gdalwarp"]
 
         if is_final:
-            cmd += ["-ot", to_gdal_dt(self.dst.profile["data_type"])]
-
-        if is_final and "pixeltype" in self.dst.profile:
-            cmd += ["-co", f"PIXELTYPE={self.dst.profile['pixeltype']}"]
-
-        if is_final and "nbits" in self.dst.profile:
-            cmd += ["-co", f"NBITS={self.dst.profile['nbits']}"]
-
-        if is_final and self._dst_has_no_data():
-            cmd += ["-dstnodata", str(self.dst.profile["no_data"])]
+            cmd += self._is_final_cmd()
 
         cmd += [
             "-s_srs",
@@ -187,6 +178,21 @@ class RasterSrcTile(Tile):
                 dst.write(data, window=window)
             src.close()
             dst.close()
+
+    def _is_final_cmd(self):
+
+        cmd = ["-ot", to_gdal_dt(self.dst.profile["data_type"])]
+
+        if "pixeltype" in self.dst.profile:
+            cmd += ["-co", f"PIXELTYPE={self.dst.profile['pixeltype']}"]
+
+        if "nbits" in self.dst.profile:
+            cmd += ["-co", f"NBITS={self.dst.profile['nbits']}"]
+
+        if self._dst_has_no_data():
+            cmd += ["-dstnodata", str(self.dst.profile["no_data"])]
+
+        return cmd
 
     def _apply_calc(
         self, data

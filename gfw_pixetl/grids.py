@@ -77,28 +77,10 @@ class Grid(object):
         lat_offset: int = int(self.height / 2) if (180 / self.height) % 2 else 0
 
         lng: int = (math.floor(point.x / self.width) * self.width)
-
-        # apply longitudinal offset and shift grid cell in case point doesn't fall into it
-        if lng == 0 and lng_offset:
-            lng = lng - lng_offset
-        elif lng_offset:
-            lng = lng - (lng_offset * int(lng / abs(lng)))
-        if lng_offset and point.x < lng:
-            lng -= self.width
-        elif lng_offset and point.x > lng + self.width:
-            lng += self.width
+        lng = self._apply_lng_offset(lng, point.x, lng_offset)
 
         lat: int = (math.ceil(point.y / self.height) * self.height)
-
-        # apply latitudinal offset and shift grid cell in case point doesn't fall into it
-        if lat == 0 and lat_offset:
-            lat = lat + lat_offset
-        elif lat_offset:
-            lat = lat - (lat_offset * int(lat / abs(lat)))
-        if lat_offset and point.y > lat:
-            lat += self.height
-        elif lat_offset and point.y < lat - self.height:
-            lat -= self.height
+        lat = self._apply_lat_offset(lat, point.y, lat_offset)
 
         # Make sure we are are still on earth
         assert 180 >= lng >= -180, "Origin's Longitude is out of bounds"
@@ -126,6 +108,30 @@ class Grid(object):
         lat: str = f"{str(row).zfill(2)}N" if (row >= 0) else f"{str(-row).zfill(2)}S"
 
         return f"{lat}_{lng}"
+
+    def _apply_lng_offset(self, lng, x, offset):
+        """apply longitudinal offset and shift grid cell in case point doesn't fall into it"""
+        if lng == 0 and offset:
+            lng = lng - offset
+        elif offset:
+            lng = lng - (offset * int(lng / abs(lng)))
+        if offset and x < lng:
+            lng -= self.width
+        elif offset and x > lng + self.width:
+            lng += self.width
+        return lng
+
+    def _apply_lat_offset(self, lat, y, offset):
+        """apply latitudinal offset and shift grid cell in case point doesn't fall into it"""
+        if lat == 0 and offset:
+            lat = lat + offset
+        elif offset:
+            lat = lat - (offset * int(lat / abs(lat)))
+        if offset and y > lat:
+            lat += self.height
+        elif offset and y < lat - self.height:
+            lat -= self.height
+        return lat
 
     def _get_block_size(self):
         """
@@ -166,21 +172,23 @@ def grid_factory(grid_name) -> Grid:
 
     # GLAD alerts and UMD Forest Loss Standard Grid
     if grid_name == "epsg-4326/10/40000" or grid_name == "10/40000":
-        return Grid("epsg:4326", 10, 40000)
+        grid: Grid = Grid("epsg:4326", 10, 40000)
 
     # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
     elif grid_name == "epsg-4326/8/32000" or grid_name == "8/32000":
-        return Grid("epsg:4326", 8, 32000)
+        grid = Grid("epsg:4326", 8, 32000)
 
     # VIIRS Fire alerts
     elif grid_name == "epsg-4326/90/27008" or grid_name == "90/27008":
-        return Grid("epsg:4326", 90, 27008)
+        grid = Grid("epsg:4326", 90, 27008)
 
     # MODIS Fire alerts
     elif grid_name == "epsg-4326/90/9984" or grid_name == "90/9984":
-        return Grid("epsg:4326", 90, 9984)
+        grid = Grid("epsg:4326", 90, 9984)
 
     else:
         message = f"Unknown grid name: {grid_name}"
         logger.exception(message)
         raise ValueError(message)
+
+    return grid
