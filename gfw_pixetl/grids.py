@@ -166,9 +166,9 @@ def grid_factory(grid_name) -> Grid:
     Different Grid layout used for this project
     """
 
-    # # RAAD alerts
-    # if grid_name == "epsg_4326_3x3" or grid_name == "3x3":
-    #     return Grid("epsg:4326", 3, 50000, 250)
+    # RAAD alerts
+    if grid_name == "epsg-43263/50000" or grid_name == "3/50000":
+        return Grid("epsg:4326", 3, 50000)
 
     # GLAD alerts and UMD Forest Loss Standard Grid
     if grid_name == "epsg-4326/10/40000" or grid_name == "10/40000":
