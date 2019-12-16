@@ -137,7 +137,7 @@ class RasterSrcTile(Tile):
             logger.exception(e)
             raise
         else:
-            self.set_local_src(stage)
+            self.set_local_src(dst)
 
     def compress(self):
         stage = "compress"
@@ -181,7 +181,7 @@ class RasterSrcTile(Tile):
 
     def _is_final_cmd(self):
 
-        cmd = ["-ot", to_gdal_dt(self.dst.profile["data_type"])]
+        cmd = ["-ot", to_gdal_dt(self.dst.profile["dtype"])]
 
         if "pixeltype" in self.dst.profile:
             cmd += ["-co", f"PIXELTYPE={self.dst.profile['pixeltype']}"]
@@ -190,7 +190,7 @@ class RasterSrcTile(Tile):
             cmd += ["-co", f"NBITS={self.dst.profile['nbits']}"]
 
         if self._dst_has_no_data():
-            cmd += ["-dstnodata", str(self.dst.profile["no_data"])]
+            cmd += ["-dstnodata", str(self.dst.profile["nodata"])]
 
         return cmd
 
@@ -206,7 +206,7 @@ class RasterSrcTile(Tile):
     def _set_no_data_calc(self, data):
         # update no data value if wanted
         if self._dst_has_no_data():
-            data = np.ma.filled(data, self.dst.profile["no_data"]).astype(
+            data = np.ma.filled(data, self.dst.profile["nodata"]).astype(
                 self.dst.profile["data_type"]
             )
 

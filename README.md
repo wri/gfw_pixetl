@@ -50,7 +50,7 @@ Use dame Options and Name as listed above
 ```bash
 
 docker build . -t globalforestwatch/pixetl
-docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY_ID=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  # pragma: allowlist secret  
+docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY_ID=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  # pragma: allowlist secret
 
 ```
 
@@ -82,10 +82,10 @@ Layer source definitions follow this pattern
 ```yaml
 wdpa_protected_areas:           # Layer name
     -                           # Default source description
-        field: iucn_cat  
-        order: desc  
-        data_type: uint  
-        nbits: 2  
+        field: iucn_cat
+        order: desc
+        data_type: uint
+        nbits: 2
      -                          # Optional alternative source description
         field: is
         ...

@@ -25,20 +25,21 @@ class Layer(object):
             os.makedirs(self.prefix)
 
         self._source: Dict[str, Any] = _get_source(self.name, self.field)
+        source_grid = self._source["grids"][grid.name]
         self.dst_profile: Dict[str, Any]
 
         self._set_dst_profile()
 
         self.resampling = (
-            self._source["resampling"] if "resampling" in self._source.keys() else None
+            source_grid["resampling"] if "resampling" in source_grid.keys() else None
         )
-        self.calc = self._source["calc"] if "calc" in self._source.keys() else None
+        self.calc = source_grid["calc"] if "calc" in source_grid.keys() else None
         self.rasterize_method = (
-            self._source["rasterize_method"]
-            if "rasterize_method" in self._source.keys()
+            source_grid["rasterize_method"]
+            if "rasterize_method" in source_grid.keys()
             else None
         )
-        self.order = self._source["order"] if "order" in self._source.keys() else None
+        self.order = source_grid["order"] if "order" in source_grid.keys() else None
 
     def _get_prefix(
         self,
@@ -62,7 +63,13 @@ class Layer(object):
         return f"{name}/{version}/raster/{srs_authority}-{srs_code}/{grid.width}/{grid.cols}/{field}"
 
     def _set_dst_profile(self):
-        data_type: DataType = data_type_factory(self._source["data_type"])
+
+        nbits = self._source["nbits"] if "nbits" in self._source else None
+        no_data = self._source["no_data"] if "no_data" in self._source else None
+
+        data_type: DataType = data_type_factory(
+            self._source["data_type"], nbits, no_data
+        )
 
         self.dst_profile: Dict[str, Any] = {
             "dtype": data_type.data_type,
@@ -70,12 +77,12 @@ class Layer(object):
             "tiled": True,
             "blockxsize": self.grid.blockxsize,
             "blockysize": self.grid.blockysize,
-            "pixeltype": "SIGNEDBYTE" if data_type.nbits else "DEFAULT",
-            "nodata": data_type.no_data if data_type.has_no_data() else None,
+            "pixeltype": "SIGNEDBYTE" if data_type.signed_byte else "DEFAULT",
+            "nodata": int(data_type.no_data) if data_type.has_no_data() else None,
         }
 
         if data_type.nbits:
-            self.dst_profile.update({"nbits": data_type.nbits})
+            self.dst_profile.update({"nbits": int(data_type.nbits)})
 
 
 class VectorSrcLayer(Layer):

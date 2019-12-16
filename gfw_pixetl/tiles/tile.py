@@ -1,5 +1,6 @@
 import os
 import subprocess as sp
+from typing import List, Tuple
 
 import boto3
 import rasterio
@@ -51,7 +52,7 @@ class Tile(object):
             top=origin.y,
         )
         self.dst = Destination(
-            uri=f"{layer.prefix}/{self.tile_id}",
+            uri=f"{layer.prefix}/{self.tile_id}.tif",
             profile=self.layer.dst_profile,
             bounds=self.bounds,
         )
@@ -60,13 +61,13 @@ class Tile(object):
         if not self.dst.uri:
             raise Exception("Tile URI is not set")
         try:
-            get_src(self.dst.uri)
+            get_src(f"s3://{utils.get_bucket()}/{self.dst.uri}")
             return True
         except FileNotFoundError:
             return False
 
     def set_local_src(self, stage: str) -> None:
-        if self.local_src.uri:
+        if hasattr(self, "local_src"):
             self.rm_local_src()
 
         uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
@@ -74,7 +75,7 @@ class Tile(object):
 
     def local_src_is_empty(self) -> bool:
         logger.debug(f"Check if tile {self.local_src.uri} is empty")
-        with rasterio.open() as img:
+        with rasterio.open(self.local_src.uri) as img:
             msk = img.read_masks(1).astype(bool)
         if msk[msk].size == 0:
             logger.debug(f"Tile {self.local_src.uri} is empty")
@@ -107,14 +108,16 @@ class Tile(object):
         stop_max_attempt_number=7,
         wait_fixed=2000,
     )
-    def _run_gdal_subcommand(cmd):
+    def _run_gdal_subcommand(cmd: List[str]) -> Tuple[str, str]:
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
         o, e = p.communicate()
 
         if p.returncode != 0 and not e:
-            raise GDALNoneTypeError(e)
+            raise GDALNoneTypeError(e.decode("utf-8"))
         elif p.returncode != 0:
             raise GDALError(e)
 
+        return o.decode("utf-8"), e.decode("utf-8")
+
     def _dst_has_no_data(self):
-        return self.dst.profile["no_data"] == 0 or self.dst.profile["no_data"]
+        return self.dst.profile["nodata"] == 0 or self.dst.profile["nodata"]

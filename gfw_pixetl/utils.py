@@ -9,6 +9,9 @@ logger = get_module_logger(__name__)
 
 
 def get_bucket(env: Optional[str] = None) -> str:
+    """
+    compose bucket name based on environment
+    """
 
     if not env and "ENV" in os.environ:
         env = os.environ["ENV"]

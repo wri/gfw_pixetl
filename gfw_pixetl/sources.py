@@ -52,7 +52,7 @@ def get_src(uri: str) -> RasterSource:
 
         if _file_does_not_exist(e, uri):
             logger.info(f"File does not exist {uri}")
-            raise FileNotFoundError
+            raise FileNotFoundError(f"File does not exist: {uri}")
         else:
             logger.exception(f"Cannot open {uri}")
             raise

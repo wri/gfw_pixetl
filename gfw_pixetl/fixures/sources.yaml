@@ -857,6 +857,7 @@ wdpa_protected_areas:
         grids:
             10/40000:
                 type: vector
+                order: desc
             90/27008:
                 type: raster
                 depends_on: wdpa_protected_areas/iucn_cat/10/40000
