@@ -94,6 +94,9 @@ class RasterSrcTile(Tile):
         if is_final:
             cmd += self._is_final_cmd()
 
+        if self.layer.resampling:
+            cmd += ["-r", self.layer.resampling]
+
         cmd += [
             "-s_srs",
             self.src.profile["crs"].to_proj4(),
@@ -120,14 +123,13 @@ class RasterSrcTile(Tile):
             "-co",
             f"BLOCKYSIZE={self.grid.blockysize}",
             # "-co", "SPARSE_OK=TRUE",
-            "-r",
-            self.layer.resampling,
             "-q",
             "-overwrite",
             self.src.uri,
             dst,
         ]
 
+        logger.debug(f"CMD: {cmd}")
         logger.info(f"Transform tile {self.tile_id}")
 
         try:
@@ -137,7 +139,7 @@ class RasterSrcTile(Tile):
             logger.exception(e)
             raise
         else:
-            self.set_local_src(dst)
+            self.set_local_src(stage)
 
     def compress(self):
         stage = "compress"
@@ -146,7 +148,14 @@ class RasterSrcTile(Tile):
         cmd = [
             "gdal_translate",
             "-co",
-            f"COMPRESS={self.dst.profile['compression']}",
+            f"COMPRESS={self.dst.profile['compress']}",
+            "-co",
+            "TILED=YES",
+            "-co",
+            f"BLOCKXSIZE={self.grid.blockxsize}",
+            "-co",
+            f"BLOCKYSIZE={self.grid.blockysize}",
+            # "-co", "SPARSE_OK=TRUE",
             self.local_src.uri,
             dst,
         ]

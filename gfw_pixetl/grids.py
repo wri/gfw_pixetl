@@ -186,6 +186,10 @@ def grid_factory(grid_name) -> Grid:
     elif grid_name == "epsg-4326/90/9984" or grid_name == "90/9984":
         grid = Grid("epsg:4326", 90, 9984)
 
+    # TEST grid
+    elif grid_name == "epsg-4326/1/4000" or grid_name == "1/4000":
+        grid = Grid("epsg:4326", 1, 4000)
+
     else:
         message = f"Unknown grid name: {grid_name}"
         logger.exception(message)

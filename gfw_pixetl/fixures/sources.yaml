@@ -145,6 +145,9 @@ erosion_risk:
         data_type: uint
         nbits: 3
         grids:
+            1/4000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/erosion/all.vrt
             10/40000:
                 type: raster
                 uri: /vsis3/gfw-files/2018_update/erosion/all.vrt

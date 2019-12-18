@@ -68,7 +68,7 @@ def test_rm_local_src():
 
 def test__run_gdal_subcommand():
     cmd = ["/bin/bash", "-c", "echo test"]
-    assert TILE._run_gdal_subcommand(cmd) == (b"test\n", b"")
+    assert TILE._run_gdal_subcommand(cmd) == ("test\n", "")
 
     try:
         cmd = ["/bin/bash", "-c", "exit 1"]

@@ -4,3 +4,4 @@ gfw-data-lake-dev/*
 gfw-data-lake/*
 .egg-info
 venv/*
+*.tif
