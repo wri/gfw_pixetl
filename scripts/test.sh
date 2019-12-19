@@ -14,4 +14,4 @@ done
 cur_dir=$(dirname "$0")
 ${cur_dir}/build.sh
 
-docker run -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} -v /tmp:/tmp -v ${PWD}/:/usr/local/app --entrypoint pytest globalforestwatch/pixetl  --cov-report term --cov-report xml --cov=. tests/  # pragma: allowlist secret
+docker run -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} -v /tmp:/tmp -v ${PWD}/:/usr/local/app --entrypoint pytest globalforestwatch/pixetl  --cov-report term --cov-report xml --cov=gfw_pixetl tests/  # pragma: allowlist secret

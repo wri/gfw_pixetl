@@ -5,8 +5,7 @@ import numpy as np
 import rasterio
 from shapely.geometry import Point
 
-from gfw_pixetl import layers, utils, get_module_logger
-from gfw_pixetl.errors import GDALError, GDALNoneTypeError
+from gfw_pixetl import layers, get_module_logger
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.tiles import RasterSrcTile
 
@@ -163,4 +162,15 @@ def test__apply_calc():
 
 
 def test__set_no_data_calc():
-    pass
+    data = np.random.randint(4, size=(10, 10))
+    masked_data = np.ma.masked_values(data, 0)
+    count = masked_data.mask.sum()
+    if isinstance(LAYER, layers.RasterSrcLayer):
+        tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+        tile.dst.profile["nodata"] = 5
+        result = tile._set_no_data_calc(masked_data)
+        masked_result = np.ma.masked_values(result, 5)
+        assert count == masked_result.mask.sum()
+
+    else:
+        raise ValueError("Not a RasterSrcLayer")

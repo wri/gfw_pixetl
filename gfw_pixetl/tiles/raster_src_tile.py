@@ -216,9 +216,9 @@ class RasterSrcTile(Tile):
         # update no data value if wanted
         if self._dst_has_no_data():
             data = np.ma.filled(data, self.dst.profile["nodata"]).astype(
-                self.dst.profile["data_type"]
+                self.dst.profile["dtype"]
             )
 
         else:
-            data = data.data.astype(self.dst.profile["data_type"])
+            data = data.data.astype(self.dst.profile["dtype"])
         return data

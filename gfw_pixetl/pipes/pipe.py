@@ -7,7 +7,6 @@ from typing import Iterator, List, Optional, Set
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import GDALError
-from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.tiles.tile import Tile
 
@@ -44,17 +43,13 @@ class Pipe(object):
         logger.debug("Get grid Tiles")
         tiles = set()
 
-        with open(
-            os.path.join(os.path.dirname(__file__), "fixures/tiles.csv")
-        ) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=",")
-
-            for row in csv_reader:
-                origin = self.grid.xy_grid_origin(int(row[2]), int(row[5]))
+        for i in range(-89, 91):
+            for j in range(-180, 180):
+                origin = self.grid.xy_grid_origin(j, i)
                 tiles.add(Tile(origin=origin, grid=self.grid, layer=self.layer))
 
         logger.info(f"Found {len(tiles)} tile inside grid")
-        logger.debug(tiles)
+        # logger.debug(tiles)
 
         return tiles
 
