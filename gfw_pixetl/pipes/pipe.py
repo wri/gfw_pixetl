@@ -1,9 +1,10 @@
 import math
+import os
 import multiprocessing
 import subprocess as sp
-from typing import Iterator, List, Optional, Set
+from typing import Any, Iterator, List, Optional, Set, Tuple
 
-from shapely.geometry import Point, box, Polygon, MultiPolygon
+from shapely.geometry import box, Polygon, MultiPolygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import GDALError
@@ -103,8 +104,7 @@ class Pipe(object):
             tile.rm_local_src()
             yield tile
 
-    @staticmethod
-    def create_vrt(uris: List[str]) -> str:
+    def create_vrt(self, uris: List[str]) -> str:
         """
         ! Important this is not a parallelpipe Stage and must be run with only one worker
         Create VRT file from input URI.
@@ -113,16 +113,18 @@ class Pipe(object):
         vrt = "all.vrt"
         tile_list = "tiles.txt"
 
-        with open(tile_list, "w") as input_tiles:
-            for uri in uris:
-                tile_uri = f"/vsis3/{uri}\n"
-                input_tiles.write(tile_uri)
+        self._write_tile_list(tile_list, uris)
 
         cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
 
         logger.info("Create VRT file")
-        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+
+        o: Any
+        e: Any
         o, e = p.communicate()
+
+        os.remove(tile_list)
 
         if p.returncode != 0:
             logger.error("Could not create VRT file")
@@ -131,15 +133,22 @@ class Pipe(object):
         else:
             return vrt
 
-    def create_extent(self, tiles: Iterator[Tile]) -> MultiPolygon:
+    def create_extent(self, tiles: List[Tile]) -> Polygon:
         extent: Optional[MultiPolygon] = None
         for tile in tiles:
             geom: Polygon = self._bounds_to_polygon(tile.bounds)
             if not extent:
-                extent = MultiPolygon([geom])
+                extent = geom
             else:
-                extent.union(geom)
+                extent = extent.union(geom)
         return extent
+
+    @staticmethod
+    def _write_tile_list(tile_list: str, uris: List[str]) -> None:
+        with open(tile_list, "w") as input_tiles:
+            for uri in uris:
+                tile_uri = f"/vsis3/{uri}\n"
+                input_tiles.write(tile_uri)
 
     @staticmethod
     def _bounds_to_polygon(bounds: box) -> Polygon:
@@ -147,8 +156,8 @@ class Pipe(object):
             [
                 (bounds[0], bounds[1]),
                 (bounds[2], bounds[1]),
-                (bounds[2], bounds[0]),
-                (bounds[0], bounds[0]),
+                (bounds[2], bounds[3]),
+                (bounds[0], bounds[3]),
                 (bounds[0], bounds[1]),
             ]
         )

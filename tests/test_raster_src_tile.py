@@ -78,7 +78,6 @@ def test_transform():
         LOGGER.debug(tile.local_src.uri)
         with rasterio.open(tile.local_src.uri) as src:
             src_profile = src.profile
-
         assert src_profile["blockxsize"] == GRID.blockxsize
         assert src_profile["blockysize"] == GRID.blockysize
         # assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
@@ -110,7 +109,6 @@ def test_compress():
         LOGGER.debug(tile.local_src.uri)
         with rasterio.open(tile.local_src.uri) as src:
             src_profile = src.profile
-
         assert src_profile["blockxsize"] == GRID.blockxsize
         assert src_profile["blockysize"] == GRID.blockysize
         assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
