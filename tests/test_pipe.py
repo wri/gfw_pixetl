@@ -61,3 +61,7 @@ def test_filter_subset_tiles():
     for r in result:
         i += 1
     assert i == len(SUBSET)
+
+
+def test_filter_target_tiles():
+    pass
