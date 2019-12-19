@@ -5,7 +5,7 @@ from typing import Iterator, List
 from parallelpipe import Stage
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.tiles import RasterSrcTile
+from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.pipes import RasterPipe
 
 
@@ -18,7 +18,7 @@ class CalcRasterPipe(RasterPipe):
     # transform and value update
     workers: int = math.ceil(multiprocessing.cpu_count() / 3)
 
-    def create_tiles(self, overwrite=True) -> None:
+    def create_tiles(self, overwrite=True) -> List[Tile]:
         """
         Calc Raster Pipe
         """
@@ -39,13 +39,16 @@ class CalcRasterPipe(RasterPipe):
         )
 
         tile_uris: List[str] = list()
+        tiles: List[Tile] = list()
         for tile in pipe.results():
+            tiles.append(tile)
             tile_uris.append(tile.uri)
 
         # vrt: str = self.create_vrt(tile_uris)
         # TODO upload vrt to s3
 
-    logger.debug("Finished Raster Pipe")
+        logger.debug("Finished Raster Pipe")
+        return tiles
 
     @staticmethod
     def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:

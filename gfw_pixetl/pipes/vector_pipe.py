@@ -3,7 +3,7 @@ from typing import Iterator, List
 from parallelpipe import Stage
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.tiles import VectorSrcTile
+from gfw_pixetl.tiles import VectorSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
 
@@ -11,7 +11,7 @@ logger = get_module_logger(__name__)
 
 
 class VectorPipe(Pipe):
-    def create_tiles(self, overwrite=True) -> None:
+    def create_tiles(self, overwrite=True) -> List[Tile]:
         """
         Vector Pipe
         """
@@ -32,13 +32,16 @@ class VectorPipe(Pipe):
         )
 
         tile_uris: List[str] = list()
+        tiles: List[Tile] = list()
         for tile in pipe.results():
+            tiles.append(tile)
             tile_uris.append(tile.uri)
 
         # vrt: str = self.create_vrt(tile_uris)
         # TODO upload vrt to s3
 
-    logger.debug("Start Finished Pipe")
+        logger.debug("Start Finished Pipe")
+        return tiles
 
     @staticmethod
     def filter_src_tiles(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:

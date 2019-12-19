@@ -1,9 +1,10 @@
-from typing import Iterator, List
+from typing import Iterator, List, Set
 
 from parallelpipe import Stage
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.tiles import RasterSrcTile
+from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
 
@@ -11,7 +12,31 @@ logger = get_module_logger(__name__)
 
 
 class RasterPipe(Pipe):
-    def create_tiles(self, overwrite=True) -> None:
+    def get_grid_tiles(self) -> Set[Tile]:
+        """
+        Seed all available tiles within given grid.
+        Use 1x1 degree tiles covering all land area as starting point.
+        Then see in which target grid cell it would fall.
+        Remove duplicated grid cells.
+        """
+
+        assert isinstance(self.layer, RasterSrcLayer)
+        logger.debug("Get grid Tiles")
+        tiles: Set[Tile] = set()
+
+        for i in range(-89, 91):
+            for j in range(-180, 180):
+                origin = self.grid.xy_grid_origin(j, i)
+                tiles.add(
+                    RasterSrcTile(origin=origin, grid=self.grid, layer=self.layer)
+                )
+
+        logger.info(f"Found {len(tiles)} tile inside grid")
+        # logger.debug(tiles)
+
+        return tiles
+
+    def create_tiles(self, overwrite=True) -> List[Tile]:
         """
         Raster Pipe
         """
@@ -33,13 +58,16 @@ class RasterPipe(Pipe):
         )
 
         tile_uris: List[str] = list()
+        tiles: List[Tile] = list()
         for tile in pipe.results():
-            tile_uris.append(tile.uri)
+            tiles.append(tile)
+            tile_uris.append(tile.dst.uri)
 
         # vrt: str = self.create_vrt(tile_uris)
         # TODO upload vrt to s3
 
         logger.debug("Finished Raster Pipe")
+        return tiles
 
     @staticmethod
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:

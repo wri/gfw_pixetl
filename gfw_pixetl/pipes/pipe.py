@@ -27,7 +27,7 @@ class Pipe(object):
         self.layer = layer
         self.subset = subset
 
-    def create_tiles(self, overwrite=True) -> None:
+    def create_tiles(self, overwrite=True) -> List[Tile]:
         """
         Override this method when implementing pipes
         """

@@ -25,7 +25,7 @@ LAYER_TYPE = layers._get_source_type(
 LAYER = layers.layer_factory(**RASTER_LAYER)
 SUBSET = ["10N_010E", "11N_010E", "12N_010E"]
 PIPE = Pipe(LAYER, SUBSET)
-TILES = None  # PIPE.get_grid_tiles()
+TILES = PIPE.get_grid_tiles()
 
 
 def test_pipe():
