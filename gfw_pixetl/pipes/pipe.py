@@ -1,9 +1,9 @@
-import csv
 import math
 import multiprocessing
-import os
 import subprocess as sp
 from typing import Iterator, List, Optional, Set
+
+from shapely.geometry import Point, box, Polygon, MultiPolygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import GDALError
@@ -130,3 +130,25 @@ class Pipe(object):
             raise GDALError(e)
         else:
             return vrt
+
+    def create_extent(self, tiles: Iterator[Tile]) -> MultiPolygon:
+        extent: Optional[MultiPolygon] = None
+        for tile in tiles:
+            geom: Polygon = self._bounds_to_polygon(tile.bounds)
+            if not extent:
+                extent = MultiPolygon([geom])
+            else:
+                extent.union(geom)
+        return extent
+
+    @staticmethod
+    def _bounds_to_polygon(bounds: box) -> Polygon:
+        return Polygon(
+            [
+                (bounds[0], bounds[1]),
+                (bounds[2], bounds[1]),
+                (bounds[2], bounds[0]),
+                (bounds[0], bounds[0]),
+                (bounds[0], bounds[1]),
+            ]
+        )

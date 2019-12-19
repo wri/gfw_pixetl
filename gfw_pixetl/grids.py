@@ -167,12 +167,12 @@ def grid_factory(grid_name) -> Grid:
     """
 
     # RAAD alerts
-    if grid_name == "epsg-43263/50000" or grid_name == "3/50000":
-        return Grid("epsg:4326", 3, 50000)
+    if grid_name == "epsg-4326/3/50000" or grid_name == "3/50000":
+        grid: Grid = Grid("epsg:4326", 3, 50000)
 
     # GLAD alerts and UMD Forest Loss Standard Grid
-    if grid_name == "epsg-4326/10/40000" or grid_name == "10/40000":
-        grid: Grid = Grid("epsg:4326", 10, 40000)
+    elif grid_name == "epsg-4326/10/40000" or grid_name == "10/40000":
+        grid = Grid("epsg:4326", 10, 40000)
 
     # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
     elif grid_name == "epsg-4326/8/32000" or grid_name == "8/32000":

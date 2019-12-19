@@ -84,10 +84,10 @@ class Tile(object):
             logger.debug(f"Tile {self.local_src.uri} is not empty")
             return False
 
-    def get_stage_uri(self, stage):
+    def get_stage_uri(self, stage) -> str:
         return f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
 
-    def upload(self):
+    def upload(self) -> None:
 
         s3 = boto3.client("s3")
 
