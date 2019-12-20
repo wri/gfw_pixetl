@@ -46,6 +46,7 @@ def test_raster_layer_uri():
         RASTER_LAYER["grid"],
     )
     assert isinstance(layer, layers.RasterSrcLayer)
+    assert layer.__class__.__name__ == "RasterSrcLayer"
     assert layer.dst_profile["dtype"] == "uint16"
     assert layer.dst_profile["compress"] == "DEFLATE"
     assert layer.dst_profile["tiled"] is True
@@ -65,6 +66,7 @@ def test_raster_layer_depended():
         RASTER_LAYER["name"], RASTER_LAYER["version"], RASTER_LAYER["field"], grid
     )
     assert isinstance(layer, layers.RasterSrcLayer)
+    assert layer.__class__.__name__ == "RasterSrcLayer"
     assert layer.dst_profile["dtype"] == "uint16"
     assert layer.dst_profile["compress"] == "DEFLATE"
     assert layer.dst_profile["tiled"] is True
@@ -86,6 +88,7 @@ def test_raster_calc_layer():
         RASTER_CALC_LAYER["grid"],
     )
     assert isinstance(layer, layers.RasterSrcLayer)
+    assert layer.__class__.__name__ == "RasterSrcLayer"
     assert layer.dst_profile["dtype"] == "uint8"
     assert layer.dst_profile["compress"] == "DEFLATE"
     assert layer.dst_profile["tiled"] is True
@@ -110,6 +113,7 @@ def test_vector_layer():
         VECTOR_LAYER["grid"],
     )
     assert isinstance(layer, layers.VectorSrcLayer)
+    assert layer.__class__.__name__ == "VectorSrcLayer"
     assert layer.dst_profile["dtype"] == "uint8"
     assert layer.dst_profile["compress"] == "DEFLATE"
     assert layer.dst_profile["tiled"] is True

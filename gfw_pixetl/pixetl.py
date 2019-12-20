@@ -7,8 +7,9 @@ import click
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.layers import Layer, layer_factory
+from gfw_pixetl.tiles import Tile
 from gfw_pixetl.logo import logo
-from gfw_pixetl.pipes import Pipe, pipe_factory
+from gfw_pixetl.pipes import Pipe, pipe_factory, RasterPipe
 
 logger = get_module_logger(__name__)
 
@@ -60,9 +61,35 @@ def cli(
     overwrite: bool,
     debug: bool,
     cwd: str,
-) -> None:
+):
     """NAME: Name of dataset"""
 
+    pixetl(
+        name,
+        version,
+        source_type,
+        field,
+        grid_name,
+        subset,
+        env,
+        overwrite,
+        debug,
+        cwd,
+    )
+
+
+def pixetl(
+    name: str,
+    version: str,
+    source_type: str,
+    field: str,
+    grid_name: str,
+    subset: Optional[List[str]],
+    env: str,
+    overwrite: bool,
+    debug: bool,
+    cwd: str,
+) -> List[Tile]:
     if debug:
         logger.setLevel(logging.DEBUG)
 
@@ -100,7 +127,7 @@ def cli(
     layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
     pipe: Pipe = pipe_factory(layer, subset)
 
-    pipe.create_tiles(overwrite)
+    return pipe.create_tiles(overwrite)
 
 
 if __name__ == "__main__":

@@ -4,11 +4,11 @@ from gfw_pixetl.layers import RasterSrcLayer, VectorSrcLayer, Layer
 from gfw_pixetl.pipes import Pipe, VectorPipe, RasterPipe, CalcRasterPipe
 
 
-def pipe_factory(layer: Layer, subset: Optional[List[str]]) -> Pipe:
+def pipe_factory(layer: Layer, subset: Optional[List[str]] = None) -> Pipe:
 
     if isinstance(layer, VectorSrcLayer):
         pipe: Pipe = VectorPipe(layer, subset)
-    elif isinstance(layer, RasterSrcLayer) and hasattr(layer, "calc"):
+    elif isinstance(layer, RasterSrcLayer) and layer.calc is not None:
         pipe = CalcRasterPipe(layer, subset)
     elif isinstance(layer, RasterSrcLayer):
         pipe = RasterPipe(layer, subset)

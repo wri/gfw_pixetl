@@ -1,11 +1,14 @@
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+from unittest import mock
 
-from shapely.geometry import Point
+import numpy as np
+from shapely.geometry import Point, box
 
 from gfw_pixetl import layers, utils
 from gfw_pixetl.errors import GDALError, GDALNoneTypeError
 from gfw_pixetl.grids import grid_factory
+from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 
 
@@ -28,6 +31,27 @@ LAYER = layers.layer_factory(**RASTER_LAYER)
 TILE = Tile(Point(10, 10), GRID, LAYER)
 
 
+class Img(object):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, tb):
+        pass
+
+    @staticmethod
+    def read_masks(band: int = 0) -> np.ndarray:
+        return np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]])
+
+    profile: Dict[str, Any] = {}
+    bounds: box = box(1, 1, 0, 0)
+
+
+class EmptyImg(Img):
+    @staticmethod
+    def read_masks(band: int = 0) -> np.ndarray:
+        return np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+
+
 def test_tile():
     assert isinstance(TILE, Tile)
 
@@ -39,16 +63,31 @@ def test_dst_exists():
 def test_set_local_src():
     try:
         TILE.set_local_src("test")
-        # TILE.local_src == f"{TILE.layer.prefix}/{TILE.tile_id}__test.tif"
     except FileNotFoundError as e:
         assert (
             str(e)
             == "File does not exist: aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
         )
 
+    with mock.patch("os.remove", return_value=None):
+        with mock.patch("rasterio.open", return_value=Img()):
+            TILE.set_local_src("test")
+            assert isinstance(TILE.local_src, RasterSource)
+            assert (
+                TILE.local_src.uri
+                == "aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+            )
+
 
 def test_local_src_is_empty():
-    pass  # TODO: need to mock rasterio.open()
+    with mock.patch("os.remove", return_value=None):
+        with mock.patch("rasterio.open", return_value=Img()):
+            TILE.set_local_src("test")
+            assert not TILE.local_src_is_empty()
+
+        with mock.patch("rasterio.open", return_value=EmptyImg()):
+            TILE.set_local_src("test")
+            assert TILE.local_src_is_empty()
 
 
 def test_get_stage_uri():
@@ -58,12 +97,26 @@ def test_get_stage_uri():
     )
 
 
-def test_upload():
-    pass  # TODO: need to mock s3 upload
+@mock.patch("gfw_pixetl.tiles.tile.os")
+def test_upload(mocked_os):
+    with mock.patch("rasterio.open", return_value=EmptyImg()):
+        TILE.set_local_src("test")
+        with mock.patch("boto3.client") as MockClient:
+            mocked_client = MockClient.return_value
+            mocked_client.upload_file.return_value = True
+
+            TILE.upload()
+            mocked_client.assrt_called_once_with("s3")
+            mocked_client.upload_file.assert_called_once()
 
 
-def test_rm_local_src():
-    pass  # TODO: need to mock deletion of local file
+@mock.patch("gfw_pixetl.tiles.tile.os")
+def test_rm_local_src(mocked_os):
+    with mock.patch("rasterio.open", return_value=EmptyImg()):
+        TILE.set_local_src("test")
+        uri = TILE.local_src.uri
+        TILE.rm_local_src()
+        mocked_os.remove.assert_called_with(uri)
 
 
 def test__run_gdal_subcommand():
