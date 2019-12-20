@@ -28,7 +28,6 @@ def test_pixetl():
             grid_name=GRID_NAME,
             subset=SUBSET,
             overwrite=True,
-            debug=True,
             cwd=".",
         )
         assert tiles == list()
