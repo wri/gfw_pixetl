@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, Set
 from unittest import mock
 
@@ -6,6 +7,7 @@ from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.tiles import RasterSrcTile
 
+os.environ["ENV"] = "test"
 
 GRID_10 = grid_factory("10/40000")
 GRID_1 = grid_factory("1/4000")

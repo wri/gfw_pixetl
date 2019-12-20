@@ -1,8 +1,11 @@
+import os
 from typing import Any, Dict
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.pipes import CalcRasterPipe, RasterPipe, pipe_factory
+
+os.environ["ENV"] = "test"
 
 GRID_10 = grid_factory("10/40000")
 GRID_1 = grid_factory("1/4000")

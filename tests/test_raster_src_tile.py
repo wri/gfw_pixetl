@@ -9,9 +9,9 @@ from gfw_pixetl import layers, get_module_logger
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.tiles import RasterSrcTile
 
-LOGGER = get_module_logger(__name__)
 
 os.environ["ENV"] = "test"
+LOGGER = get_module_logger(__name__)
 
 GRID = grid_factory("1/4000")
 RASTER_LAYER: Dict[str, Any] = {

@@ -11,7 +11,6 @@ from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 
-
 os.environ["ENV"] = "test"
 
 GRID = grid_factory("10/40000")

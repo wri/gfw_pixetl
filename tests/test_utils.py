@@ -2,6 +2,8 @@ import os
 
 from gfw_pixetl.utils import get_bucket, verify_version_pattern
 
+os.environ["ENV"] = "test"
+
 
 def test_get_bucket():
     os.environ["ENV"] = "production"

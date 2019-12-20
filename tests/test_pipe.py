@@ -9,6 +9,7 @@ from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.tiles import Tile
 
+os.environ["ENV"] = "test"
 
 GRID = grid_factory("1/4000")
 RASTER_LAYER: Dict[str, Any] = {

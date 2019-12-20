@@ -1,6 +1,10 @@
+import os
+
 from shapely.geometry import Point
 
 from gfw_pixetl.grids import Grid, grid_factory
+
+os.environ["ENV"] = "test"
 
 
 def test_grid_factory():

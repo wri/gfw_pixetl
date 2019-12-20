@@ -5,6 +5,7 @@ import yaml
 
 from gfw_pixetl.data_type import DataType, data_type_factory
 
+os.environ["ENV"] = "test"
 
 FIXURES = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gfw_pixetl", "fixures"

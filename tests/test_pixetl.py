@@ -1,9 +1,12 @@
+import os
 from unittest import mock
 
-from gfw_pixetl.pipes import CalcRasterPipe, RasterPipe, Pipe
+from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.grids import grid_factory, Grid
 from gfw_pixetl.layers import layer_factory, Layer
 from gfw_pixetl.pixetl import pixetl
+
+os.environ["ENV"] = "test"
 
 GRID_NAME = "1/4000"
 GRID: Grid = grid_factory(GRID_NAME)
@@ -23,10 +26,9 @@ def test_pixetl():
             source_type="raster",
             field=FIELD,
             grid_name=GRID_NAME,
-            env="test",
             subset=SUBSET,
             overwrite=True,
             debug=True,
-            cwd="/tmp",
+            cwd=".",
         )
         assert tiles == list()

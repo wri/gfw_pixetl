@@ -26,7 +26,7 @@ jobs:
         chmod +x ./cc-test-reporter
     - name: Build Docker container
       run: |
-        ./scripts/build.sh
+        ./scripts/build
     - name: Run Test and report Coverage
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.aws_key_dev }}
@@ -34,5 +34,5 @@ jobs:
         CC_TEST_REPORTER_ID: ${{ secrets.test_report_id }}
       run: |
         ./cc-test-reporter before-build
-        ./scripts/test.sh -k ${AWS_ACCESS_KEY_ID} -s ${AWS_SECRET_ACCESS_KEY}
+        ./scripts/test -k ${AWS_ACCESS_KEY_ID} -s ${AWS_SECRET_ACCESS_KEY}
         ./cc-test-reporter after-build -t coverage.py -p ${PWD} --exit-code $?

@@ -35,13 +35,6 @@ logger = get_module_logger(__name__)
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
-    "-e",
-    "--env",
-    type=click.Choice(["test", "dev", "staging", "production"]),
-    default="dev",
-    help="Environment",
-)
-@click.option(
     "-o",
     "--overwrite",
     is_flag=True,
@@ -57,7 +50,6 @@ def cli(
     field: str,
     grid_name: str,
     subset: Optional[List[str]],
-    env: str,
     overwrite: bool,
     debug: bool,
     cwd: str,
@@ -65,16 +57,7 @@ def cli(
     """NAME: Name of dataset"""
 
     pixetl(
-        name,
-        version,
-        source_type,
-        field,
-        grid_name,
-        subset,
-        env,
-        overwrite,
-        debug,
-        cwd,
+        name, version, source_type, field, grid_name, subset, overwrite, debug, cwd,
     )
 
 
@@ -85,7 +68,6 @@ def pixetl(
     field: str,
     grid_name: str,
     subset: Optional[List[str]],
-    env: str,
     overwrite: bool,
     debug: bool,
     cwd: str,
@@ -110,8 +92,6 @@ def pixetl(
     # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
     # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
     os.chdir(cwd)
-
-    os.environ["ENV"] = env
 
     if subset:
         logger.info("Running on subset: {}".format(subset))
