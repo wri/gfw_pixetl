@@ -111,22 +111,25 @@ class Grid(object):
 
     def _apply_lng_offset(self, lng, x, offset):
         """apply longitudinal offset and shift grid cell in case point doesn't fall into it"""
-        if lng == 0 and offset:
-            lng = lng - offset
-        elif offset:
-            lng = lng - (offset * int(lng / abs(lng)))
+        if lng != 0 and offset:
+            offset = offset * int(lng / abs(lng))
+
+        lng -= offset
+
         if offset and x < lng:
             lng -= self.width
         elif offset and x > lng + self.width:
             lng += self.width
+
         return lng
 
     def _apply_lat_offset(self, lat, y, offset):
         """apply latitudinal offset and shift grid cell in case point doesn't fall into it"""
-        if lat == 0 and offset:
-            lat = lat + offset
-        elif offset:
-            lat = lat - (offset * int(lat / abs(lat)))
+        if lat != 0 and offset:
+            offset = -(offset * int(lat / abs(lat)))
+
+        lat += offset
+
         if offset and y > lat:
             lat += self.height
         elif offset and y < lat - self.height:
@@ -142,19 +145,20 @@ class Grid(object):
         min_block_size = 128
         max_block_size = 512
         block_width = None
+        b_width = 0
         x = 0
-        while True:
+
+        while b_width <= max_block_size:
             x += 1
-            nblocks = self.cols / (16 * x)
-            bwidth = self.cols / nblocks
+            n_blocks = self.cols / (16 * x)
+            b_width = self.cols / n_blocks
             if (
-                bwidth >= min_block_size
-                and bwidth.is_integer()
-                and (self.cols / bwidth).is_integer()
+                b_width >= min_block_size
+                and b_width.is_integer()
+                and (self.cols / b_width).is_integer()
             ):
-                block_width = bwidth
-            if bwidth > max_block_size:
-                break
+                block_width = b_width
+
         if not block_width:
             raise ValueError("Cannot create blocks between 128 and 512 pixels")
 
@@ -167,27 +171,27 @@ def grid_factory(grid_name) -> Grid:
     """
 
     # RAAD alerts
-    if grid_name == "epsg-4326/3/50000" or grid_name == "3/50000":
+    if grid_name == "3/50000":
         grid: Grid = Grid("epsg:4326", 3, 50000)
 
     # GLAD alerts and UMD Forest Loss Standard Grid
-    elif grid_name == "epsg-4326/10/40000" or grid_name == "10/40000":
+    elif grid_name == "10/40000":
         grid = Grid("epsg:4326", 10, 40000)
 
     # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
-    elif grid_name == "epsg-4326/8/32000" or grid_name == "8/32000":
+    elif grid_name == "8/32000":
         grid = Grid("epsg:4326", 8, 32000)
 
     # VIIRS Fire alerts
-    elif grid_name == "epsg-4326/90/27008" or grid_name == "90/27008":
+    elif grid_name == "90/27008":
         grid = Grid("epsg:4326", 90, 27008)
 
     # MODIS Fire alerts
-    elif grid_name == "epsg-4326/90/9984" or grid_name == "90/9984":
+    elif grid_name == "90/9984":
         grid = Grid("epsg:4326", 90, 9984)
 
     # TEST grid
-    elif grid_name == "epsg-4326/1/4000" or grid_name == "1/4000":
+    elif grid_name == "1/4000":
         grid = Grid("epsg:4326", 1, 4000)
 
     else:

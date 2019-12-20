@@ -1,4 +1,3 @@
-import logging
 import os
 from typing import List, Optional
 
@@ -9,7 +8,7 @@ from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.logo import logo
-from gfw_pixetl.pipes import Pipe, pipe_factory, RasterPipe
+from gfw_pixetl.pipes import Pipe, pipe_factory
 
 logger = get_module_logger(__name__)
 
@@ -41,7 +40,6 @@ logger = get_module_logger(__name__)
     default=False,
     help="Overwrite existing tile in output location",
 )
-@click.option("-d", "--debug", is_flag=True, default=False, help="Log debug messages")
 @click.option("-w", "--cwd", default="/tmp", help="Work directory")
 def cli(
     name: str,
@@ -51,13 +49,12 @@ def cli(
     grid_name: str,
     subset: Optional[List[str]],
     overwrite: bool,
-    debug: bool,
     cwd: str,
 ):
     """NAME: Name of dataset"""
 
     pixetl(
-        name, version, source_type, field, grid_name, subset, overwrite, debug, cwd,
+        name, version, source_type, field, grid_name, subset, overwrite, cwd,
     )
 
 
@@ -66,14 +63,11 @@ def pixetl(
     version: str,
     source_type: str,
     field: str,
-    grid_name: str,
-    subset: Optional[List[str]],
-    overwrite: bool,
-    debug: bool,
-    cwd: str,
+    grid_name: str = "10/40000",
+    subset: Optional[List[str]] = None,
+    overwrite: bool = True,
+    cwd: str = "/tmp",
 ) -> List[Tile]:
-    if debug:
-        logger.setLevel(logging.DEBUG)
 
     click.echo(logo)
 
