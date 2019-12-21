@@ -8,6 +8,7 @@ from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils import get_bucket
 
 os.environ["ENV"] = "test"
 
@@ -171,7 +172,11 @@ def test__write_tile_list():
     PIPE._write_tile_list(tile_list, uris)
     with open(tile_list, "r") as src:
         lines = src.readlines()
-    assert lines == ["/vsis3/test/uri1\n", "/vsis3/test/uri2\n", "/vsis3/test/uri3\n"]
+    assert lines == [
+        f"/vsis3/{get_bucket()}/test/uri1\n",
+        f"/vsis3/{get_bucket()}/test/uri2\n",
+        f"/vsis3/{get_bucket()}/test/uri3\n",
+    ]
     os.remove(tile_list)
 
 

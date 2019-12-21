@@ -44,8 +44,14 @@ def test_create_tiles_subset():
                             with mock.patch.object(
                                 RasterSrcTile, "rm_local_src", return_value=None
                             ):
-                                result = PIPE.create_tiles()
-                                assert len(result) == 3
+                                with mock.patch.object(
+                                    RasterPipe, "upload_vrt", return_value=None
+                                ):
+                                    with mock.patch.object(
+                                        RasterPipe, "upload_extent", return_value=None
+                                    ):
+                                        result = PIPE.create_tiles()
+                                        assert len(result) == 3
 
 
 def test_create_tiles_all():
@@ -65,8 +71,14 @@ def test_create_tiles_all():
                             with mock.patch.object(
                                 RasterSrcTile, "rm_local_src", return_value=None
                             ):
-                                result = pipe.create_tiles()
-                                assert len(result) == 648
+                                with mock.patch.object(
+                                    RasterPipe, "upload_vrt", return_value=None
+                                ):
+                                    with mock.patch.object(
+                                        RasterPipe, "upload_extent", return_value=None
+                                    ):
+                                        result = pipe.create_tiles()
+                                        assert len(result) == 648
 
 
 def test_filter_src_tiles():
