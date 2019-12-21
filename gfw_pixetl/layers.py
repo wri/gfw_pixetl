@@ -9,7 +9,7 @@ from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.sources import VectorSource, RasterSource, get_src
 
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class Layer(object):
@@ -113,7 +113,7 @@ class RasterSrcLayer(Layer):
             self.src: RasterSource = get_src(src_uri)
         except FileNotFoundError:
             message = f"The source file {src_uri} for layer {self.name}/{self.field} does not exist"
-            logger.error(message)
+            LOGGER.error(message)
             raise FileNotFoundError(message)
 
 
@@ -139,7 +139,7 @@ def _get_source(name: str, field: str) -> Dict[str, Any]:
         return sources[name][field]
     except KeyError:
         message = "No such data layer"
-        logger.exception(message)
+        LOGGER.exception(message)
         raise ValueError(message)
 
 
@@ -149,5 +149,5 @@ def _get_source_type(name: str, field: str, grid_name: str) -> str:
         return source["grids"][grid_name]["type"]
     except KeyError:
         message = "Selected grid is not supported"
-        logger.exception(message)
+        LOGGER.exception(message)
         raise ValueError(message)

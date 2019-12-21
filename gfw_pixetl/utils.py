@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from gfw_pixetl import get_module_logger
 
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 def get_bucket(env: Optional[str] = None) -> str:
@@ -39,7 +39,7 @@ def verify_version_pattern(version: str) -> bool:
 
     if not version:
         message = "No version number provided"
-        logger.error(message)
+        LOGGER.error(message)
         raise ValueError(message)
 
     p = re.compile(r"^v\d{,8}\.?\d{,3}\.?\d{,3}$")

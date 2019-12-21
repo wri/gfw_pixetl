@@ -8,7 +8,7 @@ from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class RasterPipe(Pipe):
@@ -21,7 +21,7 @@ class RasterPipe(Pipe):
         """
 
         assert isinstance(self.layer, RasterSrcLayer)
-        logger.debug("Get grid Tiles")
+        LOGGER.debug("Get grid Tiles")
         tiles: Set[Tile] = set()
 
         for i in range(-89, 91):
@@ -31,7 +31,7 @@ class RasterPipe(Pipe):
                     RasterSrcTile(origin=origin, grid=self.grid, layer=self.layer)
                 )
 
-        logger.info(f"Found {len(tiles)} tile inside grid")
+        LOGGER.info(f"Found {len(tiles)} tile inside grid")
         # logger.debug(tiles)
 
         return tiles
@@ -41,7 +41,7 @@ class RasterPipe(Pipe):
         Raster Pipe
         """
 
-        logger.debug("Start Raster Pipe")
+        LOGGER.debug("Start Raster Pipe")
 
         pipe = (
             self.get_grid_tiles()
@@ -63,10 +63,11 @@ class RasterPipe(Pipe):
             tiles.append(tile)
             tile_uris.append(tile.dst.uri)
 
-        # vrt: str = self.create_vrt(tile_uris)
-        # TODO upload vrt to s3
+        if len(tiles):
+            self.upload_vrt(tile_uris)
+            self.upload_extent(tiles)
 
-        logger.debug("Finished Raster Pipe")
+        LOGGER.debug("Finished Raster Pipe")
         return tiles
 
     @staticmethod

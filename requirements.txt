@@ -1,5 +1,6 @@
 boto3~=1.10.1
 click~=7.0
+geojson~=2.5.0
 parallelpipe~=0.2.6
 pre-commit~=1.18.3
 psycopg2~=2.8.4

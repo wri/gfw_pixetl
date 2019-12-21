@@ -10,6 +10,7 @@ setup(
     install_requires=[
         "boto3~=1.10.1",
         "click~=7.0",
+        "geojson~=2.5.0",
         "parallelpipe~=0.2.6",
         "psycopg2~=2.8.4",
         "pyproj~=2.4.0",

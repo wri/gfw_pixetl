@@ -2,7 +2,7 @@ from typing import Optional
 
 from gfw_pixetl import get_module_logger
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 dtypes_dict = {
@@ -59,7 +59,7 @@ def data_type_factory(
         dtype_numpy: str = dtypes_dict[dtype][1]
     except KeyError:
         message = "Unknown data type {}".format(data_type)
-        logger.exception(message)
+        LOGGER.exception(message)
         raise ValueError(message)
 
     if dtype == "boolean":
@@ -96,7 +96,7 @@ def data_type_factory(
 
     else:
         message = "Unknown data type {}".format(data_type)
-        logger.exception(message)
+        LOGGER.exception(message)
         raise ValueError(message)
 
     return dt

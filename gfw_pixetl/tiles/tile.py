@@ -15,7 +15,7 @@ from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.sources import Destination, RasterSource, get_src
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class Tile(object):
@@ -74,14 +74,14 @@ class Tile(object):
         self.local_src = get_src(uri)
 
     def local_src_is_empty(self) -> bool:
-        logger.debug(f"Check if tile {self.local_src.uri} is empty")
+        LOGGER.debug(f"Check if tile {self.local_src.uri} is empty")
         with rasterio.open(self.local_src.uri) as img:
             msk = img.read_masks(1).astype(bool)
         if msk[msk].size == 0:
-            logger.debug(f"Tile {self.local_src.uri} is empty")
+            LOGGER.debug(f"Tile {self.local_src.uri} is empty")
             return True
         else:
-            logger.debug(f"Tile {self.local_src.uri} is not empty")
+            LOGGER.debug(f"Tile {self.local_src.uri} is not empty")
             return False
 
     def get_stage_uri(self, stage) -> str:
@@ -92,14 +92,14 @@ class Tile(object):
         s3 = boto3.client("s3")
 
         try:
-            logger.info(f"Upload tile {self.tile_id} to s3")
+            LOGGER.info(f"Upload tile {self.tile_id} to s3")
             s3.upload_file(self.local_src.uri, utils.get_bucket(), self.dst.uri)
         except ClientError:
-            logger.exception(f"Could not upload file {self.tile_id}")
+            LOGGER.exception(f"Could not upload file {self.tile_id}")
             raise
 
     def rm_local_src(self) -> None:
-        logger.info(f"Delete local file {self.local_src.uri}")
+        LOGGER.info(f"Delete local file {self.local_src.uri}")
         os.remove(self.local_src.uri)
 
     @staticmethod

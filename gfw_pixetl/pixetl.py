@@ -10,7 +10,7 @@ from gfw_pixetl.tiles import Tile
 from gfw_pixetl.logo import logo
 from gfw_pixetl.pipes import Pipe, pipe_factory
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 @click.command()
@@ -71,7 +71,7 @@ def pixetl(
 
     click.echo(logo)
 
-    logger.info(
+    LOGGER.info(
         "Start tile prepartion for Layer {name}, Version {version}, grid {grid_name}, source type {source_type}, field {field} with overwrite set to {overwrite}.".format(
             name=name,
             version=version,
@@ -88,13 +88,13 @@ def pixetl(
     os.chdir(cwd)
 
     if subset:
-        logger.info("Running on subset: {}".format(subset))
+        LOGGER.info("Running on subset: {}".format(subset))
     else:
-        logger.info("Running on full extent")
+        LOGGER.info("Running on full extent")
 
     if not utils.verify_version_pattern(version):
         message = "Version number does not match pattern"
-        logger.error(message)
+        LOGGER.error(message)
         raise ValueError(message)
 
     grid: Grid = grid_factory(grid_name)

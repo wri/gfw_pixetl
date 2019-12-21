@@ -8,7 +8,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.utils import get_bucket
 from gfw_pixetl.connection import PgConn
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class Source(object):
@@ -41,20 +41,20 @@ class Destination(RasterSource):
 
 
 def get_src(uri: str) -> RasterSource:
-    logger.debug("Check if tile {} exists".format(uri))
+    LOGGER.debug("Check if tile {} exists".format(uri))
 
     try:
         with rasterio.open(uri) as src:
-            logger.info(f"File {uri} exists")
+            LOGGER.info(f"File {uri} exists")
             return RasterSource(uri=uri, profile=src.profile, bounds=src.bounds)
 
     except Exception as e:
 
         if _file_does_not_exist(e, uri):
-            logger.info(f"File does not exist {uri}")
+            LOGGER.info(f"File does not exist {uri}")
             raise FileNotFoundError(f"File does not exist: {uri}")
         else:
-            logger.exception(f"Cannot open {uri}")
+            LOGGER.exception(f"Cannot open {uri}")
             raise
 
 

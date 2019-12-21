@@ -15,7 +15,7 @@ from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class RasterSrcTile(Tile):
@@ -56,12 +56,12 @@ class RasterSrcTile(Tile):
         cropped_bottom = inverse.transform(0, bottom)[1]
         cropped_right = inverse.transform(right, 0)[0]
 
-        logger.debug(
+        LOGGER.debug(
             "World Extent: {}, {}, {}, {}".format(
                 world_left, world_top, world_right, world_bottom
             )
         )
-        logger.debug(
+        LOGGER.debug(
             "SRC Extent: {}, {}, {}, {}".format(
                 self.src.bounds.left,
                 self.src.bounds.top,
@@ -69,8 +69,8 @@ class RasterSrcTile(Tile):
                 self.src.bounds.bottom,
             )
         )
-        logger.debug("Cropped Extent: {}, {}, {}, {}".format(left, top, right, bottom))
-        logger.debug(
+        LOGGER.debug("Cropped Extent: {}, {}, {}, {}".format(left, top, right, bottom))
+        LOGGER.debug(
             "Inverted Copped Extent: {}, {}, {}, {}".format(
                 cropped_left, cropped_top, cropped_right, cropped_bottom
             )
@@ -129,14 +129,14 @@ class RasterSrcTile(Tile):
             dst,
         ]
 
-        logger.debug(f"CMD: {cmd}")
-        logger.info(f"Transform tile {self.tile_id}")
+        LOGGER.debug(f"CMD: {cmd}")
+        LOGGER.info(f"Transform tile {self.tile_id}")
 
         try:
             self._run_gdal_subcommand(cmd)
         except GDALError as e:
-            logger.error(f"Could not transform file {dst}")
-            logger.exception(e)
+            LOGGER.error(f"Could not transform file {dst}")
+            LOGGER.exception(e)
             raise
         else:
             self.set_local_src(stage)
@@ -160,13 +160,13 @@ class RasterSrcTile(Tile):
             dst,
         ]
 
-        logger.info(f"Compress tile {self.tile_id}")
+        LOGGER.info(f"Compress tile {self.tile_id}")
 
         try:
             self._run_gdal_subcommand(cmd)
         except GDALError as e:
-            logger.error(f"Could not compress file {dst}")
-            logger.exception(e)
+            LOGGER.error(f"Could not compress file {dst}")
+            LOGGER.exception(e)
             raise
         else:
             self.set_local_src(stage)

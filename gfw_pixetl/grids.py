@@ -6,7 +6,7 @@ from shapely.geometry import Point
 from gfw_pixetl import get_module_logger
 
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class Grid(object):
@@ -196,7 +196,7 @@ def grid_factory(grid_name) -> Grid:
 
     else:
         message = f"Unknown grid name: {grid_name}"
-        logger.exception(message)
+        LOGGER.exception(message)
         raise ValueError(message)
 
     return grid

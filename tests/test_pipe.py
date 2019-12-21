@@ -148,19 +148,19 @@ def test_delete_file():
         assert i == 4
 
 
-def test_create_vrt():
+def test__create_vrt():
     uris = ["test/uri1", "test/uri2", "test/uri3"]
 
     with mock.patch("subprocess.Popen", autospec=True) as MockPopen:
         MockPopen.return_value.communicate.return_value = ("", "")
         MockPopen.return_value.returncode = 0
-        vrt = PIPE.create_vrt(uris)
+        vrt = PIPE._create_vrt(uris)
         assert vrt == "all.vrt"
 
 
-def test_create_extent():
-    tiles = _get_subset_tiles()
-    extent = PIPE.create_extent(tiles)
+def test__to_polygon():
+    tiles = list(_get_subset_tiles())
+    extent = PIPE._to_polygon(tiles)
     assert isinstance(extent, Polygon)
     assert extent.bounds == (10, 9, 12, 11)
 

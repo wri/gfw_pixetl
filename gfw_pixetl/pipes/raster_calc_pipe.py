@@ -9,7 +9,7 @@ from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.pipes import RasterPipe
 
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class CalcRasterPipe(RasterPipe):
@@ -22,7 +22,7 @@ class CalcRasterPipe(RasterPipe):
         """
         Calc Raster Pipe
         """
-        logger.debug("Start Calc Raster Pipe")
+        LOGGER.debug("Start Calc Raster Pipe")
 
         pipe = (
             self.get_grid_tiles()
@@ -42,12 +42,13 @@ class CalcRasterPipe(RasterPipe):
         tiles: List[Tile] = list()
         for tile in pipe.results():
             tiles.append(tile)
-            tile_uris.append(tile.uri)
+            tile_uris.append(tile.dst.uri)
 
-        # vrt: str = self.create_vrt(tile_uris)
-        # TODO upload vrt to s3
+        if len(tiles):
+            self.upload_vrt(tile_uris)
+            self.upload_extent(tiles)
 
-        logger.debug("Finished Raster Pipe")
+        LOGGER.debug("Finished Raster Pipe")
         return tiles
 
     @staticmethod
@@ -68,11 +69,11 @@ class CalcRasterPipe(RasterPipe):
         """
 
         for tile in tiles:
-            logger.info(f"Calculate tile {tile.tile_id}")
+            LOGGER.info(f"Calculate tile {tile.tile_id}")
             try:
                 tile.update_values()
             except Exception:
-                logger.exception("Calculation failed")
+                LOGGER.exception("Calculation failed")
                 raise
             else:
                 yield tile

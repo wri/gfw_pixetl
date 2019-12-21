@@ -7,7 +7,7 @@ from gfw_pixetl.tiles import VectorSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 class VectorPipe(Pipe):
@@ -16,7 +16,7 @@ class VectorPipe(Pipe):
         Vector Pipe
         """
 
-        logger.debug("Start Vector Pipe")
+        LOGGER.debug("Start Vector Pipe")
 
         pipe = (
             self.get_grid_tiles()
@@ -35,12 +35,13 @@ class VectorPipe(Pipe):
         tiles: List[Tile] = list()
         for tile in pipe.results():
             tiles.append(tile)
-            tile_uris.append(tile.uri)
+            tile_uris.append(tile.dst.uri)
 
-        # vrt: str = self.create_vrt(tile_uris)
-        # TODO upload vrt to s3
+        if len(tiles):
+            self.upload_vrt(tile_uris)
+            self.upload_extent(tiles)
 
-        logger.debug("Start Finished Pipe")
+        LOGGER.debug("Start Finished Pipe")
         return tiles
 
     @staticmethod
