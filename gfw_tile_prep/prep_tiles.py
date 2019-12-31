@@ -207,8 +207,8 @@ SRC = {
     },
     "JPL_AGB_extent": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/Saatchi_JPL_biomass/250m_2000/extent_binary/Saatchi_JPL_AGB_Mg_ha_250m_2000_extent.vrt",
-        "s3_target": "{protocol}/gfw-files/2018_update/jplAGBextent/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/Saatchi_JPL_biomass/250m_2000/extent_binary/Saatchi_JPL_AGB_Mg_ha_250m_2000_extent.tif",
+        "s3_target": "{protocol}/gfw-files/2018_update/jpl_AGB_extent/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0
     },
