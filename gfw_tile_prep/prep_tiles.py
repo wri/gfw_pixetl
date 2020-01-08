@@ -219,7 +219,7 @@ SRC = {
     },
     "jpl_tropics_abovegroundbiomass_extent_2000": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/Saatchi_JPL_biomass/1km_2000/raw_combined/Saatchi_JPL_AGB_Mg_ha_1k0m_2000_extent.tif",
+        "src": "{protocol}/gfw2-data/climate/Saatchi_JPL_biomass/1km_2000/raw_combined/Saatchi_JPL_AGB_Mg_ha_1km_2000_extent.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/jpl_tropics_abovegroundbiomass_extent_2000/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0
