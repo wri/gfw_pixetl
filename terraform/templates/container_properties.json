@@ -1,0 +1,35 @@
+{
+  "command": [],
+  "image": "${image_url}",
+  "vcpus": 12,
+  "memory": 65536,
+  "environment": [
+    {
+      "name": "ENV",
+      "value": "${environment}"
+    }
+  ],
+  "jobRoleArn": "${job_role_arn}",
+  "volumes": [
+    {
+      "host": {
+        "sourcePath": "/tmp"
+      },
+      "name": "tmp"
+    }
+  ],
+  "mountPoints": [
+    {
+      "sourceVolume": "tmp",
+      "containerPath": "/tmp",
+      "readOnly": false
+    }
+  ],
+  "ulimits": [
+    {
+      "hardLimit": 1024,
+      "name": "nofile",
+      "softLimit": 1024
+    }
+  ]
+}

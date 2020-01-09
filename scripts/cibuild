@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+
+# get current git branch and replace / with -
+read -r cur_branch < <(git rev-parse --abbrev-ref HEAD | tr "/" "-")
+
+if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]
+then
+  SUFFIX=""
+else
+  SUFFIX="-$cur_branch"
+fi
+
+docker build . -t pixetl${SUFFIX}

@@ -105,3 +105,5 @@ gfw-data-lake/*
 venv/*
 
 cc-test-reporter
+terraform/.terraform/*
+*.tfplan

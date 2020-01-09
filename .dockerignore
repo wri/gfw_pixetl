@@ -2,6 +2,10 @@
 .pytest_cache/*
 gfw-data-lake-dev/*
 gfw-data-lake/*
-.egg-info
+docker/*
+scripts/*
+terraform/*
+tests/*
 venv/*
+.egg-info
 *.tif

@@ -65,7 +65,9 @@ class Pipe(object):
         Useful for testing.
         """
         for tile in tiles:
-            if not self.subset or (self.subset and tile.tile_id in self.subset):
+            if not self.subset:
+                yield tile
+            elif tile.tile_id in self.subset:
                 yield tile
             else:
                 LOGGER.debug(f"Tile {tile} not in subset. Skip.")
