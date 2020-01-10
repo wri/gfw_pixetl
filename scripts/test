@@ -4,6 +4,8 @@ set -e
 
 BRANCH=$(echo $(git rev-parse --abbrev-ref HEAD))
 
+echo "Current branch: ${BRANCH}"
+
 while getopts b:k:s: option; do
   case "${option}" in
 
@@ -12,6 +14,8 @@ while getopts b:k:s: option; do
   s) AWS_SECRET_ACCESS_KEY=${OPTARG} ;;
   esac
 done
+
+echo "Branch set to: ${BRANCH}"
 
 cur_dir=$(dirname "$0")
 "${cur_dir}"/cibuild "${BRANCH}"
