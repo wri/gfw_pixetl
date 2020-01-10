@@ -13,10 +13,10 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.7
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        ./scripts/setup
+#    - name: Install dependencies
+#      run: |
+#        python -m pip install --upgrade pip
+#        ./scripts/setup
     - name: Lint with flake8
       run: |
         pip install flake8
@@ -38,7 +38,7 @@ jobs:
         BRANCH: ${{github.ref}}
       run: |
         ./cc-test-reporter before-build
-        ./scripts/test ${BRANCH}
+        ./scripts/test -b ${{github.ref}} -k ${{ secrets.aws_key_dev }} -s ${{ secrets.aws_secret_dev }}
         ./cc-test-reporter after-build -t coverage.py -p ${PWD} --exit-code $?
     - name: Deploy production
       if: success() && contains(github.ref, 'master')
