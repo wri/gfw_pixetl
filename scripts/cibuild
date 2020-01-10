@@ -2,22 +2,9 @@
 
 set -e
 
+cur_dir=$(dirname "$0")
+source ${cur_dir}/utils
 
-# get current git branch and replace / with -
-if [ -z "${1}" ]; then
-  echo "No target branch set. Using current branch"
-  read -r cur_branch < <(git rev-parse --abbrev-ref HEAD | tr "/" "-")
-else
-  echo "Target branch set to ${1}"
-  prefix="refs/heads/"
-  cur_branch=$(echo "${1#"$prefix"}" | tr "/" "-")
-fi
+SUFFIX=$(get_suffix "${BRANCH}")
 
-if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]
-then
-  SUFFIX=""
-else
-  SUFFIX="-$cur_branch"
-fi
-
-docker build . -t pixetl${SUFFIX}
+docker build . -t pixetl"${SUFFIX}"

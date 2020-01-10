@@ -2,9 +2,10 @@
 
 set -e
 
-BRANCH=$(echo $(git rev-parse --abbrev-ref HEAD))
+cur_dir=$(dirname "$0")
+source ${cur_dir}/utils
 
-echo "Current branch: ${BRANCH}"
+BRANCH=""
 
 while getopts b:k:s: option; do
   case "${option}" in
@@ -15,20 +16,7 @@ while getopts b:k:s: option; do
   esac
 done
 
-echo "Branch set to: ${BRANCH}"
-
-cur_dir=$(dirname "$0")
-"${cur_dir}"/cibuild "${BRANCH}"
-
-# replace / with -
-read -r cur_branch < <(echo "${BRANCH}" | tr "/" "-")
-
-# shellcheck disable=SC2109
-if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]; then
-  SUFFIX=""
-else
-  SUFFIX="-$cur_branch"
-fi
+SUFFIX=$(get_suffix "${BRANCH}")
 
 AWS_PROFILE="gfw-dev" # For tests always use dev profile, even for master and develop branch, we need to access the test bucket
 
