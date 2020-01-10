@@ -26,19 +26,14 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Build container
       run: |
-        ./scripts/cibuild
+        ./scripts/cibuild ${{github.ref}}
     - name: Install CodeClimate Coverage Reporter
       run: |
         curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
         chmod +x ./cc-test-reporter
     - name: Test with pytest
       env:
-        ENV: test
-        AWS_ACCESS_KEY_ID: ${{ secrets.aws_key_dev }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret_dev }}
-        AWS_DEFAULT_REGION: ${{ secrets.aws_region_dev }}
         CC_TEST_REPORTER_ID: ${{ secrets.test_report_id }}
-        BRANCH: ${{github.ref}}
       run: |
         ./cc-test-reporter before-build
         ./scripts/test -b ${{github.ref}} -k ${{ secrets.aws_key_dev }} -s ${{ secrets.aws_secret_dev }}
