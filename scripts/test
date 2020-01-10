@@ -21,16 +21,23 @@ SUFFIX=$(get_suffix "${BRANCH}")
 AWS_PROFILE="gfw-dev" # For tests always use dev profile, even for master and develop branch, we need to access the test bucket
 
 if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
-  AWS=$(echo "-e AWS_DEFAULT_PROFILE=${AWS_PROFILE}")
-else
-  AWS=$(echo "-e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}")
-fi
-
-docker run ${AWS} \
-              -e ENV="test" \
+  # when running locally, use AWS Profile and load latest code, write data to tmp
+  docker run -e AWS_DEFAULT_PROFILE=${AWS_PROFILE} \
               -v /tmp:/tmp \
-              -v "${PWD}"/:/usr/local/app \
-              -v "${HOME}"/.aws:/root/.aws:ro \
+              -v ${PWD}:/usr/local/app \
+              -v ${HOME}/.aws:/root/.aws:ro\
+              -e ENV="test" \
               --entrypoint pytest pixetl"${SUFFIX}" \
               --cov-report term --cov-report xml --cov=/usr/local/app \
               /usr/local/app/tests/
+else
+  # when running on Github, use Secrets and link pwd to tmp to have access to coverage file
+  docker run -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+              -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}  \
+              -v ${PWD}:/tmp \
+              -e ENV="test" \
+              --entrypoint pytest pixetl"${SUFFIX}" \
+              --cov-report term --cov-report xml --cov=/usr/local/app \
+              /usr/local/app/tests/
+fi
+
