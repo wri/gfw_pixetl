@@ -3,7 +3,6 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/6eacebaf99305fb1bd1b/maintainability)](https://codeclimate.com/github/wri/gfw_pixetl/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/6eacebaf99305fb1bd1b/test_coverage)](https://codeclimate.com/github/wri/gfw_pixetl/test_coverage)
 
-
 Reads source files and converts data into Cloud Optimized GeoTIFF (without overviews) clipped to specified grid size.
 
 Upload all tiles to GFW data lake following GFW naming convention.
@@ -53,7 +52,6 @@ docker build . -t globalforestwatch/pixetl
 docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY_ID=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  # pragma: allowlist secret
 
 ```
-
 
 ### AWS Batch
 

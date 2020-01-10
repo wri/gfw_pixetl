@@ -8,7 +8,7 @@ RUN \
         zip \
         docker \
         openrc \
-    && pip3 install awscli
+    && pip3 install awscli~=1.16.314
 
 RUN rc-update add docker boot
 

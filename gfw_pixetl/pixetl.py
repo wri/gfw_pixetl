@@ -40,7 +40,6 @@ LOGGER = get_module_logger(__name__)
     default=False,
     help="Overwrite existing tile in output location",
 )
-@click.option("-w", "--cwd", default="/tmp", help="Work directory")
 def cli(
     name: str,
     version: str,
@@ -49,12 +48,11 @@ def cli(
     grid_name: str,
     subset: Optional[List[str]],
     overwrite: bool,
-    cwd: str,
 ):
     """NAME: Name of dataset"""
 
     pixetl(
-        name, version, source_type, field, grid_name, subset, overwrite, cwd,
+        name, version, source_type, field, grid_name, subset, overwrite,
     )
 
 
@@ -66,7 +64,6 @@ def pixetl(
     grid_name: str = "10/40000",
     subset: Optional[List[str]] = None,
     overwrite: bool = True,
-    cwd: str = "/tmp",
 ) -> List[Tile]:
 
     click.echo(logo)
@@ -81,11 +78,6 @@ def pixetl(
             overwrite=overwrite,
         )
     )
-
-    # Set current work directory to /tmp. This is important when running as AWS Batch job
-    # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
-    # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
-    os.chdir(cwd)
 
     if subset:
         LOGGER.info("Running on subset: {}".format(subset))
