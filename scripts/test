@@ -20,13 +20,17 @@ SUFFIX=$(get_suffix "${BRANCH}")
 
 AWS_PROFILE="gfw-dev" # For tests always use dev profile, even for master and develop branch, we need to access the test bucket
 
-docker run -e AWS_DEFAULT_PROFILE=${AWS_PROFILE} \
-            -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
-            -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
-            -e ENV="test" \
-            -v /tmp:/tmp \
-            -v "${PWD}"/:/usr/local/app \
-            -v "${HOME}"/.aws:/root/.aws:ro \
-            --entrypoint pytest pixetl"${SUFFIX}" \
-            --cov-report term --cov-report xml --cov=/usr/local/app \
-            /usr/local/app/tests/
+if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
+  AWS=$(echo "-e AWS_DEFAULT_PROFILE=${AWS_PROFILE}")
+else
+  AWS=$(echo "-e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}")
+fi
+
+docker run ${AWS} \
+              -e ENV="test" \
+              -v /tmp:/tmp \
+              -v "${PWD}"/:/usr/local/app \
+              -v "${HOME}"/.aws:/root/.aws:ro \
+              --entrypoint pytest pixetl"${SUFFIX}" \
+              --cov-report term --cov-report xml --cov=/usr/local/app \
+              /usr/local/app/tests/
