@@ -35,9 +35,10 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret_dev }}
         AWS_DEFAULT_REGION: ${{ secrets.aws_region_dev }}
         CC_TEST_REPORTER_ID: ${{ secrets.test_report_id }}
+        BRANCH: ${{github.ref}}
       run: |
         ./cc-test-reporter before-build
-        ./scripts/test ${github.ref}
+        ./scripts/test ${BRANCH}
         ./cc-test-reporter after-build -t coverage.py -p ${PWD} --exit-code $?
     - name: Deploy production
       if: success() && contains(github.ref, 'master')
