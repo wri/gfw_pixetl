@@ -1,5 +1,9 @@
 # GFW pixETL
 
+[![Maintainability](https://api.codeclimate.com/v1/badges/6eacebaf99305fb1bd1b/maintainability)](https://codeclimate.com/github/wri/gfw_pixetl/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/6eacebaf99305fb1bd1b/test_coverage)](https://codeclimate.com/github/wri/gfw_pixetl/test_coverage)
+
+
 Reads source files and converts data into Cloud Optimized GeoTIFF (without overviews) clipped to specified grid size.
 
 Upload all tiles to GFW data lake following GFW naming convention.
@@ -46,7 +50,7 @@ Use dame Options and Name as listed above
 ```bash
 
 docker build . -t globalforestwatch/pixetl
-docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  
+docker run -it -v /tmp:/tmp -e AWS_ACCESS_KEY_ID=xxx -e AWS_SECRET_ACCESS_KEY=xxx globalforestwatch/pixetl [OPTIONS] NAME  # pragma: allowlist secret
 
 ```
 
@@ -78,10 +82,10 @@ Layer source definitions follow this pattern
 ```yaml
 wdpa_protected_areas:           # Layer name
     -                           # Default source description
-        field: iucn_cat  
-        order: desc  
-        data_type: uint  
-        nbits: 2  
+        field: iucn_cat
+        order: desc
+        data_type: uint
+        nbits: 2
      -                          # Optional alternative source description
         field: is
         ...

@@ -1,4 +1,10 @@
 import logging
+import os
+
+if "ENV" in os.environ:
+    ENV: str = os.environ["ENV"]
+else:
+    ENV = "dev"
 
 
 def get_module_logger(name):
@@ -11,6 +17,8 @@ def get_module_logger(name):
 
     logger = logging.getLogger(name)
     logger.addHandler(sh)
-    logger.setLevel(logging.DEBUG)
-
+    if ENV != "production":
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
     return logger

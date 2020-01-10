@@ -1,5 +1,7 @@
 FROM fedora:30
 
+ENV DIR=/usr/local/app
+
 RUN sed -i '/^[fedora]/a\exclude=postgresql*' /etc/yum.repos.d/fedora.repo \
     && sed -i '/^[updates]/a\exclude=postgresql*' /etc/yum.repos.d/fedora-updates.repo
 
@@ -18,14 +20,14 @@ RUN dnf install -y \
     gdal-python-tools \
     && dnf clean all
 
-RUN pip3 install psycopg2~=2.8.4
 
-COPY . app/
-WORKDIR app
+RUN mkdir -p ${DIR}
+WORKDIR ${DIR}
 
-COPY setup.py setup.py
-COPY gfw_pixetl gfw_pixetl/
+COPY requirements.txt .
+RUN pip3 install -r requirements.txt
 
+COPY . .
 RUN pip3 install -e .
 
 ENTRYPOINT ["pixetl"]
