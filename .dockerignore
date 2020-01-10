@@ -7,5 +7,8 @@ scripts/*
 terraform/*
 tests/*
 venv/*
-.egg-info
+*.egg-info
 *.tif
+cc-test-reporter
+coverage.xml
+test.log

@@ -2,26 +2,38 @@
 
 set -e
 
-while getopts k:s: option
-do
-case "${option}"
-in
-k) AWS_ACCESS_KEY_ID=${OPTARG};;
-s) AWS_SECRET_ACCESS_KEY=${OPTARG};;
-esac
+BRANCH=$(echo $(git rev-parse --abbrev-ref HEAD))
+
+while getopts b:k:s: option; do
+  case "${option}" in
+
+  b) BRANCH=${OPTARG} ;;
+  k) AWS_ACCESS_KEY_ID=${OPTARG} ;;
+  s) AWS_SECRET_ACCESS_KEY=${OPTARG} ;;
+  esac
 done
 
 cur_dir=$(dirname "$0")
-${cur_dir}/cibuild
+"${cur_dir}"/cibuild "${BRANCH}"
 
-# get current git branch and replace / with -
-read -r cur_branch < <(git rev-parse --abbrev-ref HEAD | tr "/" "-")
+# replace / with -
+read -r cur_branch < <(echo "${BRANCH}" | tr "/" "-")
 
-if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]
-then
+if [ "$cur_branch" == "master" || "$cur_branch" == "develop" ]; then
   SUFFIX=""
 else
   SUFFIX="-$cur_branch"
 fi
 
-docker run -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} -v /tmp:/tmp -v ${PWD}/:/usr/local/app --entrypoint pytest pixetl${SUFFIX}  --cov-report term --cov-report xml --cov=. tests/  # pragma: allowlist secret
+AWS_PROFILE="gfw-dev" # For tests always use dev profile, even for master and develop branch, we need to access the test bucket
+
+docker run -e AWS_DEFAULT_PROFILE=${AWS_PROFILE} \
+            -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
+            -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
+            -e ENV="test" \
+            -v /tmp:/tmp \
+            -v "${PWD}"/:/usr/local/app \
+            -v "${HOME}"/.aws:/root/.aws:ro \
+            --entrypoint pytest pixetl"${SUFFIX}" \
+            --cov-report term --cov-report xml --cov=/usr/local/app \
+            /usr/local/app/tests/
