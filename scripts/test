@@ -34,7 +34,9 @@ else
   # when running on Github, use Secrets and link pwd to tmp to have access to coverage file
   docker run -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
               -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}  \
-              -v ${PWD}:/tmp \
+              -v /tmp:/tmp \
+              -v ${PWD}:/usr/local/app \
+              -w /usr/local/app \
               -e ENV="test" \
               --entrypoint pytest pixetl"${SUFFIX}" \
               --cov-report term --cov-report xml --cov=/usr/local/app \
