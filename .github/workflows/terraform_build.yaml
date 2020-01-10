@@ -37,7 +37,7 @@ jobs:
         CC_TEST_REPORTER_ID: ${{ secrets.test_report_id }}
       run: |
         ./cc-test-reporter before-build
-        ./scripts/test
+        ./scripts/test ${github.ref}
         ./cc-test-reporter after-build -t coverage.py -p ${PWD} --exit-code $?
     - name: Deploy production
       if: success() && contains(github.ref, 'master')

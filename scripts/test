@@ -19,7 +19,8 @@ cur_dir=$(dirname "$0")
 # replace / with -
 read -r cur_branch < <(echo "${BRANCH}" | tr "/" "-")
 
-if [ "$cur_branch" == "master" || "$cur_branch" == "develop" ]; then
+# shellcheck disable=SC2109
+if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]; then
   SUFFIX=""
 else
   SUFFIX="-$cur_branch"
