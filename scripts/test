@@ -27,6 +27,7 @@ if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
               -v ${PWD}:/usr/local/app \
               -v ${HOME}/.aws:/root/.aws:ro\
               -e ENV="test" \
+              --rm \
               --entrypoint pytest pixetl"${SUFFIX}" \
               --cov-report term --cov-report xml --cov=/usr/local/app \
               /usr/local/app/tests/
@@ -38,6 +39,7 @@ else
               -v ${PWD}:/usr/local/app \
               -w /usr/local/app \
               -e ENV="test" \
+              --rm \
               --entrypoint pytest pixetl"${SUFFIX}" \
               --cov-report term --cov-report xml --cov=/usr/local/app \
               /usr/local/app/tests/
