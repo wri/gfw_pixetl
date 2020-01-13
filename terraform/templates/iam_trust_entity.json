@@ -2,10 +2,11 @@
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "",
       "Action": "sts:AssumeRole",
       "Effect": "Allow",
       "Principal": {
-        "Service": "ecs-tasks.amazonaws.com"
+        "AWS": "${role_arn}"
       }
     }
   ]

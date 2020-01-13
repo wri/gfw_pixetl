@@ -1,4 +1,3 @@
-import os
 from typing import List, Optional
 
 import click
@@ -78,6 +77,8 @@ def pixetl(
             overwrite=overwrite,
         )
     )
+
+    utils.set_cwd()
 
     if subset:
         LOGGER.info("Running on subset: {}".format(subset))

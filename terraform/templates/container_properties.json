@@ -7,6 +7,10 @@
     {
       "name": "ENV",
       "value": "${environment}"
+    },
+    {
+      "name": "JOB_ROLE_ARN",
+      "value": "${clone_role_arn}"
     }
   ],
   "jobRoleArn": "${job_role_arn}",

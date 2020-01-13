@@ -8,11 +8,10 @@ import boto3
 from geojson import FeatureCollection, Feature, dumps
 from shapely.geometry import box, Polygon, MultiPolygon
 
-from gfw_pixetl import get_module_logger
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.errors import GDALError
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.tiles.tile import Tile
-from gfw_pixetl.utils import get_bucket
 
 LOGGER = get_module_logger(__name__)
 
@@ -132,9 +131,10 @@ class Pipe(object):
         self._write_tile_list(tile_list, uris)
 
         cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
+        env = utils.set_aws_credentials()
 
         LOGGER.info("Create VRT file")
-        p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
 
         o: Any
         e: Any
@@ -151,7 +151,9 @@ class Pipe(object):
 
     def _upload_vrt(self, vrt):
         LOGGER.info("Upload vrt")
-        return S3.upload_file(vrt, get_bucket(), os.path.join(self.layer.prefix, vrt))
+        return S3.upload_file(
+            vrt, utils.get_bucket(), os.path.join(self.layer.prefix, vrt)
+        )
 
     def upload_extent(self, tiles: List[Tile]) -> Dict[str, Any]:
         extent: Optional[Union[Polygon, MultiPolygon]] = self._to_polygon(tiles)
@@ -178,7 +180,7 @@ class Pipe(object):
         LOGGER.info("Upload extent")
         return S3.put_object(
             Body=str.encode(dumps(fc)),
-            Bucket=get_bucket(),
+            Bucket=utils.get_bucket(),
             Key=os.path.join(self.layer.prefix, "extent.geojson"),
         )
 
@@ -186,7 +188,7 @@ class Pipe(object):
     def _write_tile_list(tile_list: str, uris: List[str]) -> None:
         with open(tile_list, "w") as input_tiles:
             for uri in uris:
-                tile_uri = f"/vsis3/{get_bucket()}/{uri}\n"
+                tile_uri = f"/vsis3/{utils.get_bucket()}/{uri}\n"
                 input_tiles.write(tile_uri)
 
     @staticmethod
