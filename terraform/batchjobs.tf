@@ -1,10 +1,10 @@
-resource "aws_batch_job_definition" "pixetl" {
+resource "aws_batch_job_definition" "default" {
   name                 = "${local.project}${local.name_suffix}"
   type                 = "container"
   container_properties = data.template_file.container_properties.rendered
 }
 
-resource "aws_batch_job_queue" "test_queue" {
+resource "aws_batch_job_queue" "default" {
   name                 = "${local.project}-job-queue${local.name_suffix}"
   state                = "ENABLED"
   priority             = 1

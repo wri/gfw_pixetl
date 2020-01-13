@@ -2,7 +2,7 @@ import datetime
 import os
 import re
 import uuid
-
+from dateutil.tz import tzutc
 from typing import Any, Dict, Optional
 
 import boto3
@@ -78,7 +78,9 @@ def set_aws_credentials():
         env: Dict[str, Any] = os.environ.copy()
         client = boto3.client("sts")
 
-        if not TOKEN_EXPIRATION or TOKEN_EXPIRATION <= datetime.datetime.now():
+        if not TOKEN_EXPIRATION or TOKEN_EXPIRATION <= datetime.datetime.now(
+            tz=tzutc()
+        ):
             LOGGER.debug("Update session token")
 
             credentials: Dict[str, Any] = client.assume_role(
@@ -102,7 +104,7 @@ def set_aws_credentials():
         return os.environ.copy()
 
 
-def set_cwd():
+def set_cwd() -> str:
     if "AWS_BATCH_JOB_ID" in os.environ.keys():
         cwd: str = os.environ["AWS_BATCH_JOB_ID"]
     else:
@@ -111,3 +113,4 @@ def set_cwd():
     os.mkdir(cwd)
     os.chdir(cwd)
     LOGGER.info(f"Current Work Directory set to {os.path.curdir}")
+    return cwd
