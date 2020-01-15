@@ -54,16 +54,16 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
         -backend-config=vars/backend-${ENV}.tfvars
       select_workspace "${2}"
       terraform plan \
-        -var-file="vars/user-aoi-batch-${ENV}.tfvars" \
-        -out="user-aoi-batch.tfplan"
+        -var-file="vars/wri__gfw_pixetl-${ENV}.tfvars" \
+        -out="wri__gfw_pixetl.tfplan"
       ;;
     apply)
       terraform apply \
-        "user-aoi-batch.tfplan"
+        "wri__gfw_pixetl.tfplan"
       ;;
     destroy)
       terraform destroy \
-        -var-file="vars/user-aoi-batch-${ENV}.tfvars" \
+        -var-file="vars/wri__gfw_pixetl-${ENV}.tfvars" \
         -auto-approve
       ;;
     *)

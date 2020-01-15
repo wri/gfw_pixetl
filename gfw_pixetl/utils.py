@@ -112,5 +112,5 @@ def set_cwd() -> str:
 
     os.mkdir(cwd)
     os.chdir(cwd)
-    LOGGER.info(f"Current Work Directory set to {os.path.curdir}")
+    LOGGER.info(f"Current Work Directory set to {os.getcwd()}")
     return cwd

@@ -5,6 +5,8 @@ gfw-data-lake/*
 docker/*
 scripts/*
 terraform/*
+terraform/.terraform/*
+.git
 tests/*
 venv/*
 *.egg-info
@@ -12,3 +14,6 @@ venv/*
 cc-test-reporter
 coverage.xml
 test.log
+.idea/*
+.coverage
+.DS_Store
