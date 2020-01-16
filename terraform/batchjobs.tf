@@ -8,5 +8,5 @@ resource "aws_batch_job_queue" "default" {
   name                 = "${local.project}-job-queue${local.name_suffix}"
   state                = "ENABLED"
   priority             = 1
-  compute_environments = [data.terraform_remote_state.core.outputs.ephemeral_storage_batch_environment_arn]
+  compute_environments = [module.compute_environment_ephemeral_storage.arn]
 }

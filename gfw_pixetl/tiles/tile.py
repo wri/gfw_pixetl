@@ -91,7 +91,9 @@ class Tile(object):
         return True
 
     def get_stage_uri(self, stage) -> str:
-        return f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
+        uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
+        LOGGER.debug(f"Stage URI: {uri}")
+        return uri
 
     def upload(self) -> None:
 
