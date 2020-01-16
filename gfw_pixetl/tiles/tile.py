@@ -6,6 +6,7 @@ import boto3
 import rasterio
 from botocore.exceptions import ClientError
 from rasterio.coords import BoundingBox
+from rasterio.crs import CRS
 from retrying import retry
 from shapely.geometry import Point
 
@@ -56,9 +57,24 @@ class Tile(object):
             right=origin.x + grid.width,
             top=origin.y,
         )
+
+        tile_profile = {
+            "driver": "GTiff",
+            "width": grid.cols,
+            "height": grid.rows,
+            "count": 1,
+            "transform": rasterio.transform.from_origin(
+                origin.x, origin.y, grid.xres, grid.yres
+            ),
+            "crs": CRS.from_string(
+                grid.srs.to_string()
+            ),  # Need to convert from ProjPy CRS to RasterIO CRS
+        }
+        tile_profile.update(self.layer.dst_profile)
+
         self.dst = Destination(
             uri=f"{layer.prefix}/{self.tile_id}.tif",
-            profile=self.layer.dst_profile,
+            profile=tile_profile,
             bounds=self.bounds,
         )
 

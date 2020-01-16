@@ -174,12 +174,10 @@ class RasterSrcTile(Tile):
     def update_values(self):
         stage = "update_values"
         dst = self.get_stage_uri(stage)
-        profile = self.local_src.profile.copy()
-        profile.update(self.dst.profile)
         with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
             src = rasterio.open(self.local_src.uri)
 
-            dst = rasterio.open(dst, "w", **profile)
+            dst = rasterio.open(dst, "w", **self.dst.profile)
 
             for block_index, window in src.block_windows(1):
                 data = src.read(window=window, masked=True)
