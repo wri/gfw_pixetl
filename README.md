@@ -1,4 +1,6 @@
 # GFW pixETL
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fwri%2Fgfw_pixetl.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fwri%2Fgfw_pixetl?ref=badge_shield)
+
 
 Reads source files and converts data into Cloud Optimized GeoTIFF (without overviews) clipped to specified grid size.
 
@@ -120,3 +122,6 @@ Vector Sources
 Don't find the ETL you are looking for?
 
 Create a subclass of Layer and write your own ETL.
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fwri%2Fgfw_pixetl.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fwri%2Fgfw_pixetl?ref=badge_large)
