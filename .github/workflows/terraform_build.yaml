@@ -37,7 +37,10 @@ jobs:
       run: |
         ./cc-test-reporter before-build
         ./scripts/test -b ${{github.ref}} -k ${{ secrets.aws_key_dev }} -s ${{ secrets.aws_secret_dev }}
-        ls -l
+
+        find . -name coverage.xml
+        find /tmp coverage.xml
+
         ./cc-test-reporter after-build -t coverage.py -p ${PWD} --exit-code $?
     - name: Deploy production
       if: success() && contains(github.ref, 'master')
