@@ -65,9 +65,9 @@ def test_set_aws_credentials():
     result = set_aws_credentials()
 
     assert env == result
-    assert "AWS_ACCESS_KEY_ID" not in result.keys()
-    assert "AWS_SECRET_ACCESS_KEY" not in result.keys()
-    assert "AWS_SESSION_TOKEN" not in result.keys()
+    assert "AWS_ACCESS_KEY_ID" not in list(result.keys())
+    assert "AWS_SECRET_ACCESS_KEY" not in list(result.keys())
+    assert "AWS_SESSION_TOKEN" not in list(result.keys())
 
     os.environ["AWS_BATCH_JOB_ID"] = "test"
     os.environ["JOB_ROLE_ARN"] = "test"
@@ -77,9 +77,9 @@ def test_set_aws_credentials():
         result = set_aws_credentials()
 
     assert env != result
-    assert "AWS_ACCESS_KEY_ID" in result.keys()
-    assert "AWS_SECRET_ACCESS_KEY" in result.keys()
-    assert "AWS_SESSION_TOKEN" in result.keys()
+    assert "AWS_ACCESS_KEY_ID" in list(result.keys())
+    assert "AWS_SECRET_ACCESS_KEY" in list(result.keys())
+    assert "AWS_SESSION_TOKEN" in list(result.keys())
 
     del os.environ["AWS_BATCH_JOB_ID"]
     del os.environ["JOB_ROLE_ARN"]
