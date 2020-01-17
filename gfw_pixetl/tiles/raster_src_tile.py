@@ -125,6 +125,9 @@ class RasterSrcTile(Tile):
             # "-co", "SPARSE_OK=TRUE",
             "-q",
             "-overwrite",
+            # "-multi",
+            # "-wo",
+            # "NUM_THREADS=ALL_CPUS",
             self.src.uri,
             dst,
         ]
