@@ -9,4 +9,5 @@ resource "aws_batch_job_queue" "default" {
   state                = "ENABLED"
   priority             = 1
   compute_environments = [module.compute_environment_ephemeral_storage.arn]
+  depends_on           = [module.compute_environment_ephemeral_storage.arn]
 }

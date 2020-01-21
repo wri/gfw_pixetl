@@ -1,4 +1,4 @@
-FROM hashicorp/terraform:0.12.13
+FROM hashicorp/terraform:0.12.19
 
 RUN \
     apk add --no-cache \
@@ -8,7 +8,7 @@ RUN \
         zip \
         docker \
         openrc \
-    && pip3 install awscli~=1.16.314
+    && pip3 install awscli~=1.17.5
 
 RUN rc-update add docker boot
 
