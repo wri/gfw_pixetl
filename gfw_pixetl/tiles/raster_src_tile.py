@@ -125,6 +125,9 @@ class RasterSrcTile(Tile):
             # "-co", "SPARSE_OK=TRUE",
             "-q",
             "-overwrite",
+            # "-multi",
+            # "-wo",
+            # "NUM_THREADS=ALL_CPUS",
             self.src.uri,
             dst,
         ]
@@ -174,7 +177,6 @@ class RasterSrcTile(Tile):
     def update_values(self):
         stage = "update_values"
         dst = self.get_stage_uri(stage)
-
         with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
             src = rasterio.open(self.local_src.uri)
 
@@ -220,5 +222,6 @@ class RasterSrcTile(Tile):
             )
 
         else:
+            data = data.data.astype(self.dst.profile["dtype"])
             data = data.data.astype(self.dst.profile["dtype"])
         return data

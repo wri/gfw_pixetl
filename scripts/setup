@@ -5,3 +5,6 @@ pip install -e .
 
 detect-secrets scan > .secrets.baseline
 pre-commit install
+
+docker-compose -f docker/terraform/docker-compose.yml build
+./scripts/cibuild

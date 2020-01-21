@@ -6,11 +6,17 @@ import boto3
 import rasterio
 from botocore.exceptions import ClientError
 from rasterio.coords import BoundingBox
+from rasterio.crs import CRS
 from retrying import retry
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.errors import GDALError, GDALNoneTypeError, retry_if_none_type_error
+from gfw_pixetl.errors import (
+    GDALError,
+    GDALAWSConfigError,
+    GDALNoneTypeError,
+    retry_if_none_type_error,
+)
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.sources import Destination, RasterSource, get_src
@@ -51,9 +57,24 @@ class Tile(object):
             right=origin.x + grid.width,
             top=origin.y,
         )
+
+        tile_profile = {
+            "driver": "GTiff",
+            "width": grid.cols,
+            "height": grid.rows,
+            "count": 1,
+            "transform": rasterio.transform.from_origin(
+                origin.x, origin.y, grid.xres, grid.yres
+            ),
+            "crs": CRS.from_string(
+                grid.srs.to_string()
+            ),  # Need to convert from ProjPy CRS to RasterIO CRS
+        }
+        tile_profile.update(self.layer.dst_profile)
+
         self.dst = Destination(
             uri=f"{layer.prefix}/{self.tile_id}.tif",
-            profile=self.layer.dst_profile,
+            profile=tile_profile,
             bounds=self.bounds,
         )
 
@@ -76,16 +97,19 @@ class Tile(object):
     def local_src_is_empty(self) -> bool:
         LOGGER.debug(f"Check if tile {self.local_src.uri} is empty")
         with rasterio.open(self.local_src.uri) as img:
-            msk = img.read_masks(1).astype(bool)
-        if msk[msk].size == 0:
-            LOGGER.debug(f"Tile {self.local_src.uri} is empty")
-            return True
-        else:
-            LOGGER.debug(f"Tile {self.local_src.uri} is not empty")
-            return False
+            for block_index, window in img.block_windows(1):
+                msk = img.read_masks(1, window=window).astype(bool)
+                if msk[msk].size != 0:
+                    LOGGER.debug(f"Tile {self.local_src.uri} is not empty")
+                    return False
+
+        LOGGER.debug(f"Tile {self.local_src.uri} is empty")
+        return True
 
     def get_stage_uri(self, stage) -> str:
-        return f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
+        uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
+        LOGGER.debug(f"Stage URI: {uri}")
+        return uri
 
     def upload(self) -> None:
 
@@ -109,13 +133,22 @@ class Tile(object):
         wait_fixed=2000,
     )
     def _run_gdal_subcommand(cmd: List[str]) -> Tuple[str, str]:
-        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+
+        env = utils.set_aws_credentials()
+        LOGGER.debug(f"RUN subcommand, using env {env}")
+        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
         o, e = p.communicate()
 
         if p.returncode != 0 and not e:
             raise GDALNoneTypeError(e.decode("utf-8"))
+        elif (
+            p.returncode != 0
+            and e
+            == b"ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
+        ):
+            raise GDALAWSConfigError(e.decode("utf-8"))
         elif p.returncode != 0:
-            raise GDALError(e)
+            raise GDALError(e.decode("utf-8"))
 
         return o.decode("utf-8"), e.decode("utf-8")
 

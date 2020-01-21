@@ -4,7 +4,7 @@ setup(
     name="gfw_pixetl",
     version="0.2.0",
     description="Tool to preprocess GFW tiles",
-    packages=find_packages(),
+    packages=find_packages(exclude=("tests",)),
     author="Thomas Maschler",
     license="MIT",
     install_requires=[

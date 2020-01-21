@@ -134,7 +134,7 @@ def layer_factory(name: str, version: str, field: str, grid: Grid) -> Layer:
 def _get_source(name: str, field: str) -> Dict[str, Any]:
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(cur_dir, "fixures/sources.yaml"), "r") as stream:
-        sources: Dict[str, Any] = yaml.load(stream, Loader=yaml.BaseLoader)
+        sources: Dict[str, Any] = yaml.safe_load(stream)
     try:
         return sources[name][field]
     except KeyError:

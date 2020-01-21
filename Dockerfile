@@ -30,4 +30,9 @@ RUN pip3 install -r requirements.txt
 COPY . .
 RUN pip3 install -e .
 
+# Set current work directory to /tmp. This is important when running as AWS Batch job
+# When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
+# In AWS batch we will then mount host's /tmp directory as docker volume /tmp
+WORKDIR /tmp
+
 ENTRYPOINT ["pixetl"]

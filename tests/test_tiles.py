@@ -1,12 +1,13 @@
 import os
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional
 from unittest import mock
 
 import numpy as np
+from rasterio.windows import Window
 from shapely.geometry import Point, box
 
-from gfw_pixetl import layers, utils
-from gfw_pixetl.errors import GDALError, GDALNoneTypeError
+from gfw_pixetl import layers
+from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
@@ -38,8 +39,13 @@ class Img(object):
         pass
 
     @staticmethod
-    def read_masks(band: int = 0) -> np.ndarray:
+    def read_masks(band: int = 0, window: Optional[Window] = None) -> np.ndarray:
         return np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]])
+
+    @staticmethod
+    def block_windows(idx: int):
+        for i in range(0, 2):
+            yield (0, i), Window(i, 0, 1, 1)
 
     profile: Dict[str, Any] = {}
     bounds: box = box(1, 1, 0, 0)
@@ -47,7 +53,7 @@ class Img(object):
 
 class EmptyImg(Img):
     @staticmethod
-    def read_masks(band: int = 0) -> np.ndarray:
+    def read_masks(band: int = 0, window: Optional[Window] = None) -> np.ndarray:
         return np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
 
 

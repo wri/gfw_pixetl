@@ -1,4 +1,3 @@
-import os
 from typing import List, Optional
 
 import click
@@ -34,13 +33,19 @@ LOGGER = get_module_logger(__name__)
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
+    "-d",
+    "--divisor",
+    type=int,
+    default=2,
+    help="Divisor used to calculate core/ task ratio",
+)
+@click.option(
     "-o",
     "--overwrite",
     is_flag=True,
     default=False,
     help="Overwrite existing tile in output location",
 )
-@click.option("-w", "--cwd", default="/tmp", help="Work directory")
 def cli(
     name: str,
     version: str,
@@ -48,13 +53,13 @@ def cli(
     field: str,
     grid_name: str,
     subset: Optional[List[str]],
+    divisor: int,
     overwrite: bool,
-    cwd: str,
 ):
     """NAME: Name of dataset"""
 
     pixetl(
-        name, version, source_type, field, grid_name, subset, overwrite, cwd,
+        name, version, source_type, field, grid_name, subset, divisor, overwrite,
     )
 
 
@@ -65,10 +70,9 @@ def pixetl(
     field: str,
     grid_name: str = "10/40000",
     subset: Optional[List[str]] = None,
+    divisor: int = 2,
     overwrite: bool = True,
-    cwd: str = "/tmp",
 ) -> List[Tile]:
-
     click.echo(logo)
 
     LOGGER.info(
@@ -82,10 +86,7 @@ def pixetl(
         )
     )
 
-    # Set current work directory to /tmp. This is important when running as AWS Batch job
-    # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
-    # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
-    os.chdir(cwd)
+    utils.set_cwd()
 
     if subset:
         LOGGER.info("Running on subset: {}".format(subset))
@@ -99,7 +100,7 @@ def pixetl(
 
     grid: Grid = grid_factory(grid_name)
     layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
-    pipe: Pipe = pipe_factory(layer, subset)
+    pipe: Pipe = pipe_factory(layer, subset, divisor)
 
     return pipe.create_tiles(overwrite)
 

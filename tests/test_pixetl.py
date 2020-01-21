@@ -19,6 +19,9 @@ LAYER: Layer = layer_factory(name=NAME, version=VERSION, grid=GRID, field=FIELD)
 
 
 def test_pixetl():
+
+    cwd = os.getcwd()
+
     with mock.patch.object(RasterPipe, "create_tiles", return_value=list()):
         tiles = pixetl(
             name=NAME,
@@ -28,6 +31,9 @@ def test_pixetl():
             grid_name=GRID_NAME,
             subset=SUBSET,
             overwrite=True,
-            cwd=".",
         )
-        assert tiles == list()
+
+    assert tiles == list()
+    assert cwd != os.getcwd()
+
+    os.chdir(cwd)
