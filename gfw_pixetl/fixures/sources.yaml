@@ -71,7 +71,7 @@ biodiversity_intactness:
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/biodiversity_intactness/all.vrt
+                uri: /vsis3/gfw-files/tmaschler/bio-intact/all.vrt
             90/27008:
                 type: raster
                 depends_on: biodiversity_intactness/index/10/40000
@@ -83,7 +83,7 @@ biodiversity_intactness:
             10/40000:
                 type: raster
                 depends_on: biodiversity_intactness/index/10/40000
-                calc: 1*(A>XXXX)  # TODO figure out what threshold should be
+                calc: 1*(A>-5.57)
             90/27008:
                 type: raster
                 depends_on: biodiversity_intactness/top10/10/40000
@@ -96,7 +96,7 @@ biodiversity_significance:
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/biodiversity_significance/all.vrt
+                uri: /vsis3/gfw-files/tmaschler/bio-sig/all.vrt
             90/27008:
                 type: raster
                 depends_on: biodiversity_significance/index/10/40000
@@ -108,7 +108,7 @@ biodiversity_significance:
             10/40000:
                 type: raster
                 depends_on: biodiversity_significance/index/10/40000
-                calc: 1*(A>XXXX)  # TODO figure out what threshold should be
+                calc: 1*(A>5)
             90/27008:
                 type: raster
                 depends_on: biodiversity_significance/top10/10/40000
