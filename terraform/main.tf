@@ -14,15 +14,15 @@ provider "aws" {
 }
 
 module "container_registry" {
-  source     = "git::https://github.com/wri/gfw-terraform-modules.git//modules/container_registry?ref=v0.0.1"
-  image_name = local.project
+  source     = "git::https://github.com/wri/gfw-terraform-modules.git//modules/container_registry?ref=v0.0.3"
+  image_name = "${local.project}${local.name_suffix}"
   root_dir   = "../${path.root}"
 }
 
 
 
 module "compute_environment_ephemeral_storage" {
-  source             = "git::https://github.com/wri/gfw-terraform-modules.git//modules/compute_environment_ephemeral_storage?ref=v0.0.2"
+  source             = "git::https://github.com/wri/gfw-terraform-modules.git//modules/compute_environment_ephemeral_storage?ref=v0.0.3"
   project            = local.project
   key_pair           = data.terraform_remote_state.core.outputs.key_pair_tmaschler_gfw
   subnets            = data.terraform_remote_state.core.outputs.private_subnet_ids
