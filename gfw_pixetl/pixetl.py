@@ -1,16 +1,15 @@
-import logging
-import os
-import re
 from typing import List, Optional
 
 import click
 
-from gfw_pixetl import get_module_logger
-from gfw_pixetl.grid import grid_factory
-from gfw_pixetl.layer import layer_factory
+from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.grids import Grid, grid_factory
+from gfw_pixetl.layers import Layer, layer_factory
+from gfw_pixetl.tiles import Tile
 from gfw_pixetl.logo import logo
+from gfw_pixetl.pipes import Pipe, pipe_factory
 
-logger = get_module_logger(__name__)
+LOGGER = get_module_logger(__name__)
 
 
 @click.command()
@@ -22,21 +21,23 @@ logger = get_module_logger(__name__)
     type=click.Choice(["raster", "vector", "tcd_raster"]),
     help="Type of input file(s)",
 )
-@click.option(
-    "-f", "--field", type=str, default=None, help="Field represented in output dataset"
-)
+@click.option("-f", "--field", type=str, help="Field represented in output dataset")
 @click.option(
     "-g",
     "--grid_name",
-    type=click.Choice(["3x3", "10x10", "30x30", "90x90"]),
-    default="10x10",
+    type=click.Choice(["10/40000", "90/27008"]),
+    default="10/40000",
     help="Grid size of output dataset",
 )
 @click.option(
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
-    "-e", "--env", type=click.Choice(["dev", "prod"]), default="dev", help="Environment"
+    "-d",
+    "--divisor",
+    type=int,
+    default=2,
+    help="Divisor used to calculate core/ task ratio",
 )
 @click.option(
     "-o",
@@ -45,33 +46,36 @@ logger = get_module_logger(__name__)
     default=False,
     help="Overwrite existing tile in output location",
 )
-@click.option("-d", "--debug", is_flag=True, default=False, help="Log debug messages")
-@click.option("-w", "--cwd", default="/tmp", help="Work directory")
 def cli(
     name: str,
     version: str,
     source_type: str,
-    field: Optional[str],
+    field: str,
     grid_name: str,
     subset: Optional[List[str]],
-    env: str,
+    divisor: int,
     overwrite: bool,
-    debug: bool,
-    cwd: str,
-) -> None:
+):
     """NAME: Name of dataset"""
 
-    # Set current work directory to /tmp. This is important when running as AWS Batch job
-    # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
-    # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
-    os.chdir(cwd)
+    pixetl(
+        name, version, source_type, field, grid_name, subset, divisor, overwrite,
+    )
 
-    if debug:
-        logger.setLevel(logging.DEBUG)
 
+def pixetl(
+    name: str,
+    version: str,
+    source_type: str,
+    field: str,
+    grid_name: str = "10/40000",
+    subset: Optional[List[str]] = None,
+    divisor: int = 2,
+    overwrite: bool = True,
+) -> List[Tile]:
     click.echo(logo)
 
-    logger.info(
+    LOGGER.info(
         "Start tile prepartion for Layer {name}, Version {version}, grid {grid_name}, source type {source_type}, field {field} with overwrite set to {overwrite}.".format(
             name=name,
             version=version,
@@ -82,52 +86,23 @@ def cli(
         )
     )
 
+    utils.set_cwd()
+
     if subset:
-        logger.info("Running on subset: {}".format(subset))
+        LOGGER.info("Running on subset: {}".format(subset))
     else:
-        logger.info("Running on full extent")
+        LOGGER.info("Running on full extent")
 
-    _verify_version_pattern(version)
-
-    grid = grid_factory(grid_name)
-
-    layer = layer_factory(
-        source_type,
-        name=name,
-        version=version,
-        grid=grid,
-        field=field,
-        env=env,
-        subset=subset,
-    )
-
-    layer.create_tiles(overwrite)
-
-
-def _verify_version_pattern(version: str) -> None:
-    """
-    Verify if version matches general pattern
-    - Must start with a v
-    - Followed by up to three groups of digits seperated with a .
-    - First group can have up to 8 digits
-    - Second and third group up to 3 digits
-
-    Examples:
-    - v20191001
-    - v1.1.2
-    """
-
-    if not version:
-        message = "No version number provided"
-        logger.error(message)
-        raise ValueError(message)
-
-    p = re.compile(r"^v\d{,8}\.?\d{,3}\.?\d{,3}$")
-    m = p.match(version)
-    if not m:
+    if not utils.verify_version_pattern(version):
         message = "Version number does not match pattern"
-        logger.error(message)
+        LOGGER.error(message)
         raise ValueError(message)
+
+    grid: Grid = grid_factory(grid_name)
+    layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
+    pipe: Pipe = pipe_factory(layer, subset, divisor)
+
+    return pipe.create_tiles(overwrite)
 
 
 if __name__ == "__main__":
