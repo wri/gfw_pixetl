@@ -15,7 +15,7 @@ provider "aws" {
 
 module "container_registry" {
   source     = "git::https://github.com/wri/gfw-terraform-modules.git//modules/container_registry?ref=v0.0.3"
-  image_name = local.project
+  image_name = "${local.project}${local.name_suffix}"
   root_dir   = "../${path.root}"
 }
 
