@@ -14,7 +14,7 @@ os.environ["ENV"] = "test"
 
 GRID = grid_factory("1/4000")
 RASTER_LAYER: Dict[str, Any] = {
-    "name": "erosion_risk",
+    "name": "aqueduct_erosion_risk",
     "version": "v201911",
     "field": "level",
     "grid": GRID,
@@ -46,7 +46,7 @@ def test_get_grid_tiles():
 
     grid = grid_factory("10/40000")
     raster_layer: Dict[str, Any] = {
-        "name": "erosion_risk",
+        "name": "aqueduct_erosion_risk",
         "version": "v201911",
         "field": "level",
         "grid": grid,

@@ -13,7 +13,7 @@ GRID_10 = grid_factory("10/40000")
 GRID_1 = grid_factory("1/4000")
 
 RASTER_LAYER: Dict[str, Any] = {
-    "name": "erosion_risk",
+    "name": "aqueduct_erosion_risk",
     "version": "v201911",
     "field": "level",
     "grid": GRID_10,
@@ -125,7 +125,7 @@ def test_compress():
 
 def _get_subset_tiles() -> Set[RasterSrcTile]:
     raster_layer: Dict[str, Any] = {
-        "name": "erosion_risk",
+        "name": "aqueduct_erosion_risk",
         "version": "v201911",
         "field": "level",
         "grid": GRID_1,

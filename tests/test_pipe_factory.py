@@ -19,7 +19,7 @@ def test_pipe_factory_vector_src_layer():
 
 def test_pipe_factory_raster_src_layer():
     raster_layer: Dict[str, Any] = {
-        "name": "erosion_risk",
+        "name": "aqueduct_erosion_risk",
         "version": "v201911",
         "field": "level",
         "grid": GRID_10,
@@ -38,7 +38,7 @@ def test_pipe_factory_raster_src_layer():
 
 def test_pipe_factory_calc_raster_src_layer():
     calc_raster_layer: Dict[str, Any] = {
-        "name": "tcs_drivers_2000-2015",
+        "name": "tsc_tree_cover_loss_drivers",
         "version": "v201911",
         "field": "type",
         "grid": GRID_10,

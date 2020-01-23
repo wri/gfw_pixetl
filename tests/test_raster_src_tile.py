@@ -15,7 +15,7 @@ LOGGER = get_module_logger(__name__)
 
 GRID = grid_factory("1/4000")
 RASTER_LAYER: Dict[str, Any] = {
-    "name": "erosion_risk",
+    "name": "aqueduct_erosion_risk",
     "version": "v201911",
     "field": "level",
     "grid": GRID,
