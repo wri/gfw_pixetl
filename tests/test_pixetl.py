@@ -11,7 +11,7 @@ os.environ["ENV"] = "test"
 GRID_NAME = "1/4000"
 GRID: Grid = grid_factory(GRID_NAME)
 FIELD = "level"
-NAME = "erosion_risk"
+NAME = "aqueduct_erosion_risk"
 VERSION = "v201911"
 SUBSET = ["10N_010E"]
 

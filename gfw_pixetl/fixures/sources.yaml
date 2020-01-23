@@ -826,22 +826,7 @@ gfw_soil_carbon_stock_2000:  # v20191106
                 depends_on: gfw_soil_carbon_stock_2000/Mg/10/40000
                 resampling: average
 
-#tsc_tree_cover_loss_drivers:  # v2018
-#    type:
-#        data_type: uint
-#        nbits: 3
-#        no_data: 0
-#        grids:
-#            10/40000:
-#                type: raster
-#                uri: /vsis3/gfw-files/2018_update/drivers/all.vrt
-#                calc: A+1
-#            90/27008:
-#                type: raster
-#                depends_on: tsc_tree_cover_loss_drivers/type/10/40000
-#                resampling: mode
-
-tsc_tree_cover_loss_drivers:   # v2019
+tsc_tree_cover_loss_drivers:  # v2018
     type:
         data_type: uint
         nbits: 3
@@ -849,12 +834,27 @@ tsc_tree_cover_loss_drivers:   # v2019
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw2-data/forest_change/tsc/drivers2018.tif
+                uri: /vsis3/gfw-files/2018_update/drivers/all.vrt
                 calc: A+1
             90/27008:
                 type: raster
                 depends_on: tsc_tree_cover_loss_drivers/type/10/40000
                 resampling: mode
+
+#tsc_tree_cover_loss_drivers:   # v2019
+#    type:
+#        data_type: uint
+#        nbits: 3
+#        no_data: 0
+#        grids:
+#            10/40000:
+#                type: raster
+#                uri: /vsis3/gfw2-data/forest_change/tsc/drivers2018.tif
+#                calc: A+1
+#            90/27008:
+#                type: raster
+#                depends_on: tsc_tree_cover_loss_drivers/type/10/40000
+#                resampling: mode
 
 gfw_total_carbon_stock_2000:  # v20191106
     Mg:
