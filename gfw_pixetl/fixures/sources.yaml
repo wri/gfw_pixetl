@@ -381,7 +381,7 @@ gfw_gross_emissions_co2e_co2_only__legal_amazon_loss:  # v20191106
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/legal_amazon_loss/all.vrt
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/legal_Amazon_loss/all.vrt
             90/27008:
                 type: raster
                 depends_on: gfw_gross_emissions_co2e_co2_only__legal_amazon_loss/Mg/10/40000
@@ -608,7 +608,7 @@ jpl_mangrove_aboveground_biomass_stock_2000:  # v20190215
                 depends_on: jpl_mangrove_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
                 resampling: average
 
-gfw_net_flux_co2:  # v20191106
+gfw_net_flux_co2e:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -621,20 +621,20 @@ gfw_net_flux_co2:  # v20191106
                 depends_on: gfw_net_flux_co2/Mg/10/40000
                 resampling: average
 
-gfw_net_flux_co2__us_removals:  # v20191106
+gfw_net_flux_co2e__us_removals:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/us_removals/all.vrt
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/US_removals/all.vrt
             90/27008:
                 type: raster
                 depends_on: gfw_net_flux_co2__us_removals/Mg/10/40000
                 resampling: average
 
-gfw_net_flux_co2__biomass_swap:  # v20191106
+gfw_net_flux_co2e__biomass_swap:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -647,7 +647,7 @@ gfw_net_flux_co2__biomass_swap:  # v20191106
                 depends_on: gfw_net_flux_co2__biomass_swap/Mg/10/40000
                 resampling: average
 
-gfw_net_flux_co2__convert_to_grassland:  # v20191106
+gfw_net_flux_co2e__convert_to_grassland:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -660,7 +660,7 @@ gfw_net_flux_co2__convert_to_grassland:  # v20191106
                 depends_on: gfw_net_flux_co2__convert_to_grassland/Mg/10/40000
                 resampling: average
 
-gfw_net_flux_co2__legal_amazon_loss:  # v20191106
+gfw_net_flux_co2e__legal_amazon_loss:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -673,7 +673,7 @@ gfw_net_flux_co2__legal_amazon_loss:  # v20191106
                 depends_on: gfw_net_flux_co2__legal_amazon_loss/Mg/10/40000
                 resampling: average
 
-gfw_net_flux_co2__maxgain:  # v20191106
+gfw_net_flux_co2e__maxgain:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -686,27 +686,27 @@ gfw_net_flux_co2__maxgain:  # v20191106
                 depends_on: gfw_net_flux_co2__maxgain/Mg/10/40000
                 resampling: average
 
-gfw_net_flux_co2__no_primary_gain:  # v20191106
+gfw_net_flux_co2e__no_primary_gain:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/no_primary_gain/maxgain/all.vrt
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/no_primary_gain/all.vrt
             90/27008:
                 type: raster
                 depends_on: gfw_net_flux_co2__no_primary_gain/Mg/10/40000
                 resampling: average
 
-gfw_net_flux_co2__no_shifting_ag:  # v20191106
+gfw_net_flux_co2e__no_shifting_ag:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/no_shifting_ag/maxgain/all.vrt
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/no_shifting_ag/all.vrt
             90/27008:
                 type: raster
                 depends_on: gfw_net_flux_co2__no_shifting_ag/Mg/10/40000
@@ -807,7 +807,7 @@ gfw_soil_carbon_stock_in_emissions_year__no_primary_gain:  # v20191106
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/no_primary_gain/legal_Amazon_loss/all.vrt
+                uri: /vsis3/gfw-files/2018_update/soil_carbon_emis_year/no_primary_gain/all.vrt
             90/27008:
                 type: raster
                 depends_on: gfw_soil_carbon_stock_in_emissions_year__no_primary_gain/Mg/10/40000
