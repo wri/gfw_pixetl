@@ -1,4 +1,4 @@
-aboveground_biomass_stock_2000:
+whrc_aboveground_biomass_stock_2000: # v4
     Mg_ha-1:
         data_type: uint16
         no_data: 0
@@ -8,10 +8,10 @@ aboveground_biomass_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/biomass/all.vrt
             90/27008:
                 type: raster
-                depends_on: aboveground_biomass_stock_2000/Mg_ha-1/10/40000
+                depends_on: whrc_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
                 resampling: average
 
-aboveground_carbon_stock_2000:
+gfw_aboveground_carbon_stock_2000:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -21,10 +21,10 @@ aboveground_carbon_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/agc_2000/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: aboveground_carbon_stock_2000/Mg/10/40000
+                depends_on: gfw_aboveground_carbon_stock_2000/Mg/10/40000
                 resampling: average
 
-aboveground_carbon_stock_in_emissions_year:
+gfw_aboveground_carbon_stock_in_emissions_year:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -34,10 +34,62 @@ aboveground_carbon_stock_in_emissions_year:
                 uri: /vsis3/gfw-files/2018_update/agc_emis_year/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: aboveground_carbon_stock_in_emissions_year/Mg/10/40000
+                depends_on: gfw_aboveground_carbon_stock_in_emissions_year/Mg/10/40000
                 resampling: average
 
-belowground_carbon_stock_2000:
+gfw_aboveground_carbon_stock_in_emissions_year__us_removals:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/agc_emis_year/US_removals/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__us_removals/Mg/10/40000
+                resampling: average
+
+gfw_aboveground_carbon_stock_in_emissions_year__biomass_swap:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/agc_emis_year/biomass_swap/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__biomass_swap/Mg/10/40000
+                resampling: average
+
+gfw_aboveground_carbon_stock_in_emissions_year__legal_amazon_loss:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/agc_emis_year/legal_Amazon_loss/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__legal_amazon_loss/Mg/10/40000
+                resampling: average
+
+gfw_aboveground_carbon_stock_in_emissions_year__no_primary_gain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/agc_emis_year/no_primary_gain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__no_primary_gain/Mg/10/40000
+                resampling: average
+
+gfw_belowground_carbon_stock_2000:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -47,11 +99,11 @@ belowground_carbon_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/bgc_2000/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: belowground_carbon_stock_2000/Mg/10/40000
+                depends_on: gfw_belowground_carbon_stock_2000/Mg/10/40000
                 resampling: average
 
 
-belowground_carbon_stock_in_emissions_year:
+gfw_belowground_carbon_stock_in_emissions_year:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -61,12 +113,12 @@ belowground_carbon_stock_in_emissions_year:
                 uri: /vsis3/gfw-files/2018_update/bgc_emis_year/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: belowground_carbon_stock_in_emissions_year/Mg/10/40000
+                depends_on: gfw_belowground_carbon_stock_in_emissions_year/Mg/10/40000
                 resampling: average
 
-biodiversity_intactness:
+birdlife_biodiversity_intactness:  # v201909  # TODO clarify prefix
     index:
-        data_type: Float64
+        data_type: Float32
         no_data: 0
         grids:
             10/40000:
@@ -74,7 +126,7 @@ biodiversity_intactness:
                 uri: /vsis3/gfw-files/tmaschler/bio-intact/all.vrt
             90/27008:
                 type: raster
-                depends_on: biodiversity_intactness/index/10/40000
+                depends_on: birdlife_biodiversity_intactness/index/10/40000
                 resampling: average
     top10:
         data_type: boolean
@@ -82,14 +134,14 @@ biodiversity_intactness:
         grids:
             10/40000:
                 type: raster
-                depends_on: biodiversity_intactness/index/10/40000
+                depends_on: birdlife_biodiversity_intactness/index/10/40000
                 calc: 1*(A>-5.57)
             90/27008:
                 type: raster
-                depends_on: biodiversity_intactness/top10/10/40000
+                depends_on: birdlife_biodiversity_intactness/top10/10/40000
                 resampling: max
 
-biodiversity_significance:
+birdlife_biodiversity_significance:  # v201909  # TODO clarify prefix
     index:
         data_type: Float64
         no_data: 0
@@ -99,7 +151,7 @@ biodiversity_significance:
                 uri: /vsis3/gfw-files/tmaschler/bio-sig/all.vrt
             90/27008:
                 type: raster
-                depends_on: biodiversity_significance/index/10/40000
+                depends_on: birdlife_biodiversity_significance/index/10/40000
                 resampling: average
     top10:
         data_type: boolean
@@ -107,14 +159,14 @@ biodiversity_significance:
         grids:
             10/40000:
                 type: raster
-                depends_on: biodiversity_significance/index/10/40000
+                depends_on: birdlife_biodiversity_significance/index/10/40000
                 calc: 1*(A>5)
             90/27008:
                 type: raster
-                depends_on: biodiversity_significance/top10/10/40000
+                depends_on: birdlife_biodiversity_significance/top10/10/40000
                 resampling: max
 
-deadwood_carbon_stock_2000:
+gfw_deadwood_carbon_stock_2000:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -124,10 +176,10 @@ deadwood_carbon_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/deadwood_carbon_2000/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: deadwood_carbon_stock_2000/Mg/10/40000
+                depends_on: gfw_deadwood_carbon_stock_2000/Mg/10/40000
                 resampling: average
 
-deadwood_carbon_stock_in_emissions_year:
+gfw_deadwood_carbon_stock_in_emissions_year:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -137,10 +189,10 @@ deadwood_carbon_stock_in_emissions_year:
                 uri: /vsis3/gfw-files/2018_update/deadwood_carbon_emis_year/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: deadwood_carbon_stock_in_emissions_year/Mg/10/40000
+                depends_on: gfw_deadwood_carbon_stock_in_emissions_year/Mg/10/40000
                 resampling: average
 
-erosion_risk:
+aqueduct_erosion_risk:
     level:
         data_type: uint
         nbits: 3
@@ -153,10 +205,19 @@ erosion_risk:
                 uri: /vsis3/gfw-files/2018_update/erosion/all.vrt
             90/27008:
                 type: raster
-                depends_on: erosion_risk/level/10/40000
+                depends_on: aqueduct_erosion_risk/level/10/40000
                 resampling: mode
 
-global_landcover_2000: #TODO verify year
+gfw_forest_age_category:  # v20191106
+    category:
+        data_type: uint
+        nbits: 10
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/forest_age_category/standard/all.vrt
+
+esa_landcover_2015: # v20160111
     class:
         data_type: uint
         grids:
@@ -165,10 +226,10 @@ global_landcover_2000: #TODO verify year
                 uri: /vsis3/gfw-files/2018_update/global_landcover/all.vrt
             90/27008:
                 type: raster
-                depends_on: global_landcover_2000/class/10/40000
+                depends_on: esa_landcover_2015/class/10/40000
                 resampling: mode
 
-gross_annual_removals_biomass:
+gfw_gross_annual_removals_biomass:  # v20191106
     Mg:
         data_type: float32
         no_data: 0
@@ -179,10 +240,10 @@ gross_annual_removals_biomass:
 
             90/27008:
                 type: raster
-                depends_on: gross_annual_removals_biomass/Mg/10/40000
+                depends_on: gfw_gross_annual_removals_biomass/Mg/10/40000
                 resampling: average
 
-gross_cumul_removals_co2:
+gfw_gross_cumul_removals_co2:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -192,10 +253,76 @@ gross_cumul_removals_co2:
                 uri: /vsis3/gfw-files/2018_update/gross_cumul_removals_co2/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: gross_cumul_removals_co2/Mg/10/40000
+                depends_on: gfw_gross_cumul_removals_co2/Mg/10/40000
                 resampling: average
 
-gross_emissions_co2e_co2_only:
+
+gfw_gross_cumul_removals_co2__us_removals:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_cumul_removals_co2/US_removals/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_cumul_removals_co2__us_removal/Mg/10/40000
+                resampling: average
+
+gfw_gross_cumul_removals_co2__biomass_swap:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_cumul_removals_co2/biomass_swap/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_cumul_removals_co2__biomass_swap/Mg/10/40000
+                resampling: average
+
+gfw_gross_cumul_removals_co2__legal_amazon_loss:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_cumul_removals_co2/legal_Amazon_loss/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_cumul_removals_co2__legal_amazon_loss/Mg/10/40000
+                resampling: average
+
+gfw_gross_cumul_removals_co2__maxgain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_cumul_removals_co2/maxgain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_cumul_removals_co2__maxgain/Mg/10/40000
+                resampling: average
+
+gfw_gross_cumul_removals_co2__no_primary_gain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_cumul_removals_co2/no_primary_gain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_cumul_removals_co2__no_primary_gain/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_co2_only:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -205,10 +332,101 @@ gross_emissions_co2e_co2_only:
                 uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: gross_emissions_co2e_co2_only/Mg/10/40000
+                depends_on: gfw_gross_emissions_co2e_co2_only/Mg/10/40000
                 resampling: average
 
-gross_emissions_co2e_non_co2:
+gfw_gross_emissions_co2e_co2_only__us_removals:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/US_removals/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_co2_only__us_removals/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_co2_only__biomass_swap:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/biomass_swap/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_co2_only__biomass_swap/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_co2_only__convert_to_grassland:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/convert_to_grassland/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_co2_only__convert_to_grassland/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_co2_only__legal_amazon_loss:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/legal_Amazon_loss/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_co2_only__legal_amazon_loss/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_co2_only__no_primary_gain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/no_primary_gain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_co2_only__no_primary_gain/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_co2_only__no_shifting_ag:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/no_shifting_ag/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_co2_only__no_shifting_ag/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_co2_only__soil_only:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_co2_only_co2e/soil_only/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_co2_only__soil_only/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_non_co2:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -218,10 +436,101 @@ gross_emissions_co2e_non_co2:
                 uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: gross_emissions_co2e_non_co2/Mg/10/40000
+                depends_on: gfw_gross_emissions_co2e_non_co2/Mg/10/40000
                 resampling: average
 
-idn_primary_forest:
+gfw_gross_emissions_co2e_non_co2__us_removals:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/US_removals/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_non_co2__us_removals/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_non_co2__biomass_swap:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/biomass_swap/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_non_co2__biomass_swap/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_non_co2__convert_to_grassland:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/convert_to_grassland/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_non_co2__convert_to_grassland/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_non_co2__legal_amazon_loss:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/legal_Amazon_loss/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_non_co2__legal_amazon_loss/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_non_co2__no_primary_gain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/no_primary_gain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_non_co2__no_primary_gain/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_non_co2__no_shifting_ag:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/no_shifting_ag/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_non_co2__no_shifting_ag/Mg/10/40000
+                resampling: average
+
+gfw_gross_emissions_co2e_non_co2__soil_only:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/gross_emissions_non_co2_co2e/soil_only/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_gross_emissions_co2e_non_co2__soil_only/Mg/10/40000
+                resampling: average
+
+idn_primary_forest_2000:  # v20140601
     is:
         data_type: boolean
         grids:
@@ -230,22 +539,37 @@ idn_primary_forest:
                 uri: /vsis3/gfw-files/2018_update/idn_primary_forest/all.vrt
             90/27008:
                 type: raster
-                depends_on: idn_primary_forest/is/10/40000
+                depends_on: idn_primary_forest_2000/is/10/40000
                 resampling: mode
 
-intact_primary_forest:
+gfw_intact_or_primary_forest_2000: # v20191106
     is:
         data_type: boolean
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/ifl_primary/all.vrt
+                uri: /vsis3/gfw-files/2018_update/ifl_primary/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: intact_primary_forest/is/10/40000
+                depends_on: intact_primary_forest_2000/is/10/40000
                 resampling: mode
 
-litter_carbon_stock_2000:
+jpl_tropics_abovegroundbiomass_2000: # v20191106
+    Mg_ha-1:
+        data_type: Float32
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/jpl_tropics_abovegroundbiomass_density_2000/Mg_ha-1/all.vrt
+    extent:
+        data_type: boolean
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/jpl_tropics_abovegroundbiomass_extent_2000/all.vrt
+
+
+gfw_litter_carbon_stock_2000:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -255,10 +579,10 @@ litter_carbon_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/litter_carbon_2000/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: litter_carbon_stock_2000/Mg/10/40000
+                depends_on: gfw_litter_carbon_stock_2000/Mg/10/40000
                 resampling: average
 
-litter_carbon_stock_in_emissions_year:
+gfw_litter_carbon_stock_in_emissions_year:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -268,10 +592,10 @@ litter_carbon_stock_in_emissions_year:
                 uri: /vsis3/gfw-files/2018_update/litter_carbon_emis_year/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: litter_carbon_stock_in_emissions_year/Mg/10/40000
+                depends_on: gfw_litter_carbon_stock_in_emissions_year/Mg/10/40000
                 resampling: average
 
-mangrove_aboveground_biomass_stock_2000:
+jpl_mangrove_aboveground_biomass_stock_2000:  # v20190215
     Mg_ha-1:
         data_type: Float32
         no_data: 0
@@ -281,10 +605,10 @@ mangrove_aboveground_biomass_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/mangrove_biomass/all.vrt
             90/27008:
                 type: raster
-                depends_on: mangrove_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
+                depends_on: jpl_mangrove_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
                 resampling: average
 
-net_flux_co2_2001-2015:
+gfw_net_flux_co2e:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -294,22 +618,113 @@ net_flux_co2_2001-2015:
                 uri: /vsis3/gfw-files/2018_update/net_flux_co2e/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: net_flux_co2_2001-2015/Mg/10/40000
+                depends_on: gfw_net_flux_co2/Mg/10/40000
                 resampling: average
 
-peatlands_flux:
+gfw_net_flux_co2e__us_removals:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/US_removals/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_net_flux_co2__us_removals/Mg/10/40000
+                resampling: average
+
+gfw_net_flux_co2e__biomass_swap:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/biomass_swap/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_net_flux_co2__biomass_swap/Mg/10/40000
+                resampling: average
+
+gfw_net_flux_co2e__convert_to_grassland:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/convert_to_grassland/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_net_flux_co2__convert_to_grassland/Mg/10/40000
+                resampling: average
+
+gfw_net_flux_co2e__legal_amazon_loss:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/legal_Amazon_loss/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_net_flux_co2__legal_amazon_loss/Mg/10/40000
+                resampling: average
+
+gfw_net_flux_co2e__maxgain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/maxgain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_net_flux_co2__maxgain/Mg/10/40000
+                resampling: average
+
+gfw_net_flux_co2e__no_primary_gain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/no_primary_gain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_net_flux_co2__no_primary_gain/Mg/10/40000
+                resampling: average
+
+gfw_net_flux_co2e__no_shifting_ag:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/net_flux_co2e/no_shifting_ag/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_net_flux_co2__no_shifting_ag/Mg/10/40000
+                resampling: average
+
+gfw_peatlands__flux:  # v20191106
     is:
         data_type: boolean
         grids:
             10/40000:
                 type: raster
-                uri: /vsis3/gfw-files/2018_update/peatlands_flux/all.vrt
+                uri: /vsis3/gfw-files/2018_update/peatlands_flux/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: peatlands_flux/is/10/40000
+                depends_on: gfw_peatlands__flux/is/10/40000
                 resampling: mode
 
-pixel_area:
+gfw_pixel_area:  # 20150327
     m2:
         data_type: Float32
         grids:
@@ -318,10 +733,10 @@ pixel_area:
                 uri: /vsis3/gfw-files/2018_update/area/all.vrt
             90/27008:
                 type: raster
-                depends_on: pixel_area/m2/10/40000
+                depends_on: gfw_pixel_area/m2/10/40000
                 resampling: average
 
-regional_primary_forest:
+umd_regional_primary_forest_2001:  # v201901
     is:
         data_type: boolean
         grids:
@@ -330,10 +745,10 @@ regional_primary_forest:
                 uri: /vsis3/gfw-files/2018_update/primary_forest/all.vrt
             90/27008:
                 type: raster
-                depends_on: regional_primary_forest/is/10/40000
+                depends_on: umd_regional_primary_forest_2001/is/10/40000
                 resampling: mode
 
-soil_carbon_stock_in_emissions_year:
+gfw_soil_carbon_stock_in_emissions_year:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -343,10 +758,62 @@ soil_carbon_stock_in_emissions_year:
                 uri: /vsis3/gfw-files/2018_update/soil_carbon_emis_year/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: soil_carbon_stock_in_emissions_year/Mg/10/40000
+                depends_on: gfw_soil_carbon_stock_in_emissions_year/Mg/10/40000
                 resampling: average
 
-soil_carbon_stock_2000:
+gfw_soil_carbon_stock_in_emissions_year__us_removals:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/soil_carbon_emis_year/US_removals/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_soil_carbon_stock_in_emissions_year__us_removals/Mg/10/40000
+                resampling: average
+
+gfw_soil_carbon_stock_in_emissions_year__biomass_swap:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/soil_carbon_emis_year/biomass_swap/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_soil_carbon_stock_in_emissions_year__biomass_swap/Mg/10/40000
+                resampling: average
+
+gfw_soil_carbon_stock_in_emissions_year__legal_amazon_loss:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/soil_carbon_emis_year/legal_Amazon_loss/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_soil_carbon_stock_in_emissions_year__legal_amazon_loss/Mg/10/40000
+                resampling: average
+
+gfw_soil_carbon_stock_in_emissions_year__no_primary_gain:  # v20191106
+    Mg:
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/soil_carbon_emis_year/no_primary_gain/all.vrt
+            90/27008:
+                type: raster
+                depends_on: gfw_soil_carbon_stock_in_emissions_year__no_primary_gain/Mg/10/40000
+                resampling: average
+
+gfw_soil_carbon_stock_2000:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -356,10 +823,10 @@ soil_carbon_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/soil_carbon_2000/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: soil_carbon_stock_2000/Mg/10/40000
+                depends_on: gfw_soil_carbon_stock_2000/Mg/10/40000
                 resampling: average
 
-tcs_drivers_2000-2015:
+tsc_tree_cover_loss_drivers:  # v2018
     type:
         data_type: uint
         nbits: 3
@@ -371,25 +838,25 @@ tcs_drivers_2000-2015:
                 calc: A+1
             90/27008:
                 type: raster
-                depends_on: tcs_drivers_2000-2015/type/10/40000
+                depends_on: tsc_tree_cover_loss_drivers/type/10/40000
                 resampling: mode
 
-tcs_drivers_2000-2018:
-    type:
-        data_type: uint
-        nbits: 3
-        no_data: 0
-        grids:
-            10/40000:
-                type: raster
-                uri: /vsis3/gfw2-data/forest_change/tsc/drivers2018.tif
-                calc: A+1
-            90/27008:
-                type: raster
-                depends_on: tcs_drivers_2000-2018/type/10/40000
-                resampling: mode
+#tsc_tree_cover_loss_drivers:   # v2019
+#    type:
+#        data_type: uint
+#        nbits: 3
+#        no_data: 0
+#        grids:
+#            10/40000:
+#                type: raster
+#                uri: /vsis3/gfw2-data/forest_change/tsc/drivers2018.tif
+#                calc: A+1
+#            90/27008:
+#                type: raster
+#                depends_on: tsc_tree_cover_loss_drivers/type/10/40000
+#                resampling: mode
 
-total_carbon_stock_2000:
+gfw_total_carbon_stock_2000:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -399,10 +866,10 @@ total_carbon_stock_2000:
                 uri: /vsis3/gfw-files/2018_update/total_carbon_2000/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: total_carbon_stock_2000/Mg/10/40000
+                depends_on: gfw_total_carbon_stock_2000/Mg/10/40000
                 resampling: average
 
-total_carbon_stock_in_emissions_year:
+gfw_total_carbon_stock_in_emissions_year:  # v20191106
     Mg:
         data_type: Float32
         no_data: 0
@@ -412,10 +879,10 @@ total_carbon_stock_in_emissions_year:
                 uri: /vsis3/gfw-files/2018_update/total_carbon_emis_year/standard/all.vrt
             90/27008:
                 type: raster
-                depends_on: total_carbon_stock_in_emissions_year/Mg/10/40000
+                depends_on: gfw_total_carbon_stock_in_emissions_year/Mg/10/40000
                 resampling: average
 
-treecover_loss:
+umd_tree_cover_loss:  # v1.6
     year:
         data_type: uint
         nbits: 5
@@ -425,10 +892,10 @@ treecover_loss:
                 uri: /vsis3/gfw-files/2018_update/loss/all.vrt
             90/27008:
                 type: raster
-                depends_on: treecover_los/year/10/40000
+                depends_on: umd_tree_cover_los/year/10/40000
                 resampling: mode
 
-treecover_gain_2000-2012:
+umd_tree_cover_gain:  # v1.6
     is:
         data_type: boolean
         grids:
@@ -437,10 +904,10 @@ treecover_gain_2000-2012:
                 uri: /vsis3/gfw-files/2018_update/gain/all.vrt
             90/27008:
                 type: raster
-                depends_on: treecover_gain_2000-2012/is/10/40000
+                depends_on: umd_tree_cover_gain/is/10/40000
                 resampling: mode
 
-treecover_density_2000:
+umd_tree_cover_density_2000:  # v1.6
     percent:
         data_type: uint
         nbits: 7
@@ -450,7 +917,7 @@ treecover_density_2000:
                 uri: /vsis3/gfw-files/2018_update/tcd_2000/all.vrt
             90/27008:
                 type: raster
-                depends_on: treecover_density_2000/percent/10/40000
+                depends_on: umd_tree_cover_density_2000/percent/10/40000
                 resampling: average
     threshold:
         data_type: uint
@@ -458,14 +925,14 @@ treecover_density_2000:
         grids:
             10/40000:
                 type: raster
-                depends_on: treecover_density_2000/percent/10/40000
+                depends_on: umd_tree_cover_density_2000/percent/10/40000
                 calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
             90/27008:
                 type: raster
-                depends_on: treecover_density_2000/threshold/10/40000
+                depends_on: umd_tree_cover_density_2000/threshold/10/40000
                 resampling: mode
 
-treecover_density_2010:
+umd_tree_cover_density_2010:  # v1.6
     percent:
         data_type: uint
         nbits: 7
@@ -475,7 +942,7 @@ treecover_density_2010:
                 uri: /vsis3/gfw-files/2018_update/tcd_2010/all.vrt
             90/27008:
                 type: raster
-                depends_on: treecover_density_2010/percent/10/40000
+                depends_on: umd_tree_cover_density_2010/percent/10/40000
                 resampling: average
     threshold:
         data_type: uint
@@ -483,384 +950,450 @@ treecover_density_2010:
         grids:
             10/40000:
                 type: raster
-                depends_on: treecover_density_2010/percent/10/40000
+                depends_on: umd_tree_cover_density_2010/percent/10/40000
                 calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
             90/27008:
                 type: raster
-                depends_on: treecover_density_2010/threshold/10/40000
+                depends_on: umd_tree_cover_density_2010/threshold/10/40000
                 resampling: mode
 
-alliance_for_zero_extinction_site:
+birdlife_alliance_for_zero_extinction_site: # v20190816
     is:
         data_type: Boolean
         grids:
             10/40000:
-                type: vector
-                order: desc
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/aze/all.vrt
+#                type: vector
+#                order: desc
             90/27008:
                 type: raster
-                depends_on: alliance_for_zero_extinction_site/is/10/40000
+                depends_on: birdlife_alliance_for_zero_extinction_site/is/10/40000
                 resampling: mode
 
-baseline_water_stress:
+aqueduct_baseline_water_stress:  # v2.1
     level:
         data_type: uint
         nbits: 3
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/water_stress/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: baseline_water_stress/level/10/40000
+                depends_on: aqueduct_baseline_water_stress/level/10/40000
                 resampling: mode
 
-bra_biomes:
+bra_biomes:  # v20150601
     name:
         data_type: uint
         nbits: 3
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/bra_biomes/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: bra_biomes/name/10/40000
                 resampling: mode
 
-ecozones:
+wwf_eco_regions:  # v2012
     name:
         data_type: uint
         nbits: 5
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/ecozones/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: ecozones/name/10/40000
+                depends_on: wwf_eco_regions/name/10/40000
                 resampling: mode
 
-endemic_bird_areas:
+birdlife_endemic_bird_areas:  # v2014
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/endemic_bird_areas/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: endemic_bird_areas/is/10/40000
+                depends_on: birdlife_endemic_bird_areas/is/10/40000
                 resampling: mode
 
-gfw_land_rights:
+gfw_land_rights: # v2016
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/land_rights/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: gfw_land_rights/is/10/40000
                 resampling: mode
 
-gfw_logging:
+gfw_managed_forests:  # v20190103
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/logging/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: gfw_logging/is/10/40000
+                depends_on: gfw_managed_forests/is/10/40000
                 resampling: mode
 
-gfw_mining:
+gfw_mining:  # v20190205
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/mining/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: gfw_mining/is/10/40000
                 resampling: mode
 
-gfw_oil_gas:
+gfw_oil_gas:  # v20190321
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/oil_gas/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: gfw_oil_gas/is/10/40000
                 resampling: mode
 
-gfw_oil_palm:
+gfw_oil_palm: ########  # v20191031
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/oil_palm/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: gfw_oil_palm/is/10/40000
                 resampling: mode
 
-gfw_plantations:
+gfw_plantations:  # v1.3
     type:
         data_type: uint
         nbits: 4
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/plantations/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: gfw_plantations/type/10/40000
                 resampling: mode
 
-gfw_resource_rights:
+gfw_resource_rights:  # v2015
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/resource_rights/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: gfw_resource_rights/is/10/40000
                 resampling: mode
 
-gfw_wood_fiber:
+gfw_wood_fiber: ######## # v20190917
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/wood_fiber/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: gfw_wood_fiber/is/10/40000
                 resampling: mode
 
 
-idn_forest_area:
+idn_forest_area:  # v20180410 # v201909
     type:
         data_type: uint32
         nbits: 17
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/idn_forest_area/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: idn_forest_area/type/10/40000
                 resampling: mode
 
-idn_forest_moratorium:
+idn_forest_moratorium:  # v20190123
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/idn_forest_moratorium/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: idn_forest_moratorium/is/10/40000
                 resampling: mode
 
-idn_land_cover:
+idn_land_cover_2017:  # v20180720
     class:
         data_type: uint16
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/idn_land_cover/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: idn_land_cover/class/10/40000
                 resampling: mode
 
-intact_forest_landscapes:
+ifl_intact_forest_landscapes:  # v20180628
     year:
         data_type: uint16
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/ifl/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: intact_forest_landscapes/year/10/40000
+                depends_on: ifl_intact_forest_landscapes/year/10/40000
                 resampling: mode
 
-key_biodiversity_area:
+birdlife_key_biodiversity_area:  ######## # v20190902
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/kba/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: key_biodiversity_area/is/10/40000
+                depends_on: birdlife_key_biodiversity_area/is/10/40000
                 resampling: mode
 
-landmark:
+landmark_land_rights: ######## # v20191111
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/landmark/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: landmark/is/10/40000
+                depends_on: landmark_land_rights/is/10/40000
                 resampling: mode
 
-mangroves_1996:
+gmw_mangroves_1996:  # v20180701
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/mangroves_1996/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: mangroves_1996/is/10/40000
+                depends_on: gmw_mangroves_1996/is/10/40000
                 resampling: mode
 
-mangroves_2016:
+gmw_mangroves_2016: # v20180701
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/mangroves_2016/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: mangroves_2016/is/10/40000
+                depends_on: gmw_mangroves_2016/is/10/40000
                 resampling: mode
 
-mex_protected_areas:
+mex_protected_areas: # v20161003
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/mex_protected_areas/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: mex_protected_areas/is/10/40000
                 resampling: mode
 
-mex_psa:
+mex_payment_ecosystem_services: # v20160613
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/mex_psa/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: mex_psa/is/10/40000
+                depends_on: mex_payment_ecosystem_services/is/10/40000
                 resampling: mode
 
-mex_forest_zoning:
+mex_forest_zoning: # v20160502
     zone:
         data_type: uint
         nbits: 5
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/mex_forest_zoning/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: mex_forest_zoning/zone/10/40000
                 resampling: mode
 
-peatlands:
+gfw_peatlands: # v20190103
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/peatlands/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: peatlands/is/10/40000
+                depends_on: gfw_peatlands/is/10/40000
                 resampling: mode
 
-per_forest_concessions:
+per_forest_concessions: # v20161001
     type:
         data_type: uint
         nbits: 3
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/per_forest_concessions/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: per_forest_concessions/type/10/40000
                 resampling: mode
 
-per_permanent_production_forest:
+per_permanent_production_forests:  # v20150901
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/per_permanent_production_forests/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: per_permanent_production_forest/is/10/40000
                 resampling: mode
 
-per_protected_areas:
+per_protected_areas:  # v20160901
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/per_protected_areas/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: per_protected_areas/is/10/40000
                 resampling: mode
 
-river_basins:
+mapbox_river_basins: # v2014
      name:
         data_type: uint16
         nbits: 13
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/river_basins/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: river_basins/name/10/40000
+                depends_on: mapbox_river_basins/name/10/40000
                 resampling: mode
 
-rspo_oil_palm:
+rspo_oil_palm: ######## #v20200114
     certification_status:
         data_type: uint
         nbits: 3
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/rspo/all.vrt
+#                type: vector
             90/27008:
                 type: raster
                 depends_on: rspo_oil_palm/certification_status/10/40000
                 resampling: mode
 
-tiger_landscapes:
+gfw_tiger_landscapes:  #v201904
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/tiger_landscapes/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: tiger_landscapes/is/10/40000
+                depends_on: gfw_tiger_landscapes/is/10/40000
                 resampling: mode
 
-urban_water_intake:
+tnc_urban_water_intake:  # v2016
     is:
         data_type: boolean
         grids:
             10/40000:
-                type: vector
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/urb_watersheds/all.vrt
+#                type: vector
             90/27008:
                 type: raster
-                depends_on: urban_water_intake/is/10/40000
+                depends_on: tnc_urban_water_intake/is/10/40000
                 resampling: mode
 
-wdpa_protected_areas:
+wdpa_protected_areas:  # v201909  # v201912
     iucn_cat:
         data_type: uint
         nbits: 2
         grids:
             10/40000:
-                type: vector
-                order: desc
+                type: raster
+                uri: /vsis3/gfw-files/2018_update/wdpa/all.vrt
+#                type: vector
+#                order: desc
             90/27008:
                 type: raster
                 depends_on: wdpa_protected_areas/iucn_cat/10/40000

@@ -179,7 +179,7 @@ class RasterSrcTile(Tile):
         dst = self.get_stage_uri(stage)
         with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
             src = rasterio.open(self.local_src.uri)
-
+            LOGGER.debug(f"PROFILE: {self.dst.profile}")
             dst = rasterio.open(dst, "w", **self.dst.profile)
 
             for block_index, window in src.block_windows(1):
@@ -189,6 +189,7 @@ class RasterSrcTile(Tile):
                 dst.write(data, window=window)
             src.close()
             dst.close()
+        self.set_local_src(stage)
 
     def _is_final_cmd(self):
 

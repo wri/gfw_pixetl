@@ -6,7 +6,7 @@ from gfw_pixetl.grids import grid_factory
 os.environ["ENV"] = "test"
 
 RASTER_LAYER = {
-    "name": "aboveground_biomass_stock_2000",
+    "name": "whrc_aboveground_biomass_stock_2000",
     "version": "v201911",
     "field": "Mg_ha-1",
     "grid": grid_factory("10/40000"),
@@ -14,19 +14,19 @@ RASTER_LAYER = {
 
 
 RASTER_CALC_LAYER = {
-    "name": "treecover_density_2000",
+    "name": "umd_tree_cover_density_2000",
     "version": "v1.6",
     "field": "threshold",
     "grid": grid_factory("10/40000"),
 }
 
 
-VECTOR_LAYER = {
-    "name": "wdpa_protected_areas",
-    "version": "v201911",
-    "field": "iucn_cat",
-    "grid": grid_factory("10/40000"),
-}
+# VECTOR_LAYER = {
+#     "name": "wdpa_protected_areas",
+#     "version": "v201911",
+#     "field": "iucn_cat",
+#     "grid": grid_factory("10/40000"),
+# }
 
 
 def test__get_source_type():
@@ -105,24 +105,25 @@ def test_raster_calc_layer():
     assert layer.order is None
 
 
-def test_vector_layer():
-    layer = layers.layer_factory(
-        VECTOR_LAYER["name"],
-        VECTOR_LAYER["version"],
-        VECTOR_LAYER["field"],
-        VECTOR_LAYER["grid"],
-    )
-    assert isinstance(layer, layers.VectorSrcLayer)
-    assert layer.__class__.__name__ == "VectorSrcLayer"
-    assert layer.dst_profile["dtype"] == "uint8"
-    assert layer.dst_profile["compress"] == "DEFLATE"
-    assert layer.dst_profile["tiled"] is True
-    assert layer.dst_profile["blockxsize"] == 400
-    assert layer.dst_profile["blockysize"] == 400
-    assert layer.dst_profile["pixeltype"] == "DEFAULT"
-    assert layer.dst_profile["nodata"] == 0
-    assert layer.dst_profile["nbits"] == 2
-    assert layer.resampling is None
-    assert layer.calc is None
-    assert layer.rasterize_method is None
-    assert layer.order == "desc"
+#
+# def test_vector_layer():
+#     layer = layers.layer_factory(
+#         VECTOR_LAYER["name"],
+#         VECTOR_LAYER["version"],
+#         VECTOR_LAYER["field"],
+#         VECTOR_LAYER["grid"],
+#     )
+#     assert isinstance(layer, layers.VectorSrcLayer)
+#     assert layer.__class__.__name__ == "VectorSrcLayer"
+#     assert layer.dst_profile["dtype"] == "uint8"
+#     assert layer.dst_profile["compress"] == "DEFLATE"
+#     assert layer.dst_profile["tiled"] is True
+#     assert layer.dst_profile["blockxsize"] == 400
+#     assert layer.dst_profile["blockysize"] == 400
+#     assert layer.dst_profile["pixeltype"] == "DEFAULT"
+#     assert layer.dst_profile["nodata"] == 0
+#     assert layer.dst_profile["nbits"] == 2
+#     assert layer.resampling is None
+#     assert layer.calc is None
+#     assert layer.rasterize_method is None
+#     assert layer.order == "desc"

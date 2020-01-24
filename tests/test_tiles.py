@@ -16,7 +16,7 @@ os.environ["ENV"] = "test"
 
 GRID = grid_factory("10/40000")
 RASTER_LAYER: Dict[str, Any] = {
-    "name": "aboveground_biomass_stock_2000",
+    "name": "whrc_aboveground_biomass_stock_2000",
     "version": "v201911",
     "field": "Mg_ha-1",
     "grid": GRID,
@@ -71,7 +71,7 @@ def test_set_local_src():
     except FileNotFoundError as e:
         assert (
             str(e)
-            == "File does not exist: aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+            == "File does not exist: whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
         )
 
     with mock.patch("os.remove", return_value=None):
@@ -80,7 +80,7 @@ def test_set_local_src():
             assert isinstance(TILE.local_src, RasterSource)
             assert (
                 TILE.local_src.uri
-                == "aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+                == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
             )
 
 
@@ -98,7 +98,7 @@ def test_local_src_is_empty():
 def test_get_stage_uri():
     assert (
         TILE.get_stage_uri("test")
-        == "aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+        == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
     )
 
 
