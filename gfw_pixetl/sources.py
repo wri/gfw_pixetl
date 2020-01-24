@@ -60,8 +60,8 @@ def get_src(uri: str) -> RasterSource:
 
 def _file_does_not_exist(e: Exception, uri: str) -> bool:
     return isinstance(e, RasterioIOError) and (
-        str(e)
-        == f"'{uri}' does not exist in the file system, and is not recognized as a supported dataset name."
+        "does not exist in the file system, and is not recognized as a supported dataset name."
+        in str(e)
         or str(e) == "The specified key does not exist."
-        or str(e) == f"{uri}: No such file or directory"
+        or "No such file or directory" in str(e)
     )
