@@ -61,7 +61,7 @@ class Pipe(object):
 
     def filter_subset_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
-        Apply filter incase user only want to process only a subset.
+        Apply filter in case user only want to process only a subset.
         Useful for testing.
         """
         for tile in tiles:

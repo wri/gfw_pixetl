@@ -34,6 +34,6 @@ def test_pixetl():
         )
 
     assert tiles == list()
-    assert cwd != os.getcwd()
+    assert cwd == os.getcwd()
 
     os.chdir(cwd)
