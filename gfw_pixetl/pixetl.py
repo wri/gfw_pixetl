@@ -107,13 +107,20 @@ def pixetl(
         layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
 
         # Float datatypes need more memory and hence we have to reduce the number of tasks
-        dtype: str = layer.dst_profile["dtype"].as_numpy()
-        if "int" not in dtype and "bool" not in dtype and divisor < 3:
+        dtype: str = layer.dst_profile["dtype"]
+        if "int" not in dtype and divisor < 3:
             divisor = 3
 
         pipe: Pipe = pipe_factory(layer, subset, divisor)
 
         return pipe.create_tiles(overwrite)
+
+    except Exception as e:
+        utils.remove_work_directory(old_cwd, cwd)
+        LOGGER.exception(e)
+        raise
+    finally:
+        utils.remove_work_directory(old_cwd, cwd)
 
 
 if __name__ == "__main__":

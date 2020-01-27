@@ -6,7 +6,7 @@ LOGGER = get_module_logger(__name__)
 
 
 dtypes_dict = {
-    "boolean": ("Byte", "bool_"),
+    "boolean": ("Byte", "uint8"),
     "uint": ("Byte", "uint8"),
     "int": ("Byte", "int8"),
     "uint16": ("UInt16", "uint16"),
