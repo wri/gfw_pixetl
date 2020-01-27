@@ -116,7 +116,7 @@ gfw_belowground_carbon_stock_in_emissions_year:  # v20191106
                 depends_on: gfw_belowground_carbon_stock_in_emissions_year/Mg/10/40000
                 resampling: average
 
-birdlife_biodiversity_intactness:  # v201909  # TODO clarify prefix
+birdlife_biodiversity_intactness:  # v201909
     index:
         data_type: Float32
         no_data: 0
@@ -135,7 +135,7 @@ birdlife_biodiversity_intactness:  # v201909  # TODO clarify prefix
             10/40000:
                 type: raster
                 depends_on: birdlife_biodiversity_intactness/index/10/40000
-                calc: 1*(A>-5.57)
+                calc: 1*(A>(-5.57))
             90/27008:
                 type: raster
                 depends_on: birdlife_biodiversity_intactness/top10/10/40000

@@ -1,3 +1,5 @@
+import os
+import shutil
 from typing import List, Optional
 
 import click
@@ -86,23 +88,32 @@ def pixetl(
         )
     )
 
-    utils.set_cwd()
+    old_cwd = os.getcwd()
+    cwd = utils.set_cwd()
 
-    if subset:
-        LOGGER.info("Running on subset: {}".format(subset))
-    else:
-        LOGGER.info("Running on full extent")
+    try:
 
-    if not utils.verify_version_pattern(version):
-        message = "Version number does not match pattern"
-        LOGGER.error(message)
-        raise ValueError(message)
+        if subset:
+            LOGGER.info("Running on subset: {}".format(subset))
+        else:
+            LOGGER.info("Running on full extent")
 
-    grid: Grid = grid_factory(grid_name)
-    layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
-    pipe: Pipe = pipe_factory(layer, subset, divisor)
+        if not utils.verify_version_pattern(version):
+            message = "Version number does not match pattern"
+            LOGGER.error(message)
+            raise ValueError(message)
 
-    return pipe.create_tiles(overwrite)
+        grid: Grid = grid_factory(grid_name)
+        layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
+
+        # Float datatypes need more memory and hence we have to reduce the number of tasks
+        dtype: str = layer.dst_profile["dtype"].as_numpy()
+        if "int" not in dtype and "bool" not in dtype and divisor < 3:
+            divisor = 3
+
+        pipe: Pipe = pipe_factory(layer, subset, divisor)
+
+        return pipe.create_tiles(overwrite)
 
 
 if __name__ == "__main__":
