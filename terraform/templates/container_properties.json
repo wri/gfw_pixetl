@@ -1,8 +1,8 @@
 {
   "command": [],
   "image": "${image_url}",
-  "vcpus": 12,
-  "memory": 65536,
+  "vcpus": 48,
+  "memory": 380000,
   "environment": [
     {
       "name": "ENV",
@@ -11,6 +11,10 @@
     {
       "name": "JOB_ROLE_ARN",
       "value": "${clone_role_arn}"
+    },
+    {
+      "name": "ECS_TASK_METADATA_RPS_LIMIT",
+      "value": "100,150"
     }
   ],
   "jobRoleArn": "${job_role_arn}",
