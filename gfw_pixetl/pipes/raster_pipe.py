@@ -51,8 +51,8 @@ class RasterPipe(Pipe):
                 workers=self.workers
             )
             | Stage(self.transform).setup(workers=self.workers, qsize=self.workers)
-            | Stage(self.delete_if_empty).setup(workers=self.workers)
-            | Stage(self.compress).setup(workers=self.workers)
+            # | Stage(self.delete_if_empty).setup(workers=self.workers)
+            # | Stage(self.compress).setup(workers=self.workers)
             | Stage(self.upload_file).setup(workers=self.workers)
             | Stage(self.delete_file).setup(workers=self.workers)
         )

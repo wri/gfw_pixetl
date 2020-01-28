@@ -1,3 +1,5 @@
+import math
+import multiprocessing
 import os
 import subprocess as sp
 from typing import List, Tuple
@@ -77,6 +79,10 @@ class Tile(object):
             profile=tile_profile,
             bounds=self.bounds,
         )
+
+        self.workers: int = math.ceil(
+            multiprocessing.cpu_count() / 2
+        )  # TODO: make this customizable
 
     def dst_exists(self) -> bool:
         if not self.dst.uri:
