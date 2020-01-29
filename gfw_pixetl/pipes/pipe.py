@@ -24,13 +24,11 @@ class Pipe(object):
     Create a subclass and override create_tiles() method to create your own pipe.
     """
 
-    def __init__(
-        self, layer: Layer, subset: Optional[List[str]] = None, divisor=2
-    ) -> None:
+    def __init__(self, layer: Layer, subset: Optional[List[str]] = None) -> None:
         self.grid = layer.grid
         self.layer = layer
         self.subset = subset
-        self.workers: int = math.ceil(multiprocessing.cpu_count() / divisor)
+        self.workers: int = multiprocessing.cpu_count()
 
     def create_tiles(self, overwrite=True) -> List[Tile]:
         """

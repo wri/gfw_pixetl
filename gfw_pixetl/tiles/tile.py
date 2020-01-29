@@ -1,8 +1,7 @@
-import math
 import multiprocessing
 import os
 import subprocess as sp
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import boto3
 import rasterio
@@ -80,9 +79,7 @@ class Tile(object):
             bounds=self.bounds,
         )
 
-        self.workers: int = math.ceil(
-            multiprocessing.cpu_count()
-        )  # TODO: make this customizable
+        self.workers: int = multiprocessing.cpu_count()
 
     def dst_exists(self) -> bool:
         if not self.dst.uri:

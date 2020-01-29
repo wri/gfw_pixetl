@@ -34,13 +34,6 @@ LOGGER = get_module_logger(__name__)
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
-    "-d",
-    "--divisor",
-    type=int,
-    default=2,
-    help="Divisor used to calculate core/ task ratio",
-)
-@click.option(
     "-o",
     "--overwrite",
     is_flag=True,
@@ -54,13 +47,12 @@ def cli(
     field: str,
     grid_name: str,
     subset: Optional[List[str]],
-    divisor: int,
     overwrite: bool,
 ):
     """NAME: Name of dataset"""
 
     pixetl(
-        name, version, source_type, field, grid_name, subset, divisor, overwrite,
+        name, version, source_type, field, grid_name, subset, overwrite,
     )
 
 
@@ -71,7 +63,6 @@ def pixetl(
     field: str,
     grid_name: str = "10/40000",
     subset: Optional[List[str]] = None,
-    divisor: int = 2,
     overwrite: bool = True,
 ) -> List[Tile]:
     click.echo(logo)
@@ -90,6 +81,9 @@ def pixetl(
     old_cwd = os.getcwd()
     cwd = utils.set_cwd()
 
+    # check for available memory here before any major process is running
+    utils.available_memory_per_process()
+
     try:
 
         if subset:
@@ -105,12 +99,7 @@ def pixetl(
         grid: Grid = grid_factory(grid_name)
         layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
 
-        # Float datatypes need more memory and hence we have to reduce the number of tasks
-        dtype: str = layer.dst_profile["dtype"]
-        if "int" not in dtype and divisor < 3:
-            divisor = 3
-
-        pipe: Pipe = pipe_factory(layer, subset, divisor)
+        pipe: Pipe = pipe_factory(layer, subset)
 
         return pipe.create_tiles(overwrite)
 

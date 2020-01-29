@@ -41,7 +41,7 @@ class RasterPipe(Pipe):
         Raster Pipe
         """
 
-        LOGGER.debug("Start Raster Pipe")
+        LOGGER.info("Start Raster Pipe")
 
         pipe = (
             self.get_grid_tiles()
@@ -50,9 +50,9 @@ class RasterPipe(Pipe):
             | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
                 workers=self.workers
             )
-            | Stage(self.transform).setup(workers=self.workers, qsize=self.workers)
-            # | Stage(self.delete_if_empty).setup(workers=self.workers)
-            # | Stage(self.compress).setup(workers=self.workers)
+            | Stage(self.transform).setup(
+                workers=1, qsize=self.workers
+            )  # We process blocks in parallel, not tiles
             | Stage(self.upload_file).setup(workers=self.workers)
             | Stage(self.delete_file).setup(workers=self.workers)
         )
@@ -67,7 +67,7 @@ class RasterPipe(Pipe):
             self.upload_vrt(tile_uris)
             self.upload_extent(tiles)
 
-        LOGGER.debug("Finished Raster Pipe")
+        LOGGER.info("Finished Raster Pipe")
         return tiles
 
     @staticmethod
@@ -77,7 +77,14 @@ class RasterPipe(Pipe):
         """
         for tile in tiles:
             if tile.src_tile_intersects():
+                LOGGER.info(
+                    f"Tile {tile.tile_id} intersects with source raster - proceed"
+                )
                 yield tile
+            else:
+                LOGGER.info(
+                    f"Tile {tile.tile_id} does not intersects with source raster - skip"
+                )
 
     @staticmethod
     def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
@@ -85,14 +92,8 @@ class RasterPipe(Pipe):
         Transform input raster to match new tile grid and projection
         """
         for tile in tiles:
-            tile.transform()
-            yield tile
-
-    @staticmethod
-    def compress(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
-        """
-        Compress tiles
-        """
-        for tile in tiles:
-            tile.compress()
-            yield tile
+            if tile.transform():
+                LOGGER.info(f"Tile {tile.tile_id} has data - proceed")
+                yield tile
+            else:
+                LOGGER.info(f"Tile {tile.tile_id} has no data - skip")

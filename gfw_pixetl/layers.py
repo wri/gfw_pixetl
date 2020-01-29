@@ -7,7 +7,7 @@ from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.sources import VectorSource, RasterSource, get_src
-
+from gfw_pixetl.resampling import resampling_factory
 
 LOGGER = get_module_logger(__name__)
 
@@ -31,7 +31,9 @@ class Layer(object):
         self._set_dst_profile()
 
         self.resampling = (
-            source_grid["resampling"] if "resampling" in source_grid.keys() else None
+            resampling_factory(source_grid["resampling"])
+            if "resampling" in source_grid.keys()
+            else None
         )
         self.calc = source_grid["calc"] if "calc" in source_grid.keys() else None
         self.rasterize_method = (
@@ -118,7 +120,6 @@ class RasterSrcLayer(Layer):
 
 
 def layer_factory(name: str, version: str, field: str, grid: Grid) -> Layer:
-
     source_type: str = _get_source_type(name, field, grid.name)
 
     if source_type == "vector":

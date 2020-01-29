@@ -1,12 +1,15 @@
 import datetime
+import multiprocessing
 import os
 import re
 import shutil
 import uuid
 from dateutil.tz import tzutc
+from math import floor
 from typing import Any, Dict, Optional
 
 import boto3
+import psutil
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
@@ -18,6 +21,7 @@ TOKEN_EXPIRATION: Optional[datetime.datetime] = None
 AWS_ACCESS_KEY_ID: Optional[str] = None
 AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
+AVAILABLE_MEMORY: Optional[int] = None
 
 
 def get_bucket(env: Optional[str] = None) -> str:
@@ -143,3 +147,19 @@ def check_volume_ready() -> bool:
     if not os.path.exists("READY") and "AWS_BATCH_JOB_ID" in os.environ.keys():
         raise VolumeNotReadyError("Mounted Volume not ready")
     return True
+
+
+def available_memory_per_process(divisor=1) -> float:
+    """
+    Snapshot of currently available memory per core or process
+    """
+    global AVAILABLE_MEMORY
+    if not AVAILABLE_MEMORY:
+        AVAILABLE_MEMORY = psutil.virtual_memory()[1]
+        LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
+    processes: int = max(floor(multiprocessing.cpu_count() / divisor), 1)
+
+    if AVAILABLE_MEMORY:
+        return AVAILABLE_MEMORY / processes
+    else:
+        raise MemoryError("No memory available")
