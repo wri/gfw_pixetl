@@ -81,7 +81,7 @@ class Tile(object):
         )
 
         self.workers: int = math.ceil(
-            multiprocessing.cpu_count() / 2
+            multiprocessing.cpu_count()
         )  # TODO: make this customizable
 
     def dst_exists(self) -> bool:

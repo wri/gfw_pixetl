@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="gfw_pixetl",
-    version="0.2.0",
+    version="0.3.0",
     description="Tool to preprocess GFW tiles",
     packages=find_packages(exclude=("tests",)),
     author="Thomas Maschler",
@@ -12,6 +12,7 @@ setup(
         "click~=7.0",
         "geojson~=2.5.0",
         "parallelpipe~=0.2.6",
+        "psutil~=5.6.7",
         "psycopg2~=2.8.4",
         "pyproj~=2.4.0",
         "pyyaml~=5.1.2",

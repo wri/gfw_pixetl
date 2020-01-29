@@ -1,3 +1,5 @@
+from rasterio import RasterioIOError
+
 from gfw_pixetl import get_module_logger
 
 LOGGER = get_module_logger(__name__)
@@ -37,3 +39,12 @@ def retry_if_volume_not_ready(exception) -> bool:
     if is_not_ready:
         LOGGER.warning("Volume not ready - RETRY")
     return is_not_ready
+
+
+def retry_if_rasterio_io_error(exception) -> bool:
+    is_rasterio_io_error: bool = isinstance(
+        exception, RasterioIOError
+    ) and "IReadBlock failed" in str(exception)
+    if is_rasterio_io_error:
+        LOGGER.warning("RasterioIO Error - RETRY")
+    return is_rasterio_io_error
