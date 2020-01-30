@@ -59,91 +59,91 @@ def test_get_grid_tiles():
 
 
 def test_filter_subset_tiles():
-    tiles = PIPE.filter_subset_tiles(TILES)
-
+    pipe = TILES | PIPE.filter_subset_tiles(PIPE.subset)
     i = 0
-    for tile in tiles:
+    for tile in pipe.results():
         i += 1
         assert isinstance(tile, Tile)
     assert i == len(SUBSET)
 
 
 def test_filter_target_tiles():
+    tiles = _get_subset_tiles()
     with mock.patch.object(Tile, "dst_exists", return_value=True):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.filter_target_tiles(tiles, overwrite=False)
+        pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, Tile)
         assert i == 0
 
     with mock.patch.object(Tile, "dst_exists", return_value=False):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.filter_target_tiles(tiles, overwrite=False)
+        pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, Tile)
         assert i == 4
 
     with mock.patch.object(Tile, "dst_exists", return_value=True):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.filter_target_tiles(tiles, overwrite=True)
+        pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, Tile)
         assert i == 4
 
     with mock.patch.object(Tile, "dst_exists", return_value=False):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.filter_target_tiles(tiles, overwrite=True)
+
+        pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, Tile)
         assert i == 4
 
 
-def test_delete_if_empty():
-    with mock.patch.object(Tile, "local_src_is_empty", return_value=False):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.delete_if_empty(tiles)
-        i = 0
-        for tile in tiles:
-            i += 1
-            assert isinstance(tile, Tile)
-        assert i == 4
-
-    with mock.patch.object(Tile, "local_src_is_empty", return_value=True):
-        with mock.patch.object(Tile, "rm_local_src", return_value=None):
-            tiles = _get_subset_tiles()
-            tiles = PIPE.delete_if_empty(tiles)
-            i = 0
-            for tile in tiles:
-                i += 1
-                assert isinstance(tile, Tile)
-            assert i == 0
+#
+# def test_delete_if_empty():
+#     tiles = _get_subset_tiles()
+#
+#     with mock.patch.object(Tile, "local_src_is_empty", return_value=False):
+#
+#         pipe = tiles | PIPE.delete_if_empty()
+#         i = 0
+#         for tile in pipe.results():
+#             i += 1
+#             assert isinstance(tile, Tile)
+#         assert i == 4
+#
+#     with mock.patch.object(Tile, "local_src_is_empty", return_value=True):
+#         with mock.patch.object(Tile, "rm_local_src", return_value=None):
+#             pipe = tiles | PIPE.delete_if_empty()
+#             i = 0
+#             for tile in pipe.results():
+#                 i += 1
+#                 assert isinstance(tile, Tile)
+#             assert i == 0
 
 
 def test_upload_file():
+    tiles = _get_subset_tiles()
     with mock.patch.object(Tile, "upload", return_value=None):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.upload_file(tiles)
+
+        pipe = tiles | PIPE.upload_file()
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, Tile)
         assert i == 4
 
 
 def test_delete_file():
+    tiles = _get_subset_tiles()
     with mock.patch.object(Tile, "rm_local_src", return_value=None):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.delete_file(tiles)
+        pipe = tiles | PIPE.delete_file()
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, Tile)
         assert i == 4

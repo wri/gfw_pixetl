@@ -166,16 +166,16 @@ def get_workers():
     return WORKERS
 
 
-def available_memory_per_process() -> float:
-    """
-    Snapshot of currently available memory per core or process
-    """
+def set_available_memory() -> int:
     global AVAILABLE_MEMORY
     if not AVAILABLE_MEMORY:
         AVAILABLE_MEMORY = psutil.virtual_memory()[1]
         LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
+    return AVAILABLE_MEMORY  # type: ignore
 
-    if AVAILABLE_MEMORY:
-        return AVAILABLE_MEMORY / get_workers()
-    else:
-        raise MemoryError("No memory available")
+
+def available_memory_per_process() -> float:
+    """
+    Snapshot of currently available memory per core or process
+    """
+    return set_available_memory() / get_workers()

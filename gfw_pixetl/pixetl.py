@@ -35,12 +35,6 @@ LOGGER = get_module_logger(__name__)
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
-    "-w" "--workers",
-    type=int,
-    default=multiprocessing.cpu_count(),
-    help="Number of parallel workers",
-)
-@click.option(
     "-o",
     "--overwrite",
     is_flag=True,
@@ -54,13 +48,12 @@ def cli(
     field: str,
     grid_name: str,
     subset: Optional[List[str]],
-    workers: int,
     overwrite: bool,
 ):
     """NAME: Name of dataset"""
 
     pixetl(
-        name, version, source_type, field, grid_name, subset, workers, overwrite,
+        name, version, source_type, field, grid_name, subset, overwrite,
     )
 
 
@@ -71,7 +64,6 @@ def pixetl(
     field: str,
     grid_name: str = "10/40000",
     subset: Optional[List[str]] = None,
-    workers: int = multiprocessing.cpu_count(),
     overwrite: bool = True,
 ) -> List[Tile]:
     click.echo(logo)
@@ -90,9 +82,8 @@ def pixetl(
     old_cwd = os.getcwd()
     cwd = utils.set_cwd()
 
-    # check for available memory here before any major process is running
-    utils.set_workers(workers)
-    utils.available_memory_per_process()
+    # set available memory here before any major process is running
+    utils.set_available_memory()
 
     try:
 

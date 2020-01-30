@@ -44,13 +44,7 @@ class RasterPipe(Pipe):
         LOGGER.info("Start Raster Pipe")
 
         pipe = (
-            self.get_grid_tiles()
-            | self.filter_subset_tiles()
-            | self.filter_src_tiles()
-            | self.filter_target_tiles(overwrite=overwrite)
-            | self.transform()
-            | self.upload_file()
-            | self.delete_file()
+            self.collect_tiles() | self.transform | self.upload_file | self.delete_file
         )
 
         tiles = self._process_pipe(pipe)

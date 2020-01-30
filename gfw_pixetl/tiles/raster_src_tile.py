@@ -3,8 +3,8 @@ from math import floor, sqrt
 from typing import Iterator, List, Tuple
 
 import numpy as np
-from numpy.ma import MaskedArray
 import rasterio
+from numpy.ma import MaskedArray
 from pyproj import Transformer
 from rasterio.coords import BoundingBox
 from rasterio.io import DatasetWriter, DatasetReader
@@ -117,12 +117,13 @@ class RasterSrcTile(Tile):
                 if self._block_has_data(masked_array):
                     masked_array = self._warp(masked_array, src_window, dst_window)
                     masked_array = self._calc(masked_array, dst_window)
-                    array: np.ndarry = self._set_dtype(masked_array)
+                    array: np.ndarray = self._set_dtype(masked_array)
                     del masked_array
                     self._write_window(dst, array, dst_window)
                     del array
                     has_data = True
                 else:
+                    LOGGER.debug(f"{dst_window} has no data - skip")
                     del masked_array
             src.close()
             dst.close()
@@ -143,8 +144,7 @@ class RasterSrcTile(Tile):
                 max_j = min(j + max_blocks, y_blocks)
                 yield self._windows(dst, i, j, max_i, max_j)
 
-    @staticmethod
-    def _block_has_data(array: MaskedArray) -> bool:
+    def _block_has_data(self, array: MaskedArray) -> bool:
         """
         Check if current block has any data
         """
@@ -245,7 +245,7 @@ class RasterSrcTile(Tile):
 
         return src_window, dst_window
 
-    def _set_dtype(self, array: MaskedArray) -> np.ndarry:
+    def _set_dtype(self, array: MaskedArray) -> np.ndarray:
         """
         Update data type to desired output datatype
         Update nodata value to desired nodata value
@@ -301,7 +301,9 @@ class RasterSrcTile(Tile):
             return array
 
     @staticmethod
-    def _windows(dst, min_i, min_j, max_i, max_j) -> Window:
+    def _windows(
+        dst: DatasetWriter, min_i: int, min_j: int, max_i: int, max_j: int
+    ) -> Window:
         """
         Loops over selected blocks of data source and merges their windows into one
         """
@@ -313,7 +315,7 @@ class RasterSrcTile(Tile):
         return union(*windows)
 
     def _write_window(
-        self, dst: DatasetWriter, array: np.ndarry, dst_window: Window
+        self, dst: DatasetWriter, array: np.ndarray, dst_window: Window
     ) -> None:
         """
         Write blocks into output raster

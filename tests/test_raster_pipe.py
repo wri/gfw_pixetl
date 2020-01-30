@@ -72,20 +72,20 @@ def test_create_tiles_all():
 
 
 def test_filter_src_tiles():
+    tiles = _get_subset_tiles()
+
     with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=False):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.filter_src_tiles(tiles)
+        pipe = tiles | PIPE.filter_src_tiles
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, RasterSrcTile)
         assert i == 0
 
     with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=True):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.filter_src_tiles(tiles)
+        pipe = tiles | PIPE.filter_src_tiles
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, RasterSrcTile)
         assert i == 4
@@ -93,10 +93,9 @@ def test_filter_src_tiles():
 
 def test_transform():
     with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-        tiles = _get_subset_tiles()
-        tiles = PIPE.transform(tiles)
+        pipe = _get_subset_tiles() | PIPE.transform
         i = 0
-        for tile in tiles:
+        for tile in pipe.results():
             i += 1
             assert isinstance(tile, RasterSrcTile)
         assert i == 4

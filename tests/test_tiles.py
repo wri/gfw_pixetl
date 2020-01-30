@@ -84,15 +84,15 @@ def test_set_local_src():
             )
 
 
-def test_local_src_is_empty():
-    with mock.patch("os.remove", return_value=None):
-        with mock.patch("rasterio.open", return_value=Img()):
-            TILE.set_local_src("test")
-            assert not TILE.local_src_is_empty()
-
-        with mock.patch("rasterio.open", return_value=EmptyImg()):
-            TILE.set_local_src("test")
-            assert TILE.local_src_is_empty()
+# def test_local_src_is_empty():
+#     with mock.patch("os.remove", return_value=None):
+#         with mock.patch("rasterio.open", return_value=Img()):
+#             TILE.set_local_src("test")
+#             assert not TILE.local_src_is_empty()
+#
+#         with mock.patch("rasterio.open", return_value=EmptyImg()):
+#             TILE.set_local_src("test")
+#             assert TILE.local_src_is_empty()
 
 
 def test_get_stage_uri():

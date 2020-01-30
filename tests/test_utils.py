@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 from datetime import datetime
 from dateutil.tz import tzutc
@@ -8,6 +9,10 @@ from gfw_pixetl.utils import (
     verify_version_pattern,
     set_aws_credentials,
     set_cwd,
+    set_available_memory,
+    set_workers,
+    get_workers,
+    available_memory_per_process,
 )
 
 os.environ["ENV"] = "test"
@@ -95,3 +100,24 @@ def test_set_cwd():
     assert os.path.join(cwd, new_dir) == os.getcwd()
     os.chdir(cwd)
     os.rmdir(new_dir)
+
+
+def test_set_available_memory():
+    mem = set_available_memory()
+    assert isinstance(mem, int)
+    assert mem == set_available_memory()
+
+
+def test_set_workers():
+    cores = multiprocessing.cpu_count()
+    set_workers(cores)
+    assert get_workers() == cores
+
+    set_workers(cores + 1)
+    assert get_workers() == cores
+
+    set_workers(cores - 1)
+    if cores == 1:
+        assert get_workers() == 1
+    else:
+        assert get_workers() == cores - 1

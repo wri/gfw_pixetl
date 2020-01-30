@@ -30,6 +30,29 @@ class Pipe(object):
         self.layer = layer
         self.subset = subset
 
+    def collect_tiles(self, overwrite=True) -> List[Tile]:
+        """
+        Raster Pipe
+        """
+
+        LOGGER.info("Start Raster Pipe")
+
+        pipe = (
+            self.get_grid_tiles()
+            | self.filter_subset_tiles(self.subset)
+            | self.filter_src_tiles
+            | self.filter_target_tiles(overwrite=overwrite)
+        )
+        tiles = list()
+        for tile in pipe.results():
+            tiles.append(tile)
+
+        tile_count = len(tiles)
+        utils.set_workers(tile_count)
+        LOGGER.info(f"{tile_count} tiles to process")
+
+        return tiles
+
     def create_tiles(self, overwrite=True) -> List[Tile]:
         """
         Override this method when implementing pipes
@@ -59,16 +82,25 @@ class Pipe(object):
 
         return tiles
 
+    @staticmethod
     @stage(workers=CORES)
-    def filter_subset_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
+    def filter_src_tiles():
+        """
+        Override this method when implementing pipes
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    @stage(workers=CORES)
+    def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """
         Apply filter in case user only want to process only a subset.
         Useful for testing.
         """
         for tile in tiles:
-            if not self.subset:
+            if not subset:
                 yield tile
-            elif tile.tile_id in self.subset:
+            elif tile.tile_id in subset:
                 yield tile
             else:
                 LOGGER.debug(f"Tile {tile} not in subset. Skip.")

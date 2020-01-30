@@ -79,8 +79,6 @@ class Tile(object):
             bounds=self.bounds,
         )
 
-        self.workers: int = multiprocessing.cpu_count()
-
     def dst_exists(self) -> bool:
         if not self.dst.uri:
             raise Exception("Tile URI is not set")

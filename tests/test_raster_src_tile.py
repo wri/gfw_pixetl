@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 import numpy as np
 import rasterio
+from rasterio.windows import Window
 from shapely.geometry import Point
 
 from gfw_pixetl import layers, get_module_logger
@@ -69,22 +70,23 @@ def test_transform_final():
 
 
 def test__calc():
+    window = Window(0, 0, 1, 3)
     if isinstance(LAYER, layers.RasterSrcLayer):
         tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
 
         tile.layer.calc = "A+1"
         data = np.zeros((1, 3))
-        result = tile._calc(data)
+        result = tile._calc(data, window)
         assert result.sum() == 3
 
         tile.layer.calc = "A+1*5"
         data = np.zeros((1, 3))
-        result = tile._calc(data)
+        result = tile._calc(data, window)
         assert result.sum() == 15
 
         tile.layer.calc = "A*5+1"
         data = np.zeros((1, 3))
-        result = tile._calc(data)
+        result = tile._calc(data, window)
         assert result.sum() == 3
 
     else:
