@@ -1,14 +1,14 @@
 from typing import Iterator, List, Set
 
-from parallelpipe import Stage
+from parallelpipe import stage
 
-from gfw_pixetl import get_module_logger
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
-
 LOGGER = get_module_logger(__name__)
+WORKERS = utils.get_workers()
 
 
 class RasterPipe(Pipe):
@@ -45,32 +45,21 @@ class RasterPipe(Pipe):
 
         pipe = (
             self.get_grid_tiles()
-            | Stage(self.filter_subset_tiles).setup(workers=self.workers)
-            | Stage(self.filter_src_tiles).setup(workers=self.workers)
-            | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
-                workers=self.workers
-            )
-            | Stage(self.transform).setup(
-                workers=1, qsize=self.workers
-            )  # We process blocks in parallel, not tiles
-            | Stage(self.upload_file).setup(workers=self.workers)
-            | Stage(self.delete_file).setup(workers=self.workers)
+            | self.filter_subset_tiles()
+            | self.filter_src_tiles()
+            | self.filter_target_tiles(overwrite=overwrite)
+            | self.transform()
+            | self.upload_file()
+            | self.delete_file()
         )
 
-        tile_uris: List[str] = list()
-        tiles: List[Tile] = list()
-        for tile in pipe.results():
-            tiles.append(tile)
-            tile_uris.append(tile.dst.uri)
-
-        if len(tiles):
-            self.upload_vrt(tile_uris)
-            self.upload_extent(tiles)
+        tiles = self.process_pipe(pipe)
 
         LOGGER.info("Finished Raster Pipe")
         return tiles
 
     @staticmethod
+    @stage(workers=WORKERS)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Only process tiles which intersect with source raster
@@ -87,6 +76,7 @@ class RasterPipe(Pipe):
                 )
 
     @staticmethod
+    @stage(workers=WORKERS)
     def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Transform input raster to match new tile grid and projection

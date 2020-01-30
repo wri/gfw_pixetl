@@ -1,13 +1,14 @@
 from typing import Iterator, List
 
-from parallelpipe import Stage
+from parallelpipe import stage
 
-from gfw_pixetl import get_module_logger
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.tiles import VectorSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
 
 LOGGER = get_module_logger(__name__)
+WORKERS = utils.get_workers()
 
 
 class VectorPipe(Pipe):
@@ -20,31 +21,22 @@ class VectorPipe(Pipe):
 
         pipe = (
             self.get_grid_tiles()
-            | Stage(self.filter_subset_tiles).setup(workers=self.workers)
-            | Stage(self.filter_src_tiles).setup(workers=self.workers)
-            | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
-                workers=self.workers
-            )
-            | Stage(self.rasterize).setup(workers=self.workers, qsize=self.workers)
-            | Stage(self.delete_if_empty).setup(workers=self.workers)
-            | Stage(self.upload_file).setup(workers=self.workers)
-            | Stage(self.delete_file).setup(workers=self.workers)
+            | self.filter_subset_tiles()
+            | self.filter_src_tiles()
+            | self.filter_target_tiles(overwrite=overwrite)
+            | self.rasterize()
+            | self.delete_if_empty()
+            | self.upload_file()
+            | self.delete_file()
         )
 
-        tile_uris: List[str] = list()
-        tiles: List[Tile] = list()
-        for tile in pipe.results():
-            tiles.append(tile)
-            tile_uris.append(tile.dst.uri)
-
-        if len(tiles):
-            self.upload_vrt(tile_uris)
-            self.upload_extent(tiles)
+        tiles = self.process_pipe(pipe)
 
         LOGGER.debug("Start Finished Pipe")
         return tiles
 
     @staticmethod
+    @stage(workers=WORKERS)
     def filter_src_tiles(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """
         Only include tiles which intersect which input vector extent
@@ -54,6 +46,7 @@ class VectorPipe(Pipe):
                 yield tile
 
     @staticmethod
+    @stage(workers=WORKERS)
     def rasterize(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """
         Convert vector source to raster tiles

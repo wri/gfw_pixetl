@@ -149,6 +149,22 @@ def check_volume_ready() -> bool:
     return True
 
 
+def set_workers(workers):
+    """
+    Set environment variable with number of workers
+    Cannot exceed number of cores
+    """
+    os.environ["WORKERS"] = min(multiprocessing.cpu_count(), workers)
+
+
+def get_workers():
+
+    if "WORKERS" in os.environ.keys():
+        return os.environ["WORKERS"]
+    else:
+        return multiprocessing.cpu_count()
+
+
 def available_memory_per_process(divisor=1) -> float:
     """
     Snapshot of currently available memory per core or process

@@ -1,11 +1,10 @@
-import math
 import os
-import multiprocessing
 import subprocess as sp
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
 import boto3
 from geojson import FeatureCollection, Feature, dumps
+from parallelpipe import stage
 from shapely.geometry import box, Polygon, MultiPolygon
 
 from gfw_pixetl import get_module_logger, utils
@@ -14,8 +13,8 @@ from gfw_pixetl.layers import Layer
 from gfw_pixetl.tiles.tile import Tile
 
 LOGGER = get_module_logger(__name__)
-
 S3 = boto3.client("s3")
+WORKERS = utils.get_workers()
 
 
 class Pipe(object):
@@ -28,7 +27,6 @@ class Pipe(object):
         self.grid = layer.grid
         self.layer = layer
         self.subset = subset
-        self.workers: int = multiprocessing.cpu_count()
 
     def create_tiles(self, overwrite=True) -> List[Tile]:
         """
@@ -57,6 +55,7 @@ class Pipe(object):
 
         return tiles
 
+    @stage(workers=WORKERS)
     def filter_subset_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Apply filter in case user only want to process only a subset.
@@ -71,6 +70,7 @@ class Pipe(object):
                 LOGGER.debug(f"Tile {tile} not in subset. Skip.")
 
     @staticmethod
+    @stage(workers=WORKERS)
     def filter_target_tiles(
         tiles: Iterator[Tile], overwrite: bool = True
     ) -> Iterator[Tile]:
@@ -86,6 +86,7 @@ class Pipe(object):
                 LOGGER.debug(f"Tile {tile} already in destination. Skip.")
 
     @staticmethod
+    @stage(workers=WORKERS)
     def delete_if_empty(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Exclude empty intermediate tiles and delete local copy
@@ -97,6 +98,7 @@ class Pipe(object):
                 yield tile
 
     @staticmethod
+    @stage(workers=WORKERS)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Upload tile to target location
@@ -106,6 +108,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
+    @stage(workers=WORKERS)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Delete local file
@@ -113,6 +116,19 @@ class Pipe(object):
         for tile in tiles:
             tile.rm_local_src()
             yield tile
+
+    def process_pipe(self, pipe):
+        tile_uris: List[str] = list()
+        tiles: List[Tile] = list()
+        for tile in pipe.results():
+            tiles.append(tile)
+            tile_uris.append(tile.dst.uri)
+
+        if len(tiles):
+            self.upload_vrt(tile_uris)
+            self.upload_extent(tiles)
+
+        return tiles
 
     def upload_vrt(self, uris: List[str]) -> Dict[str, Any]:
         vrt = self._create_vrt(uris)
