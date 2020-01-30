@@ -53,7 +53,7 @@ class RasterPipe(Pipe):
             | self.delete_file()
         )
 
-        tiles = self.process_pipe(pipe)
+        tiles = self._process_pipe(pipe)
 
         LOGGER.info("Finished Raster Pipe")
         return tiles

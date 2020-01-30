@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import subprocess as sp
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
@@ -15,6 +16,7 @@ from gfw_pixetl.tiles.tile import Tile
 LOGGER = get_module_logger(__name__)
 S3 = boto3.client("s3")
 WORKERS = utils.get_workers()
+CORES = multiprocessing.cpu_count()
 
 
 class Pipe(object):
@@ -50,12 +52,14 @@ class Pipe(object):
                 origin = self.grid.xy_grid_origin(j, i)
                 tiles.add(Tile(origin=origin, grid=self.grid, layer=self.layer))
 
-        LOGGER.info(f"Found {len(tiles)} tile inside grid")
+        tile_count = len(tiles)
+        LOGGER.info(f"Found {tile_count} tile inside grid")
+        utils.set_workers(tile_count)
         # logger.debug(tiles)
 
         return tiles
 
-    @stage(workers=WORKERS)
+    @stage(workers=CORES)
     def filter_subset_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Apply filter in case user only want to process only a subset.
@@ -70,7 +74,7 @@ class Pipe(object):
                 LOGGER.debug(f"Tile {tile} not in subset. Skip.")
 
     @staticmethod
-    @stage(workers=WORKERS)
+    @stage(workers=CORES)
     def filter_target_tiles(
         tiles: Iterator[Tile], overwrite: bool = True
     ) -> Iterator[Tile]:
@@ -85,20 +89,20 @@ class Pipe(object):
             else:
                 LOGGER.debug(f"Tile {tile} already in destination. Skip.")
 
-    @staticmethod
-    @stage(workers=WORKERS)
-    def delete_if_empty(tiles: Iterator[Tile]) -> Iterator[Tile]:
-        """
-        Exclude empty intermediate tiles and delete local copy
-        """
-        for tile in tiles:
-            if tile.local_src_is_empty():
-                tile.rm_local_src()
-            else:
-                yield tile
+    # @staticmethod
+    # @stage(workers=WORKERS)
+    # def delete_if_empty(tiles: Iterator[Tile]) -> Iterator[Tile]:
+    #     """
+    #     Exclude empty intermediate tiles and delete local copy
+    #     """
+    #     for tile in tiles:
+    #         if tile.local_src_is_empty():
+    #             tile.rm_local_src()
+    #         else:
+    #             yield tile
 
     @staticmethod
-    @stage(workers=WORKERS)
+    @stage(workers=CORES)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Upload tile to target location
@@ -108,7 +112,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=WORKERS)
+    @stage(workers=CORES)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Delete local file
@@ -117,7 +121,7 @@ class Pipe(object):
             tile.rm_local_src()
             yield tile
 
-    def process_pipe(self, pipe):
+    def _process_pipe(self, pipe):
         tile_uris: List[str] = list()
         tiles: List[Tile] = list()
         for tile in pipe.results():

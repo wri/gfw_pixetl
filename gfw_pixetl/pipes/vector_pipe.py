@@ -25,12 +25,12 @@ class VectorPipe(Pipe):
             | self.filter_src_tiles()
             | self.filter_target_tiles(overwrite=overwrite)
             | self.rasterize()
-            | self.delete_if_empty()
+            # | self.delete_if_empty()
             | self.upload_file()
             | self.delete_file()
         )
 
-        tiles = self.process_pipe(pipe)
+        tiles = self._process_pipe(pipe)
 
         LOGGER.debug("Start Finished Pipe")
         return tiles

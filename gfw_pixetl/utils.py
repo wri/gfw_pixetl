@@ -5,7 +5,6 @@ import re
 import shutil
 import uuid
 from dateutil.tz import tzutc
-from math import floor
 from typing import Any, Dict, Optional
 
 import boto3
@@ -22,6 +21,7 @@ AWS_ACCESS_KEY_ID: Optional[str] = None
 AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
 AVAILABLE_MEMORY: Optional[int] = None
+WORKERS: int = 1
 
 
 def get_bucket(env: Optional[str] = None) -> str:
@@ -152,20 +152,21 @@ def check_volume_ready() -> bool:
 def set_workers(workers):
     """
     Set environment variable with number of workers
-    Cannot exceed number of cores
+    Cannot exceed number of cores and must be at least one
     """
-    os.environ["WORKERS"] = min(multiprocessing.cpu_count(), workers)
+    global WORKERS
+    WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
+    LOGGER.info(f"Set workers to {workers}")
 
 
 def get_workers():
+    """
+    Return number of workers for parallel jobs
+    """
+    return WORKERS
 
-    if "WORKERS" in os.environ.keys():
-        return os.environ["WORKERS"]
-    else:
-        return multiprocessing.cpu_count()
 
-
-def available_memory_per_process(divisor=1) -> float:
+def available_memory_per_process() -> float:
     """
     Snapshot of currently available memory per core or process
     """
@@ -173,9 +174,8 @@ def available_memory_per_process(divisor=1) -> float:
     if not AVAILABLE_MEMORY:
         AVAILABLE_MEMORY = psutil.virtual_memory()[1]
         LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
-    processes: int = max(floor(multiprocessing.cpu_count() / divisor), 1)
 
     if AVAILABLE_MEMORY:
-        return AVAILABLE_MEMORY / processes
+        return AVAILABLE_MEMORY / get_workers()
     else:
         raise MemoryError("No memory available")
