@@ -174,12 +174,13 @@ class RasterSrcTile(Tile):
     def _max_blocks(self, dst: DatasetWriter) -> int:
         """
         Calculate the maximum amount of blocks we can fit into memory
+        We can only use half the available memory per process per block
+        b/c we might have two copies of the array at the same time
         """
 
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        return (
-            floor(sqrt(utils.available_memory_per_process() / max_bytes_per_block)) ** 2
-        )
+        memory_per_block = utils.available_memory_per_process() / 2
+        return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
 
     def _max_block_size(self, dst: DatasetWriter) -> float:
         """
