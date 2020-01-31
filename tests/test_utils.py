@@ -121,3 +121,12 @@ def test_set_workers():
         assert get_workers() == 1
     else:
         assert get_workers() == cores - 1
+
+
+def test_available_memory_per_process():
+    mem = set_available_memory()
+    set_workers(1)
+    assert available_memory_per_process() == mem
+
+    set_workers(2)
+    assert available_memory_per_process() == mem / 2

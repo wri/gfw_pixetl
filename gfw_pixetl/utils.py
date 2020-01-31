@@ -149,17 +149,18 @@ def check_volume_ready() -> bool:
     return True
 
 
-def set_workers(workers):
+def set_workers(workers: int) -> int:
     """
     Set environment variable with number of workers
     Cannot exceed number of cores and must be at least one
     """
     global WORKERS
     WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
-    LOGGER.info(f"Set workers to {workers}")
+    LOGGER.info(f"Set workers to {WORKERS}")
+    return WORKERS
 
 
-def get_workers():
+def get_workers() -> int:
     """
     Return number of workers for parallel jobs
     """

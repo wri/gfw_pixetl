@@ -115,15 +115,20 @@ class RasterSrcTile(Tile):
                 src_window, dst_window = self._reproject_window(dst_window)
                 masked_array: MaskedArray = self._read_window(src, src_window)
                 if self._block_has_data(masked_array):
+                    LOGGER.debug(
+                        f"{dst_window} of tile {self.tile_id} has data - continue"
+                    )
                     masked_array = self._warp(masked_array, src_window, dst_window)
                     masked_array = self._calc(masked_array, dst_window)
-                    array: np.ndarray = self._set_dtype(masked_array)
+                    array: np.ndarray = self._set_dtype(masked_array, dst_window)
                     del masked_array
                     self._write_window(dst, array, dst_window)
                     del array
                     has_data = True
                 else:
-                    LOGGER.debug(f"{dst_window} has no data - skip")
+                    LOGGER.debug(
+                        f"{dst_window} of tile {self.tile_id} has no data - skip"
+                    )
                     del masked_array
             src.close()
             dst.close()
@@ -156,14 +161,14 @@ class RasterSrcTile(Tile):
         Apply user defined calculation on array
         """
         if self.layer.calc:
-            LOGGER.debug(f"Update {dst_window}")
+            LOGGER.debug(f"Update {dst_window} of tile {self.tile_id}")
             funcstr = (
                 f"def f(A: MaskedArray) -> MaskedArray:\n    return {self.layer.calc}"
             )
             exec(funcstr, globals())
             array = f(array)  # type: ignore # noqa: F821
         else:
-            LOGGER.debug(f"Nothing to update. Skip {dst_window}")
+            LOGGER.debug(f"Nothing to update. Skip {dst_window} of tile {self.tile_id}")
         return array
 
     def _max_blocks(self, dst: DatasetWriter) -> int:
@@ -209,23 +214,23 @@ class RasterSrcTile(Tile):
 
         return max(src_itemsize, dst_itemsize)
 
-    @staticmethod
     @retry(
         retry_on_exception=retry_if_rasterio_io_error,
         stop_max_attempt_number=7,
         wait_fixed=1000,
     )
-    def _read_window(src: DatasetReader, src_window: Window) -> MaskedArray:
+    def _read_window(self, src: DatasetReader, src_window: Window) -> MaskedArray:
         """
         Read window of input raster
         """
+        LOGGER.debug(f"Read {src_window} for Tile {self.tile_id}")
         return src.read(1, window=src_window, masked=True)
 
     def _reproject_window(self, dst_window: Window) -> Windows:
         """
         Reproject window into same projectionas source raster
         """
-        LOGGER.debug(f"Reproject {dst_window}")
+        LOGGER.debug(f"Compute source window for {dst_window} of tile {self.tile_id}")
         dst_bounds: Bounds = bounds(
             window=dst_window,
             transform=self.dst.profile["transform"],
@@ -245,7 +250,7 @@ class RasterSrcTile(Tile):
 
         return src_window, dst_window
 
-    def _set_dtype(self, array: MaskedArray) -> np.ndarray:
+    def _set_dtype(self, array: MaskedArray, dst_window) -> np.ndarray:
         """
         Update data type to desired output datatype
         Update nodata value to desired nodata value
@@ -253,12 +258,16 @@ class RasterSrcTile(Tile):
         any values which already has new no data value will stay as is)
         """
         if self.dst.profile["nodata"] == 0 or self.dst.profile["nodata"]:
+            LOGGER.debug(
+                f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
+            )
             array = np.asarray(np.ma.filled(array, self.dst.profile["nodata"])).astype(
                 # TODO: Check if we still need np.asarray wrapper
                 self.dst.profile["dtype"]
             )
 
         else:
+            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
             array = np.asarray(array.data).astype(self.dst.profile["dtype"])
         return array
 
@@ -278,7 +287,7 @@ class RasterSrcTile(Tile):
             or not math.isclose(src_transform[4], dst_transform[4])
             or self.src.profile["crs"] != self.dst.profile["crs"]
         ):
-            LOGGER.debug(f"Warp {dst_window}")
+            LOGGER.debug(f"Reproject {dst_window} of tile {self.tile_id}")
             warped_array = np.ma.empty(
                 (dst_window.width, dst_window.height), self.src.profile["dtype"],
             )
@@ -298,6 +307,10 @@ class RasterSrcTile(Tile):
             )
             return warped_array
         else:
+            LOGGER.debug(
+                f"Projection and resolution are identical. "
+                f"Skip reprojecting {dst_window} of tile {self.tile_id}"
+            )
             return array
 
     @staticmethod
@@ -320,118 +333,5 @@ class RasterSrcTile(Tile):
         """
         Write blocks into output raster
         """
-        LOGGER.debug(f"Write {dst_window}")
+        LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
         dst.write(array, window=dst_window, indexes=1)
-
-    # def transform(self) -> bool:
-    #     """
-    #     Write input data to output tile
-    #     """
-    #
-    #     stage = "transform"
-    #     dst_uri = self.get_stage_uri(stage)
-    #
-    #     LOGGER.info(f"Transform tile {self.tile_id}")
-    #     with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
-    #
-    #         src: DatasetReader = rasterio.open(self.src.uri)
-    #         dst: DatasetWriter = rasterio.open(dst_uri, "w+", **self.dst.profile)
-    #
-    #     pipe = (
-    #             self.windows(dst)
-    #             # dst.block_windows(1)
-    #             | Stage(self._reproject_window_stage).setup(
-    #         workers=self.workers, qsize=self.workers
-    #     )
-    #             | Stage(  # get destination blocks, then read from source
-    #         self._read_window_stage, src
-    #     ).setup(workers=self.workers, qsize=self.workers)
-    #             | Stage(self._drop_empty_blocks_stage).setup(
-    #         workers=self.workers, qsize=self.workers
-    #     )
-    #             | Stage(self._warp_stage).setup(
-    #         workers=self.workers, qsize=self.workers
-    #     )
-    #             | Stage(self._calc_stage).setup(
-    #         workers=self.workers, qsize=self.workers
-    #     )
-    #             | Stage(self._set_dtype_stage).setup(
-    #         workers=self.workers, qsize=self.workers
-    #     )
-    #     )
-    #
-    #     has_blocks = False
-    #     for array, windows in pipe.results():
-    #         LOGGER.debug(f"Write {windows[1]}")
-    #         dst.write(array, window=windows[1], indexes=1)
-    #         has_blocks = True
-    #
-    #     src.close()
-    #     dst.close()
-    #     self.set_local_src(stage)
-    #     return has_blocks
-    #
-    # def _reproject_window_stage(self, windows: Iterator[Window]) -> Iterator[Windows]:
-    #     """
-    #     Stage to reproject each dst_window into src project, so that we can read the required input data
-    #     """
-    #     for dst_window in windows:
-    #         yield self._reproject_window(dst_window)
-    #
-    #
-    # def _read_window_stage(
-    #         self, windows: Iterator[Windows], src: rasterio.DatasetReader
-    # ) -> Iterator[Tuple[np.ndarray, Windows]]:
-    #     """
-    #     Stage to read input data
-    #     """
-    #     for src_window, dst_window in windows:
-    #         yield self._read_window(src, src_window), (src_window, dst_window)
-    #
-    #
-    # def _drop_empty_blocks_stage(self,
-    #                              arrays: Iterator[Tuple[MaskedArray, Windows]]
-    #                              ) -> Iterator[Tuple[MaskedArray, Windows]]:
-    #     """
-    #     Stage to drop windows in case they are empty
-    #     """
-    #     for array, windows in arrays:
-    #         if self._block_has_data(array):
-    #             LOGGER.debug(f"{windows[1]} has data")
-    #             yield array, windows
-    #         else:
-    #             LOGGER.debug(f"{windows[1]} has no data - DROP")
-    #
-    #
-    # def _warp_stage(
-    #         self, arrays: Iterator[Tuple[MaskedArray, Windows]]
-    # ) -> Iterator[Tuple[MaskedArray, Windows]]:
-    #     """
-    #     Stage to reproject and resample input data for that they match output projection and resolution
-    #     """
-    #
-    #     for array, windows in arrays:
-    #         array = self._warp(array, *windows)
-    #         yield array, windows
-    #
-    #
-    # def _calc_stage(
-    #         self, arrays: Iterator[Tuple[MaskedArray, Windows]]
-    # ) -> Iterator[Tuple[MaskedArray, Windows]]:
-    #     """
-    #     Update pixel values using user defined formular
-    #     """
-    #     for array, windows in arrays:
-    #         array = self._calc(array, windows[1])
-    #         yield array, windows
-    #
-    #
-    # def _set_dtype_stage(
-    #         self, arrays: Iterator[Tuple[MaskedArray, Windows]]
-    # ) -> Iterator[Tuple[Array, Windows]]:
-    #     """
-    #     Set final datatype and update no data values
-    #     """
-    #     for array, windows in arrays:
-    #         LOGGER.debug(f"Set datatype for {windows[1]}")
-    #         yield self._set_dtype(array), windows

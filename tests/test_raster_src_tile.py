@@ -94,13 +94,14 @@ def test__calc():
 
 
 def test__set_dtype():
+    window = Window(0, 0, 10, 10)
     data = np.random.randint(4, size=(10, 10))
     masked_data = np.ma.masked_values(data, 0)
     count = masked_data.mask.sum()
     if isinstance(LAYER, layers.RasterSrcLayer):
         tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
         tile.dst.profile["nodata"] = 5
-        result = tile._set_dtype(masked_data)
+        result = tile._set_dtype(masked_data, window)
         masked_result = np.ma.masked_values(result, 5)
         assert count == masked_result.mask.sum()
 

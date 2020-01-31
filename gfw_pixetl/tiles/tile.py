@@ -1,7 +1,6 @@
-import multiprocessing
 import os
 import subprocess as sp
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import boto3
 import rasterio

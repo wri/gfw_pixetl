@@ -1,6 +1,7 @@
+import multiprocessing
 from typing import Iterator, List, Set
 
-from parallelpipe import stage
+from parallelpipe import Stage, stage
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import RasterSrcLayer
@@ -8,11 +9,11 @@ from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
 LOGGER = get_module_logger(__name__)
-WORKERS = utils.get_workers()
+CORES = multiprocessing.cpu_count()
 
 
 class RasterPipe(Pipe):
-    def get_grid_tiles(self) -> Set[Tile]:
+    def get_grid_tiles(self) -> Set[RasterSrcTile]:  # type: ignore
         """
         Seed all available tiles within given grid.
         Use 1x1 degree tiles covering all land area as starting point.
@@ -21,8 +22,8 @@ class RasterPipe(Pipe):
         """
 
         assert isinstance(self.layer, RasterSrcLayer)
-        LOGGER.debug("Get grid Tiles")
-        tiles: Set[Tile] = set()
+        LOGGER.debug("Get Grid Tiles")
+        tiles: Set[RasterSrcTile] = set()
 
         for i in range(-89, 91):
             for j in range(-180, 180):
@@ -31,8 +32,9 @@ class RasterPipe(Pipe):
                     RasterSrcTile(origin=origin, grid=self.grid, layer=self.layer)
                 )
 
-        LOGGER.info(f"Found {len(tiles)} tile inside grid")
-        # logger.debug(tiles)
+        tile_count = len(tiles)
+        LOGGER.info(f"Found {tile_count} tile inside grid")
+        # utils.set_workers(tile_count)
 
         return tiles
 
@@ -43,8 +45,14 @@ class RasterPipe(Pipe):
 
         LOGGER.info("Start Raster Pipe")
 
+        tiles = self.collect_tiles()
+        workers = utils.set_workers(len(tiles))
+
         pipe = (
-            self.collect_tiles() | self.transform | self.upload_file | self.delete_file
+            tiles
+            | Stage(self.transform).setup(workers=workers)
+            | self.upload_file
+            | self.delete_file
         )
 
         tiles = self._process_pipe(pipe)
@@ -53,7 +61,7 @@ class RasterPipe(Pipe):
         return tiles
 
     @staticmethod
-    @stage(workers=WORKERS)
+    @stage(workers=CORES)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Only process tiles which intersect with source raster
@@ -69,8 +77,11 @@ class RasterPipe(Pipe):
                     f"Tile {tile.tile_id} does not intersects with source raster - skip"
                 )
 
+    # We cannot use the @stage decorate here
+    # but need to create a Stage instance directly in the pipe.
+    # When using the decorator, number of workers get set during RasterPipe class instantiation
+    # and cannot be changed afterwards anymore. The Stage class gives us more flexibility.
     @staticmethod
-    @stage(workers=WORKERS)
     def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Transform input raster to match new tile grid and projection

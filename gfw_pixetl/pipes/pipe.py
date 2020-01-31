@@ -48,7 +48,6 @@ class Pipe(object):
             tiles.append(tile)
 
         tile_count = len(tiles)
-        utils.set_workers(tile_count)
         LOGGER.info(f"{tile_count} tiles to process")
 
         return tiles
@@ -78,7 +77,6 @@ class Pipe(object):
         tile_count = len(tiles)
         LOGGER.info(f"Found {tile_count} tile inside grid")
         utils.set_workers(tile_count)
-        # logger.debug(tiles)
 
         return tiles
 
