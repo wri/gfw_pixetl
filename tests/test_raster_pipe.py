@@ -32,9 +32,6 @@ def test_create_tiles_subset():
     with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=True):
         with mock.patch.object(RasterSrcTile, "dst_exists", return_value=False):
             with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-                # with mock.patch.object(
-                #         RasterSrcTile, "local_src_is_empty", return_value=False
-                # ):
                 with mock.patch.object(RasterSrcTile, "upload", return_value=None):
                     with mock.patch.object(
                         RasterSrcTile, "rm_local_src", return_value=None
@@ -54,9 +51,6 @@ def test_create_tiles_all():
     with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=True):
         with mock.patch.object(RasterSrcTile, "dst_exists", return_value=False):
             with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-                # with mock.patch.object(
-                #         RasterSrcTile, "local_src_is_empty", return_value=False
-                # ):
                 with mock.patch.object(RasterSrcTile, "upload", return_value=None):
                     with mock.patch.object(
                         RasterSrcTile, "rm_local_src", return_value=None
@@ -93,15 +87,12 @@ def test_filter_src_tiles():
 
 def test_transform():
     with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-        pipe = _get_subset_tiles() | PIPE.transform
+        tiles = PIPE.transform(_get_subset_tiles())
         i = 0
-        for tile in pipe.results():
+        for tile in tiles:
             i += 1
             assert isinstance(tile, RasterSrcTile)
         assert i == 4
-
-
-# ./s
 
 
 def _get_subset_tiles() -> Set[RasterSrcTile]:
