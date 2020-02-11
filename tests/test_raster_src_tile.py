@@ -1,4 +1,5 @@
 import os
+from math import isclose
 from typing import Any, Dict
 
 import numpy as np
@@ -107,3 +108,31 @@ def test__set_dtype():
 
     else:
         raise ValueError("Not a RasterSrcLayer")
+
+
+def test__snap_coordinates():
+    tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+
+    lat = 9.777
+    lng = 10.111
+    top, left = tile._snap_coordinates(lat, lng)
+    assert isclose(top, lat)
+    assert isclose(left, lng)
+
+    lat = 9.7777
+    lng = 10.1117
+    top, left = tile._snap_coordinates(lat, lng)
+    assert isclose(top, 9.77775)
+    assert isclose(left, 10.1115)
+
+
+def test__vrt_transform():
+    tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+
+    transform, width, height = tile._vrt_transform(
+        tile.src.profile["crs"], tile.dst.profile["crs"], 9.1, 9.1, 9.2, 9.2
+    )
+
+    assert transform.almost_equals(rasterio.Affine(0.00025, 0, 9.1, 0, -0.00025, 9.2))
+    assert isclose(width, 400)
+    assert isclose(height, 400)

@@ -14,6 +14,12 @@ data "template_file" "container_properties" {
     environment    = var.environment
     job_role_arn   = aws_iam_role.aws_ecs_service_role.arn
     clone_role_arn = aws_iam_role.aws_ecs_service_role_clone.arn
+    cpu            = 48
+    memory         = 380000
+    hardULimit     = 1024
+    softULimit     = 1024
+    maxSwap        = 600000
+    swappiness     = 60
   }
 }
 

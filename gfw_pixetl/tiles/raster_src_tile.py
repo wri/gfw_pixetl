@@ -8,6 +8,7 @@ from numpy.ma import MaskedArray
 from pyproj import Transformer
 from rasterio.coords import BoundingBox
 from rasterio.io import DatasetWriter, DatasetReader
+from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds, reproject
 from rasterio.windows import Window, from_bounds, bounds, union
 from retrying import retry
@@ -36,60 +37,9 @@ class RasterSrcTile(Tile):
         Check if target tile extent intersects with source extent.
         """
 
-        proj = Transformer.from_crs(
-            self.grid.srs, self.src.profile["crs"], always_xy=True
-        )
-        inverse = Transformer.from_crs(
-            self.src.profile["crs"], self.grid.srs, always_xy=True
-        )
+        left, bottom, right, top = self._clamp_src_bounds()
 
-        # Get World Extent in Source Projection
-        # Important: We have to get each top, left, right, bottom seperately.
-        # We cannot get them using the corner coordinates.
-        # For some projections such as Goode (epsg:54052) this would cause strange behavior
-        world_top = proj.transform(0, 90)[1]
-        world_left = proj.transform(-180, 0)[0]
-        world_bottom = proj.transform(0, -90)[1]
-        world_right = proj.transform(180, 0)[0]
-
-        # Crop SRC Bounds to World Extent:
-        left = max(world_left, self.src.bounds.left)
-        top = min(world_top, self.src.bounds.top)
-        right = min(world_right, self.src.bounds.right)
-        bottom = max(world_bottom, self.src.bounds.bottom)
-
-        # Convert back to Target Projection
-        cropped_top = inverse.transform(0, top)[1]
-        cropped_left = inverse.transform(left, 0)[0]
-        cropped_bottom = inverse.transform(0, bottom)[1]
-        cropped_right = inverse.transform(right, 0)[0]
-
-        LOGGER.debug(
-            "World Extent: {}, {}, {}, {}".format(
-                world_left, world_top, world_right, world_bottom
-            )
-        )
-        LOGGER.debug(
-            "SRC Extent: {}, {}, {}, {}".format(
-                self.src.bounds.left,
-                self.src.bounds.top,
-                self.src.bounds.right,
-                self.src.bounds.bottom,
-            )
-        )
-        LOGGER.debug("Cropped Extent: {}, {}, {}, {}".format(left, top, right, bottom))
-        LOGGER.debug(
-            "Inverted Copped Extent: {}, {}, {}, {}".format(
-                cropped_left, cropped_top, cropped_right, cropped_bottom
-            )
-        )
-
-        src_bbox = BoundingBox(
-            left=cropped_left,
-            top=cropped_top,
-            right=cropped_right,
-            bottom=cropped_bottom,
-        )
+        src_bbox = BoundingBox(left=left, top=top, right=right, bottom=bottom,)
 
         return not rasterio.coords.disjoint_bounds(src_bbox, self.bounds)
 
@@ -110,15 +60,27 @@ class RasterSrcTile(Tile):
             src: DatasetReader = rasterio.open(self.src.uri)
             dst: DatasetWriter = rasterio.open(dst_uri, "w+", **self.dst.profile)
 
+            transform, width, height = self._vrt_transform(
+                src.crs, self.dst.profile["crs"], *self._clamp_src_bounds()
+            )
+            vrt: WarpedVRT = WarpedVRT(
+                src,
+                crs=self.dst.profile["crs"],
+                transform=transform,
+                width=width,
+                height=height,
+                resampling=self.layer.resampling,
+            )
+
             has_data = False
             for dst_window in self.windows(dst):
                 src_window, dst_window = self._reproject_window(dst_window)
-                masked_array: MaskedArray = self._read_window(src, src_window)
+                masked_array: MaskedArray = self._read_window(vrt, dst_window)
                 if self._block_has_data(masked_array):
                     LOGGER.debug(
                         f"{dst_window} of tile {self.tile_id} has data - continue"
                     )
-                    masked_array = self._warp(masked_array, src_window, dst_window)
+                    # masked_array = self._warp(masked_array, src_window, dst_window)
                     masked_array = self._calc(masked_array, dst_window)
                     array: np.ndarray = self._set_dtype(masked_array, dst_window)
                     del masked_array
@@ -130,6 +92,7 @@ class RasterSrcTile(Tile):
                         f"{dst_window} of tile {self.tile_id} has no data - skip"
                     )
                     del masked_array
+            vrt.close()
             src.close()
             dst.close()
             self.set_local_src(stage)
@@ -153,8 +116,10 @@ class RasterSrcTile(Tile):
         """
         Check if current block has any data
         """
-        msk = array.mask.astype(bool)
-        return array.shape[0] > 0 and array.shape[1] > 0 and msk[msk].size == 0
+        msk = np.invert(array.mask.astype(bool))
+        size = msk[msk].size
+        LOGGER.debug(f"Block has {size} data pixels")
+        return array.shape[0] > 0 and array.shape[1] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
         """
@@ -171,15 +136,71 @@ class RasterSrcTile(Tile):
             LOGGER.debug(f"Nothing to update. Skip {dst_window} of tile {self.tile_id}")
         return array
 
+    def _clamp_src_bounds(self) -> Tuple[float, float, float, float]:
+        proj = Transformer.from_crs(
+            self.grid.srs, self.src.profile["crs"], always_xy=True
+        )
+
+        inverse = Transformer.from_crs(
+            self.src.profile["crs"], self.grid.srs, always_xy=True
+        )
+
+        LOGGER.debug(
+            "SRC Extent: {}, {}, {}, {}".format(
+                self.src.bounds.left,
+                self.src.bounds.top,
+                self.src.bounds.right,
+                self.src.bounds.bottom,
+            )
+        )
+
+        # Get World Extent in Source Projection
+        # Important: We have to get each top, left, right, bottom seperately.
+        # We cannot get them using the corner coordinates.
+        # For some projections such as Goode (epsg:54052) this would cause strange behavior
+        world_top = proj.transform(0, 90)[1]
+        world_left = proj.transform(-180, 0)[0]
+        world_bottom = proj.transform(0, -90)[1]
+        world_right = proj.transform(180, 0)[0]
+
+        LOGGER.debug(
+            "World Extent: {}, {}, {}, {}".format(
+                world_left, world_top, world_right, world_bottom
+            )
+        )
+
+        # Crop SRC Bounds to World Extent:
+        left = max(world_left, self.src.bounds.left)
+        top = min(world_top, self.src.bounds.top)
+        right = min(world_right, self.src.bounds.right)
+        bottom = max(world_bottom, self.src.bounds.bottom)
+
+        LOGGER.debug("Cropped Extent: {}, {}, {}, {}".format(left, top, right, bottom))
+
+        # Convert back to Target Projection
+        cropped_top = inverse.transform(0, top)[1]
+        cropped_left = inverse.transform(left, 0)[0]
+        cropped_bottom = inverse.transform(0, bottom)[1]
+        cropped_right = inverse.transform(right, 0)[0]
+
+        LOGGER.debug(
+            "Inverted Copped Extent: {}, {}, {}, {}".format(
+                cropped_left, cropped_top, cropped_right, cropped_bottom
+            )
+        )
+
+        return cropped_left, cropped_bottom, cropped_right, cropped_top
+
     def _max_blocks(self, dst: DatasetWriter) -> int:
         """
-        Calculate the maximum amount of blocks we can fit into memory
+        Calculate the maximum amount of blocks we can fit into memory,
+        making sure that blocks can always fill a squared extent.
         We can only use half the available memory per process per block
         b/c we might have two copies of the array at the same time
         """
 
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_block = utils.available_memory_per_process() / 2
+        memory_per_block = utils.available_memory_per_process() / 4
         return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
 
     def _max_block_size(self, dst: DatasetWriter) -> float:
@@ -220,16 +241,64 @@ class RasterSrcTile(Tile):
         stop_max_attempt_number=7,
         wait_fixed=1000,
     )
-    def _read_window(self, src: DatasetReader, src_window: Window) -> MaskedArray:
+    def _read_window(self, vrt: WarpedVRT, dst_window: Window) -> MaskedArray:
         """
-        Read window of input raster
+            Read window of input raster
+            """
+        LOGGER.debug(f"Read {dst_window} for Tile {self.tile_id}")
+
+        window = vrt.window(*bounds(dst_window, self.dst.profile["transform"]))
+        return vrt.read(
+            window=window, out_shape=(dst_window.width, dst_window.height), masked=True
+        )
+
+    def _vrt_transform(
+        self, src_crs, dst_crs, west: float, south: float, east: float, north: float
+    ) -> Tuple[rasterio.Affine, float, float]:
         """
-        LOGGER.debug(f"Read {src_window} for Tile {self.tile_id}")
-        return src.read(1, window=src_window, masked=True)
+        Compute Affine transformation, width and height for WarpedVRT using output CRS and pixel size
+        """
+
+        # LOGGER.debug(f"Input Bounds {west, south, east, north}")
+        # west, south, east, north = rasterio.warp.transform_bounds(src_crs, dst_crs, west, south, east, north)
+        LOGGER.debug(f"Output Bounds {west, south, east, north}")
+        north, west = self._snap_coordinates(north, west)
+        south, east = self._snap_coordinates(south, east)
+
+        transform: rasterio.Affine = rasterio.transform.from_origin(
+            west, north, self.grid.xres, self.grid.yres
+        )
+        width = (east - west) / self.grid.xres
+        height = (north - south) / self.grid.yres
+
+        return transform, width, height
+
+    def _snap_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
+        """
+        Snap a given coordinate to tile grid coordinates.
+        Always returns the closes coordinates to the top left of the input coordinates
+        """
+
+        LOGGER.debug(f"Snap coordinates {lat}, {lng}")
+
+        # Get top left corner for 1x1 degree grid
+        top: float = math.ceil(lat)
+        left: float = math.floor(lng)
+
+        # get closes coordinate pair
+        while top - lat > self.grid.yres:
+            top -= self.grid.yres
+
+        while lng - left > self.grid.xres:
+            left += self.grid.xres
+
+        LOGGER.debug(f"Snapped coordinates {top}, {left}")
+
+        return top, left
 
     def _reproject_window(self, dst_window: Window) -> Windows:
         """
-        Reproject window into same projectionas source raster
+        Reproject window into same projection as source raster
         """
         LOGGER.debug(f"Compute source window for {dst_window} of tile {self.tile_id}")
         dst_bounds: Bounds = bounds(
@@ -262,14 +331,14 @@ class RasterSrcTile(Tile):
             LOGGER.debug(
                 f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
             )
-            array = np.asarray(np.ma.filled(array, self.dst.profile["nodata"])).astype(
+            array = np.ma.filled(array, self.dst.profile["nodata"]).astype(
                 # TODO: Check if we still need np.asarray wrapper
                 self.dst.profile["dtype"]
             )
 
         else:
             LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
-            array = np.asarray(array.data).astype(self.dst.profile["dtype"])
+            array = array.data.astype(self.dst.profile["dtype"])
         return array
 
     def _warp(self, array: MaskedArray, src_window: Window, dst_window: Window):
@@ -289,22 +358,36 @@ class RasterSrcTile(Tile):
             or self.src.profile["crs"] != self.dst.profile["crs"]
         ):
             LOGGER.debug(f"Reproject {dst_window} of tile {self.tile_id}")
+
+            # warped_mask = np.empty((dst_window.width, dst_window.height), dtype="uint8")
+
+            # reproject(
+            #     source=array.mask.astype("uint8"),
+            #     destination=warped_mask,
+            #     src_transform=src_transform,
+            #     src_crs=self.src.profile["crs"],
+            #     dst_transform=dst_transform,
+            #     dst_crs=self.dst.profile["crs"],
+            #     resampling=Resampling.mode,
+            #     warp_mem_limit=max(warped_mask.nbytes / 1000, array.mask.astype("uint8").nbytes / 1000)
+            # )
+
             warped_array = np.ma.empty(
-                (dst_window.width, dst_window.height), self.src.profile["dtype"],
+                shape=(dst_window.width, dst_window.height),
+                dtype=self.src.profile["dtype"],
             )
+
+            # warped_array.mask = warped_mask
 
             reproject(
                 source=array,
                 destination=warped_array,
                 src_transform=src_transform,
                 src_crs=self.src.profile["crs"],
-                # src_nodata=self.src.profile["nodata"],
                 dst_transform=dst_transform,
                 dst_crs=self.dst.profile["crs"],
-                # dst_nodata=self.dst.profile["nodata"],
-                # dst_resolution=(self.grid.xres, self.grid.yres),
                 resampling=self.layer.resampling,
-                warp_mem_limit=max(warped_array.nbytes / 1000, array.nbytes / 1000),
+                # warp_mem_limit=max(warped_array.nbytes / 1000, array.nbytes / 1000),
             )
             return warped_array
         else:
@@ -335,4 +418,4 @@ class RasterSrcTile(Tile):
         Write blocks into output raster
         """
         LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
-        dst.write(array, window=dst_window, indexes=1)
+        dst.write(array, window=dst_window)  # , indexes=1)

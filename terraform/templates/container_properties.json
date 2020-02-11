@@ -1,8 +1,8 @@
 {
   "command": [],
   "image": "${image_url}",
-  "vcpus": 48,
-  "memory": 380000,
+  "vcpus": ${cpu},
+  "memory": ${memory},
   "environment": [
     {
       "name": "ENV",
@@ -35,9 +35,13 @@
   ],
   "ulimits": [
     {
-      "hardLimit": 1024,
+      "hardLimit": ${hardULimit},
       "name": "nofile",
-      "softLimit": 1024
+      "softLimit": ${softULimit}
     }
-  ]
+  ],
+  "linuxParameters": {
+      "maxSwap": ${maxSwap},
+      "swappiness": ${swappiness}
+  }
 }

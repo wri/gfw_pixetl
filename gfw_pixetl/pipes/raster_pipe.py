@@ -1,4 +1,5 @@
 import multiprocessing
+from math import ceil
 from typing import Iterator, List, Set
 
 from parallelpipe import Stage, stage
@@ -50,7 +51,7 @@ class RasterPipe(Pipe):
 
         pipe = (
             tiles
-            | Stage(self.transform).setup(workers=workers)
+            | Stage(self.transform).setup(workers=workers, qsize=workers)
             | self.upload_file
             | self.delete_file
         )
@@ -61,7 +62,7 @@ class RasterPipe(Pipe):
         return tiles
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Only process tiles which intersect with source raster

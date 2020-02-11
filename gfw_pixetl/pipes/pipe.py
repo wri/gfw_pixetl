@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import subprocess as sp
+from math import ceil
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
 import boto3
@@ -81,7 +82,7 @@ class Pipe(object):
         return tiles
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
     def filter_src_tiles():
         """
         Override this method when implementing pipes
@@ -89,7 +90,7 @@ class Pipe(object):
         raise NotImplementedError()
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """
         Apply filter in case user only want to process only a subset.
@@ -104,7 +105,7 @@ class Pipe(object):
                 LOGGER.debug(f"Tile {tile} not in subset. Skip.")
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
     def filter_target_tiles(
         tiles: Iterator[Tile], overwrite: bool = True
     ) -> Iterator[Tile]:
@@ -132,7 +133,7 @@ class Pipe(object):
     #             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Upload tile to target location
@@ -142,7 +143,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Delete local file

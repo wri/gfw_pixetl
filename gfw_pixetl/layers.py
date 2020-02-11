@@ -2,6 +2,7 @@ import os
 from typing import Any, Dict, Optional
 
 import yaml
+from rasterio.warp import Resampling
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.data_type import DataType, data_type_factory
@@ -33,7 +34,7 @@ class Layer(object):
         self.resampling = (
             resampling_factory(source_grid["resampling"])
             if "resampling" in source_grid.keys()
-            else None
+            else Resampling.nearest
         )
         self.calc = source_grid["calc"] if "calc" in source_grid.keys() else None
         self.rasterize_method = (
