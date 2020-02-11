@@ -188,7 +188,7 @@ SRC = {
         # "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_co2e/US_removals/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/no_primary_gain/20200107/{tile_id}_gross_emis_non_CO2_all_drivers_t_CO2e_ha_biomass_soil_no_primary_gain.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_co2e/no_primary_gain/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/Mekong_loss/20200210/{tile_id}_gross_emis_non_CO2_all_drivers_t_CO2e_ha_biomass_soil_Mekong_loss_loss.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/Mekong_loss/20200210/{tile_id}_gross_emis_non_CO2_all_drivers_t_CO2e_ha_biomass_soil_Mekong_loss.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/gross_emissions_non_co2_co2e/Mekong_loss/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
@@ -286,7 +286,7 @@ SRC = {
     },
     "tropic_latitude_extent": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/sensit_analysis_Mekong_loss/extent/20200211/tropical_latitude.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/tropical_latitude_extent/tropical_latitude_extent.tif",
         "s3_target": "{protocol}/gfw-files/2018_update/tropic_latitude_extent/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0
