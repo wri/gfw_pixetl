@@ -39,7 +39,7 @@ class RasterSrcTile(Tile):
         """
         src_bounds: Bounds = self.reprojected_src_bounds
         src_bbox = BoundingBox(*src_bounds)
-        return not rasterio.coords.disjoint_bounds(src_bbox, self.bounds)
+        return not self._disjoint_bounds(src_bbox, self.bounds)
 
     def transform(self) -> bool:
         """
@@ -94,6 +94,20 @@ class RasterSrcTile(Tile):
             return has_data
 
     @lazy_property
+    def intersecting_window(self) -> Window:
+        dst_left, dst_bottom, dst_right, dst_top = self.dst.bounds
+        src_left, src_bottom, src_right, src_top = self.reprojected_src_bounds
+
+        left = max(dst_left, src_left)
+        bottom = max(dst_bottom, src_bottom)
+        right = min(dst_right, src_right)
+        top = min(dst_top, src_top)
+
+        return rasterio.windows.from_bounds(
+            left, bottom, right, top, transform=self.dst.profile["transform"]
+        )
+
+    @lazy_property
     def reprojected_src_bounds(self) -> Bounds:
         """
         Reproject src bounds to dst CRT.
@@ -127,7 +141,12 @@ class RasterSrcTile(Tile):
             for j in range(0, y_blocks, max_blocks):
                 max_i = min(i + max_blocks, x_blocks)
                 max_j = min(j + max_blocks, y_blocks)
-                yield self._windows(dst, i, j, max_i, max_j)
+                window = self._windows(dst, i, j, max_i, max_j)
+                try:
+                    yield window.intersection(self.intersecting_window)
+                except rasterio.errors.WindowError as e:
+                    if not (str(e) == "windows do not intersect"):
+                        raise
 
     def _world_bounds(self) -> Bounds:
         """
@@ -180,10 +199,10 @@ class RasterSrcTile(Tile):
             self.src.profile["crs"], self.grid.srs, always_xy=True
         )
 
-        reproject_top = proj.transform(0, top)[1]
-        reproject_left = proj.transform(left, 0)[0]
-        reproject_bottom = proj.transform(0, bottom)[1]
-        reproject_right = proj.transform(right, 0)[0]
+        reproject_top = round(proj.transform(0, top)[1], 8)
+        reproject_left = round(proj.transform(left, 0)[0], 8)
+        reproject_bottom = round(proj.transform(0, bottom)[1], 8)
+        reproject_right = round(proj.transform(right, 0)[0], 8)
 
         LOGGER.debug(
             "Inverted Copped Extent: {}, {}, {}, {}".format(
@@ -216,7 +235,7 @@ class RasterSrcTile(Tile):
             array = f(array)  # type: ignore # noqa: F821
         else:
             LOGGER.debug(
-                f"No formula provided. Skip updating values for {dst_window} of tile {self.tile_id}"
+                f"No user defined formula provided. Skip calculating values for {dst_window} of tile {self.tile_id}"
             )
         return array
 
@@ -278,7 +297,9 @@ class RasterSrcTile(Tile):
 
         window = vrt.window(*bounds(dst_window, self.dst.profile["transform"]))
         return vrt.read(
-            window=window, out_shape=(dst_window.width, dst_window.height), masked=True
+            window=window,
+            out_shape=(int(round(dst_window.width)), int(round(dst_window.height))),
+            masked=True,
         )
 
     def _vrt_transform(
@@ -298,6 +319,7 @@ class RasterSrcTile(Tile):
         width = (east - west) / self.grid.xres
         height = (north - south) / self.grid.yres
 
+        LOGGER.debug(f"Output Affine and dimensions {transform, width, height}")
         return transform, width, height
 
     def _snap_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
@@ -392,3 +414,31 @@ class RasterSrcTile(Tile):
         """
         LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
         dst.write(array, window=dst_window)  # , indexes=1)
+
+    @staticmethod
+    def _disjoint_bounds(bounds1, bounds2):
+        """
+        Compare two bounds and determine if they are disjoint or only share a boundary.
+        Variation of rasterio.coords.disjoint_bounds
+        """
+        bounds1_north_up = bounds1[3] > bounds1[1]
+        bounds2_north_up = bounds2[3] > bounds2[1]
+
+        if not bounds1_north_up and bounds2_north_up:
+            # or both south-up (also True)
+            raise ValueError("Bounds must both have the same orientation")
+
+        if bounds1_north_up:
+            return (
+                bounds1[0] >= bounds2[2]
+                or bounds2[0] >= bounds1[2]
+                or bounds1[1] >= bounds2[3]
+                or bounds2[1] >= bounds1[3]
+            )
+        else:
+            return (
+                bounds1[0] >= bounds2[2]
+                or bounds2[0] >= bounds1[2]
+                or bounds1[3] >= bounds2[1]
+                or bounds2[3] >= bounds1[1]
+            )
