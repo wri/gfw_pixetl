@@ -58,9 +58,7 @@ class RasterSrcTile(Tile):
             src: DatasetReader = rasterio.open(self.src.uri)
             dst: DatasetWriter = rasterio.open(dst_uri, "w+", **self.dst.profile)
 
-            transform, width, height = self._vrt_transform(
-                src.crs, self.dst.profile["crs"], *self.reprojected_src_bounds
-            )
+            transform, width, height = self._vrt_transform(*self.reprojected_src_bounds)
             vrt: WarpedVRT = WarpedVRT(
                 src,
                 crs=self.dst.profile["crs"],
@@ -281,14 +279,12 @@ class RasterSrcTile(Tile):
         )
 
     def _vrt_transform(
-        self, src_crs, dst_crs, west: float, south: float, east: float, north: float
+        self, west: float, south: float, east: float, north: float
     ) -> Tuple[rasterio.Affine, float, float]:
         """
         Compute Affine transformation, width and height for WarpedVRT using output CRS and pixel size
         """
 
-        # LOGGER.debug(f"Input Bounds {west, south, east, north}")
-        # west, south, east, north = rasterio.warp.transform_bounds(src_crs, dst_crs, west, south, east, north)
         LOGGER.debug(f"Output Bounds {west, south, east, north}")
         north, west = self._snap_coordinates(north, west)
         south, east = self._snap_coordinates(south, east)
