@@ -22,6 +22,7 @@ from gfw_pixetl.layers import Layer
 from gfw_pixetl.sources import Destination, RasterSource, get_src
 
 LOGGER = get_module_logger(__name__)
+Bounds = Tuple[float, float, float, float]
 
 
 class Tile(object):
@@ -93,18 +94,6 @@ class Tile(object):
 
         uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
         self.local_src = get_src(uri)
-
-    # def local_src_is_empty(self) -> bool:
-    #     LOGGER.debug(f"Check if tile {self.local_src.uri} is empty")
-    #     with rasterio.open(self.local_src.uri) as img:
-    #         for block_index, window in img.block_windows(1):
-    #             msk = img.read_masks(1, window=window).astype(bool)
-    #             if msk[msk].size != 0:
-    #                 LOGGER.debug(f"Tile {self.local_src.uri} is not empty")
-    #                 return False
-    #
-    #     LOGGER.debug(f"Tile {self.local_src.uri} is empty")
-    #     return True
 
     def get_stage_uri(self, stage) -> str:
         uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"

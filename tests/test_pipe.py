@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, Set
 from unittest import mock
 
-from shapely.geometry import box, Polygon
+from shapely.geometry import Polygon
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
@@ -101,29 +101,6 @@ def test_filter_target_tiles():
             i += 1
             assert isinstance(tile, Tile)
         assert i == 4
-
-
-#
-# def test_delete_if_empty():
-#     tiles = _get_subset_tiles()
-#
-#     with mock.patch.object(Tile, "local_src_is_empty", return_value=False):
-#
-#         pipe = tiles | PIPE.delete_if_empty()
-#         i = 0
-#         for tile in pipe.results():
-#             i += 1
-#             assert isinstance(tile, Tile)
-#         assert i == 4
-#
-#     with mock.patch.object(Tile, "local_src_is_empty", return_value=True):
-#         with mock.patch.object(Tile, "rm_local_src", return_value=None):
-#             pipe = tiles | PIPE.delete_if_empty()
-#             i = 0
-#             for tile in pipe.results():
-#                 i += 1
-#                 assert isinstance(tile, Tile)
-#             assert i == 0
 
 
 def test_upload_file():
