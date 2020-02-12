@@ -65,6 +65,7 @@ class RasterSrcTile(Tile):
                 transform=transform,
                 width=width,
                 height=height,
+                warp_mem_limit=int(utils.available_memory_per_process() / 1000),
                 resampling=self.layer.resampling,
             )
 
@@ -214,7 +215,9 @@ class RasterSrcTile(Tile):
             exec(funcstr, globals())
             array = f(array)  # type: ignore # noqa: F821
         else:
-            LOGGER.debug(f"Nothing to update. Skip {dst_window} of tile {self.tile_id}")
+            LOGGER.debug(
+                f"No formula provided. Skip updating values for {dst_window} of tile {self.tile_id}"
+            )
         return array
 
     def _max_blocks(self, dst: DatasetWriter) -> int:
@@ -226,7 +229,7 @@ class RasterSrcTile(Tile):
         """
 
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_block = utils.available_memory_per_process() / 4
+        memory_per_block = utils.available_memory_per_process() / 2
         return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
 
     def _max_block_size(self, dst: DatasetWriter) -> float:

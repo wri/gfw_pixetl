@@ -129,9 +129,7 @@ def test__snap_coordinates():
 def test__vrt_transform():
     tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
 
-    transform, width, height = tile._vrt_transform(
-        tile.src.profile["crs"], tile.dst.profile["crs"], 9.1, 9.1, 9.2, 9.2
-    )
+    transform, width, height = tile._vrt_transform(9.1, 9.1, 9.2, 9.2)
 
     assert transform.almost_equals(rasterio.Affine(0.00025, 0, 9.1, 0, -0.00025, 9.2))
     assert isclose(width, 400)
