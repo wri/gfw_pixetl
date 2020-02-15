@@ -4,6 +4,8 @@ from unittest import mock
 
 import numpy as np
 from rasterio.windows import Window
+from rasterio import Affine
+from rasterio.crs import CRS
 from shapely.geometry import Point, box
 
 from gfw_pixetl import layers
@@ -47,7 +49,15 @@ class Img(object):
         for i in range(0, 2):
             yield (0, i), Window(i, 0, 1, 1)
 
-    profile: Dict[str, Any] = {}
+    profile: Dict[str, Any] = {
+        "transform": Affine(0, 2, 0, 0, -2, 0),
+        "width": 3,
+        "height": 3,
+        "crs": CRS.from_epsg(4326),
+        "blockxsize": 16,
+        "blockysize": 16,
+        "dtype": np.dtype("uint"),
+    }
     bounds: box = box(1, 1, 0, 0)
 
 
@@ -62,7 +72,7 @@ def test_tile():
 
 
 def test_dst_exists():
-    assert TILE.dst_exists()
+    assert TILE.dst.exists()
 
 
 def test_set_local_src():
@@ -137,4 +147,4 @@ def test__run_gdal_subcommand():
 
 def test__dst_has_no_data():
     print(LAYER.dst_profile)
-    assert TILE._dst_has_no_data()
+    assert TILE.dst.has_no_data()

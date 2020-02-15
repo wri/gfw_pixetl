@@ -16,12 +16,13 @@ setup(
         "psycopg2~=2.8.4",
         "pyproj~=2.4.0",
         "pyyaml~=5.1.2",
-        "rasterio[s3]~=1.1.0",
+        "rasterio[s3]~=1.1.2",
         "retrying~=1.3.3",
         "shapely~=1.6.4.post2",
     ],
     entry_points="""
             [console_scripts]
             pixetl=gfw_pixetl.pixetl:cli
+            pixetl_prep=gfw_pixetl.source_prep:cli
             """,
 )

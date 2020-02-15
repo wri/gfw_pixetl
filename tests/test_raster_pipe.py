@@ -6,6 +6,7 @@ from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.tiles import RasterSrcTile
+from gfw_pixetl.sources import Destination
 
 os.environ["ENV"] = "test"
 
@@ -29,8 +30,8 @@ PIPE = RasterPipe(LAYER, SUBSET)
 
 
 def test_create_tiles_subset():
-    with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=True):
-        with mock.patch.object(RasterSrcTile, "dst_exists", return_value=False):
+    with mock.patch.object(RasterSrcTile, "within", return_value=True):
+        with mock.patch.object(Destination, "exists", return_value=False):
             with mock.patch.object(RasterSrcTile, "transform", return_value=True):
                 with mock.patch.object(RasterSrcTile, "upload", return_value=None):
                     with mock.patch.object(
@@ -40,7 +41,7 @@ def test_create_tiles_subset():
                             RasterPipe, "upload_vrt", return_value=None
                         ):
                             with mock.patch.object(
-                                RasterPipe, "upload_extent", return_value=None
+                                RasterPipe, "upload_geom", return_value=None
                             ):
                                 result = PIPE.create_tiles()
                                 assert len(result) == 3
@@ -48,8 +49,8 @@ def test_create_tiles_subset():
 
 def test_create_tiles_all():
     pipe = RasterPipe(LAYER)
-    with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=True):
-        with mock.patch.object(RasterSrcTile, "dst_exists", return_value=False):
+    with mock.patch.object(RasterSrcTile, "within", return_value=True):
+        with mock.patch.object(Destination, "exists", return_value=False):
             with mock.patch.object(RasterSrcTile, "transform", return_value=True):
                 with mock.patch.object(RasterSrcTile, "upload", return_value=None):
                     with mock.patch.object(
@@ -59,7 +60,7 @@ def test_create_tiles_all():
                             RasterPipe, "upload_vrt", return_value=None
                         ):
                             with mock.patch.object(
-                                RasterPipe, "upload_extent", return_value=None
+                                RasterPipe, "upload_geom", return_value=None
                             ):
                                 result = pipe.create_tiles()
                                 assert len(result) == 648
@@ -68,7 +69,7 @@ def test_create_tiles_all():
 def test_filter_src_tiles():
     tiles = _get_subset_tiles()
 
-    with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=False):
+    with mock.patch.object(RasterSrcTile, "within", return_value=False):
         pipe = tiles | PIPE.filter_src_tiles
         i = 0
         for tile in pipe.results():
@@ -76,7 +77,7 @@ def test_filter_src_tiles():
             assert isinstance(tile, RasterSrcTile)
         assert i == 0
 
-    with mock.patch.object(RasterSrcTile, "src_tile_intersects", return_value=True):
+    with mock.patch.object(RasterSrcTile, "within", return_value=True):
         pipe = tiles | PIPE.filter_src_tiles
         i = 0
         for tile in pipe.results():

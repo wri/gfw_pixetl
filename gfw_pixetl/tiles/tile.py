@@ -79,15 +79,6 @@ class Tile(object):
             bounds=self.bounds,
         )
 
-    def dst_exists(self) -> bool:
-        if not self.dst.uri:
-            raise Exception("Tile URI is not set")
-        try:
-            get_src(f"s3://{utils.get_bucket()}/{self.dst.uri}")
-            return True
-        except FileNotFoundError:
-            return False
-
     def set_local_src(self, stage: str) -> None:
         if hasattr(self, "local_src"):
             self.rm_local_src()
@@ -140,6 +131,3 @@ class Tile(object):
             raise GDALError(e.decode("utf-8"))
 
         return o.decode("utf-8"), e.decode("utf-8")
-
-    def _dst_has_no_data(self):
-        return self.dst.profile["nodata"] == 0 or self.dst.profile["nodata"]

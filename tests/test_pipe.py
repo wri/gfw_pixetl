@@ -9,6 +9,7 @@ from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils import get_bucket
+from gfw_pixetl.sources import Destination
 
 os.environ["ENV"] = "test"
 
@@ -27,7 +28,6 @@ LAYER_TYPE = layers._get_source_type(
 LAYER = layers.layer_factory(**RASTER_LAYER)
 SUBSET = ["10N_010E", "11N_010E", "12N_010E"]
 PIPE = Pipe(LAYER, SUBSET)
-TILES = PIPE.get_grid_tiles()
 
 
 def test_pipe():
@@ -42,7 +42,7 @@ def test_create_tiles():
 
 
 def test_get_grid_tiles():
-    assert len(TILES) == 64800
+    assert len(PIPE.get_grid_tiles()) == 64800
 
     grid = grid_factory("10/40000")
     raster_layer: Dict[str, Any] = {
@@ -59,7 +59,7 @@ def test_get_grid_tiles():
 
 
 def test_filter_subset_tiles():
-    pipe = TILES | PIPE.filter_subset_tiles(PIPE.subset)
+    pipe = _get_subset_tiles() | PIPE.filter_subset_tiles(PIPE.subset)
     i = 0
     for tile in pipe.results():
         i += 1
@@ -69,7 +69,7 @@ def test_filter_subset_tiles():
 
 def test_filter_target_tiles():
     tiles = _get_subset_tiles()
-    with mock.patch.object(Tile, "dst_exists", return_value=True):
+    with mock.patch.object(Destination, "exists", return_value=True):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
         for tile in pipe.results():
@@ -77,7 +77,7 @@ def test_filter_target_tiles():
             assert isinstance(tile, Tile)
         assert i == 0
 
-    with mock.patch.object(Tile, "dst_exists", return_value=False):
+    with mock.patch.object(Destination, "exists", return_value=False):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
         for tile in pipe.results():
@@ -85,7 +85,7 @@ def test_filter_target_tiles():
             assert isinstance(tile, Tile)
         assert i == 4
 
-    with mock.patch.object(Tile, "dst_exists", return_value=True):
+    with mock.patch.object(Destination, "exists", return_value=True):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
         for tile in pipe.results():
@@ -93,7 +93,7 @@ def test_filter_target_tiles():
             assert isinstance(tile, Tile)
         assert i == 4
 
-    with mock.patch.object(Tile, "dst_exists", return_value=False):
+    with mock.patch.object(Destination, "exists", return_value=False):
 
         pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
@@ -138,7 +138,7 @@ def test__create_vrt():
 
 def test__to_polygon():
     tiles = list(_get_subset_tiles())
-    extent = PIPE._to_polygon(tiles)
+    extent = PIPE._union_tile_geoms(tiles)
     assert isinstance(extent, Polygon)
     assert extent.bounds == (10, 9, 12, 11)
 
@@ -157,11 +157,11 @@ def test__write_tile_list():
     os.remove(tile_list)
 
 
-def test__bounds_to_polygon():
-    bounds = (10, 9, 12, 11)
-    result = PIPE._bounds_to_polygon(bounds)
-    assert isinstance(result, Polygon)
-    assert result.bounds == bounds
+# def test__bounds_to_polygon():
+#     bounds = (10, 9, 12, 11)
+#     result = PIPE._bounds_to_polygon(bounds)
+#     assert isinstance(result, Polygon)
+#     assert result.bounds == bounds
 
 
 def _get_subset_tiles() -> Set[Tile]:

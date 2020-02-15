@@ -68,7 +68,7 @@ class RasterPipe(Pipe):
         Only process tiles which intersect with source raster
         """
         for tile in tiles:
-            if tile.src_tile_intersects():
+            if tile.within():
                 LOGGER.info(
                     f"Tile {tile.tile_id} intersects with source raster - proceed"
                 )

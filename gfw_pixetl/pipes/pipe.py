@@ -7,7 +7,8 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Union
 import boto3
 from geojson import FeatureCollection, Feature, dumps
 from parallelpipe import stage
-from shapely.geometry import box, Polygon, MultiPolygon
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.errors import GDALError
@@ -114,7 +115,7 @@ class Pipe(object):
         unless overwrite is set to True
         """
         for tile in tiles:
-            if overwrite or not tile.dst_exists():
+            if overwrite or not tile.dst.exists():
                 LOGGER.debug(f"Processing tile {tile}")
                 yield tile
             else:
@@ -161,7 +162,7 @@ class Pipe(object):
 
         if len(tiles):
             self.upload_vrt(tile_uris)
-            self.upload_extent(tiles)
+            self.upload_geom(tiles)
 
         return tiles
 
@@ -205,34 +206,41 @@ class Pipe(object):
             vrt, utils.get_bucket(), os.path.join(self.layer.prefix, vrt)
         )
 
-    def upload_extent(self, tiles: List[Tile]) -> Dict[str, Any]:
-        extent: Optional[Union[Polygon, MultiPolygon]] = self._to_polygon(tiles)
-        fc: FeatureCollection = self._to_feature_collection(extent)
-        return self._upload_extent(fc)
+    def upload_geom(
+        self, tiles: List[Tile], bucket: str = utils.get_bucket(), key: str = None
+    ) -> Dict[str, Any]:
 
-    def _to_polygon(self, tiles: List[Tile]) -> Optional[Union[Polygon, MultiPolygon]]:
-        LOGGER.debug("Create Polygon from tile bounds")
-        extent: Optional[Union[Polygon, MultiPolygon]] = None
-        for tile in tiles:
-            geom: Polygon = self._bounds_to_polygon(tile.bounds)
-            if not extent:
-                extent = geom
-            else:
-                extent = extent.union(geom)
-        return extent
+        if key is None:
+            key = os.path.join(self.layer.prefix, "extent.geojson")
+        extent: Union[Polygon, MultiPolygon] = self._union_tile_geoms(tiles)
+        fc: FeatureCollection = self._to_feature_collection(extent)
+        return self._upload_geom(fc, bucket, key)
 
     @staticmethod
-    def _to_feature_collection(geom: Polygon) -> FeatureCollection:
+    def _union_tile_geoms(tiles: List[Tile]) -> Union[Polygon, MultiPolygon]:
+        LOGGER.debug("Create Polygon from tile bounds")
+        geoms: List[Polygon] = [tile.dst.geom for tile in tiles]
+        return unary_union(geoms)
+
+        # extent: Optional[Union[Polygon, MultiPolygon]] = None
+        # for tile in tiles:
+        #     geom: Polygon = tile.dst.extent  # self._bounds_to_polygon(tile.bounds)
+        #     if not extent:
+        #         extent = geom
+        #     else:
+        #         extent = extent.union(geom)
+        # return extent
+
+    @staticmethod
+    def _to_feature_collection(geom: Union[Polygon, MultiPolygon]) -> FeatureCollection:
         feature: Feature = Feature(geometry=geom)
         return FeatureCollection([feature])
 
-    def _upload_extent(self, fc: FeatureCollection) -> Dict[str, Any]:
-        LOGGER.info("Upload extent")
-        return S3.put_object(
-            Body=str.encode(dumps(fc)),
-            Bucket=utils.get_bucket(),
-            Key=os.path.join(self.layer.prefix, "extent.geojson"),
-        )
+    def _upload_geom(
+        self, fc: FeatureCollection, bucket: str, key: str
+    ) -> Dict[str, Any]:
+        LOGGER.info("Upload geometry")
+        return S3.put_object(Body=str.encode(dumps(fc)), Bucket=bucket, Key=key,)
 
     @staticmethod
     def _write_tile_list(tile_list: str, uris: List[str]) -> None:
@@ -241,14 +249,14 @@ class Pipe(object):
                 tile_uri = f"/vsis3/{utils.get_bucket()}/{uri}\n"
                 input_tiles.write(tile_uri)
 
-    @staticmethod
-    def _bounds_to_polygon(bounds: box) -> Polygon:
-        return Polygon(
-            [
-                (bounds[0], bounds[1]),
-                (bounds[2], bounds[1]),
-                (bounds[2], bounds[3]),
-                (bounds[0], bounds[3]),
-                (bounds[0], bounds[1]),
-            ]
-        )
+    # @staticmethod
+    # def _bounds_to_polygon(bounds: box) -> Polygon:
+    #     return Polygon(
+    #         [
+    #             (bounds[0], bounds[1]),
+    #             (bounds[2], bounds[1]),
+    #             (bounds[2], bounds[3]),
+    #             (bounds[0], bounds[3]),
+    #             (bounds[0], bounds[1]),
+    #         ]
+    #     )

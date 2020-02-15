@@ -32,7 +32,7 @@ LAYER = layers.layer_factory(**RASTER_LAYER)
 def test_src_tile_intersects():
     if isinstance(LAYER, layers.RasterSrcLayer):
         tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
-        assert tile.src_tile_intersects()
+        assert tile.within()
     else:
         raise ValueError("Not a RasterSrcLayer")
 
@@ -101,7 +101,7 @@ def test__set_dtype():
     count = masked_data.mask.sum()
     if isinstance(LAYER, layers.RasterSrcLayer):
         tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
-        tile.dst.profile["nodata"] = 5
+        tile.dst.nodata = 5
         result = tile._set_dtype(masked_data, window)
         masked_result = np.ma.masked_values(result, 5)
         assert count == masked_result.mask.sum()
