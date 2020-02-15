@@ -5,8 +5,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import boto3
-import numpy as np
 import rasterio
+from numpy import dtype as ndtype
 from pyproj import Transformer, CRS
 from rasterio.crs import CRS as rCRS
 from rasterio.coords import BoundingBox
@@ -98,18 +98,15 @@ class _RasterSource(Source):
         self.profile["blockysize"] = v
 
     @property
-    def dtype(self) -> np.dtype:
+    def dtype(self) -> ndtype:
         return self.profile["dtype"]
 
     @dtype.setter
-    def dtype(self, v: np.dtype) -> None:
+    def dtype(self, v: ndtype) -> None:
         self.profile["dtype"] = v
 
     def has_no_data(self) -> bool:
-        if self.nodata == 0 or self.nodata:
-            return True
-        else:
-            return False
+        return self.nodata is not None
 
 
 class RasterSource(_RasterSource):
