@@ -67,7 +67,7 @@ class RasterSrcTile(Tile):
         LOGGER.info(f"Transform tile {self.tile_id}")
         with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, VRT_SHARED_SOURCE=0):
 
-            src: DatasetReader = rasterio.open(self.src.uri, "r")
+            src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
             dst: DatasetWriter = rasterio.open(dst_uri, "w+", **self.dst.profile)
 
             transform, width, height = self._vrt_transform(
