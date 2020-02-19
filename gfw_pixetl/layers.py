@@ -1,13 +1,19 @@
+import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple
+from urllib.parse import urlparse
 
+import boto3
 import yaml
 from rasterio.warp import Resampling
+from shapely.geometry import MultiPolygon, shape, Polygon
+from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.data_type import DataType, data_type_factory
+from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.grids import Grid, grid_factory
-from gfw_pixetl.sources import VectorSource, RasterSource, get_src
+from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.resampling import resampling_factory
 
 LOGGER = get_module_logger(__name__)
@@ -108,16 +114,35 @@ class RasterSrcLayer(Layer):
             )
             bucket = utils.get_bucket()
 
-            src_uri = f"/vsis3/{bucket}/{prefix}/all.vrt"
+            self._src_uri = f"s3://{bucket}/{prefix}/tiles.geojson"
         else:
-            src_uri = self._source["grids"][grid.name]["uri"]
+            self._src_uri = self._source["grids"][grid.name]["uri"]
 
-        try:
-            self.src: RasterSource = get_src(src_uri)
-        except FileNotFoundError:
-            message = f"The source file {src_uri} for layer {self.name}/{self.field} does not exist"
-            LOGGER.error(message)
-            raise FileNotFoundError(message)
+    @property
+    def input_files(self) -> List[Tuple[Polygon, str]]:
+        s3 = boto3.resource("s3")
+        input_files = list()
+
+        o = urlparse(self._src_uri, allow_fragments=False)
+        bucket: str = o.netloc
+        prefix: str = o.path.lstrip("/")
+
+        LOGGER.debug(f"Get input files for layer {self.name} using {bucket} {prefix}")
+        obj = s3.Object(bucket, prefix)
+        body = obj.get()["Body"].read()
+
+        features = json.loads(body.decode("utf-8"))["features"]
+        for feature in features:
+            input_files.append(
+                (shape(feature["geometry"]), feature["properties"]["name"])
+            )
+        return input_files
+
+    @property
+    def geom(self) -> MultiPolygon:
+        LOGGER.debug("Create Polygon from input tile bounds")
+        geoms: List[Polygon] = [tile[0] for tile in self.input_files]
+        return unary_union(geoms)
 
 
 def layer_factory(name: str, version: str, field: str, grid: Grid) -> Layer:

@@ -19,7 +19,7 @@ from gfw_pixetl.errors import (
 )
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.sources import Destination, RasterSource, get_src
+from gfw_pixetl.sources import Destination, RasterSource
 
 LOGGER = get_module_logger(__name__)
 Bounds = Tuple[float, float, float, float]
@@ -84,7 +84,7 @@ class Tile(object):
             self.rm_local_src()
 
         uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
-        self.local_src = get_src(uri)
+        self.local_src = RasterSource(uri)
 
     def get_stage_uri(self, stage) -> str:
         uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"

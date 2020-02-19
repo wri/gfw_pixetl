@@ -1,8 +1,7 @@
 import multiprocessing
 import os
-import subprocess as sp
 from math import ceil
-from typing import Any, Dict, Iterator, List, Optional, Set, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union, Sequence
 
 import boto3
 from geojson import FeatureCollection, Feature, dumps
@@ -11,7 +10,6 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.errors import GDALError
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.tiles.tile import Tile
 
@@ -158,7 +156,7 @@ class Pipe(object):
         tiles: List[Tile] = list()
         for tile in pipe.results():
             tiles.append(tile)
-            tile_uris.append(tile.dst.uri)
+            tile_uris.append(f"/vsis3/{utils.get_bucket()}/{tile.dst.uri}")
 
         if len(tiles):
             self.upload_vrt(tile_uris)
@@ -167,38 +165,8 @@ class Pipe(object):
         return tiles
 
     def upload_vrt(self, uris: List[str]) -> Dict[str, Any]:
-        vrt = self._create_vrt(uris)
+        vrt = utils.create_vrt(uris)
         return self._upload_vrt(vrt)
-
-    def _create_vrt(self, uris: List[str]) -> str:
-        """
-        ! Important this is not a parallelpipe Stage and must be run with only one worker
-        Create VRT file from input URI.
-        """
-
-        vrt = "all.vrt"
-        tile_list = "tiles.txt"
-
-        self._write_tile_list(tile_list, uris)
-
-        cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
-        env = utils.set_aws_credentials()
-
-        LOGGER.info("Create VRT file")
-        p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
-
-        o: Any
-        e: Any
-        o, e = p.communicate()
-
-        os.remove(tile_list)
-
-        if p.returncode != 0:
-            LOGGER.error("Could not create VRT file")
-            LOGGER.exception(e)
-            raise GDALError(e)
-        else:
-            return vrt
 
     def _upload_vrt(self, vrt):
         LOGGER.info("Upload vrt")
@@ -213,7 +181,19 @@ class Pipe(object):
         if key is None:
             key = os.path.join(self.layer.prefix, "extent.geojson")
         extent: Union[Polygon, MultiPolygon] = self._union_tile_geoms(tiles)
-        fc: FeatureCollection = self._to_feature_collection(extent)
+        fc: FeatureCollection = self._to_feature_collection([(extent, None)])
+        return self._upload_geom(fc, bucket, key)
+
+    def upload_tile_geoms(
+        self, tiles: List[Tile], bucket: str = utils.get_bucket(), key: str = None
+    ) -> Dict[str, Any]:
+
+        if key is None:
+            key = os.path.join(self.layer.prefix, "tiles.geojson")
+        geoms: Sequence[Tuple[Polygon, Dict[str, Any]]] = [
+            (tile.dst.geom, {"name": tile.dst.uri}) for tile in tiles
+        ]
+        fc: FeatureCollection = self._to_feature_collection(geoms)
         return self._upload_geom(fc, bucket, key)
 
     @staticmethod
@@ -222,41 +202,17 @@ class Pipe(object):
         geoms: List[Polygon] = [tile.dst.geom for tile in tiles]
         return unary_union(geoms)
 
-        # extent: Optional[Union[Polygon, MultiPolygon]] = None
-        # for tile in tiles:
-        #     geom: Polygon = tile.dst.extent  # self._bounds_to_polygon(tile.bounds)
-        #     if not extent:
-        #         extent = geom
-        #     else:
-        #         extent = extent.union(geom)
-        # return extent
+    @staticmethod
+    def _to_feature_collection(
+        geoms: Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
+    ) -> FeatureCollection:
+
+        features: List[Feature] = [
+            Feature(geometry=item[0], properties=item[1]) for item in geoms
+        ]
+        return FeatureCollection(features)
 
     @staticmethod
-    def _to_feature_collection(geom: Union[Polygon, MultiPolygon]) -> FeatureCollection:
-        feature: Feature = Feature(geometry=geom)
-        return FeatureCollection([feature])
-
-    def _upload_geom(
-        self, fc: FeatureCollection, bucket: str, key: str
-    ) -> Dict[str, Any]:
-        LOGGER.info("Upload geometry")
+    def _upload_geom(fc: FeatureCollection, bucket: str, key: str) -> Dict[str, Any]:
+        LOGGER.info(f"Upload geometry to {bucket} {key}")
         return S3.put_object(Body=str.encode(dumps(fc)), Bucket=bucket, Key=key,)
-
-    @staticmethod
-    def _write_tile_list(tile_list: str, uris: List[str]) -> None:
-        with open(tile_list, "w") as input_tiles:
-            for uri in uris:
-                tile_uri = f"/vsis3/{utils.get_bucket()}/{uri}\n"
-                input_tiles.write(tile_uri)
-
-    # @staticmethod
-    # def _bounds_to_polygon(bounds: box) -> Polygon:
-    #     return Polygon(
-    #         [
-    #             (bounds[0], bounds[1]),
-    #             (bounds[2], bounds[1]),
-    #             (bounds[2], bounds[3]),
-    #             (bounds[0], bounds[3]),
-    #             (bounds[0], bounds[1]),
-    #         ]
-    #     )

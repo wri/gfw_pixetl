@@ -3,16 +3,17 @@ import multiprocessing
 import os
 import re
 import shutil
+import subprocess as sp
 import uuid
 from dateutil.tz import tzutc
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3
 import psutil
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready
+from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready, GDALError
 
 LOGGER = get_module_logger(__name__)
 
@@ -180,3 +181,39 @@ def available_memory_per_process() -> float:
     Snapshot of currently available memory per core or process
     """
     return set_available_memory() / get_workers()
+
+
+def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
+    """
+    ! Important this is not a parallelpipe Stage and must be run with only one worker
+    Create VRT file from input URI.
+    """
+
+    _write_tile_list(tile_list, uris)
+
+    cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
+    env = set_aws_credentials()
+
+    LOGGER.info(f"Create VRT file {vrt}")
+    p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
+
+    o: Any
+    e: Any
+    o, e = p.communicate()
+
+    os.remove(tile_list)
+
+    if p.returncode != 0:
+        LOGGER.error("Could not create VRT file")
+        LOGGER.exception(e)
+        raise GDALError(e)
+    else:
+        return vrt
+
+
+def _write_tile_list(tile_list: str, uris: List[str]) -> None:
+    with open(tile_list, "w") as input_tiles:
+        for uri in uris:
+            # tile_uri = f"/vsis3/{get_bucket()}/{uri}\n"
+            # input_tiles.write(tile_uri)
+            input_tiles.write(uri)

@@ -15,6 +15,14 @@
     {
       "name": "ECS_TASK_METADATA_RPS_LIMIT",
       "value": "100,150"
+    },
+    {
+      "name": "LC_ALL",
+      "value": "C.UTF-8"
+    },
+    {
+      "name": "LANG",
+      "value": "C.UTF-8"
     }
   ],
   "jobRoleArn": "${job_role_arn}",

@@ -1,10 +1,6 @@
-import json
-import os
 from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple, Union
-from urllib.parse import urlparse
 
-import boto3
 import rasterio
 from numpy import dtype as ndtype
 from pyproj import Transformer, CRS
@@ -12,11 +8,10 @@ from rasterio.crs import CRS as rCRS
 from rasterio.coords import BoundingBox
 from rasterio.errors import RasterioIOError
 from rasterio.windows import Window
-from shapely.geometry import shape, MultiPolygon, Polygon
+from shapely.geometry import Polygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
-from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.utils import get_bucket
 
 LOGGER = get_module_logger(__name__)
@@ -36,10 +31,7 @@ class VectorSource(Source):
 
 
 class _RasterSource(Source):
-    def __init__(self, profile: Dict[str, Any], bounds: BoundingBox, uri: str) -> None:
-        self.profile: Dict[str, Any] = profile
-        self.bounds: BoundingBox = bounds
-        self.uri: str = uri
+    profile: Dict[str, Any] = dict()
 
     @property
     def transform(self) -> rasterio.Affine:
@@ -110,38 +102,36 @@ class _RasterSource(Source):
 
 
 class RasterSource(_RasterSource):
-    @lazy_property
-    def geom(self) -> MultiPolygon:
-        o = urlparse(self.uri, allow_fragments=False)
-        bucket: str = o.netloc
-        prefix: str = o.path.lstrip("/")
-        prefix = os.path.join(os.path.dirname(prefix), "extent.geojson")
-        s3 = boto3.client("s3")
-        response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        if response["KeyCount"] and os.path.splitext(self.uri)[1] == ".vrt":
-            # if we have a geojson representation of the exact extent we use it
-            s3 = boto3.resource("s3")
-            obj = s3.Object(bucket, prefix)
-            body = obj.get()["Body"].read()
-            feature = json.loads(body.decode("utf-8"))["features"][0]
-            src_extent = MultiPolygon(shape(feature["geometry"]))
-        else:
-            # otherwise we use the bbox of the VRT (excepting that there will be a lot of empty tiles)
-            left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
-            src_extent = MultiPolygon(
-                [
-                    Polygon(
-                        [
-                            (left, top),
-                            (right, top),
-                            (right, bottom),
-                            (left, bottom),
-                            (left, top),
-                        ]
-                    )
-                ]
-            )
-        return src_extent
+    def __init__(self, uri: str) -> None:
+        self.profile: Dict[str, Any]
+        self.bounds: BoundingBox
+
+        self.uri: str = uri
+        self.bounds, self.profile = self._meta()
+
+    @property
+    def geom(self) -> Polygon:
+        left, bottom, right, top = self.bounds
+        return Polygon(
+            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
+        )
+
+    def _meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
+        LOGGER.debug("Check if tile {} exists".format(self.uri))
+
+        try:
+            with rasterio.open(self.uri) as src:
+                LOGGER.info(f"File {self.uri} exists")
+                return src.bounds, src.profile
+
+        except Exception as e:
+
+            if _file_does_not_exist(e, self.uri):
+                LOGGER.info(f"File does not exist {self.uri}")
+                raise FileNotFoundError(f"File does not exist: {self.uri}")
+            else:
+                LOGGER.exception(f"Cannot open {self.uri}")
+                raise
 
     @lru_cache(maxsize=2, typed=False)
     def reproject_bounds(self, crs: CRS) -> Bounds:
@@ -227,6 +217,11 @@ class RasterSource(_RasterSource):
 
 
 class Destination(_RasterSource):
+    def __init__(self, uri: str, profile: Dict[str, Any], bounds: BoundingBox):
+        self.uri: str = uri
+        self.profile: Dict[str, Any] = profile
+        self.bounds: BoundingBox = bounds
+
     @property
     def bucket(self):
         return get_bucket()
@@ -250,28 +245,10 @@ class Destination(_RasterSource):
         if not self.uri:
             raise Exception("Tile URI is not set")
         try:
-            get_src(f"s3://{self.bucket}/{self.uri}")
+            RasterSource(f"s3://{self.bucket}/{self.uri}")
             return True
         except FileNotFoundError:
             return False
-
-
-def get_src(uri: str) -> RasterSource:
-    LOGGER.debug("Check if tile {} exists".format(uri))
-
-    try:
-        with rasterio.open(uri) as src:
-            LOGGER.info(f"File {uri} exists")
-            return RasterSource(uri=uri, profile=src.profile, bounds=src.bounds)
-
-    except Exception as e:
-
-        if _file_does_not_exist(e, uri):
-            LOGGER.info(f"File does not exist {uri}")
-            raise FileNotFoundError(f"File does not exist: {uri}")
-        else:
-            LOGGER.exception(f"Cannot open {uri}")
-            raise
 
 
 def _file_does_not_exist(e: Exception, uri: str) -> bool:

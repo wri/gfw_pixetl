@@ -29,7 +29,19 @@ Bounds = Tuple[float, float, float, float]
 class RasterSrcTile(Tile):
     def __init__(self, origin: Point, grid: Grid, layer: RasterSrcLayer) -> None:
         super().__init__(origin, grid, layer)
-        self.src: RasterSource = layer.src
+        self.layer: RasterSrcLayer = layer
+        # self.src: RasterSource = RasterSource(uri=self._vrt())
+
+    @lazy_property
+    def src(self) -> RasterSource:
+        files = list()
+        for f in self.layer.input_files:
+            if self.dst.geom.within(f[0]):
+                files.append(f[1])
+
+        return RasterSource(
+            utils.create_vrt(files, self.tile_id + ".vrt", self.tile_id + ".txt")
+        )
 
     @lazy_property
     def intersecting_window(self) -> Window:
@@ -51,7 +63,12 @@ class RasterSrcTile(Tile):
         """
         Check if target tile extent intersects with source extent.
         """
-        return self.dst.geom.within(self.src.geom)
+        return (
+            self.dst.geom.crosses(self.layer.geom)
+            or self.dst.geom.within(self.layer.geom)
+            or self.dst.geom.contains(self.layer.geom)
+            or self.dst.geom.almost_equals(self.layer.geom)
+        )
 
     def transform(self) -> bool:
         """
@@ -65,7 +82,7 @@ class RasterSrcTile(Tile):
         dst_uri = self.get_stage_uri(stage)
 
         LOGGER.info(f"Transform tile {self.tile_id}")
-        with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, VRT_SHARED_SOURCE=0):
+        with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
 
             src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
             dst: DatasetWriter = rasterio.open(dst_uri, "w+", **self.dst.profile)

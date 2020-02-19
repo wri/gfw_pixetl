@@ -2,7 +2,6 @@ import os
 
 import boto3
 import click
-import rasterio
 
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.pipes import Pipe
@@ -33,11 +32,11 @@ def get_extent(bucket, prefix):
     for f in files["Contents"]:
         key = f["Key"]
         if os.path.splitext(key)[1] == ".tif":
-            uri = f"s3://{bucket}/{key}"
-            with rasterio.open(uri, "r") as img:
-                src = RasterSource(img.profile, img.bounds, uri)
+            uri = f"/vsis3/{bucket}/{key}"
+            src = RasterSource(uri)
             tiles.append(DummyTile(src))
 
+    pipe.upload_tile_geoms(tiles, bucket=bucket, key=prefix + "/tiles.geojson")  # type: ignore
     pipe.upload_geom(tiles, bucket=bucket, key=prefix + "/extent.geojson")  # type: ignore
 
 
