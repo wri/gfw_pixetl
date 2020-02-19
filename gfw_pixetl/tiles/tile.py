@@ -49,7 +49,7 @@ class Tile(object):
         self.grid: Grid = grid
         self.layer: Layer = layer
 
-        self.local_src: RasterSource
+        self.local_dst: RasterSource
 
         self.tile_id: str = grid.point_grid_id(origin)
         self.bounds: BoundingBox = BoundingBox(
@@ -79,16 +79,16 @@ class Tile(object):
             bounds=self.bounds,
         )
 
-    def set_local_src(self, stage: str) -> None:
+    def set_local_dst(self) -> None:
         if hasattr(self, "local_src"):
             self.rm_local_src()
 
-        uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
-        self.local_src = RasterSource(uri)
+        uri = self.get_local_dst_uri()
+        self.local_dst = RasterSource(uri)
 
-    def get_stage_uri(self, stage) -> str:
-        uri = f"{self.layer.prefix}/{self.tile_id}__{stage}.tif"
-        LOGGER.debug(f"Stage URI: {uri}")
+    def get_local_dst_uri(self) -> str:
+        uri = f"{self.layer.prefix}/{self.tile_id}.tif"
+        LOGGER.debug(f"Local Source URI: {uri}")
         return uri
 
     def upload(self) -> None:
@@ -97,14 +97,14 @@ class Tile(object):
 
         try:
             LOGGER.info(f"Upload tile {self.tile_id} to s3")
-            s3.upload_file(self.local_src.uri, utils.get_bucket(), self.dst.uri)
+            s3.upload_file(self.local_dst.uri, utils.get_bucket(), self.dst.uri)
         except ClientError:
             LOGGER.exception(f"Could not upload file {self.tile_id}")
             raise
 
     def rm_local_src(self) -> None:
-        LOGGER.info(f"Delete local file {self.local_src.uri}")
-        os.remove(self.local_src.uri)
+        LOGGER.info(f"Delete local file {self.local_dst.uri}")
+        os.remove(self.local_dst.uri)
 
     @staticmethod
     @retry(

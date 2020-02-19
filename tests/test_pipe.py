@@ -26,7 +26,7 @@ LAYER_TYPE = layers._get_source_type(
 )
 
 LAYER = layers.layer_factory(**RASTER_LAYER)
-SUBSET = ["10N_010E", "11N_010E", "12N_010E"]
+SUBSET = ["10N_010E", "11N_010E", "11N_011E"]
 PIPE = Pipe(LAYER, SUBSET)
 
 
@@ -126,42 +126,11 @@ def test_delete_file():
         assert i == 4
 
 
-def test__create_vrt():
-    uris = ["test/uri1", "test/uri2", "test/uri3"]
-
-    with mock.patch("subprocess.Popen", autospec=True) as MockPopen:
-        MockPopen.return_value.communicate.return_value = ("", "")
-        MockPopen.return_value.returncode = 0
-        vrt = PIPE._create_vrt(uris)
-        assert vrt == "all.vrt"
-
-
 def test__to_polygon():
     tiles = list(_get_subset_tiles())
     extent = PIPE._union_tile_geoms(tiles)
     assert isinstance(extent, Polygon)
     assert extent.bounds == (10, 9, 12, 11)
-
-
-def test__write_tile_list():
-    uris = ["test/uri1", "test/uri2", "test/uri3"]
-    tile_list = "test_tile_list.txt"
-    PIPE._write_tile_list(tile_list, uris)
-    with open(tile_list, "r") as src:
-        lines = src.readlines()
-    assert lines == [
-        f"/vsis3/{get_bucket()}/test/uri1\n",
-        f"/vsis3/{get_bucket()}/test/uri2\n",
-        f"/vsis3/{get_bucket()}/test/uri3\n",
-    ]
-    os.remove(tile_list)
-
-
-# def test__bounds_to_polygon():
-#     bounds = (10, 9, 12, 11)
-#     result = PIPE._bounds_to_polygon(bounds)
-#     assert isinstance(result, Polygon)
-#     assert result.bounds == bounds
 
 
 def _get_subset_tiles() -> Set[Tile]:

@@ -119,18 +119,6 @@ class Pipe(object):
             else:
                 LOGGER.debug(f"Tile {tile} already in destination. Skip.")
 
-    # @staticmethod
-    # @stage(workers=WORKERS)
-    # def delete_if_empty(tiles: Iterator[Tile]) -> Iterator[Tile]:
-    #     """
-    #     Exclude empty intermediate tiles and delete local copy
-    #     """
-    #     for tile in tiles:
-    #         if tile.local_src_is_empty():
-    #             tile.rm_local_src()
-    #         else:
-    #             yield tile
-
     @staticmethod
     @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:

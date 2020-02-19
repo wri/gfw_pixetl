@@ -77,45 +77,34 @@ def test_dst_exists():
 
 def test_set_local_src():
     try:
-        TILE.set_local_src("test")
+        TILE.set_local_dst()
     except FileNotFoundError as e:
         assert (
             str(e)
-            == "File does not exist: whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+            == "File does not exist: whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E.tif"
         )
 
     with mock.patch("os.remove", return_value=None):
         with mock.patch("rasterio.open", return_value=Img()):
-            TILE.set_local_src("test")
-            assert isinstance(TILE.local_src, RasterSource)
+            TILE.set_local_dst()
+            assert isinstance(TILE.local_dst, RasterSource)
             assert (
-                TILE.local_src.uri
-                == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+                TILE.local_dst.uri
+                == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E.tif"
             )
 
 
-# def test_local_src_is_empty():
-#     with mock.patch("os.remove", return_value=None):
-#         with mock.patch("rasterio.open", return_value=Img()):
-#             TILE.set_local_src("test")
-#             assert not TILE.local_src_is_empty()
-#
-#         with mock.patch("rasterio.open", return_value=EmptyImg()):
-#             TILE.set_local_src("test")
-#             assert TILE.local_src_is_empty()
-
-
-def test_get_stage_uri():
+def test_get_local_dst_uri():
     assert (
-        TILE.get_stage_uri("test")
-        == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+        TILE.get_local_dst_uri()
+        == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E.tif"
     )
 
 
 @mock.patch("gfw_pixetl.tiles.tile.os")
 def test_upload(mocked_os):
     with mock.patch("rasterio.open", return_value=EmptyImg()):
-        TILE.set_local_src("test")
+        TILE.set_local_dst()
         with mock.patch("boto3.client") as MockClient:
             mocked_client = MockClient.return_value
             mocked_client.upload_file.return_value = True
@@ -128,8 +117,8 @@ def test_upload(mocked_os):
 @mock.patch("gfw_pixetl.tiles.tile.os")
 def test_rm_local_src(mocked_os):
     with mock.patch("rasterio.open", return_value=EmptyImg()):
-        TILE.set_local_src("test")
-        uri = TILE.local_src.uri
+        TILE.set_local_dst()
+        uri = TILE.local_dst.uri
         TILE.rm_local_src()
         mocked_os.remove.assert_called_with(uri)
 

@@ -13,9 +13,16 @@ from gfw_pixetl.utils import (
     set_workers,
     get_workers,
     available_memory_per_process,
+    _write_tile_list,
+    create_vrt,
 )
 
 os.environ["ENV"] = "test"
+URIS = [
+    f"/vsis3/{get_bucket()}/test/uri1",
+    f"/vsis3/{get_bucket()}/test/uri2",
+    f"/vsis3/{get_bucket()}/test/uri3",
+]
 
 
 class Client(object):
@@ -66,7 +73,6 @@ def test_verify_version_pattern():
 
 
 def test_set_aws_credentials():
-
     env = os.environ.copy()
     result = set_aws_credentials()
 
@@ -130,3 +136,26 @@ def test_available_memory_per_process():
 
     set_workers(2)
     assert available_memory_per_process() == mem / 2
+
+
+def test__write_tile_list():
+
+    tile_list = "test_tile_list.txt"
+    _write_tile_list(tile_list, URIS)
+    with open(tile_list, "r") as src:
+        lines = src.readlines()
+    assert lines == [
+        f"/vsis3/{get_bucket()}/test/uri1\n",
+        f"/vsis3/{get_bucket()}/test/uri2\n",
+        f"/vsis3/{get_bucket()}/test/uri3\n",
+    ]
+    os.remove(tile_list)
+
+
+def test__create_vrt():
+
+    with mock.patch("subprocess.Popen", autospec=True) as MockPopen:
+        MockPopen.return_value.communicate.return_value = ("", "")
+        MockPopen.return_value.returncode = 0
+        vrt = create_vrt(URIS)
+        assert vrt == "all.vrt"

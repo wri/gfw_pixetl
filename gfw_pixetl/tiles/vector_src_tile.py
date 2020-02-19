@@ -55,9 +55,9 @@ class VectorSrcTile(Tile):
 
     def rasterize(self) -> None:
 
-        stage = "rasterize"
+        # stage = "rasterize"
 
-        dst = self.get_stage_uri(stage)
+        dst = self.get_local_dst_uri()
         logger.info(f"Create raster {dst}")
 
         cmd: List[str] = ["gdal_rasterize"]
@@ -108,4 +108,4 @@ class VectorSrcTile(Tile):
             logger.exception(e)
             raise
         else:
-            self.set_local_src(stage)
+            self.set_local_dst()

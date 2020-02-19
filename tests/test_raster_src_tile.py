@@ -43,8 +43,8 @@ def test_transform_final():
 
         tile.transform()
 
-        LOGGER.debug(tile.local_src.uri)
-        with rasterio.open(tile.local_src.uri) as src:
+        LOGGER.debug(tile.local_dst.uri)
+        with rasterio.open(tile.local_dst.uri) as src:
             src_profile = src.profile
 
         LOGGER.debug(src_profile)
@@ -65,7 +65,7 @@ def test_transform_final():
 
         assert not hasattr(src_profile, "compress")
 
-        os.remove(tile.local_src.uri)
+        os.remove(tile.local_dst.uri)
     else:
         raise ValueError("Not a RasterSrcLayer")
 

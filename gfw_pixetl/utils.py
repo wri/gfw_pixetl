@@ -214,6 +214,4 @@ def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
 def _write_tile_list(tile_list: str, uris: List[str]) -> None:
     with open(tile_list, "w") as input_tiles:
         for uri in uris:
-            # tile_uri = f"/vsis3/{get_bucket()}/{uri}\n"
-            # input_tiles.write(tile_uri)
-            input_tiles.write(uri)
+            input_tiles.write(f"{uri}\n")

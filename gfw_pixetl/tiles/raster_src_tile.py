@@ -13,7 +13,7 @@ from retrying import retry
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.decorators import lazy_property
+from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
@@ -74,18 +74,11 @@ class RasterSrcTile(Tile):
         """
         Write input data to output tile
         """
-
-        src_window: Window
-        dst_window: Window
-
-        stage = "transform"
-        dst_uri = self.get_stage_uri(stage)
+        window: Window
 
         LOGGER.info(f"Transform tile {self.tile_id}")
         with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
-
             src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
-            dst: DatasetWriter = rasterio.open(dst_uri, "w+", **self.dst.profile)
 
             transform, width, height = self._vrt_transform(
                 *self.src.reproject_bounds(self.grid.srs)
@@ -101,30 +94,44 @@ class RasterSrcTile(Tile):
             )
 
             has_data = False
-            for dst_window in self.windows(dst):
-                masked_array: MaskedArray = self._read_window(vrt, dst_window)
-                if self._block_has_data(masked_array):
-                    LOGGER.debug(
-                        f"{dst_window} of tile {self.tile_id} has data - continue"
-                    )
-                    masked_array = self._calc(masked_array, dst_window)
-                    array: np.ndarray = self._set_dtype(masked_array, dst_window)
-                    del masked_array
-                    self._write_window(dst, array, dst_window)
-                    del array
-                    has_data = True
-                else:
-                    LOGGER.debug(
-                        f"{dst_window} of tile {self.tile_id} has no data - skip"
-                    )
-                    del masked_array
+            for window in self.windows():
+                has_data = self._transform(vrt, window, has_data)
             vrt.close()
             src.close()
-            dst.close()
-            self.set_local_src(stage)
+
             return has_data
 
-    def windows(self, dst: DatasetWriter) -> Iterator[Window]:
+    @processify
+    def _transform(self, vrt: WarpedVRT, window: Window, has_data: bool):
+        """
+        Reading windows from input VRT, reproject, resample, transform and write to destination.
+        We run this in a separate process, to make sure that memory get completely cleared once block is processed.
+        With out this, we might experience memory leakage, in particular for float data types.
+        """
+        masked_array: MaskedArray = self._read_window(vrt, window)
+        if self._block_has_data(masked_array):
+            LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
+            masked_array = self._calc(masked_array, window)
+            array: np.ndarray = self._set_dtype(masked_array, window)
+            del masked_array
+            self._write_window(array, window)
+            del array
+            has_data = True
+        else:
+            LOGGER.debug(f"{window} of tile {self.tile_id} has no data - skip")
+            del masked_array
+        return has_data
+
+    def windows(self) -> List[Window]:
+        """
+        Creates local output file and returns list of size optimized windows to process.
+        """
+        with rasterio.open(self.get_local_dst_uri(), "w", **self.dst.profile) as dst:
+            windows = [window for window in self._windows(dst)]
+        self.set_local_dst()
+        return windows
+
+    def _windows(self, dst: DatasetWriter) -> Iterator[Window]:
         """
         Divides raster source into larger windows which will still fit into memory
         """
@@ -136,7 +143,7 @@ class RasterSrcTile(Tile):
             for j in range(0, y_blocks, max_blocks):
                 max_i = min(i + max_blocks, x_blocks)
                 max_j = min(j + max_blocks, y_blocks)
-                window = self._windows(dst, i, j, max_i, max_j)
+                window = self._union_blocks(dst, i, j, max_i, max_j)
                 try:
                     yield window.intersection(self.intersecting_window)
                 except rasterio.errors.WindowError as e:
@@ -174,12 +181,13 @@ class RasterSrcTile(Tile):
         """
         Calculate the maximum amount of blocks we can fit into memory,
         making sure that blocks can always fill a squared extent.
-        We can only use half the available memory per process per block
-        b/c we might have two copies of the array at the same time
+        We can only use a quarter the available memory per process per block
+        b/c we might have two copies of the array at the same time.
+        Using a divisor of 4 leads to max memory usage of about 75%.
         """
 
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_block = utils.available_memory_per_process() / 8
+        memory_per_block = utils.available_memory_per_process() / 4
         return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
 
     def _max_block_size(self, dst: DatasetWriter) -> float:
@@ -255,12 +263,7 @@ class RasterSrcTile(Tile):
         )
         src_bounds: Bounds = transform_bounds(self.dst.crs, self.src.crs, *dst_bounds)
 
-        src_window: Window = from_bounds(
-            *src_bounds,
-            transform=self.src.transform,
-            # width=self.src.blockxsize,
-            # height=self.src.blockysize,
-        )
+        src_window: Window = from_bounds(*src_bounds, transform=self.src.transform)
         LOGGER.debug(
             f"Source window for {dst_window} of tile {self.tile_id} is {src_window}"
         )
@@ -277,10 +280,7 @@ class RasterSrcTile(Tile):
             LOGGER.debug(
                 f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
             )
-            array = np.ma.filled(array, self.dst.nodata).astype(
-                # TODO: Check if we still need np.asarray wrapper
-                self.dst.dtype
-            )
+            array = np.ma.filled(array, self.dst.nodata).astype(self.dst.dtype)
 
         else:
             LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
@@ -331,7 +331,7 @@ class RasterSrcTile(Tile):
         return transform, width, height
 
     @staticmethod
-    def _windows(
+    def _union_blocks(
         dst: DatasetWriter, min_i: int, min_j: int, max_i: int, max_j: int
     ) -> Window:
         """
@@ -344,12 +344,11 @@ class RasterSrcTile(Tile):
                 windows.append(dst.block_window(1, i, j))
         return union(*windows)
 
-    def _write_window(
-        self, dst: DatasetWriter, array: np.ndarray, dst_window: Window
-    ) -> None:
+    def _write_window(self, array: np.ndarray, dst_window: Window) -> None:
         """
         Write blocks into output raster
         """
-        LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
-        dst.write(array, window=dst_window)
-        del array
+        with rasterio.open(self.local_dst.uri, "r+", **self.dst.profile) as dst:
+            LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
+            dst.write(array, window=dst_window)
+            del array
