@@ -848,7 +848,7 @@ tsc_tree_cover_loss_drivers:   # v2019
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw2-data/forest_change/tsc/drivers2018.tif
+                uri: s3://gfw2-data/forest_change/tsc/tiles.geojson
                 calc: A+1
             90/27008:
                 type: raster

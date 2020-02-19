@@ -179,7 +179,7 @@ class RasterSrcTile(Tile):
         """
 
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_block = utils.available_memory_per_process() / 4
+        memory_per_block = utils.available_memory_per_process() / 8
         return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
 
     def _max_block_size(self, dst: DatasetWriter) -> float:
@@ -217,10 +217,10 @@ class RasterSrcTile(Tile):
 
     @retry(
         retry_on_exception=retry_if_rasterio_io_error,
-        stop_max_attempt_number=10,
+        stop_max_attempt_number=7,
         wait_exponential_multiplier=1000,
-        wait_exponential_max=10000,
-    )
+        wait_exponential_max=300000,
+    )  # Wait 2^x * 1000 ms between retries by to 300 sec, then 300 sec afterwards.
     def _read_window(self, vrt: WarpedVRT, dst_window: Window) -> MaskedArray:
         """
             Read window of input raster
@@ -352,3 +352,4 @@ class RasterSrcTile(Tile):
         """
         LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
         dst.write(array, window=dst_window)
+        del array

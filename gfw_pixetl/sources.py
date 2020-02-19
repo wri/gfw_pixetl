@@ -32,6 +32,7 @@ class VectorSource(Source):
 
 class _RasterSource(Source):
     profile: Dict[str, Any] = dict()
+    bounds: BoundingBox = BoundingBox(180, -90, 180, 90)
 
     @property
     def transform(self) -> rasterio.Affine:
@@ -99,39 +100,6 @@ class _RasterSource(Source):
 
     def has_no_data(self) -> bool:
         return self.nodata is not None
-
-
-class RasterSource(_RasterSource):
-    def __init__(self, uri: str) -> None:
-        self.profile: Dict[str, Any]
-        self.bounds: BoundingBox
-
-        self.uri: str = uri
-        self.bounds, self.profile = self._meta()
-
-    @property
-    def geom(self) -> Polygon:
-        left, bottom, right, top = self.bounds
-        return Polygon(
-            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
-        )
-
-    def _meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
-        LOGGER.debug("Check if tile {} exists".format(self.uri))
-
-        try:
-            with rasterio.open(self.uri) as src:
-                LOGGER.info(f"File {self.uri} exists")
-                return src.bounds, src.profile
-
-        except Exception as e:
-
-            if _file_does_not_exist(e, self.uri):
-                LOGGER.info(f"File does not exist {self.uri}")
-                raise FileNotFoundError(f"File does not exist: {self.uri}")
-            else:
-                LOGGER.exception(f"Cannot open {self.uri}")
-                raise
 
     @lru_cache(maxsize=2, typed=False)
     def reproject_bounds(self, crs: CRS) -> Bounds:
@@ -216,11 +184,42 @@ class RasterSource(_RasterSource):
         return reproject_left, reproject_bottom, reproject_right, reproject_top
 
 
+class RasterSource(_RasterSource):
+    def __init__(self, uri: str) -> None:
+
+        self.uri: str = uri
+        self.bounds, self.profile = self._meta()
+
+    @property
+    def geom(self) -> Polygon:
+        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
+        return Polygon(
+            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
+        )
+
+    def _meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
+        LOGGER.debug("Check if tile {} exists".format(self.uri))
+
+        try:
+            with rasterio.open(self.uri) as src:
+                LOGGER.info(f"File {self.uri} exists")
+                return src.bounds, src.profile
+
+        except Exception as e:
+
+            if _file_does_not_exist(e, self.uri):
+                LOGGER.info(f"File does not exist {self.uri}")
+                raise FileNotFoundError(f"File does not exist: {self.uri}")
+            else:
+                LOGGER.exception(f"Cannot open {self.uri}")
+                raise
+
+
 class Destination(_RasterSource):
     def __init__(self, uri: str, profile: Dict[str, Any], bounds: BoundingBox):
         self.uri: str = uri
-        self.profile: Dict[str, Any] = profile
-        self.bounds: BoundingBox = bounds
+        self.profile = profile
+        self.bounds = bounds
 
     @property
     def bucket(self):
@@ -228,7 +227,7 @@ class Destination(_RasterSource):
 
     @property
     def geom(self) -> Polygon:
-        left, bottom, right, top = self.bounds
+        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
         return Polygon(
             [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
         )
