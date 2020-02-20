@@ -8,7 +8,7 @@ data "terraform_remote_state" "core" {
 }
 
 data "template_file" "container_properties" {
-  template = file("${path.root}/templates/container_properties.json")
+  template = file("${path.root}/templates/container_properties.json.tmpl")
   vars = {
     image_url      = module.container_registry.repository_url
     environment    = var.environment
@@ -24,14 +24,14 @@ data "template_file" "container_properties" {
 }
 
 data "template_file" "iam_trust_entity" {
-  template = file("${path.root}/templates/iam_trust_entity.json")
+  template = file("${path.root}/templates/iam_trust_entity.json.tmpl")
   vars = {
     role_arn = aws_iam_role.aws_ecs_service_role.arn
   }
 }
 
 data "template_file" "iam_assume_role" {
-  template = file("${path.root}/templates/iam_assume_role.json")
+  template = file("${path.root}/templates/iam_assume_role.json.tmpl")
   vars = {
     role_arn = aws_iam_role.aws_ecs_service_role_clone.arn
   }

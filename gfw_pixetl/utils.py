@@ -197,9 +197,8 @@ def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
     LOGGER.info(f"Create VRT file {vrt}")
     p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
 
-    o: Any
     e: Any
-    o, e = p.communicate()
+    _, e = p.communicate()
 
     os.remove(tile_list)
 

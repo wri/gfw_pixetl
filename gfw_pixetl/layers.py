@@ -11,7 +11,6 @@ from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.data_type import DataType, data_type_factory
-from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.resampling import resampling_factory
