@@ -142,10 +142,11 @@ class _RasterSource(Source):
 
         return left, bottom, right, top
 
-    def _clamp_bounds(self, left, bottom, right, top) -> Bounds:
+    def _clamp_bounds(self, *bounds: float) -> Bounds:
         """
         Make sure src bounds are within world extent
         """
+        left, bottom, right, top = bounds
 
         # Crop SRC Bounds to World Extent:
         clamp_left = max(left, self.bounds.left)
@@ -161,12 +162,11 @@ class _RasterSource(Source):
 
         return clamp_left, clamp_bottom, clamp_right, clamp_top
 
-    def _reproject_bounds(
-        self, crs: CRS, left: float, bottom: float, right: float, top: float
-    ) -> Bounds:
+    def _reproject_bounds(self, crs: CRS, *bounds: float) -> Bounds:
         """
         Reproject bounds to dst CRT
         """
+        left, bottom, right, top = bounds
 
         proj = Transformer.from_crs(self.crs, crs, always_xy=True)
 
