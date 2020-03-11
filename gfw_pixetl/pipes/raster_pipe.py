@@ -39,7 +39,9 @@ class RasterPipe(Pipe):
 
         return tiles
 
-    def create_tiles(self, overwrite: bool) -> Tuple[List[Tile], List[Tile]]:
+    def create_tiles(
+        self, overwrite: bool
+    ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """
         Raster Pipe
         """
@@ -47,7 +49,8 @@ class RasterPipe(Pipe):
         LOGGER.info("Start Raster Pipe")
 
         tiles = self.collect_tiles(overwrite=overwrite)
-        workers = utils.set_workers(len(tiles))
+
+        workers = utils.set_workers(self.tiles_to_process)
 
         pipe = (
             tiles
@@ -57,10 +60,10 @@ class RasterPipe(Pipe):
             | self.delete_file
         )
 
-        tiles, failed_tiles = self._process_pipe(pipe)
+        tiles, skipped_tiles, failed_tiles = self._process_pipe(pipe)
 
         LOGGER.info("Finished Raster Pipe")
-        return tiles, failed_tiles
+        return tiles, skipped_tiles, failed_tiles
 
     @staticmethod
     @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
@@ -69,15 +72,12 @@ class RasterPipe(Pipe):
         Only process tiles which intersect with source raster
         """
         for tile in tiles:
-            if tile.within():
-                LOGGER.info(
-                    f"Tile {tile.tile_id} intersects with source raster - proceed"
-                )
-                yield tile
-            else:
+            if tile.status == "pending" and not tile.within():
                 LOGGER.info(
                     f"Tile {tile.tile_id} does not intersects with source raster - skip"
                 )
+                tile.status = "skipped (does not intersect)"
+            yield tile
 
     # We cannot use the @stage decorate here
     # but need to create a Stage instance directly in the pipe.
@@ -89,8 +89,7 @@ class RasterPipe(Pipe):
         Transform input raster to match new tile grid and projection
         """
         for tile in tiles:
-            if tile.transform():
-                LOGGER.info(f"Tile {tile.tile_id} has data - proceed")
-                yield tile
-            else:
+            if tile.status == "pending" and not tile.transform():
+                tile.status = "skipped (has no data)"
                 LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
+            yield tile

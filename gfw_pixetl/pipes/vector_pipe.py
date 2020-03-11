@@ -6,13 +6,12 @@ from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.tiles import VectorSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
-
 LOGGER = get_module_logger(__name__)
 WORKERS = utils.get_workers()
 
 
 class VectorPipe(Pipe):
-    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile]]:
+    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """
         Vector Pipe
         """
@@ -25,7 +24,6 @@ class VectorPipe(Pipe):
             | self.filter_src_tiles
             | self.filter_target_tiles(overwrite=overwrite)
             | self.rasterize
-            # | self.delete_if_empty()
             | self.create_gdal_geotiff
             | self.upload_file
             | self.delete_file
@@ -40,8 +38,9 @@ class VectorPipe(Pipe):
         Only include tiles which intersect which input vector extent
         """
         for tile in tiles:
-            if tile.src_vector_intersects():
-                yield tile
+            if tile.status == "pending" and not tile.src_vector_intersects():
+                tile.status = "skipped (does not intersect)"
+            yield tile
 
     @staticmethod
     @stage(workers=WORKERS)
@@ -50,5 +49,6 @@ class VectorPipe(Pipe):
         Convert vector source to raster tiles
         """
         for tile in tiles:
-            tile.rasterize()
+            if tile.status == "pending":
+                tile.rasterize()
             yield tile

@@ -111,7 +111,7 @@ class RasterSrcTile(Tile):
 
         except rasterio.RasterioIOError as e:
             LOGGER.exception(e)
-            self.failed = True
+            self.status = "failed"
             has_data = True
         finally:
             return has_data

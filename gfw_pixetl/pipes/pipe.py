@@ -29,6 +29,7 @@ class Pipe(object):
         self.grid = layer.grid
         self.layer = layer
         self.subset = subset
+        self.tiles_to_process = 0
 
     def collect_tiles(self, overwrite: bool) -> List[Tile]:
         """
@@ -44,15 +45,17 @@ class Pipe(object):
             | self.filter_target_tiles(overwrite=overwrite)
         )
         tiles = list()
+
         for tile in pipe.results():
+            if tile.status == "pending":
+                self.tiles_to_process += 1
             tiles.append(tile)
 
-        tile_count = len(tiles)
-        LOGGER.info(f"{tile_count} tiles to process")
+        LOGGER.info(f"{self.tiles_to_process} tiles to process")
 
         return tiles
 
-    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile]]:
+    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """
         Override this method when implementing pipes
         """
@@ -96,12 +99,10 @@ class Pipe(object):
         Useful for testing.
         """
         for tile in tiles:
-            if not subset:
-                yield tile
-            elif tile.tile_id in subset:
-                yield tile
-            else:
+            if subset and tile.status == "pending" and tile.tile_id not in subset:
                 LOGGER.debug(f"Tile {tile} not in subset. Skip.")
+                tile.status = "skipped (not in subset)"
+            yield tile
 
     @staticmethod
     @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
@@ -111,11 +112,14 @@ class Pipe(object):
         unless overwrite is set to True
         """
         for tile in tiles:
-            if overwrite or not tile.dst[tile.default_format].exists():
-                LOGGER.debug(f"Processing tile {tile}")
-                yield tile
-            else:
+            if (
+                not overwrite
+                and tile.status == "pending"
+                and tile.dst[tile.default_format].exists()
+            ):
+                tile.status = "skipped (tile exists)"
                 LOGGER.debug(f"Tile {tile} already in destination. Skip.")
+            yield tile
 
     @staticmethod
     @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
@@ -124,7 +128,7 @@ class Pipe(object):
         Copy local file to geotiff format
         """
         for tile in tiles:
-            if not tile.failed:
+            if tile.status == "pending":
                 tile.create_gdal_geotiff()
             yield tile
 
@@ -135,7 +139,7 @@ class Pipe(object):
         Upload tile to target location
         """
         for tile in tiles:
-            if not tile.failed:
+            if tile.status == "pending":
                 tile.upload()
             yield tile
 
@@ -146,30 +150,37 @@ class Pipe(object):
         Delete local file
         """
         for tile in tiles:
-            for dst_format in tile.local_dst.keys():
-                tile.rm_local_src(dst_format)
+            if tile.status == "pending":
+                for dst_format in tile.local_dst.keys():
+                    tile.rm_local_src(dst_format)
             yield tile
 
-    def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile]]:
+    def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile], List[Tile]]:
 
         tiles: List[Tile] = list()
+        skipped_tiles: List[Tile] = list()
         failed_tiles: List[Tile] = list()
 
         for tile in pipe.results():
-            if not tile.failed:
+            if tile.status == "pending":
+                tile.status = "processed"
                 tiles.append(tile)
-            else:
+            elif tile.status == "failed":
                 failed_tiles.append(tile)
+            else:
+                skipped_tiles.append(tile)
 
         if len(tiles):
             self.upload_vrt(tiles)
             self.upload_geom(tiles)
             self.upload_tile_geoms(tiles)
 
+        if len(skipped_tiles):
+            LOGGER.warning(f"The following tiles were skipped: {skipped_tiles}")
         if len(failed_tiles):
             LOGGER.warning(f"The following tiles failed to process: {failed_tiles}")
 
-        return tiles, failed_tiles
+        return tiles, skipped_tiles, failed_tiles
 
     def upload_vrt(self, tiles: List[Tile]) -> List[Dict[str, Any]]:
         response = list()

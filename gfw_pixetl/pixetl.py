@@ -52,14 +52,18 @@ def cli(
 ):
     """NAME: Name of dataset"""
 
-    tiles, failed_tiles = pixetl(
+    tiles, skipped_tiles, failed_tiles = pixetl(
         name, version, source_type, field, grid_name, subset, overwrite,
     )
 
+    nb_skipped_tiles = len(skipped_tiles)
     nb_failed_tiles = len(failed_tiles)
 
     LOGGER.info(f"Successfully processed {len(tiles)} tiles")
+    LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
     LOGGER.info(f"{nb_failed_tiles} tiles failed.")
+    if nb_skipped_tiles:
+        LOGGER.info(f"Skipped tiles: {skipped_tiles}")
     if nb_failed_tiles:
         LOGGER.info(f"Failed tiles: {failed_tiles}")
         sys.exit("Program terminated with Errors. Some tiles failed to process")
@@ -73,7 +77,7 @@ def pixetl(
     grid_name: str = "10/40000",
     subset: Optional[List[str]] = None,
     overwrite: bool = False,
-) -> Tuple[List[Tile], List[Tile]]:
+) -> Tuple[List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
     LOGGER.info(
@@ -110,10 +114,10 @@ def pixetl(
 
         pipe: Pipe = pipe_factory(layer, subset)
 
-        tiles, failed_tiles = pipe.create_tiles(overwrite)
+        tiles, skipped_tiles, failed_tiles = pipe.create_tiles(overwrite)
         utils.remove_work_directory(old_cwd, cwd)
 
-        return tiles, failed_tiles
+        return tiles, skipped_tiles, failed_tiles
 
     except Exception as e:
         utils.remove_work_directory(old_cwd, cwd)

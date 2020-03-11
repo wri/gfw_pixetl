@@ -98,7 +98,7 @@ class Tile(object):
         }
 
         self.default_format = "geotiff"
-        self.failed = False
+        self.status = "pending"
 
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):
