@@ -13,7 +13,7 @@ class DummyLayer(object):
 
 class DummyTile(object):
     def __init__(self, dst):
-        self.dst = dst
+        self.dst = {"geotiff": dst}
 
 
 layer = DummyLayer()
@@ -36,8 +36,8 @@ def get_extent(bucket, prefix):
             src = RasterSource(uri)
             tiles.append(DummyTile(src))
 
-    pipe.upload_tile_geoms(tiles, bucket=bucket, key=prefix + "/tiles.geojson")  # type: ignore
-    pipe.upload_geom(tiles, bucket=bucket, key=prefix + "/extent.geojson")  # type: ignore
+    pipe.upload_tile_geoms(tiles, bucket=bucket, forced_key=prefix + "tiles.geojson")  # type: ignore
+    pipe.upload_geom(tiles, bucket=bucket, forced_key=prefix + "extent.geojson")  # type: ignore
 
 
 @click.command()

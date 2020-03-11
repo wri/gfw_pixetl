@@ -12,7 +12,7 @@ from shapely.geometry import Polygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
-from gfw_pixetl.utils import get_bucket
+from gfw_pixetl.utils import get_bucket, replace_inf_nan
 
 LOGGER = get_module_logger(__name__)
 
@@ -111,17 +111,17 @@ class _RasterSource(Source):
         LOGGER.debug(
             "SRC Extent: {}, {}, {}, {}".format(
                 self.bounds.left,
-                self.bounds.top,
-                self.bounds.right,
                 self.bounds.bottom,
+                self.bounds.right,
+                self.bounds.top,
             )
         )
+        #
+        # world_bounds = self._world_bounds(crs)
+        #
+        # clamped_bounds = self._clamp_bounds(world_bounds)
 
-        world_bounds = self._world_bounds(crs)
-
-        clamped_bounds = self._clamp_bounds(*world_bounds)
-
-        return self._reproject_bounds(crs, *clamped_bounds)
+        return self._reproject_bounds(crs)  # , clamped_bounds)
 
     def _world_bounds(self, crs: CRS) -> Bounds:
         """
@@ -142,7 +142,7 @@ class _RasterSource(Source):
 
         return left, bottom, right, top
 
-    def _clamp_bounds(self, *bounds: float) -> Bounds:
+    def _clamp_bounds(self, bounds: Bounds) -> Bounds:
         """
         Make sure src bounds are within world extent
         """
@@ -162,18 +162,18 @@ class _RasterSource(Source):
 
         return clamp_left, clamp_bottom, clamp_right, clamp_top
 
-    def _reproject_bounds(self, crs: CRS, *bounds: float) -> Bounds:
+    def _reproject_bounds(self, crs: CRS) -> Bounds:
         """
         Reproject bounds to dst CRT
         """
-        left, bottom, right, top = bounds
+        left, bottom, right, top = self.bounds
 
         proj = Transformer.from_crs(self.crs, crs, always_xy=True)
 
-        reproject_top = round(proj.transform(0, top)[1], 8)
-        reproject_left = round(proj.transform(left, 0)[0], 8)
-        reproject_bottom = round(proj.transform(0, bottom)[1], 8)
-        reproject_right = round(proj.transform(right, 0)[0], 8)
+        reproject_top = replace_inf_nan(round(proj.transform(0, top)[1], 8), 90)
+        reproject_left = replace_inf_nan(round(proj.transform(left, 0)[0], 8), -180)
+        reproject_bottom = replace_inf_nan(round(proj.transform(0, bottom)[1], 8), -90)
+        reproject_right = replace_inf_nan(round(proj.transform(right, 0)[0], 8), 180)
 
         LOGGER.debug(
             "Inverted Copped Extent: {}, {}, {}, {}".format(
@@ -243,10 +243,13 @@ class Destination(_RasterSource):
     def exists(self) -> bool:
         if not self.uri:
             raise Exception("Tile URI is not set")
+        uri = f"s3://{self.bucket}/{self.uri}"
         try:
-            RasterSource(f"s3://{self.bucket}/{self.uri}")
+            RasterSource(uri)
+            LOGGER.debug(f"File {uri} exists")
             return True
         except FileNotFoundError:
+            LOGGER.debug(f"File {uri} does not exist")
             return False
 
 

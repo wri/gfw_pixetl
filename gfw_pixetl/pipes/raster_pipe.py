@@ -1,6 +1,6 @@
 import multiprocessing
 from math import ceil
-from typing import Iterator, List, Set
+from typing import Iterator, List, Set, Tuple
 
 from parallelpipe import Stage, stage
 
@@ -39,27 +39,28 @@ class RasterPipe(Pipe):
 
         return tiles
 
-    def create_tiles(self, overwrite=True) -> List[Tile]:
+    def create_tiles(self, overwrite: bool) -> Tuple[List[Tile], List[Tile]]:
         """
         Raster Pipe
         """
 
         LOGGER.info("Start Raster Pipe")
 
-        tiles = self.collect_tiles()
+        tiles = self.collect_tiles(overwrite=overwrite)
         workers = utils.set_workers(len(tiles))
 
         pipe = (
             tiles
             | Stage(self.transform).setup(workers=workers, qsize=workers)
+            | self.create_gdal_geotiff
             | self.upload_file
             | self.delete_file
         )
 
-        tiles = self._process_pipe(pipe)
+        tiles, failed_tiles = self._process_pipe(pipe)
 
         LOGGER.info("Finished Raster Pipe")
-        return tiles
+        return tiles, failed_tiles
 
     @staticmethod
     @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))

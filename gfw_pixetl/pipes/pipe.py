@@ -30,7 +30,7 @@ class Pipe(object):
         self.layer = layer
         self.subset = subset
 
-    def collect_tiles(self, overwrite=True) -> List[Tile]:
+    def collect_tiles(self, overwrite: bool) -> List[Tile]:
         """
         Raster Pipe
         """
@@ -52,7 +52,7 @@ class Pipe(object):
 
         return tiles
 
-    def create_tiles(self, overwrite=True) -> List[Tile]:
+    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile]]:
         """
         Override this method when implementing pipes
         """
@@ -105,19 +105,28 @@ class Pipe(object):
 
     @staticmethod
     @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
-    def filter_target_tiles(
-        tiles: Iterator[Tile], overwrite: bool = True
-    ) -> Iterator[Tile]:
+    def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """
         Don't process tiles if they already exists in target location,
         unless overwrite is set to True
         """
         for tile in tiles:
-            if overwrite or not tile.dst.exists():
+            if overwrite or not tile.dst[tile.default_format].exists():
                 LOGGER.debug(f"Processing tile {tile}")
                 yield tile
             else:
                 LOGGER.debug(f"Tile {tile} already in destination. Skip.")
+
+    @staticmethod
+    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
+        """
+        Copy local file to geotiff format
+        """
+        for tile in tiles:
+            if not tile.failed:
+                tile.create_gdal_geotiff()
+            yield tile
 
     @staticmethod
     @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
@@ -126,7 +135,8 @@ class Pipe(object):
         Upload tile to target location
         """
         for tile in tiles:
-            tile.upload()
+            if not tile.failed:
+                tile.upload()
             yield tile
 
     @staticmethod
@@ -136,59 +146,134 @@ class Pipe(object):
         Delete local file
         """
         for tile in tiles:
-            tile.rm_local_src()
+            for dst_format in tile.local_dst.keys():
+                tile.rm_local_src(dst_format)
             yield tile
 
-    def _process_pipe(self, pipe):
-        tile_uris: List[str] = list()
+    def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile]]:
+
         tiles: List[Tile] = list()
+        failed_tiles: List[Tile] = list()
+
         for tile in pipe.results():
-            tiles.append(tile)
-            tile_uris.append(f"/vsis3/{utils.get_bucket()}/{tile.dst.uri}")
+            if not tile.failed:
+                tiles.append(tile)
+            else:
+                failed_tiles.append(tile)
 
         if len(tiles):
-            self.upload_vrt(tile_uris)
+            self.upload_vrt(tiles)
             self.upload_geom(tiles)
+            self.upload_tile_geoms(tiles)
 
-        return tiles
+        if len(failed_tiles):
+            LOGGER.warning(f"The following tiles failed to process: {failed_tiles}")
 
-    def upload_vrt(self, uris: List[str]) -> Dict[str, Any]:
-        vrt = utils.create_vrt(uris)
-        return self._upload_vrt(vrt)
+        return tiles, failed_tiles
 
-    def _upload_vrt(self, vrt):
+    def upload_vrt(self, tiles: List[Tile]) -> List[Dict[str, Any]]:
+        response = list()
+        uris: Dict[str, List[str]] = dict()
+        bucket: str = utils.get_bucket()
+
+        for tile in tiles:
+            for key in tile.dst.keys():
+                if key not in uris.keys():
+                    uris[key] = list()
+                uris[key].append(f"/vsis3/{bucket}/{tile.dst[key].uri}")
+
+        for key in uris.keys():
+            vrt = utils.create_vrt(uris[key])
+            response.append(self._upload_vrt(key, vrt))
+
+        return response
+
+    def _upload_vrt(self, key, vrt):
         LOGGER.info("Upload vrt")
         return S3.upload_file(
-            vrt, utils.get_bucket(), os.path.join(self.layer.prefix, vrt)
+            vrt, utils.get_bucket(), os.path.join(self.layer.prefix, key, vrt)
         )
 
     def upload_geom(
-        self, tiles: List[Tile], bucket: str = utils.get_bucket(), key: str = None
-    ) -> Dict[str, Any]:
+        self,
+        tiles: List[Tile],
+        bucket: str = utils.get_bucket(),
+        forced_key: str = None,
+    ) -> List[Dict[str, Any]]:
 
-        if key is None:
-            key = os.path.join(self.layer.prefix, "extent.geojson")
-        extent: Union[Polygon, MultiPolygon] = self._union_tile_geoms(tiles)
-        fc: FeatureCollection = self._to_feature_collection([(extent, None)])
-        return self._upload_geom(fc, bucket, key)
+        fc: FeatureCollection
+        response: List[Dict[str, Any]] = list()
+
+        extent: Dict[str, Union[Polygon, MultiPolygon]] = self._union_tile_geoms(tiles)
+        for dst_format in extent.keys():
+            fc = self._to_feature_collection([(extent[dst_format], None)])
+            if (
+                forced_key is None
+            ):  # hack used in source_prep, TODO: find a more elegant way
+                key = os.path.join(self.layer.prefix, dst_format, "extent.geojson")
+            else:
+                key = forced_key
+            response.append(self._upload_geom(fc, bucket, key))
+        return response
 
     def upload_tile_geoms(
-        self, tiles: List[Tile], bucket: str = utils.get_bucket(), key: str = None
-    ) -> Dict[str, Any]:
+        self,
+        tiles: List[Tile],
+        bucket: str = utils.get_bucket(),
+        forced_key: str = None,
+    ) -> List[Dict[str, Any]]:
 
-        if key is None:
-            key = os.path.join(self.layer.prefix, "tiles.geojson")
-        geoms: Sequence[Tuple[Polygon, Dict[str, Any]]] = [
-            (tile.dst.geom, {"name": tile.dst.uri}) for tile in tiles
-        ]
-        fc: FeatureCollection = self._to_feature_collection(geoms)
-        return self._upload_geom(fc, bucket, key)
+        fc: FeatureCollection
+        response: List[Dict[str, Any]] = list()
+
+        geoms: Dict[
+            str, List[Tuple[Polygon, Dict[str, Any]]]
+        ] = self._collect_tile_geoms(tiles)
+        for dst_format in geoms.keys():
+            fc = self._to_feature_collection(geoms[dst_format])
+            if (
+                forced_key is None
+            ):  # hack used in source_prep, TODO: find a more elegant way
+                key = os.path.join(self.layer.prefix, dst_format, "tiles.geojson")
+            else:
+                key = forced_key
+            response.append(self._upload_geom(fc, bucket, key))
+        return response
 
     @staticmethod
-    def _union_tile_geoms(tiles: List[Tile]) -> Union[Polygon, MultiPolygon]:
+    def _collect_tile_geoms(
+        tiles: List[Tile],
+    ) -> Dict[str, List[Tuple[Polygon, Dict[str, Any]]]]:
+        LOGGER.debug("Collect Polygon from tile bounds")
+
+        geoms: Dict[str, List[Tuple[Polygon, Dict[str, Any]]]] = dict()
+
+        for tile in tiles:
+            for dst_format in tile.dst.keys():
+                if dst_format not in geoms.keys():
+                    geoms[dst_format] = list()
+                geoms[dst_format].append(
+                    (tile.dst[dst_format].geom, {"name": tile.dst[dst_format].uri})
+                )
+
+        return geoms
+
+    @staticmethod
+    def _union_tile_geoms(tiles: List[Tile]) -> Dict[str, Union[Polygon, MultiPolygon]]:
         LOGGER.debug("Create Polygon from tile bounds")
-        geoms: List[Polygon] = [tile.dst.geom for tile in tiles]
-        return unary_union(geoms)
+
+        geoms: Dict[str, Union[Polygon, MultiPolygon]] = dict()
+        polygons: Dict[str, List[Polygon]] = dict()
+        for tile in tiles:
+            for dst_format in tile.dst.keys():
+                if dst_format not in polygons.keys():
+                    polygons[dst_format] = list()
+                polygons[dst_format].append(tile.dst[dst_format].geom)
+
+        for dst_format in polygons.keys():
+            geoms[dst_format] = unary_union(polygons[dst_format])
+
+        return geoms
 
     @staticmethod
     def _to_feature_collection(

@@ -1,4 +1,5 @@
 import math
+import os
 from math import floor, sqrt
 from typing import Iterator, List, Tuple
 
@@ -34,18 +35,26 @@ class RasterSrcTile(Tile):
 
     @lazy_property
     def src(self) -> RasterSource:
+        LOGGER.debug(f"Find input files for {self.tile_id}")
         files = list()
         for f in self.layer.input_files:
-            if self.dst.geom.within(f[0]):
+            if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
+                self.default_format
+            ].geom.touches(f[0]):
+                LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}.vrt")
                 files.append(f[1])
 
+        if not len(files):
+            raise Exception(
+                f"Did not find any intersecting files for tile {self.tile_id}"
+            )
         return RasterSource(
             utils.create_vrt(files, self.tile_id + ".vrt", self.tile_id + ".txt")
         )
 
     @lazy_property
     def intersecting_window(self) -> Window:
-        dst_left, dst_bottom, dst_right, dst_top = self.dst.bounds
+        dst_left, dst_bottom, dst_right, dst_top = self.dst[self.default_format].bounds
         src_left, src_bottom, src_right, src_top = self.src.reproject_bounds(
             self.grid.srs
         )
@@ -56,7 +65,7 @@ class RasterSrcTile(Tile):
         top = min(dst_top, src_top)
 
         return rasterio.windows.from_bounds(
-            left, bottom, right, top, transform=self.dst.transform
+            left, bottom, right, top, transform=self.dst[self.default_format].transform
         )
 
     def within(self) -> bool:
@@ -64,41 +73,47 @@ class RasterSrcTile(Tile):
         Check if target tile extent intersects with source extent.
         """
         return (
-            self.dst.geom.crosses(self.layer.geom)
-            or self.dst.geom.within(self.layer.geom)
-            or self.dst.geom.contains(self.layer.geom)
-            or self.dst.geom.almost_equals(self.layer.geom)
+            # must intersect, but we don't want geometries that only share an exterior point
+            self.dst[self.default_format].geom.intersects(self.layer.geom)
+            and not self.dst[self.default_format].geom.touches(self.layer.geom)
         )
 
     def transform(self) -> bool:
         """
         Write input data to output tile
         """
-        window: Window
-
         LOGGER.info(f"Transform tile {self.tile_id}")
-        with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
-            src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
-            transform, width, height = self._vrt_transform(
-                *self.src.reproject_bounds(self.grid.srs)
-            )
-            vrt: WarpedVRT = WarpedVRT(
-                src,
-                crs=self.dst.crs,
-                transform=transform,
-                width=width,
-                height=height,
-                warp_mem_limit=int(utils.available_memory_per_process() / 1000),
-                resampling=self.layer.resampling,
-            )
+        window: Window
+        has_data = False
 
-            has_data = False
-            for window in self.windows():
-                has_data = self._transform(vrt, window, has_data)
-            vrt.close()
-            src.close()
+        try:
+            with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+                src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
+                transform, width, height = self._vrt_transform(
+                    *self.src.reproject_bounds(self.grid.srs)
+                )
+                vrt: WarpedVRT = WarpedVRT(
+                    src,
+                    crs=self.dst[self.default_format].crs,
+                    transform=transform,
+                    width=width,
+                    height=height,
+                    warp_mem_limit=int(utils.available_memory_per_process() / 1000),
+                    resampling=self.layer.resampling,
+                )
+
+                for window in self.windows():
+                    has_data = self._transform(vrt, window, has_data)
+                vrt.close()
+                src.close()
+
+        except rasterio.RasterioIOError as e:
+            LOGGER.exception(e)
+            self.failed = True
+            has_data = True
+        finally:
             return has_data
 
     @processify
@@ -126,9 +141,14 @@ class RasterSrcTile(Tile):
         """
         Creates local output file and returns list of size optimized windows to process.
         """
-        with rasterio.open(self.get_local_dst_uri(), "w", **self.dst.profile) as dst:
+        with rasterio.open(
+            self.get_local_dst_uri(self.default_format),
+            "w",
+            **self.dst[self.default_format].profile,
+        ) as dst:
             windows = [window for window in self._windows(dst)]
-        self.set_local_dst()
+        self.set_local_dst(self.default_format)
+
         return windows
 
     def _windows(self, dst: DatasetWriter) -> Iterator[Window]:
@@ -199,8 +219,8 @@ class RasterSrcTile(Tile):
         """
         width: float = dst.width
         height: float = dst.height
-        blockxsize: int = self.dst.blockxsize
-        blockysize: int = self.dst.blockysize
+        blockxsize: int = self.dst[self.default_format].blockxsize
+        blockysize: int = self.dst[self.default_format].blockysize
 
         ul: Window = dst.block_window(1, 0, 0)
         ur: Window = dst.block_window(1, 0, width / blockxsize - 1)
@@ -219,7 +239,9 @@ class RasterSrcTile(Tile):
         Check how many bytes one pixel of the largest datatype used will require
         """
         src_itemsize: int = np.zeros(1, dtype=self.src.dtype).itemsize
-        dst_itemsize: int = np.zeros(1, dtype=self.dst.dtype).itemsize
+        dst_itemsize: int = np.zeros(
+            1, dtype=self.dst[self.default_format].dtype
+        ).itemsize
 
         return max(src_itemsize, dst_itemsize)
 
@@ -233,7 +255,9 @@ class RasterSrcTile(Tile):
         """
             Read window of input raster
             """
-        window = vrt.window(*bounds(dst_window, self.dst.transform))
+        window = vrt.window(
+            *bounds(dst_window, self.dst[self.default_format].transform)
+        )
         LOGGER.debug(
             f"Read {dst_window} for Tile {self.tile_id} - this corresponds to {window} in source"
         )
@@ -257,11 +281,13 @@ class RasterSrcTile(Tile):
 
         dst_bounds: Bounds = bounds(
             window=dst_window,
-            transform=self.dst.transform,
+            transform=self.dst[self.default_format].transform,
             height=self.grid.blockysize,
             width=self.grid.blockxsize,
         )
-        src_bounds: Bounds = transform_bounds(self.dst.crs, self.src.crs, *dst_bounds)
+        src_bounds: Bounds = transform_bounds(
+            self.dst[self.default_format].crs, self.src.crs, *dst_bounds
+        )
 
         src_window: Window = from_bounds(*src_bounds, transform=self.src.transform)
         LOGGER.debug(
@@ -276,15 +302,17 @@ class RasterSrcTile(Tile):
         (current no data values will be updated and
         any values which already has new no data value will stay as is)
         """
-        if self.dst.has_no_data():
+        if self.dst[self.default_format].has_no_data():
             LOGGER.debug(
                 f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
             )
-            array = np.ma.filled(array, self.dst.nodata).astype(self.dst.dtype)
+            array = np.ma.filled(array, self.dst[self.default_format].nodata).astype(
+                self.dst[self.default_format].dtype
+            )
 
         else:
             LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
-            array = array.data.astype(self.dst.dtype)
+            array = array.data.astype(self.dst[self.default_format].dtype)
         return array
 
     def _snap_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
@@ -348,7 +376,11 @@ class RasterSrcTile(Tile):
         """
         Write blocks into output raster
         """
-        with rasterio.open(self.local_dst.uri, "r+", **self.dst.profile) as dst:
+        with rasterio.open(
+            self.local_dst[self.default_format].uri,
+            "r+",
+            **self.dst[self.default_format].profile,
+        ) as dst:
             LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
             dst.write(array, window=dst_window)
             del array

@@ -213,4 +213,13 @@ def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
 def _write_tile_list(tile_list: str, uris: List[str]) -> None:
     with open(tile_list, "w") as input_tiles:
         for uri in uris:
+            LOGGER.debug(f"Add {uri} to tile list")
             input_tiles.write(f"{uri}\n")
+
+
+def replace_inf_nan(number: float, replacement: float) -> float:
+    if number == float("inf") or number == float("nan"):
+        LOGGER.debug("Replace number")
+        return replacement
+    else:
+        return number

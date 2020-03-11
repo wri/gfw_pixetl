@@ -123,7 +123,7 @@ birdlife_biodiversity_intactness:  # v201909
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/tmaschler/bio-intact/tiles.geojson
+                uri: s3://gfw-files/tmaschler/intactness_2018_update/tiles.geojson
             90/27008:
                 type: raster
                 depends_on: birdlife_biodiversity_intactness/index/10/40000
@@ -148,7 +148,7 @@ birdlife_biodiversity_significance:  # v201909  # TODO clarify prefix
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/tmaschler/bio-sig/tiles.geojson
+                uri: s3://gfw-files/tmaschler/significance_2018_update/tiles.geojson
             90/27008:
                 type: raster
                 depends_on: birdlife_biodiversity_significance/index/10/40000

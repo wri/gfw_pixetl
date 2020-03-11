@@ -1,5 +1,6 @@
 import os
-from typing import List, Optional
+import sys
+from typing import List, Optional, Tuple
 
 import click
 
@@ -51,9 +52,17 @@ def cli(
 ):
     """NAME: Name of dataset"""
 
-    pixetl(
+    tiles, failed_tiles = pixetl(
         name, version, source_type, field, grid_name, subset, overwrite,
     )
+
+    nb_failed_tiles = len(failed_tiles)
+
+    LOGGER.info(f"Successfully processed {len(tiles)} tiles")
+    LOGGER.info(f"{nb_failed_tiles} tiles failed.")
+    if nb_failed_tiles:
+        LOGGER.info(f"Failed tiles: {failed_tiles}")
+        sys.exit("Program terminated with Errors. Some tiles failed to process")
 
 
 def pixetl(
@@ -63,8 +72,8 @@ def pixetl(
     field: str,
     grid_name: str = "10/40000",
     subset: Optional[List[str]] = None,
-    overwrite: bool = True,
-) -> List[Tile]:
+    overwrite: bool = False,
+) -> Tuple[List[Tile], List[Tile]]:
     click.echo(logo)
 
     LOGGER.info(
@@ -101,14 +110,15 @@ def pixetl(
 
         pipe: Pipe = pipe_factory(layer, subset)
 
-        return pipe.create_tiles(overwrite)
+        tiles, failed_tiles = pipe.create_tiles(overwrite)
+        utils.remove_work_directory(old_cwd, cwd)
+
+        return tiles, failed_tiles
 
     except Exception as e:
         utils.remove_work_directory(old_cwd, cwd)
         LOGGER.exception(e)
         raise
-    finally:
-        utils.remove_work_directory(old_cwd, cwd)
 
 
 if __name__ == "__main__":

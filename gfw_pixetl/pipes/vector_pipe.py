@@ -1,4 +1,4 @@
-from typing import Iterator, List
+from typing import Iterator, List, Tuple
 
 from parallelpipe import stage
 
@@ -12,28 +12,26 @@ WORKERS = utils.get_workers()
 
 
 class VectorPipe(Pipe):
-    def create_tiles(self, overwrite=True) -> List[Tile]:
+    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile]]:
         """
         Vector Pipe
         """
 
         LOGGER.debug("Start Vector Pipe")
-
+        tiles = self.get_grid_tiles
         pipe = (
-            self.get_grid_tiles()
-            | self.filter_subset_tiles()
-            | self.filter_src_tiles()
+            tiles
+            | self.filter_subset_tiles
+            | self.filter_src_tiles
             | self.filter_target_tiles(overwrite=overwrite)
-            | self.rasterize()
+            | self.rasterize
             # | self.delete_if_empty()
-            | self.upload_file()
-            | self.delete_file()
+            | self.create_gdal_geotiff
+            | self.upload_file
+            | self.delete_file
         )
 
-        tiles = self._process_pipe(pipe)
-
-        LOGGER.debug("Start Finished Pipe")
-        return tiles
+        return self._process_pipe(pipe)
 
     @staticmethod
     @stage(workers=WORKERS)

@@ -1,12 +1,14 @@
+import copy
 import os
 import subprocess as sp
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import boto3
 import rasterio
 from botocore.exceptions import ClientError
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
+from rasterio.shutil import copy as raster_copy
 from retrying import retry
 from shapely.geometry import Point
 
@@ -49,7 +51,7 @@ class Tile(object):
         self.grid: Grid = grid
         self.layer: Layer = layer
 
-        self.local_dst: RasterSource
+        self.local_dst: Dict[str, RasterSource] = dict()
 
         self.tile_id: str = grid.point_grid_id(origin)
         self.bounds: BoundingBox = BoundingBox(
@@ -59,7 +61,7 @@ class Tile(object):
             top=origin.y,
         )
 
-        tile_profile = {
+        gdal_profile = {
             "driver": "GTiff",
             "width": grid.cols,
             "height": grid.rows,
@@ -70,41 +72,87 @@ class Tile(object):
             "crs": CRS.from_string(
                 grid.srs.to_string()
             ),  # Need to convert from ProjPy CRS to RasterIO CRS
+            "sparse_ok": "TRUE",
+            "interleave": "BAND",
         }
-        tile_profile.update(self.layer.dst_profile)
+        gdal_profile.update(self.layer.dst_profile)
 
-        self.dst = Destination(
-            uri=f"{layer.prefix}/{self.tile_id}.tif",
-            profile=tile_profile,
-            bounds=self.bounds,
-        )
+        # Drop GDAL specific optimizations which might not be readable by other applications
+        geotiff_profile = copy.deepcopy(gdal_profile)
+        geotiff_profile.pop("nbits", None)
+        geotiff_profile.pop("sparse_ok", None)
+        geotiff_profile.pop("interleave", None)
+        geotiff_profile["compression"] = "DEFLATE"
 
-    def set_local_dst(self) -> None:
+        self.dst: Dict[str, Destination] = {
+            "gdal-geotiff": Destination(
+                uri=f"{layer.prefix}/gdal-geotiff/{self.tile_id}.tif",
+                profile=gdal_profile,
+                bounds=self.bounds,
+            ),
+            "geotiff": Destination(
+                uri=f"{layer.prefix}/geotiff/{self.tile_id}.tif",
+                profile=geotiff_profile,
+                bounds=self.bounds,
+            ),
+        }
+
+        self.default_format = "geotiff"
+        self.failed = False
+
+    def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):
-            self.rm_local_src()
+            self.rm_local_src(dst_format)
 
-        uri = self.get_local_dst_uri()
-        self.local_dst = RasterSource(uri)
+        uri = self.get_local_dst_uri(dst_format)
+        LOGGER.debug(f"Set Local Source URI: {uri}")
+        self.local_dst[dst_format] = RasterSource(uri)
 
-    def get_local_dst_uri(self) -> str:
-        uri = f"{self.layer.prefix}/{self.tile_id}.tif"
+    def get_local_dst_uri(self, dst_format) -> str:
+
+        prefix = f"{self.layer.prefix}/{dst_format}"
+        os.makedirs(f"{prefix}", exist_ok=True)
+
+        uri = f"{prefix}/{self.tile_id}.tif"
+
         LOGGER.debug(f"Local Source URI: {uri}")
         return uri
+
+    def create_gdal_geotiff(self):
+        dst_format = "gdal-geotiff"
+        if self.default_format != dst_format:
+            LOGGER.info("Create copy of local file as Gdal Geotiff")
+
+            raster_copy(
+                self.local_dst[self.default_format].uri,
+                self.get_local_dst_uri(dst_format),
+                **self.dst[dst_format].profile,
+            )
+            self.set_local_dst(dst_format)
+        else:
+            LOGGER.warning(
+                "Local file already Gdal Geotiff. Skip copying as Gdal Geotiff"
+            )
 
     def upload(self) -> None:
 
         s3 = boto3.client("s3")
 
         try:
-            LOGGER.info(f"Upload tile {self.tile_id} to s3")
-            s3.upload_file(self.local_dst.uri, utils.get_bucket(), self.dst.uri)
+            for dst_format in self.local_dst.keys():
+                LOGGER.info(f"Upload {dst_format} tile {self.tile_id} to s3")
+                s3.upload_file(
+                    self.local_dst[dst_format].uri,
+                    utils.get_bucket(),
+                    self.dst[dst_format].uri,
+                )
         except ClientError:
             LOGGER.exception(f"Could not upload file {self.tile_id}")
             raise
 
-    def rm_local_src(self) -> None:
-        LOGGER.info(f"Delete local file {self.local_dst.uri}")
-        os.remove(self.local_dst.uri)
+    def rm_local_src(self, dst_format) -> None:
+        LOGGER.info(f"Delete local file {self.local_dst[dst_format].uri}")
+        os.remove(self.local_dst[dst_format].uri)
 
     @staticmethod
     @retry(
