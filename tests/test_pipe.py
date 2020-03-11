@@ -36,7 +36,7 @@ def test_pipe():
 
 def test_create_tiles():
     try:
-        PIPE.create_tiles()
+        PIPE.create_tiles(overwrite=False)
     except NotImplementedError as e:
         assert isinstance(e, NotImplementedError)
 
@@ -62,8 +62,9 @@ def test_filter_subset_tiles():
     pipe = _get_subset_tiles() | PIPE.filter_subset_tiles(PIPE.subset)
     i = 0
     for tile in pipe.results():
-        i += 1
-        assert isinstance(tile, Tile)
+        if tile.status == "pending":
+            i += 1
+            assert isinstance(tile, Tile)
     assert i == len(SUBSET)
 
 
@@ -73,24 +74,27 @@ def test_filter_target_tiles():
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, Tile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
         assert i == 0
 
     with mock.patch.object(Destination, "exists", return_value=False):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, Tile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
         assert i == 4
 
     with mock.patch.object(Destination, "exists", return_value=True):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, Tile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
         assert i == 4
 
     with mock.patch.object(Destination, "exists", return_value=False):
@@ -98,8 +102,9 @@ def test_filter_target_tiles():
         pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, Tile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
         assert i == 4
 
 
@@ -110,8 +115,9 @@ def test_upload_file():
         pipe = tiles | PIPE.upload_file()
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, Tile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
         assert i == 4
 
 
@@ -121,16 +127,18 @@ def test_delete_file():
         pipe = tiles | PIPE.delete_file()
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, Tile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
         assert i == 4
 
 
 def test__to_polygon():
     tiles = list(_get_subset_tiles())
     extent = PIPE._union_tile_geoms(tiles)
-    assert isinstance(extent, Polygon)
-    assert extent.bounds == (10, 9, 12, 11)
+    for dst_format in extent.keys():
+        assert isinstance(extent[dst_format], Polygon)
+        assert extent[dst_format].bounds == (10, 9, 12, 11)
 
 
 def _get_subset_tiles() -> Set[Tile]:

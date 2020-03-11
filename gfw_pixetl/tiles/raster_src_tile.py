@@ -1,5 +1,4 @@
 import math
-import os
 from math import floor, sqrt
 from typing import Iterator, List, Tuple
 
@@ -113,8 +112,8 @@ class RasterSrcTile(Tile):
             LOGGER.exception(e)
             self.status = "failed"
             has_data = True
-        finally:
-            return has_data
+
+        return has_data
 
     @processify
     def _transform(self, vrt: WarpedVRT, window: Window, has_data: bool):

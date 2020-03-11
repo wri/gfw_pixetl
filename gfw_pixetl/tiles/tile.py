@@ -118,7 +118,7 @@ class Tile(object):
         LOGGER.debug(f"Local Source URI: {uri}")
         return uri
 
-    def create_gdal_geotiff(self):
+    def create_gdal_geotiff(self) -> None:
         dst_format = "gdal-geotiff"
         if self.default_format != dst_format:
             LOGGER.info("Create copy of local file as Gdal Geotiff")

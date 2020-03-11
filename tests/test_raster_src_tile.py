@@ -43,8 +43,8 @@ def test_transform_final():
 
         tile.transform()
 
-        LOGGER.debug(tile.local_dst.uri)
-        with rasterio.open(tile.local_dst.uri) as src:
+        LOGGER.debug(tile.local_dst[tile.default_format].uri)
+        with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
             src_profile = src.profile
 
         LOGGER.debug(src_profile)
@@ -65,7 +65,7 @@ def test_transform_final():
 
         assert not hasattr(src_profile, "compress")
 
-        os.remove(tile.local_dst.uri)
+        os.remove(tile.local_dst[tile.default_format].uri)
     else:
         raise ValueError("Not a RasterSrcLayer")
 
@@ -101,7 +101,7 @@ def test__set_dtype():
     count = masked_data.mask.sum()
     if isinstance(LAYER, layers.RasterSrcLayer):
         tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
-        tile.dst.nodata = 5
+        tile.dst[tile.default_format].nodata = 5
         result = tile._set_dtype(masked_data, window)
         masked_result = np.ma.masked_values(result, 5)
         assert count == masked_result.mask.sum()

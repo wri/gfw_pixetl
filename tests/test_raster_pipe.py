@@ -33,18 +33,32 @@ def test_create_tiles_subset():
     with mock.patch.object(RasterSrcTile, "within", return_value=True):
         with mock.patch.object(Destination, "exists", return_value=False):
             with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-                with mock.patch.object(RasterSrcTile, "upload", return_value=None):
-                    with mock.patch.object(
-                        RasterSrcTile, "rm_local_src", return_value=None
-                    ):
+                with mock.patch.object(
+                    RasterSrcTile, "create_gdal_geotiff", return_value=None
+                ):
+                    with mock.patch.object(RasterSrcTile, "upload", return_value=None):
                         with mock.patch.object(
-                            RasterPipe, "upload_vrt", return_value=None
+                            RasterSrcTile, "rm_local_src", return_value=None
                         ):
                             with mock.patch.object(
-                                RasterPipe, "upload_geom", return_value=None
+                                RasterPipe, "upload_vrt", return_value=None
                             ):
-                                result = PIPE.create_tiles()
-                                assert len(result) == 3
+                                with mock.patch.object(
+                                    RasterPipe, "upload_geom", return_value=None
+                                ):
+                                    with mock.patch.object(
+                                        RasterPipe,
+                                        "upload_tile_geoms",
+                                        return_value=None,
+                                    ):
+                                        (
+                                            tiles,
+                                            skipped_tiles,
+                                            failed_tiles,
+                                        ) = PIPE.create_tiles(overwrite=True)
+                                        assert len(tiles) == 3
+                                        assert len(skipped_tiles) == 645
+                                        assert len(failed_tiles) == 0
 
 
 def test_create_tiles_all():
@@ -52,18 +66,33 @@ def test_create_tiles_all():
     with mock.patch.object(RasterSrcTile, "within", return_value=True):
         with mock.patch.object(Destination, "exists", return_value=False):
             with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-                with mock.patch.object(RasterSrcTile, "upload", return_value=None):
-                    with mock.patch.object(
-                        RasterSrcTile, "rm_local_src", return_value=None
-                    ):
+                with mock.patch.object(
+                    RasterSrcTile, "create_gdal_geotiff", return_value=None
+                ):
+                    with mock.patch.object(RasterSrcTile, "upload", return_value=None):
                         with mock.patch.object(
-                            RasterPipe, "upload_vrt", return_value=None
+                            RasterSrcTile, "rm_local_src", return_value=None
                         ):
                             with mock.patch.object(
-                                RasterPipe, "upload_geom", return_value=None
+                                RasterPipe, "upload_vrt", return_value=None
                             ):
-                                result = pipe.create_tiles()
-                                assert len(result) == 648
+                                with mock.patch.object(
+                                    RasterPipe, "upload_geom", return_value=None
+                                ):
+                                    with mock.patch.object(
+                                        RasterPipe,
+                                        "upload_tile_geoms",
+                                        return_value=None,
+                                    ):
+
+                                        (
+                                            tiles,
+                                            skipped_tiles,
+                                            failed_tiles,
+                                        ) = pipe.create_tiles(overwrite=True)
+                                        assert len(tiles) == 648
+                                        assert len(skipped_tiles) == 0
+                                        assert len(failed_tiles) == 0
 
 
 def test_filter_src_tiles():
@@ -73,16 +102,18 @@ def test_filter_src_tiles():
         pipe = tiles | PIPE.filter_src_tiles
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, RasterSrcTile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, RasterSrcTile)
         assert i == 0
 
     with mock.patch.object(RasterSrcTile, "within", return_value=True):
         pipe = tiles | PIPE.filter_src_tiles
         i = 0
         for tile in pipe.results():
-            i += 1
-            assert isinstance(tile, RasterSrcTile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, RasterSrcTile)
         assert i == 4
 
 
@@ -91,8 +122,9 @@ def test_transform():
         tiles = PIPE.transform(_get_subset_tiles())
         i = 0
         for tile in tiles:
-            i += 1
-            assert isinstance(tile, RasterSrcTile)
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, RasterSrcTile)
         assert i == 4
 
 

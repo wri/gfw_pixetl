@@ -113,7 +113,7 @@ class RasterSrcLayer(Layer):
             )
             bucket = utils.get_bucket()
 
-            self._src_uri = f"s3://{bucket}/{prefix}/tiles.geojson"
+            self._src_uri = f"s3://{bucket}/{prefix}/geotiff/tiles.geojson"
         else:
             self._src_uri = self._source["grids"][grid.name]["uri"]
 
