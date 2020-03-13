@@ -8,10 +8,12 @@ from rasterio.crs import CRS as rCRS
 from rasterio.coords import BoundingBox
 from rasterio.errors import RasterioIOError
 from rasterio.windows import Window
+from retrying import retry
 from shapely.geometry import Polygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
+from gfw_pixetl.errors import retry_if_not_recognized
 from gfw_pixetl.utils import get_bucket, replace_inf_nan
 
 LOGGER = get_module_logger(__name__)
@@ -197,6 +199,12 @@ class RasterSource(_RasterSource):
             [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
         )
 
+    @retry(
+        retry_on_exception=retry_if_not_recognized,
+        stop_max_attempt_number=7,
+        wait_exponential_multiplier=1000,
+        wait_exponential_max=300000,
+    )
     def _meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
         LOGGER.debug("Check if tile {} exists".format(self.uri))
 
@@ -210,6 +218,11 @@ class RasterSource(_RasterSource):
             if _file_does_not_exist(e, self.uri):
                 LOGGER.info(f"File does not exist {self.uri}")
                 raise FileNotFoundError(f"File does not exist: {self.uri}")
+            elif isinstance(e, rasterio.RasterioIOError):
+                LOGGER.warning(
+                    f"RasterioIO Error while opening {self.uri}. Will make attempts to retry"
+                )
+                raise
             else:
                 LOGGER.exception(f"Cannot open {self.uri}")
                 raise

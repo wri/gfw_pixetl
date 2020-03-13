@@ -48,3 +48,12 @@ def retry_if_rasterio_io_error(exception) -> bool:
     if is_rasterio_io_error:
         LOGGER.warning("RasterioIO Error - RETRY")
     return is_rasterio_io_error
+
+
+def retry_if_not_recognized(exception) -> bool:
+    if_not_recognized: bool = isinstance(
+        exception, RasterioIOError
+    ) and "not recognized as a supported file format" in str(exception)
+    if if_not_recognized:
+        LOGGER.warning("RasterioIO Error - RETRY")
+    return if_not_recognized
