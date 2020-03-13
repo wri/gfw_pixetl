@@ -56,12 +56,15 @@ def cli(
         name, version, source_type, field, grid_name, subset, overwrite,
     )
 
+    nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
     nb_failed_tiles = len(failed_tiles)
 
     LOGGER.info(f"Successfully processed {len(tiles)} tiles")
     LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
     LOGGER.info(f"{nb_failed_tiles} tiles failed.")
+    if nb_tiles:
+        LOGGER.info(f"Processed tiles: {tiles}")
     if nb_skipped_tiles:
         LOGGER.info(f"Skipped tiles: {skipped_tiles}")
     if nb_failed_tiles:

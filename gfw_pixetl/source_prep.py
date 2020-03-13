@@ -3,12 +3,8 @@ import os
 import boto3
 import click
 
-from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.sources import RasterSource
-
-
-class DummyLayer(object):
-    grid = None
+from gfw_pixetl.utils import upload_geometries
 
 
 class DummyTile(object):
@@ -16,12 +12,7 @@ class DummyTile(object):
         self.dst = {"geotiff": dst}
 
 
-layer = DummyLayer()
-pipe = Pipe(layer)  # type: ignore
-
-
 def get_extent(bucket, prefix):
-
     print(bucket)
     print(prefix)
     s3 = boto3.client("s3")
@@ -33,14 +24,16 @@ def get_extent(bucket, prefix):
         key = f["Key"]
         if os.path.splitext(key)[1] == ".tif":
             uri = f"/vsis3/{bucket}/{key}"
-            src = RasterSource(
-                uri
-            )  # first we need the full URI to fetch metadata and calculate extent
-            src.uri = key  # We will then append the src as dst to our dummy file. Here we don't want protocol and bucket in the URI
+
+            # first we need the full URI to fetch metadata and calculate extent
+            src = RasterSource(uri)
+            # We will then append the src as dst to our dummy file. Here we don't want protocol and bucket in the URI
+            src.uri = key
+
             tiles.append(DummyTile(src))
 
-    pipe.upload_tile_geoms(tiles, bucket=bucket, forced_key=prefix + "tiles.geojson")  # type: ignore
-    pipe.upload_geom(tiles, bucket=bucket, forced_key=prefix + "extent.geojson")  # type: ignore
+    upload_geometries.upload_tile_geoms(tiles, bucket=bucket, prefix=prefix + "tiles.geojson")  # type: ignore
+    upload_geometries.upload_geom(tiles, bucket=bucket, prefix=prefix + "extent.geojson")  # type: ignore
 
 
 @click.command()

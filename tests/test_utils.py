@@ -4,7 +4,7 @@ from datetime import datetime
 from dateutil.tz import tzutc
 from unittest import mock
 
-from gfw_pixetl.utils import (
+from gfw_pixetl.utils.utils import (
     get_bucket,
     verify_version_pattern,
     set_aws_credentials,
