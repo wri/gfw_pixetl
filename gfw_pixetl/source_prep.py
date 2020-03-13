@@ -3,8 +3,8 @@ import os
 import boto3
 import click
 
-from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.pipes import Pipe
+from gfw_pixetl.sources import RasterSource
 
 
 class DummyLayer(object):
@@ -33,7 +33,10 @@ def get_extent(bucket, prefix):
         key = f["Key"]
         if os.path.splitext(key)[1] == ".tif":
             uri = f"/vsis3/{bucket}/{key}"
-            src = RasterSource(uri)
+            src = RasterSource(
+                uri
+            )  # first we need the full URI to fetch metadata and calculate extent
+            src.uri = key  # We will then append the src as dst to our dummy file. Here we don't want protocol and bucket in the URI
             tiles.append(DummyTile(src))
 
     pipe.upload_tile_geoms(tiles, bucket=bucket, forced_key=prefix + "tiles.geojson")  # type: ignore

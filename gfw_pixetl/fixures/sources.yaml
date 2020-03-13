@@ -891,7 +891,7 @@ umd_tree_cover_loss:  # v1.6
                 uri: s3://gfw-files/2018_update/loss/tiles.geojson
             90/27008:
                 type: raster
-                depends_on: umd_tree_cover_los/year/10/40000
+                depends_on: umd_tree_cover_loss/year/10/40000
                 resampling: mode
 
 umd_tree_cover_gain:  # v1.6

@@ -160,8 +160,11 @@ class Pipe(object):
         tiles: List[Tile] = list()
         skipped_tiles: List[Tile] = list()
         failed_tiles: List[Tile] = list()
+        existing_tiles: List[Tile] = list()
 
         for tile in pipe.results():
+            if tile.dst[tile.default_format].exists():
+                existing_tiles.append(tile)
             if tile.status == "pending":
                 tile.status = "processed"
                 tiles.append(tile)
@@ -170,34 +173,48 @@ class Pipe(object):
             else:
                 skipped_tiles.append(tile)
 
+        self._upload_geometries(existing_tiles)
+        self._report_progress(tiles, skipped_tiles, failed_tiles)
+
+        return tiles, skipped_tiles, failed_tiles
+
+    def _upload_geometries(self, tiles) -> None:
         if len(tiles):
             self.upload_vrt(tiles)
             self.upload_geom(tiles)
             self.upload_tile_geoms(tiles)
 
+    def _report_progress(self, tiles, skipped_tiles, failed_tiles) -> None:
+        if len(tiles):
+            LOGGER.info(f"The following tiles were successfully processed: {tiles}")
+
         if len(skipped_tiles):
             LOGGER.warning(f"The following tiles were skipped: {skipped_tiles}")
+
         if len(failed_tiles):
             LOGGER.warning(f"The following tiles failed to process: {failed_tiles}")
 
-        return tiles, skipped_tiles, failed_tiles
-
     def upload_vrt(self, tiles: List[Tile]) -> List[Dict[str, Any]]:
         response = list()
-        uris: Dict[str, List[str]] = dict()
-        bucket: str = utils.get_bucket()
-
-        for tile in tiles:
-            for key in tile.dst.keys():
-                if key not in uris.keys():
-                    uris[key] = list()
-                uris[key].append(f"/vsis3/{bucket}/{tile.dst[key].uri}")
+        uris: Dict[str, List[str]] = self._uris_per_dst_format(tiles)
 
         for key in uris.keys():
             vrt = utils.create_vrt(uris[key])
             response.append(self._upload_vrt(key, vrt))
 
         return response
+
+    @staticmethod
+    def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
+        uris: Dict[str, List[str]] = dict()
+        bucket: str = utils.get_bucket()
+        for tile in tiles:
+            for key in tile.dst.keys():
+                if key not in uris.keys():
+                    uris[key] = list()
+                uris[key].append(f"/vsis3/{bucket}/{tile.dst[key].uri}")
+
+        return uris
 
     def _upload_vrt(self, key, vrt):
         LOGGER.info("Upload vrt")
@@ -239,7 +256,7 @@ class Pipe(object):
 
         geoms: Dict[
             str, List[Tuple[Polygon, Dict[str, Any]]]
-        ] = self._collect_tile_geoms(tiles)
+        ] = self._collect_tile_geoms(tiles, bucket)
         for dst_format in geoms.keys():
             fc = self._to_feature_collection(geoms[dst_format])
             if (
@@ -253,7 +270,7 @@ class Pipe(object):
 
     @staticmethod
     def _collect_tile_geoms(
-        tiles: List[Tile],
+        tiles: List[Tile], bucket
     ) -> Dict[str, List[Tuple[Polygon, Dict[str, Any]]]]:
         LOGGER.debug("Collect Polygon from tile bounds")
 
@@ -264,27 +281,36 @@ class Pipe(object):
                 if dst_format not in geoms.keys():
                     geoms[dst_format] = list()
                 geoms[dst_format].append(
-                    (tile.dst[dst_format].geom, {"name": tile.dst[dst_format].uri})
+                    (
+                        tile.dst[dst_format].geom,
+                        {"name": f"/vsis3/{bucket}/{tile.dst[dst_format].uri}"},
+                    )
                 )
 
         return geoms
 
-    @staticmethod
-    def _union_tile_geoms(tiles: List[Tile]) -> Dict[str, Union[Polygon, MultiPolygon]]:
+    def _union_tile_geoms(
+        self, tiles: List[Tile]
+    ) -> Dict[str, Union[Polygon, MultiPolygon]]:
         LOGGER.debug("Create Polygon from tile bounds")
 
         geoms: Dict[str, Union[Polygon, MultiPolygon]] = dict()
+        polygons: Dict[str, List[Polygon]] = self._geoms_per_dst_format(tiles)
+
+        for dst_format in polygons.keys():
+            geoms[dst_format] = unary_union(polygons[dst_format])
+
+        return geoms
+
+    @staticmethod
+    def _geoms_per_dst_format(tiles) -> Dict[str, List[Polygon]]:
         polygons: Dict[str, List[Polygon]] = dict()
         for tile in tiles:
             for dst_format in tile.dst.keys():
                 if dst_format not in polygons.keys():
                     polygons[dst_format] = list()
                 polygons[dst_format].append(tile.dst[dst_format].geom)
-
-        for dst_format in polygons.keys():
-            geoms[dst_format] = unary_union(polygons[dst_format])
-
-        return geoms
+        return polygons
 
     @staticmethod
     def _to_feature_collection(

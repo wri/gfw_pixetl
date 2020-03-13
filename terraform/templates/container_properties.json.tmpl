@@ -3,6 +3,12 @@
   "image": "${image_url}",
   "vcpus": ${cpu},
   "memory": ${memory},
+  "retry_strategy": {
+    "attemps": 2
+    },
+  "timeout": {
+    "attempt_duration_seconds":4500
+    },
   "environment": [
     {
       "name": "ENV",
