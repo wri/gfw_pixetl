@@ -40,15 +40,16 @@ def test_create_tiles_subset():
                         with mock.patch.object(
                             RasterSrcTile, "rm_local_src", return_value=None
                         ):
-                            with mock.patch.object(
-                                RasterPipe, "upload_vrt", return_value=None
+                            with mock.patch(
+                                "gfw_pixetl.utils.upload_geometries.upload_vrt",
+                                return_value=None,
                             ):
-                                with mock.patch.object(
-                                    RasterPipe, "upload_geom", return_value=None
+                                with mock.patch(
+                                    "gfw_pixetl.utils.upload_geometries.upload_geom",
+                                    return_value=None,
                                 ):
-                                    with mock.patch.object(
-                                        RasterPipe,
-                                        "upload_tile_geoms",
+                                    with mock.patch(
+                                        "gfw_pixetl.utils.upload_geometries.upload_tile_geoms",
                                         return_value=None,
                                     ):
                                         (
@@ -73,15 +74,16 @@ def test_create_tiles_all():
                         with mock.patch.object(
                             RasterSrcTile, "rm_local_src", return_value=None
                         ):
-                            with mock.patch.object(
-                                RasterPipe, "upload_vrt", return_value=None
+                            with mock.patch(
+                                "gfw_pixetl.utils.upload_geometries.upload_vrt",
+                                return_value=None,
                             ):
-                                with mock.patch.object(
-                                    RasterPipe, "upload_geom", return_value=None
+                                with mock.patch(
+                                    "gfw_pixetl.utils.upload_geometries.upload_geom",
+                                    return_value=None,
                                 ):
-                                    with mock.patch.object(
-                                        RasterPipe,
-                                        "upload_tile_geoms",
+                                    with mock.patch(
+                                        "gfw_pixetl.utils.upload_geometries.upload_tile_geoms",
                                         return_value=None,
                                     ):
 

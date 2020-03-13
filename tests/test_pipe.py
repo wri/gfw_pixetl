@@ -8,7 +8,7 @@ from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl.utils import get_bucket
+from gfw_pixetl.utils import upload_geometries
 from gfw_pixetl.sources import Destination
 
 os.environ["ENV"] = "test"
@@ -135,7 +135,7 @@ def test_delete_file():
 
 def test__to_polygon():
     tiles = list(_get_subset_tiles())
-    extent = PIPE._union_tile_geoms(tiles)
+    extent = upload_geometries._union_tile_geoms(tiles)
     for dst_format in extent.keys():
         assert isinstance(extent[dst_format], Polygon)
         assert extent[dst_format].bounds == (10, 9, 12, 11)
