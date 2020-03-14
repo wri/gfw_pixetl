@@ -108,7 +108,7 @@ class RasterSrcTile(Tile):
                 vrt.close()
                 src.close()
 
-        except rasterio.RasterioIOError as e:
+        except Exception as e:
             LOGGER.exception(e)
             self.status = "failed"
             has_data = True
