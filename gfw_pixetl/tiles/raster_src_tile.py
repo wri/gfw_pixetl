@@ -66,21 +66,7 @@ class RasterSrcTile(Tile):
         window: Window = rasterio.windows.from_bounds(
             left, bottom, right, top, transform=self.dst[self.default_format].transform
         )
-        return self.snapped_window(window)
-
-    @staticmethod
-    def snapped_window(window):
-        """
-        Make sure window is snapped to grid and contains full pixels to avoid missing rows and columns
-        """
-        col_off, row_off, width, height = window.flatten()
-
-        return Window(
-            col_off=round(col_off),
-            row_off=round(row_off),
-            width=round(width),
-            height=round(height),
-        )
+        return utils.snapped_window(window)
 
     def within(self) -> bool:
         """
@@ -180,7 +166,7 @@ class RasterSrcTile(Tile):
                 max_j = min(j + max_blocks, y_blocks)
                 window = self._union_blocks(dst, i, j, max_i, max_j)
                 try:
-                    yield self.snapped_window(
+                    yield utils.snapped_window(
                         window.intersection(self.intersecting_window)
                     )
                 except rasterio.errors.WindowError as e:

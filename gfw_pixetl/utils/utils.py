@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import boto3
 import psutil
+from rasterio.windows import Window
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
@@ -223,3 +224,17 @@ def replace_inf_nan(number: float, replacement: float) -> float:
         return replacement
     else:
         return number
+
+
+def snapped_window(window):
+    """
+        Make sure window is snapped to grid and contains full pixels to avoid missing rows and columns
+        """
+    col_off, row_off, width, height = window.flatten()
+
+    return Window(
+        col_off=round(col_off),
+        row_off=round(row_off),
+        width=round(width),
+        height=round(height),
+    )
