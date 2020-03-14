@@ -140,6 +140,7 @@ class RasterSrcTile(Tile):
         """
         Creates local output file and returns list of size optimized windows to process.
         """
+        LOGGER.debug(f"Create local output file for tile {self.tile_id}")
         with rasterio.open(
             self.get_local_dst_uri(self.default_format),
             "w",
@@ -258,7 +259,7 @@ class RasterSrcTile(Tile):
             *bounds(dst_window, self.dst[self.default_format].transform)
         )
         LOGGER.debug(
-            f"Read {dst_window} for Tile {self.tile_id} - this corresponds to {window} in source"
+            f"Read {window} for Tile {self.tile_id} - this corresponds to {window} in source"
         )
         try:
             return vrt.read(
@@ -351,10 +352,10 @@ class RasterSrcTile(Tile):
         transform: rasterio.Affine = rasterio.transform.from_origin(
             west, north, self.grid.xres, self.grid.yres
         )
-        width = (east - west) / self.grid.xres
-        height = (north - south) / self.grid.yres
+        width = round((east - west) / self.grid.xres)
+        height = round((north - south) / self.grid.yres)
 
-        LOGGER.debug(f"Output Affine and dimensions {transform, width, height}")
+        LOGGER.debug(f"Output Affine and dimensions {transform}, {width}, {height}")
         return transform, width, height
 
     @staticmethod

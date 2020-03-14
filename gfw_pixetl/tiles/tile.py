@@ -86,12 +86,12 @@ class Tile(object):
 
         self.dst: Dict[str, Destination] = {
             "gdal-geotiff": Destination(
-                uri=f"{layer.prefix}/gdal-geotiff/{self.tile_id}.tif",
+                uri=os.path.join(layer.prefix, "gdal-geotiff", f"{self.tile_id}.tif"),
                 profile=gdal_profile,
                 bounds=self.bounds,
             ),
             "geotiff": Destination(
-                uri=f"{layer.prefix}/geotiff/{self.tile_id}.tif",
+                uri=os.path.join(layer.prefix, "geotiff", f"{self.tile_id}.tif"),
                 profile=geotiff_profile,
                 bounds=self.bounds,
             ),
@@ -111,9 +111,10 @@ class Tile(object):
     def get_local_dst_uri(self, dst_format) -> str:
 
         prefix = f"{self.layer.prefix}/{dst_format}"
+        LOGGER.debug(f"Attempt to create local folder {prefix} if not already exists")
         os.makedirs(f"{prefix}", exist_ok=True)
 
-        uri = f"{prefix}/{self.tile_id}.tif"
+        uri = os.path.join(prefix, f"{self.tile_id}.tif")
 
         LOGGER.debug(f"Local Source URI: {uri}")
         return uri
@@ -151,8 +152,11 @@ class Tile(object):
             raise
 
     def rm_local_src(self, dst_format) -> None:
-        LOGGER.info(f"Delete local file {self.local_dst[dst_format].uri}")
-        os.remove(self.local_dst[dst_format].uri)
+        if dst_format in self.local_dst.keys() and os.path.isfile(
+            self.local_dst[dst_format].uri
+        ):
+            LOGGER.info(f"Delete local file {self.local_dst[dst_format].uri}")
+            os.remove(self.local_dst[dst_format].uri)
 
     @staticmethod
     @retry(
