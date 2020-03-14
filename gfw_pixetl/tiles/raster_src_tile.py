@@ -63,8 +63,23 @@ class RasterSrcTile(Tile):
         right = min(dst_right, src_right)
         top = min(dst_top, src_top)
 
-        return rasterio.windows.from_bounds(
+        window: Window = rasterio.windows.from_bounds(
             left, bottom, right, top, transform=self.dst[self.default_format].transform
+        )
+        return self.snapped_window(window)
+
+    @staticmethod
+    def snapped_window(window):
+        """
+        Make sure window is snapped to grid and contains full pixels to avoid missing rows and columns
+        """
+        col_off, row_off, width, height = window.flatten()
+
+        return Window(
+            col_off=round(col_off),
+            row_off=round(row_off),
+            width=round(width),
+            height=round(height),
         )
 
     def within(self) -> bool:
@@ -165,7 +180,9 @@ class RasterSrcTile(Tile):
                 max_j = min(j + max_blocks, y_blocks)
                 window = self._union_blocks(dst, i, j, max_i, max_j)
                 try:
-                    yield window.intersection(self.intersecting_window)
+                    yield self.snapped_window(
+                        window.intersection(self.intersecting_window)
+                    )
                 except rasterio.errors.WindowError as e:
                     if not (str(e) == "windows do not intersect"):
                         raise
@@ -259,7 +276,7 @@ class RasterSrcTile(Tile):
             *bounds(dst_window, self.dst[self.default_format].transform)
         )
         LOGGER.debug(
-            f"Read {window} for Tile {self.tile_id} - this corresponds to {window} in source"
+            f"Read {dst_window} for Tile {self.tile_id} - this corresponds to {window} in source"
         )
         try:
             return vrt.read(
@@ -352,8 +369,8 @@ class RasterSrcTile(Tile):
         transform: rasterio.Affine = rasterio.transform.from_origin(
             west, north, self.grid.xres, self.grid.yres
         )
-        width = round((east - west) / self.grid.xres)
-        height = round((north - south) / self.grid.yres)
+        width = (east - west) / self.grid.xres
+        height = (north - south) / self.grid.yres
 
         LOGGER.debug(f"Output Affine and dimensions {transform}, {width}, {height}")
         return transform, width, height
