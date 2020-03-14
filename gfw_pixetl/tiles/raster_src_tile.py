@@ -355,8 +355,8 @@ class RasterSrcTile(Tile):
         transform: rasterio.Affine = rasterio.transform.from_origin(
             west, north, self.grid.xres, self.grid.yres
         )
-        width = (east - west) / self.grid.xres
-        height = (north - south) / self.grid.yres
+        width = round((east - west) / self.grid.xres)
+        height = round((north - south) / self.grid.yres)
 
         LOGGER.debug(f"Output Affine and dimensions {transform}, {width}, {height}")
         return transform, width, height
