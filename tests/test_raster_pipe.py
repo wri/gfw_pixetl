@@ -4,7 +4,7 @@ from unittest import mock
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
-from gfw_pixetl.pipes import RasterPipe
+from gfw_pixetl.pipes import RasterPipe, Pipe
 from gfw_pixetl.tiles import RasterSrcTile
 from gfw_pixetl.sources import Destination
 
@@ -30,71 +30,87 @@ PIPE = RasterPipe(LAYER, SUBSET)
 
 
 def test_create_tiles_subset():
-    with mock.patch.object(RasterSrcTile, "within", return_value=True):
-        with mock.patch.object(Destination, "exists", return_value=False):
-            with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-                with mock.patch.object(
-                    RasterSrcTile, "create_gdal_geotiff", return_value=None
-                ):
-                    with mock.patch.object(RasterSrcTile, "upload", return_value=None):
+    """
+    THIS TEST NEEDS TO BE REFACTORED. SHAME ON ME!
+    """
+    with mock.patch.object(
+        RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
+    ):
+        with mock.patch.object(RasterSrcTile, "within", return_value=True):
+            with mock.patch.object(Destination, "exists", return_value=False):
+                with mock.patch.object(RasterSrcTile, "transform", return_value=True):
+                    with mock.patch.object(
+                        RasterSrcTile, "create_gdal_geotiff", return_value=None
+                    ):
                         with mock.patch.object(
-                            RasterSrcTile, "rm_local_src", return_value=None
+                            RasterSrcTile, "upload", return_value=None
                         ):
-                            with mock.patch(
-                                "gfw_pixetl.utils.upload_geometries.upload_vrt",
-                                return_value=None,
+                            with mock.patch.object(
+                                RasterSrcTile, "rm_local_src", return_value=None
                             ):
                                 with mock.patch(
-                                    "gfw_pixetl.utils.upload_geometries.upload_geom",
+                                    "gfw_pixetl.utils.upload_geometries.upload_vrt",
                                     return_value=None,
                                 ):
                                     with mock.patch(
-                                        "gfw_pixetl.utils.upload_geometries.upload_tile_geoms",
+                                        "gfw_pixetl.utils.upload_geometries.upload_geom",
                                         return_value=None,
                                     ):
-                                        (
-                                            tiles,
-                                            skipped_tiles,
-                                            failed_tiles,
-                                        ) = PIPE.create_tiles(overwrite=True)
-                                        assert len(tiles) == 3
-                                        assert len(skipped_tiles) == 645
-                                        assert len(failed_tiles) == 0
+                                        with mock.patch(
+                                            "gfw_pixetl.utils.upload_geometries.upload_tile_geoms",
+                                            return_value=None,
+                                        ):
+                                            (
+                                                tiles,
+                                                skipped_tiles,
+                                                failed_tiles,
+                                            ) = PIPE.create_tiles(overwrite=True)
+                                            assert len(tiles) == 1
+                                            assert len(skipped_tiles) == 3
+                                            assert len(failed_tiles) == 0
 
 
 def test_create_tiles_all():
+    """
+    THIS TEST NEEDS TO BE REFACTORED. SHAME ON ME!
+    """
     pipe = RasterPipe(LAYER)
-    with mock.patch.object(RasterSrcTile, "within", return_value=True):
-        with mock.patch.object(Destination, "exists", return_value=False):
-            with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-                with mock.patch.object(
-                    RasterSrcTile, "create_gdal_geotiff", return_value=None
-                ):
-                    with mock.patch.object(RasterSrcTile, "upload", return_value=None):
+    with mock.patch.object(
+        RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
+    ):
+        with mock.patch.object(RasterSrcTile, "within", return_value=True):
+            with mock.patch.object(Destination, "exists", return_value=False):
+                with mock.patch.object(RasterSrcTile, "transform", return_value=True):
+                    with mock.patch.object(
+                        RasterSrcTile, "create_gdal_geotiff", return_value=None
+                    ):
                         with mock.patch.object(
-                            RasterSrcTile, "rm_local_src", return_value=None
+                            RasterSrcTile, "upload", return_value=None
                         ):
-                            with mock.patch(
-                                "gfw_pixetl.utils.upload_geometries.upload_vrt",
-                                return_value=None,
+                            with mock.patch.object(
+                                RasterSrcTile, "rm_local_src", return_value=None
                             ):
                                 with mock.patch(
-                                    "gfw_pixetl.utils.upload_geometries.upload_geom",
+                                    "gfw_pixetl.utils.upload_geometries.upload_vrt",
                                     return_value=None,
                                 ):
                                     with mock.patch(
-                                        "gfw_pixetl.utils.upload_geometries.upload_tile_geoms",
+                                        "gfw_pixetl.utils.upload_geometries.upload_geom",
                                         return_value=None,
                                     ):
+                                        with mock.patch(
+                                            "gfw_pixetl.utils.upload_geometries.upload_tile_geoms",
+                                            return_value=None,
+                                        ):
 
-                                        (
-                                            tiles,
-                                            skipped_tiles,
-                                            failed_tiles,
-                                        ) = pipe.create_tiles(overwrite=True)
-                                        assert len(tiles) == 648
-                                        assert len(skipped_tiles) == 0
-                                        assert len(failed_tiles) == 0
+                                            (
+                                                tiles,
+                                                skipped_tiles,
+                                                failed_tiles,
+                                            ) = pipe.create_tiles(overwrite=True)
+                                            assert len(tiles) == 4
+                                            assert len(skipped_tiles) == 0
+                                            assert len(failed_tiles) == 0
 
 
 def test_filter_src_tiles():

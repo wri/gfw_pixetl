@@ -42,7 +42,7 @@ def test_create_tiles():
 
 
 def test_get_grid_tiles():
-    assert len(PIPE.get_grid_tiles()) == 64800
+    assert len(PIPE.get_grid_tiles(min_x=10, min_y=10, max_x=12, max_y=12)) == 4
 
     grid = grid_factory("10/40000")
     raster_layer: Dict[str, Any] = {
@@ -54,8 +54,8 @@ def test_get_grid_tiles():
 
     layer = layers.layer_factory(**raster_layer)
     pipe = Pipe(layer)
-    tiles = pipe.get_grid_tiles()
-    assert len(tiles) == 648
+    tiles = pipe.get_grid_tiles(min_x=0, min_y=0, max_x=20, max_y=20)
+    assert len(tiles) == 4
 
 
 def test_filter_subset_tiles():

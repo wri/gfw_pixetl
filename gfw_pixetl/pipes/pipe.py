@@ -59,7 +59,7 @@ class Pipe(object):
         """
         raise NotImplementedError()
 
-    def get_grid_tiles(self) -> Set[Tile]:
+    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[Tile]:
         """
         Seed all available tiles within given grid.
         Use 1x1 degree tiles covering all land area as starting point.
@@ -70,8 +70,8 @@ class Pipe(object):
         LOGGER.debug("Get grid Tiles")
         tiles = set()
 
-        for i in range(-89, 91):
-            for j in range(-180, 180):
+        for i in range(min_y + 1, max_y + 1):
+            for j in range(min_x, max_x):
                 origin = self.grid.xy_grid_origin(j, i)
                 tiles.add(Tile(origin=origin, grid=self.grid, layer=self.layer))
 
