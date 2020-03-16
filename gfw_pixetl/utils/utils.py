@@ -118,6 +118,7 @@ def set_aws_credentials():
 
 def set_cwd() -> str:
     if "AWS_BATCH_JOB_ID" in os.environ.keys():
+        check_volume_ready()
         cwd: str = os.environ["AWS_BATCH_JOB_ID"]
     else:
         cwd = str(uuid.uuid4())

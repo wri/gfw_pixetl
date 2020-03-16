@@ -150,9 +150,10 @@ class Tile(object):
                     utils.get_bucket(),
                     self.dst[dst_format].uri,
                 )
-        except ClientError:
-            LOGGER.exception(f"Could not upload file {self.tile_id}")
-            raise
+        except Exception as e:
+            LOGGER.error(f"Could not upload file {self.tile_id}")
+            LOGGER.exception(str(e))
+            self.status = "failed"
 
     def rm_local_src(self, dst_format) -> None:
         if dst_format in self.local_dst.keys() and os.path.isfile(

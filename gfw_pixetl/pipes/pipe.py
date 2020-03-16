@@ -1,10 +1,8 @@
 import multiprocessing
-from math import ceil
 from typing import Iterator, List, Optional, Set, Tuple
 
 import boto3
 from parallelpipe import stage
-
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.utils import upload_geometries
@@ -154,6 +152,9 @@ class Pipe(object):
             yield tile
 
     def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile], List[Tile]]:
+        """
+        Fetching all tiles, which ran through the pipe. Check and sort by status.
+        """
 
         tiles: List[Tile] = list()
         skipped_tiles: List[Tile] = list()
@@ -162,9 +163,18 @@ class Pipe(object):
 
         for tile in pipe.results():
 
-            if tile.dst[tile.default_format].exists():
+            # Checking again which tiles are already in the final output folder.
+            # We need this to build the final geojson file which includes all the tiles.
+            # There might be already files which have been processed in a previous run
+            # So we cannot rely on the tile status alone.
+            # S3 is eventually consistent and it might take up to 15min for a file to become available after upload
+            # We hence don't check if remote files exists for processed files,
+            # just for those which were skipped or failed during the current run
+
+            if tile.status == "pending" or tile.dst[tile.default_format].exists():
                 existing_tiles.append(tile)
 
+            # Sorting tiles based on their status final reporting
             if tile.status == "pending":
                 tile.status = "processed"
                 tiles.append(tile)
@@ -178,6 +188,9 @@ class Pipe(object):
         return tiles, skipped_tiles, failed_tiles
 
     def _upload_geometries(self, tiles) -> None:
+        """
+        Computing VRT, extent GeoJSON and Tile GeoJSON and upload to S3
+        """
         if len(tiles):
             upload_geometries.upload_vrt(tiles, self.layer.prefix)
             upload_geometries.upload_geom(tiles, self.layer.prefix)

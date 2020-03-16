@@ -1,5 +1,4 @@
 import multiprocessing
-from math import ceil
 from typing import Iterator, List, Set, Tuple
 
 from parallelpipe import Stage, stage
