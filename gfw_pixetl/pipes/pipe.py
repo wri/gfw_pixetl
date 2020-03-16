@@ -82,7 +82,7 @@ class Pipe(object):
         return tiles
 
     @staticmethod
-    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    @stage(workers=CORES)
     def filter_src_tiles():
         """
         Override this method when implementing pipes
@@ -90,7 +90,7 @@ class Pipe(object):
         raise NotImplementedError()
 
     @staticmethod
-    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    @stage(workers=CORES)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """
         Apply filter in case user only want to process only a subset.
@@ -103,7 +103,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    @stage(workers=CORES)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """
         Don't process tiles if they already exists in target location,
@@ -120,7 +120,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    @stage(workers=CORES)
     def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Copy local file to geotiff format
@@ -131,7 +131,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    @stage(workers=CORES)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Upload tile to target location
@@ -142,7 +142,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    @stage(workers=CORES)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Delete local file

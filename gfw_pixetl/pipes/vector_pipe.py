@@ -1,3 +1,4 @@
+import multiprocessing
 from typing import Iterator, List, Tuple
 
 from parallelpipe import stage
@@ -8,6 +9,7 @@ from gfw_pixetl.pipes import Pipe
 
 LOGGER = get_module_logger(__name__)
 WORKERS = utils.get_workers()
+CORES = multiprocessing.cpu_count()
 
 
 class VectorPipe(Pipe):
@@ -24,7 +26,7 @@ class VectorPipe(Pipe):
             | self.filter_src_tiles
             | self.filter_target_tiles(overwrite=overwrite)
             | self.rasterize
-            | self.create_gdal_geotiff
+            # | self.create_gdal_geotiff
             | self.upload_file
             | self.delete_file
         )

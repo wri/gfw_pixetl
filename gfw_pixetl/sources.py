@@ -13,8 +13,9 @@ from shapely.geometry import Polygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
+from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_not_recognized
-from gfw_pixetl.utils import get_bucket, replace_inf_nan
+from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
 
 LOGGER = get_module_logger(__name__)
 
@@ -22,7 +23,7 @@ Windows = Tuple[Window, Window]
 Bounds = Tuple[float, float, float, float]
 
 
-class Source(object):
+class Source:
     pass
 
 
@@ -32,9 +33,22 @@ class VectorSource(Source):
         self.table_name: str = table_name
 
 
-class _RasterSource(Source):
-    profile: Dict[str, Any] = dict()
-    bounds: BoundingBox = BoundingBox(180, -90, 180, 90)
+class RasterSource(Source):
+    def __init__(self, uri: str) -> None:
+
+        profile: Dict[str, Any]
+        bounds: BoundingBox
+
+        self.uri: str = uri
+        self.url: str = uri
+        self.bounds, self.profile = self.fetch_meta()
+
+    @lazy_property
+    def geom(self) -> Polygon:
+        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
+        return Polygon(
+            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
+        )
 
     @property
     def transform(self) -> rasterio.Affine:
@@ -110,94 +124,30 @@ class _RasterSource(Source):
         Make sure that coordinates fall within real world coordinates system
         """
 
-        LOGGER.debug(
-            "SRC Extent: {}, {}, {}, {}".format(
-                self.bounds.left,
-                self.bounds.bottom,
-                self.bounds.right,
-                self.bounds.top,
-            )
-        )
-        #
-        # world_bounds = self._world_bounds(crs)
-        #
-        # clamped_bounds = self._clamp_bounds(world_bounds)
-
-        return self._reproject_bounds(crs)  # , clamped_bounds)
-
-    def _world_bounds(self, crs: CRS) -> Bounds:
-        """
-        Get world bounds in src CRT
-        """
-        proj = Transformer.from_crs(crs, self.profile["crs"], always_xy=True)
-
-        # Get World Extent in Source Projection
-        # Important: We have to get each top, left, right, bottom seperately.
-        # We cannot get them using the corner coordinates.
-        # For some projections such as Goode (epsg:54052) this would cause strange behavior
-        top = proj.transform(0, 90)[1]
-        left = proj.transform(-180, 0)[0]
-        bottom = proj.transform(0, -90)[1]
-        right = proj.transform(180, 0)[0]
-
-        LOGGER.debug("World Extent: {}, {}, {}, {}".format(left, bottom, right, top))
-
-        return left, bottom, right, top
-
-    def _clamp_bounds(self, bounds: Bounds) -> Bounds:
-        """
-        Make sure src bounds are within world extent
-        """
-        left, bottom, right, top = bounds
-
-        # Crop SRC Bounds to World Extent:
-        clamp_left = max(left, self.bounds.left)
-        clamp_top = min(top, self.bounds.top)
-        clamp_right = min(right, self.bounds.right)
-        clamp_bottom = max(bottom, self.bounds.bottom)
-
-        LOGGER.debug(
-            "Cropped Extent: {}, {}, {}, {}".format(
-                clamp_left, clamp_bottom, clamp_right, clamp_top
-            )
-        )
-
-        return clamp_left, clamp_bottom, clamp_right, clamp_top
-
-    def _reproject_bounds(self, crs: CRS) -> Bounds:
-        """
-        Reproject bounds to dst CRT
-        """
         left, bottom, right, top = self.bounds
+
+        LOGGER.debug("SRC Extent: {}, {}, {}, {}".format(left, bottom, right, top,))
+
+        min_lng, min_lat, max_lng, max_lat = utils.world_bounds(crs)
 
         proj = Transformer.from_crs(self.crs, crs, always_xy=True)
 
-        reproject_top = replace_inf_nan(round(proj.transform(0, top)[1], 8), 90)
-        reproject_left = replace_inf_nan(round(proj.transform(left, 0)[0], 8), -180)
-        reproject_bottom = replace_inf_nan(round(proj.transform(0, bottom)[1], 8), -90)
-        reproject_right = replace_inf_nan(round(proj.transform(right, 0)[0], 8), 180)
+        reproject_top = replace_inf_nan(round(proj.transform(0, top)[1], 8), max_lat)
+        reproject_left = replace_inf_nan(round(proj.transform(left, 0)[0], 8), min_lng)
+        reproject_bottom = replace_inf_nan(
+            round(proj.transform(0, bottom)[1], 8), min_lat
+        )
+        reproject_right = replace_inf_nan(
+            round(proj.transform(right, 0)[0], 8), max_lng
+        )
 
         LOGGER.debug(
-            "Inverted Copped Extent: {}, {}, {}, {}".format(
+            "Reprojected, cropped Extent: {}, {}, {}, {}".format(
                 reproject_left, reproject_bottom, reproject_right, reproject_top
             )
         )
 
         return reproject_left, reproject_bottom, reproject_right, reproject_top
-
-
-class RasterSource(_RasterSource):
-    def __init__(self, uri: str) -> None:
-
-        self.uri: str = uri
-        self.bounds, self.profile = self._meta()
-
-    @property
-    def geom(self) -> Polygon:
-        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
-        return Polygon(
-            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
-        )
 
     @retry(
         retry_on_exception=retry_if_not_recognized,
@@ -205,32 +155,37 @@ class RasterSource(_RasterSource):
         wait_exponential_multiplier=1000,
         wait_exponential_max=300000,
     )
-    def _meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
-        LOGGER.debug("Check if tile {} exists".format(self.uri))
+    def fetch_meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
+        """
+        Open file to fetch metadata
+        """
+        LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
-            with rasterio.open(self.uri) as src:
-                LOGGER.info(f"File {self.uri} exists")
+            with rasterio.open(self.url) as src:
+                LOGGER.info(f"File {self.url} exists")
                 return src.bounds, src.profile
 
         except Exception as e:
 
-            if _file_does_not_exist(e, self.uri):
-                LOGGER.info(f"File does not exist {self.uri}")
-                raise FileNotFoundError(f"File does not exist: {self.uri}")
+            if _file_does_not_exist(e):
+                LOGGER.info(f"File does not exist {self.url}")
+                raise FileNotFoundError(f"File does not exist: {self.url}")
             elif isinstance(e, rasterio.RasterioIOError):
                 LOGGER.warning(
-                    f"RasterioIO Error while opening {self.uri}. Will make attempts to retry"
+                    f"RasterioIO Error while opening {self.url}. Will make attempts to retry"
                 )
                 raise
             else:
-                LOGGER.exception(f"Cannot open {self.uri}")
+                LOGGER.exception(f"Cannot open file {self.url}")
                 raise
 
 
-class Destination(_RasterSource):
+class Destination(RasterSource):
     def __init__(self, uri: str, profile: Dict[str, Any], bounds: BoundingBox):
+        # super().__init__(uri)  # we don't want to invoke __init__ from RasterSource here
         self.uri: str = uri
+        self.url: str = f"/vsis3/{self.bucket}/{uri}"
         self.profile = profile
         self.bounds = bounds
 
@@ -254,19 +209,18 @@ class Destination(_RasterSource):
         return "/".join(self.uri.split("/")[:-1])
 
     def exists(self) -> bool:
-        if not self.uri:
-            raise Exception("Tile URI is not set")
-        uri = f"s3://{self.bucket}/{self.uri}"
+        if not self.url:
+            raise Exception("Tile URL is not set")
         try:
-            RasterSource(uri)
-            LOGGER.debug(f"File {uri} exists")
+            self.fetch_meta()
+            LOGGER.debug(f"File {self.url} exists")
             return True
         except FileNotFoundError:
-            LOGGER.debug(f"File {uri} does not exist")
+            LOGGER.debug(f"File {self.url} does not exist")
             return False
 
 
-def _file_does_not_exist(e: Exception, uri: str) -> bool:
+def _file_does_not_exist(e: Exception) -> bool:
     return isinstance(e, RasterioIOError) and (
         "does not exist in the file system, and is not recognized as a supported dataset name."
         in str(e)

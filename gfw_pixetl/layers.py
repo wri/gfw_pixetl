@@ -125,10 +125,11 @@ class RasterSrcLayer(Layer):
         else:
             self._src_uri = self._source["grids"][grid.name]["uri"]
 
-        self.input_files = self._input_files()
-        self.geom = self._geom()
+        # self.input_files = self._input_files()
+        # self.geom = self._geom()
 
-    def _input_files(self) -> List[Tuple[Polygon, str]]:
+    @property
+    def input_files(self) -> List[Tuple[Polygon, str]]:
         s3 = boto3.resource("s3")
         input_files = list()
 
@@ -147,7 +148,8 @@ class RasterSrcLayer(Layer):
             )
         return input_files
 
-    def _geom(self) -> MultiPolygon:
+    @property
+    def geom(self) -> MultiPolygon:
         LOGGER.debug("Create Polygon from input tile bounds")
         geoms: List[Polygon] = [tile[0] for tile in self.input_files]
         return unary_union(geoms)

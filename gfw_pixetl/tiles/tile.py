@@ -122,17 +122,20 @@ class Tile(object):
     def create_gdal_geotiff(self) -> None:
         dst_format = "gdal-geotiff"
         if self.default_format != dst_format:
-            LOGGER.info("Create copy of local file as Gdal Geotiff")
+            LOGGER.info(
+                f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
+            )
 
             raster_copy(
                 self.local_dst[self.default_format].uri,
                 self.get_local_dst_uri(dst_format),
+                strict=False,
                 **self.dst[dst_format].profile,
             )
             self.set_local_dst(dst_format)
         else:
             LOGGER.warning(
-                "Local file already Gdal Geotiff. Skip copying as Gdal Geotiff"
+                f"Local file already Gdal Geotiff. Skip copying as Gdal Geotiff for tile {self.tile_id}"
             )
 
     def upload(self) -> None:

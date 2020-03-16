@@ -4,6 +4,8 @@ from datetime import datetime
 from dateutil.tz import tzutc
 from unittest import mock
 
+from pyproj import CRS
+
 from gfw_pixetl.utils.utils import (
     get_bucket,
     verify_version_pattern,
@@ -15,6 +17,7 @@ from gfw_pixetl.utils.utils import (
     available_memory_per_process,
     _write_tile_list,
     create_vrt,
+    world_bounds,
 )
 
 os.environ["ENV"] = "test"
@@ -159,3 +162,19 @@ def test__create_vrt():
         MockPopen.return_value.returncode = 0
         vrt = create_vrt(URIS)
         assert vrt == "all.vrt"
+
+
+def test_world_bounds():
+    crs = CRS(4326)
+    left, bottom, right, top = world_bounds(crs)
+    assert left == -180
+    assert bottom == -90
+    assert right == 180
+    assert top == 90
+
+    crs = CRS(3857)
+    left, bottom, right, top = world_bounds(crs)
+    assert left == -20037508.342789244
+    assert bottom == -20048966.1040146
+    assert right == 20037508.342789244
+    assert top == 20048966.104014594

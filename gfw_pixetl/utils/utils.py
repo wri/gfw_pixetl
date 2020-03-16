@@ -6,10 +6,11 @@ import shutil
 import subprocess as sp
 import uuid
 from dateutil.tz import tzutc
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 import psutil
+from pyproj import CRS, Transformer
 from rasterio.windows import Window
 from retrying import retry
 
@@ -24,6 +25,8 @@ AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
 AVAILABLE_MEMORY: Optional[int] = None
 WORKERS: int = 1
+
+Bounds = Tuple[float, float, float, float]
 
 
 def get_bucket(env: Optional[str] = None) -> str:
@@ -186,7 +189,7 @@ def available_memory_per_process() -> float:
 
 def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
     """
-    ! Important this is not a parallelpipe Stage and must be run with only one worker
+    ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
     Create VRT file from input URI.
     """
 
@@ -238,3 +241,28 @@ def snapped_window(window):
         width=round(width),
         height=round(height),
     )
+
+
+def world_bounds(crs: CRS) -> Bounds:
+    """
+        Get world bounds got given CRT
+        """
+
+    from_crs = CRS(4326)
+
+    proj = Transformer.from_crs(from_crs, crs, always_xy=True)
+
+    _left, _bottom, _right, _top = crs.area_of_use.bounds
+
+    # Get World Extent in Source Projection
+    # Important: We have to get each top, left, right, bottom separately.
+    # We cannot get them using the corner coordinates.
+    # For some projections such as Goode (epsg:54052) this would cause strange behavior
+    top = proj.transform(0, _top)[1]
+    left = proj.transform(_left, 0)[0]
+    bottom = proj.transform(0, _bottom)[1]
+    right = proj.transform(_right, 0)[0]
+
+    LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
+
+    return left, bottom, right, top

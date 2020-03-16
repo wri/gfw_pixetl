@@ -54,8 +54,7 @@ class RasterPipe(Pipe):
 
         pipe = (
             tiles
-            | Stage(self.transform).setup(workers=workers, qsize=workers)
-            | self.create_gdal_geotiff
+            | Stage(self.transform).setup(workers=workers)
             | self.upload_file
             | self.delete_file
         )
@@ -66,7 +65,7 @@ class RasterPipe(Pipe):
         return tiles, skipped_tiles, failed_tiles
 
     @staticmethod
-    @stage(workers=ceil(CORES / 4), qsize=ceil(CORES / 4))
+    @stage(workers=CORES)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Only process tiles which intersect with source raster

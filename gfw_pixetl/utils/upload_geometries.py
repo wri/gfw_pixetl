@@ -61,7 +61,7 @@ def upload_tile_geoms(
     response: List[Dict[str, Any]] = list()
 
     geoms: Dict[str, List[Tuple[Polygon, Dict[str, Any]]]] = _geoms_uris_per_dst_format(
-        tiles, bucket
+        tiles
     )
     for dst_format in geoms.keys():
         fc = _to_feature_collection(geoms[dst_format])
@@ -78,13 +78,12 @@ def upload_tile_geoms(
 def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
 
     uris: Dict[str, List[str]] = dict()
-    bucket: str = utils.get_bucket()
 
     for tile in tiles:
         for dst_format in tile.dst.keys():
             if dst_format not in uris.keys():
                 uris[dst_format] = list()
-            uris[dst_format].append(f"/vsis3/{bucket}/{tile.dst[dst_format].uri}")
+            uris[dst_format].append(f"{tile.dst[dst_format].url}")
 
     return uris
 
@@ -101,7 +100,7 @@ def _geoms_per_dst_format(tiles) -> Dict[str, List[Polygon]]:
 
 
 def _geoms_uris_per_dst_format(
-    tiles: List[Tile], bucket
+    tiles: List[Tile],
 ) -> Dict[str, List[Tuple[Polygon, Dict[str, Any]]]]:
 
     LOGGER.debug("Collect Polygon from tile bounds")
@@ -113,10 +112,7 @@ def _geoms_uris_per_dst_format(
             if dst_format not in geoms.keys():
                 geoms[dst_format] = list()
             geoms[dst_format].append(
-                (
-                    tile.dst[dst_format].geom,
-                    {"name": f"/vsis3/{bucket}/{tile.dst[dst_format].uri}"},
-                )
+                (tile.dst[dst_format].geom, {"name": f"{tile.dst[dst_format].url}"},)
             )
 
     return geoms

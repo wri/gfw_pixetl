@@ -114,6 +114,12 @@ class RasterSrcTile(Tile):
             self.status = "failed"
             has_data = True
 
+        else:
+            # invoking gdal-geotiff here instead of in a separate stage to assure we don't run out of memory
+            # the transform stage uses all available memory for concurrent processes.
+            # Having another stage which needs a lot of memory might cause the process to crash
+            self.create_gdal_geotiff()
+
         return has_data
 
     @processify
