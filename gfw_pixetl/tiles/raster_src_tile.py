@@ -216,7 +216,7 @@ class RasterSrcTile(Tile):
         """
 
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_block = utils.available_memory_per_process() / 4
+        memory_per_block = utils.available_memory_per_process() / 8
         return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
 
     def _max_block_size(self, dst: DatasetWriter) -> float:

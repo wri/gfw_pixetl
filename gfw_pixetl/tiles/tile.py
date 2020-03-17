@@ -13,6 +13,7 @@ from retrying import retry
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.decorators import processify
 from gfw_pixetl.errors import (
     GDALError,
     GDALAWSConfigError,
@@ -119,6 +120,7 @@ class Tile(object):
         LOGGER.debug(f"Local Source URI: {uri}")
         return uri
 
+    @processify
     def create_gdal_geotiff(self) -> None:
         dst_format = "gdal-geotiff"
         if self.default_format != dst_format:

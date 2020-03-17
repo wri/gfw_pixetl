@@ -192,6 +192,6 @@ class Pipe(object):
         Computing VRT, extent GeoJSON and Tile GeoJSON and upload to S3
         """
         if len(tiles):
-            upload_geometries.upload_vrt(tiles, self.layer.prefix)
+            # upload_geometries.upload_vrt(tiles, self.layer.prefix)
             upload_geometries.upload_geom(tiles, self.layer.prefix)
             upload_geometries.upload_tile_geoms(tiles, self.layer.prefix)
