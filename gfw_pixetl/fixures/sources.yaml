@@ -962,7 +962,7 @@ birdlife_alliance_for_zero_extinction_site: # v20190816
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/aze/tiles.geojson
+                uri: s3://gfw-files/2018_update/aze/v20190816/tiles.geojson
 #                type: vector
 #                order: desc
             90/27008:
@@ -1083,7 +1083,7 @@ gfw_oil_palm: ########  # v20191031
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/oil_palm/tiles.geojson
+                uri: s3://gfw-files/2018_update/oil_palm/v20191031/tiles.geojson
 #                type: vector
             90/27008:
                 type: raster
@@ -1123,7 +1123,7 @@ gfw_wood_fiber: ######## # v20190917
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/wood_fiber/tiles.geojson
+                uri: s3://gfw-files/2018_update/wood_fiber/v20190917/tiles.geojson
 #                type: vector
             90/27008:
                 type: raster
@@ -1184,13 +1184,13 @@ ifl_intact_forest_landscapes:  # v20180628
                 depends_on: ifl_intact_forest_landscapes/year/10/40000
                 resampling: mode
 
-birdlife_key_biodiversity_area:  ######## # v20190902
+birdlife_key_biodiversity_area:  ######## # v20190902 # v20191211
     is:
         data_type: boolean
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/kba/tiles.geojson
+                uri: s3://gfw-files/2018_update/kba/v20191211/tiles.geojson
 #                type: vector
             90/27008:
                 type: raster
@@ -1203,7 +1203,7 @@ landmark_land_rights: ######## # v20191111
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/landmark/tiles.geojson
+                uri: s3://gfw-files/2018_update/landmark/v20191111/tiles.geojson
 #                type: vector
             90/27008:
                 type: raster
@@ -1350,7 +1350,7 @@ rspo_oil_palm: ######## #v20200114
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/rspo/tiles.geojson
+                uri: s3://gfw-files/2018_update/rspo/v20200114/tiles.geojson
 #                type: vector
             90/27008:
                 type: raster
@@ -1390,7 +1390,7 @@ wdpa_protected_areas:  # v201909  # v201912
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/wdpa/tiles.geojson
+                uri: s3://gfw-files/2018_update/wdpa/v201912/tiles.geojson
 #                type: vector
 #                order: desc
             90/27008:
