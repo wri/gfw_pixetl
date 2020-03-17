@@ -1,18 +1,19 @@
-from typing import Iterator, List, Set
+import multiprocessing
+from typing import Iterator, List, Set, Tuple
 
-from parallelpipe import Stage
+from parallelpipe import Stage, stage
 
-from gfw_pixetl import get_module_logger
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
-
 LOGGER = get_module_logger(__name__)
+CORES = multiprocessing.cpu_count()
 
 
 class RasterPipe(Pipe):
-    def get_grid_tiles(self) -> Set[Tile]:
+    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[RasterSrcTile]:  # type: ignore
         """
         Seed all available tiles within given grid.
         Use 1x1 degree tiles covering all land area as starting point.
@@ -21,78 +22,72 @@ class RasterPipe(Pipe):
         """
 
         assert isinstance(self.layer, RasterSrcLayer)
-        LOGGER.debug("Get grid Tiles")
-        tiles: Set[Tile] = set()
+        LOGGER.debug("Get Grid Tiles")
+        tiles: Set[RasterSrcTile] = set()
 
-        for i in range(-89, 91):
-            for j in range(-180, 180):
+        for i in range(min_y + 1, max_y + 1):
+            for j in range(min_x, max_x):
                 origin = self.grid.xy_grid_origin(j, i)
                 tiles.add(
                     RasterSrcTile(origin=origin, grid=self.grid, layer=self.layer)
                 )
 
-        LOGGER.info(f"Found {len(tiles)} tile inside grid")
-        # logger.debug(tiles)
+        tile_count = len(tiles)
+        LOGGER.info(f"Found {tile_count} tile inside grid")
+        # utils.set_workers(tile_count)
 
         return tiles
 
-    def create_tiles(self, overwrite=True) -> List[Tile]:
+    def create_tiles(
+        self, overwrite: bool
+    ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """
         Raster Pipe
         """
 
-        LOGGER.debug("Start Raster Pipe")
+        LOGGER.info("Start Raster Pipe")
+
+        tiles = self.collect_tiles(overwrite=overwrite)
+
+        workers = utils.set_workers(self.tiles_to_process)
 
         pipe = (
-            self.get_grid_tiles()
-            | Stage(self.filter_subset_tiles).setup(workers=self.workers)
-            | Stage(self.filter_src_tiles).setup(workers=self.workers)
-            | Stage(self.filter_target_tiles, overwrite=overwrite).setup(
-                workers=self.workers
-            )
-            | Stage(self.transform).setup(workers=self.workers, qsize=self.workers)
-            | Stage(self.delete_if_empty).setup(workers=self.workers)
-            | Stage(self.compress).setup(workers=self.workers)
-            | Stage(self.upload_file).setup(workers=self.workers)
-            | Stage(self.delete_file).setup(workers=self.workers)
+            tiles
+            | Stage(self.transform).setup(workers=workers)
+            | self.upload_file
+            | self.delete_file
         )
 
-        tile_uris: List[str] = list()
-        tiles: List[Tile] = list()
-        for tile in pipe.results():
-            tiles.append(tile)
-            tile_uris.append(tile.dst.uri)
+        tiles, skipped_tiles, failed_tiles = self._process_pipe(pipe)
 
-        if len(tiles):
-            self.upload_vrt(tile_uris)
-            self.upload_extent(tiles)
-
-        LOGGER.debug("Finished Raster Pipe")
-        return tiles
+        LOGGER.info("Finished Raster Pipe")
+        return tiles, skipped_tiles, failed_tiles
 
     @staticmethod
+    @stage(workers=CORES)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Only process tiles which intersect with source raster
         """
         for tile in tiles:
-            if tile.src_tile_intersects():
-                yield tile
+            if tile.status == "pending" and not tile.within():
+                LOGGER.info(
+                    f"Tile {tile.tile_id} does not intersects with source raster - skip"
+                )
+                tile.status = "skipped (does not intersect)"
+            yield tile
 
+    # We cannot use the @stage decorate here
+    # but need to create a Stage instance directly in the pipe.
+    # When using the decorator, number of workers get set during RasterPipe class instantiation
+    # and cannot be changed afterwards anymore. The Stage class gives us more flexibility.
     @staticmethod
     def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """
         Transform input raster to match new tile grid and projection
         """
         for tile in tiles:
-            tile.transform()
-            yield tile
-
-    @staticmethod
-    def compress(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
-        """
-        Compress tiles
-        """
-        for tile in tiles:
-            tile.compress()
+            if tile.status == "pending" and not tile.transform():
+                tile.status = "skipped (has no data)"
+                LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
             yield tile

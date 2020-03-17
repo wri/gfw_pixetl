@@ -1,13 +1,19 @@
+import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple
+from urllib.parse import urlparse
 
+import boto3
 import yaml
+from rasterio.warp import Resampling
+from shapely.geometry import MultiPolygon, shape, Polygon
+from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
-from gfw_pixetl.sources import VectorSource, RasterSource, get_src
-
+from gfw_pixetl.sources import VectorSource
+from gfw_pixetl.resampling import resampling_factory
 
 LOGGER = get_module_logger(__name__)
 
@@ -31,7 +37,9 @@ class Layer(object):
         self._set_dst_profile()
 
         self.resampling = (
-            source_grid["resampling"] if "resampling" in source_grid.keys() else None
+            resampling_factory(source_grid["resampling"])
+            if "resampling" in source_grid.keys()
+            else Resampling.nearest
         )
         self.calc = source_grid["calc"] if "calc" in source_grid.keys() else None
         self.rasterize_method = (
@@ -60,7 +68,15 @@ class Layer(object):
         srs_authority = grid.srs.to_authority()[0].lower()
         srs_code = grid.srs.to_authority()[1]
 
-        return f"{name}/{version}/raster/{srs_authority}-{srs_code}/{grid.width}/{grid.cols}/{field}"
+        return os.path.join(
+            name,
+            version,
+            "raster",
+            f"{srs_authority}-{srs_code}",
+            f"{grid.width}",
+            f"{grid.cols}",
+            field,
+        )
 
     def _set_dst_profile(self):
 
@@ -105,20 +121,41 @@ class RasterSrcLayer(Layer):
             )
             bucket = utils.get_bucket()
 
-            src_uri = f"/vsis3/{bucket}/{prefix}/all.vrt"
+            self._src_uri = f"s3://{bucket}/{prefix}/geotiff/tiles.geojson"
         else:
-            src_uri = self._source["grids"][grid.name]["uri"]
+            self._src_uri = self._source["grids"][grid.name]["uri"]
 
-        try:
-            self.src: RasterSource = get_src(src_uri)
-        except FileNotFoundError:
-            message = f"The source file {src_uri} for layer {self.name}/{self.field} does not exist"
-            LOGGER.error(message)
-            raise FileNotFoundError(message)
+        # self.input_files = self._input_files()
+        # self.geom = self._geom()
+
+    @property
+    def input_files(self) -> List[Tuple[Polygon, str]]:
+        s3 = boto3.resource("s3")
+        input_files = list()
+
+        o = urlparse(self._src_uri, allow_fragments=False)
+        bucket: str = o.netloc
+        prefix: str = o.path.lstrip("/")
+
+        LOGGER.debug(f"Get input files for layer {self.name} using {bucket} {prefix}")
+        obj = s3.Object(bucket, prefix)
+        body = obj.get()["Body"].read()
+
+        features = json.loads(body.decode("utf-8"))["features"]
+        for feature in features:
+            input_files.append(
+                (shape(feature["geometry"]), feature["properties"]["name"])
+            )
+        return input_files
+
+    @property
+    def geom(self) -> MultiPolygon:
+        LOGGER.debug("Create Polygon from input tile bounds")
+        geoms: List[Polygon] = [tile[0] for tile in self.input_files]
+        return unary_union(geoms)
 
 
 def layer_factory(name: str, version: str, field: str, grid: Grid) -> Layer:
-
     source_type: str = _get_source_type(name, field, grid.name)
 
     if source_type == "vector":
@@ -133,7 +170,7 @@ def layer_factory(name: str, version: str, field: str, grid: Grid) -> Layer:
 
 def _get_source(name: str, field: str) -> Dict[str, Any]:
     cur_dir = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(cur_dir, "fixures/sources.yaml"), "r") as stream:
+    with open(os.path.join(cur_dir, "fixures", "sources.yaml"), "r") as stream:
         sources: Dict[str, Any] = yaml.safe_load(stream)
     try:
         return sources[name][field]

@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
-from gfw_pixetl.pipes import CalcRasterPipe, RasterPipe, pipe_factory
+from gfw_pixetl.pipes import RasterPipe, pipe_factory
 
 os.environ["ENV"] = "test"
 
@@ -34,22 +34,3 @@ def test_pipe_factory_raster_src_layer():
     pipe = pipe_factory(layer, SUBSET)
     assert isinstance(pipe, RasterPipe)
     assert pipe.__class__.__name__ == "RasterPipe"
-
-
-def test_pipe_factory_calc_raster_src_layer():
-    calc_raster_layer: Dict[str, Any] = {
-        "name": "tsc_tree_cover_loss_drivers",
-        "version": "v201911",
-        "field": "type",
-        "grid": GRID_10,
-    }
-
-    layer = layers.layer_factory(**calc_raster_layer)
-
-    pipe = pipe_factory(layer)
-    assert isinstance(pipe, CalcRasterPipe)
-    assert pipe.__class__.__name__ == "CalcRasterPipe"
-
-    pipe = pipe_factory(layer, SUBSET)
-    assert isinstance(pipe, CalcRasterPipe)
-    assert pipe.__class__.__name__ == "CalcRasterPipe"

@@ -27,7 +27,7 @@ pushd "${TERRAFORM_DIR}"
 
 terraform workspace select "${cur_branch}"
 terraform destroy \
-        -var-file="vars/user-aoi-batch-${ENV}.tfvars" \
+        -var-file="vars/wri__gfw_pixetl-${ENV}.tfvars" \
         -auto-approve
 terraform workspace select default
 terraform workspace delete "${cur_branch}"

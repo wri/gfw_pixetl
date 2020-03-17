@@ -1,16 +1,21 @@
 import datetime
+import multiprocessing
 import os
 import re
 import shutil
+import subprocess as sp
 import uuid
 from dateutil.tz import tzutc
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
+import psutil
+from pyproj import CRS, Transformer
+from rasterio.windows import Window
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready
+from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready, GDALError
 
 LOGGER = get_module_logger(__name__)
 
@@ -18,6 +23,10 @@ TOKEN_EXPIRATION: Optional[datetime.datetime] = None
 AWS_ACCESS_KEY_ID: Optional[str] = None
 AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
+AVAILABLE_MEMORY: Optional[int] = None
+WORKERS: int = 1
+
+Bounds = Tuple[float, float, float, float]
 
 
 def get_bucket(env: Optional[str] = None) -> str:
@@ -109,6 +118,7 @@ def set_aws_credentials():
 
 def set_cwd() -> str:
     if "AWS_BATCH_JOB_ID" in os.environ.keys():
+        check_volume_ready()
         cwd: str = os.environ["AWS_BATCH_JOB_ID"]
     else:
         cwd = str(uuid.uuid4())
@@ -143,3 +153,117 @@ def check_volume_ready() -> bool:
     if not os.path.exists("READY") and "AWS_BATCH_JOB_ID" in os.environ.keys():
         raise VolumeNotReadyError("Mounted Volume not ready")
     return True
+
+
+def set_workers(workers: int) -> int:
+    """
+    Set environment variable with number of workers
+    Cannot exceed number of cores and must be at least one
+    """
+    global WORKERS
+    WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
+    LOGGER.info(f"Set workers to {WORKERS}")
+    return WORKERS
+
+
+def get_workers() -> int:
+    """
+    Return number of workers for parallel jobs
+    """
+    return WORKERS
+
+
+def set_available_memory() -> int:
+    global AVAILABLE_MEMORY
+    if not AVAILABLE_MEMORY:
+        AVAILABLE_MEMORY = psutil.virtual_memory()[1]
+        LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
+    return AVAILABLE_MEMORY  # type: ignore
+
+
+def available_memory_per_process() -> float:
+    """
+    Snapshot of currently available memory per core or process
+    """
+    return set_available_memory() / get_workers()
+
+
+def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
+    """
+    ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
+    Create VRT file from input URI.
+    """
+
+    _write_tile_list(tile_list, uris)
+
+    cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
+    env = set_aws_credentials()
+
+    LOGGER.info(f"Create VRT file {vrt}")
+    p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
+
+    e: Any
+    _, e = p.communicate()
+
+    os.remove(tile_list)
+
+    if p.returncode != 0:
+        LOGGER.error("Could not create VRT file")
+        LOGGER.exception(e)
+        raise GDALError(e)
+    else:
+        return vrt
+
+
+def _write_tile_list(tile_list: str, uris: List[str]) -> None:
+    with open(tile_list, "w") as input_tiles:
+        for uri in uris:
+            LOGGER.debug(f"Add {uri} to tile list")
+            input_tiles.write(f"{uri}\n")
+
+
+def replace_inf_nan(number: float, replacement: float) -> float:
+    if number == float("inf") or number == float("nan"):
+        LOGGER.debug("Replace number")
+        return replacement
+    else:
+        return number
+
+
+def snapped_window(window):
+    """
+        Make sure window is snapped to grid and contains full pixels to avoid missing rows and columns
+        """
+    col_off, row_off, width, height = window.flatten()
+
+    return Window(
+        col_off=round(col_off),
+        row_off=round(row_off),
+        width=round(width),
+        height=round(height),
+    )
+
+
+def world_bounds(crs: CRS) -> Bounds:
+    """
+        Get world bounds got given CRT
+        """
+
+    from_crs = CRS(4326)
+
+    proj = Transformer.from_crs(from_crs, crs, always_xy=True)
+
+    _left, _bottom, _right, _top = crs.area_of_use.bounds
+
+    # Get World Extent in Source Projection
+    # Important: We have to get each top, left, right, bottom separately.
+    # We cannot get them using the corner coordinates.
+    # For some projections such as Goode (epsg:54052) this would cause strange behavior
+    top = proj.transform(0, _top)[1]
+    left = proj.transform(_left, 0)[0]
+    bottom = proj.transform(0, _bottom)[1]
+    right = proj.transform(_right, 0)[0]
+
+    LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
+
+    return left, bottom, right, top
