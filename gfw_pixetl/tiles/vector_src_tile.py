@@ -55,9 +55,9 @@ class VectorSrcTile(Tile):
 
     def rasterize(self) -> None:
 
-        stage = "rasterize"
+        # stage = "rasterize"
 
-        dst = self.get_stage_uri(stage)
+        dst = self.get_local_dst_uri(self.default_format)
         logger.info(f"Create raster {dst}")
 
         cmd: List[str] = ["gdal_rasterize"]
@@ -67,8 +67,8 @@ class VectorSrcTile(Tile):
         else:
             cmd += ["-a", self.layer.field]
 
-        if self.dst.profile["no_data"]:
-            cmd += ["-a_nodata", str(self.dst.profile["no_data"])]
+        if self.dst[self.default_format].profile["no_data"]:
+            cmd += ["-a_nodata", str(self.dst[self.default_format].profile["no_data"])]
 
         cmd += [
             "-sql",
@@ -84,9 +84,9 @@ class VectorSrcTile(Tile):
             "-a_srs",
             "EPSG:4326",
             "-ot",
-            to_gdal_dt(self.dst.profile["data_type"]),
+            to_gdal_dt(self.dst[self.default_format].profile["data_type"]),
             "-co",
-            f"COMPRESS={self.dst.profile['compression']}",
+            f"COMPRESS={self.dst[self.default_format].profile['compression']}",
             "-co",
             "TILED=YES",
             "-co",
@@ -108,4 +108,4 @@ class VectorSrcTile(Tile):
             logger.exception(e)
             raise
         else:
-            self.set_local_src(stage)
+            self.set_local_dst(self.default_format)

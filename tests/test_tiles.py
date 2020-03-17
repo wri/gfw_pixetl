@@ -4,6 +4,8 @@ from unittest import mock
 
 import numpy as np
 from rasterio.windows import Window
+from rasterio import Affine
+from rasterio.crs import CRS
 from shapely.geometry import Point, box
 
 from gfw_pixetl import layers
@@ -47,7 +49,15 @@ class Img(object):
         for i in range(0, 2):
             yield (0, i), Window(i, 0, 1, 1)
 
-    profile: Dict[str, Any] = {}
+    profile: Dict[str, Any] = {
+        "transform": Affine(0, 2, 0, 0, -2, 0),
+        "width": 3,
+        "height": 3,
+        "crs": CRS.from_epsg(4326),
+        "blockxsize": 16,
+        "blockysize": 16,
+        "dtype": np.dtype("uint"),
+    }
     bounds: box = box(1, 1, 0, 0)
 
 
@@ -62,50 +72,43 @@ def test_tile():
 
 
 def test_dst_exists():
-    assert TILE.dst_exists()
+    assert TILE.dst[TILE.default_format].exists()
 
 
 def test_set_local_src():
     try:
-        TILE.set_local_src("test")
+        TILE.set_local_dst(TILE.default_format)
     except FileNotFoundError as e:
         assert (
             str(e)
-            == "File does not exist: whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+            == f"File does not exist: whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/{TILE.default_format}/10N_010E.tif"
         )
 
     with mock.patch("os.remove", return_value=None):
         with mock.patch("rasterio.open", return_value=Img()):
-            TILE.set_local_src("test")
-            assert isinstance(TILE.local_src, RasterSource)
+            TILE.set_local_dst(TILE.default_format)
+            assert isinstance(TILE.local_dst[TILE.default_format], RasterSource)
             assert (
-                TILE.local_src.uri
-                == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+                TILE.local_dst[TILE.default_format].uri
+                == f"whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/{TILE.default_format}/10N_010E.tif"
             )
 
 
-def test_local_src_is_empty():
-    with mock.patch("os.remove", return_value=None):
-        with mock.patch("rasterio.open", return_value=Img()):
-            TILE.set_local_src("test")
-            assert not TILE.local_src_is_empty()
-
-        with mock.patch("rasterio.open", return_value=EmptyImg()):
-            TILE.set_local_src("test")
-            assert TILE.local_src_is_empty()
-
-
-def test_get_stage_uri():
+def test_get_local_dst_uri():
     assert (
-        TILE.get_stage_uri("test")
-        == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/10N_010E__test.tif"
+        TILE.get_local_dst_uri(TILE.default_format)
+        == f"whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/{TILE.default_format}/10N_010E.tif"
+    )
+    assert (
+        TILE.get_local_dst_uri("gdal-geotiff")
+        == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/gdal-geotiff/10N_010E.tif"
     )
 
 
 @mock.patch("gfw_pixetl.tiles.tile.os")
 def test_upload(mocked_os):
     with mock.patch("rasterio.open", return_value=EmptyImg()):
-        TILE.set_local_src("test")
+        TILE.set_local_dst(TILE.default_format)
         with mock.patch("boto3.client") as MockClient:
             mocked_client = MockClient.return_value
             mocked_client.upload_file.return_value = True
@@ -118,9 +121,9 @@ def test_upload(mocked_os):
 @mock.patch("gfw_pixetl.tiles.tile.os")
 def test_rm_local_src(mocked_os):
     with mock.patch("rasterio.open", return_value=EmptyImg()):
-        TILE.set_local_src("test")
-        uri = TILE.local_src.uri
-        TILE.rm_local_src()
+        TILE.set_local_dst(TILE.default_format)
+        uri = TILE.local_dst[TILE.default_format].uri
+        TILE.rm_local_src(TILE.default_format)
         mocked_os.remove.assert_called_with(uri)
 
 
@@ -137,4 +140,4 @@ def test__run_gdal_subcommand():
 
 def test__dst_has_no_data():
     print(LAYER.dst_profile)
-    assert TILE._dst_has_no_data()
+    assert TILE.dst[TILE.default_format].has_no_data()

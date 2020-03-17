@@ -1,6 +1,6 @@
 import os
-import shutil
-from typing import List, Optional
+import sys
+from typing import List, Optional, Tuple
 
 import click
 
@@ -35,13 +35,6 @@ LOGGER = get_module_logger(__name__)
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
-    "-d",
-    "--divisor",
-    type=int,
-    default=2,
-    help="Divisor used to calculate core/ task ratio",
-)
-@click.option(
     "-o",
     "--overwrite",
     is_flag=True,
@@ -55,14 +48,28 @@ def cli(
     field: str,
     grid_name: str,
     subset: Optional[List[str]],
-    divisor: int,
     overwrite: bool,
 ):
     """NAME: Name of dataset"""
 
-    pixetl(
-        name, version, source_type, field, grid_name, subset, divisor, overwrite,
+    tiles, skipped_tiles, failed_tiles = pixetl(
+        name, version, source_type, field, grid_name, subset, overwrite,
     )
+
+    nb_tiles = len(tiles)
+    nb_skipped_tiles = len(skipped_tiles)
+    nb_failed_tiles = len(failed_tiles)
+
+    LOGGER.info(f"Successfully processed {len(tiles)} tiles")
+    LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
+    LOGGER.info(f"{nb_failed_tiles} tiles failed.")
+    if nb_tiles:
+        LOGGER.info(f"Processed tiles: {tiles}")
+    if nb_skipped_tiles:
+        LOGGER.info(f"Skipped tiles: {skipped_tiles}")
+    if nb_failed_tiles:
+        LOGGER.info(f"Failed tiles: {failed_tiles}")
+        sys.exit("Program terminated with Errors. Some tiles failed to process")
 
 
 def pixetl(
@@ -72,9 +79,8 @@ def pixetl(
     field: str,
     grid_name: str = "10/40000",
     subset: Optional[List[str]] = None,
-    divisor: int = 2,
-    overwrite: bool = True,
-) -> List[Tile]:
+    overwrite: bool = False,
+) -> Tuple[List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
     LOGGER.info(
@@ -91,6 +97,9 @@ def pixetl(
     old_cwd = os.getcwd()
     cwd = utils.set_cwd()
 
+    # set available memory here before any major process is running
+    utils.set_available_memory()
+
     try:
 
         if subset:
@@ -106,21 +115,17 @@ def pixetl(
         grid: Grid = grid_factory(grid_name)
         layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
 
-        # Float datatypes need more memory and hence we have to reduce the number of tasks
-        dtype: str = layer.dst_profile["dtype"]
-        if "int" not in dtype and divisor < 3:
-            divisor = 3
+        pipe: Pipe = pipe_factory(layer, subset)
 
-        pipe: Pipe = pipe_factory(layer, subset, divisor)
+        tiles, skipped_tiles, failed_tiles = pipe.create_tiles(overwrite)
+        utils.remove_work_directory(old_cwd, cwd)
 
-        return pipe.create_tiles(overwrite)
+        return tiles, skipped_tiles, failed_tiles
 
     except Exception as e:
         utils.remove_work_directory(old_cwd, cwd)
         LOGGER.exception(e)
         raise
-    finally:
-        utils.remove_work_directory(old_cwd, cwd)
 
 
 if __name__ == "__main__":

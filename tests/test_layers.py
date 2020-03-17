@@ -1,5 +1,7 @@
 import os
 
+from rasterio.warp import Resampling
+
 from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
 
@@ -54,7 +56,7 @@ def test_raster_layer_uri():
     assert layer.dst_profile["blockysize"] == 400
     assert layer.dst_profile["pixeltype"] == "DEFAULT"
     assert layer.dst_profile["nodata"] == 0
-    assert layer.resampling is None
+    assert layer.resampling == Resampling.nearest
     assert layer.calc is None
     assert layer.rasterize_method is None
     assert layer.order is None
@@ -74,7 +76,7 @@ def test_raster_layer_depended():
     assert layer.dst_profile["blockysize"] == 128
     assert layer.dst_profile["pixeltype"] == "DEFAULT"
     assert layer.dst_profile["nodata"] == 0
-    assert layer.resampling == "average"
+    assert layer.resampling == Resampling.average
     assert layer.calc is None
     assert layer.rasterize_method is None
     assert layer.order is None
@@ -97,7 +99,7 @@ def test_raster_calc_layer():
     assert layer.dst_profile["pixeltype"] == "DEFAULT"
     assert layer.dst_profile["nodata"] == 0
     assert layer.dst_profile["nbits"] == 3
-    assert layer.resampling is None
+    assert layer.resampling == Resampling.nearest
     assert (
         layer.calc == "1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)"
     )

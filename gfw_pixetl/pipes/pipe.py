@@ -1,21 +1,18 @@
-import math
-import os
 import multiprocessing
-import subprocess as sp
-from typing import Any, Dict, Iterator, List, Optional, Set, Union
+from typing import Iterator, List, Optional, Set, Tuple
 
 import boto3
-from geojson import FeatureCollection, Feature, dumps
-from shapely.geometry import box, Polygon, MultiPolygon
+from parallelpipe import stage
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.errors import GDALError
+from gfw_pixetl.utils import upload_geometries
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.tiles.tile import Tile
 
 LOGGER = get_module_logger(__name__)
-
 S3 = boto3.client("s3")
+WORKERS = utils.get_workers()
+CORES = multiprocessing.cpu_count()
 
 
 class Pipe(object):
@@ -24,21 +21,43 @@ class Pipe(object):
     Create a subclass and override create_tiles() method to create your own pipe.
     """
 
-    def __init__(
-        self, layer: Layer, subset: Optional[List[str]] = None, divisor=2
-    ) -> None:
+    def __init__(self, layer: Layer, subset: Optional[List[str]] = None) -> None:
         self.grid = layer.grid
         self.layer = layer
         self.subset = subset
-        self.workers: int = math.ceil(multiprocessing.cpu_count() / divisor)
+        self.tiles_to_process = 0
 
-    def create_tiles(self, overwrite=True) -> List[Tile]:
+    def collect_tiles(self, overwrite: bool) -> List[Tile]:
+        """
+        Raster Pipe
+        """
+
+        LOGGER.info("Start Raster Pipe")
+
+        pipe = (
+            self.get_grid_tiles()
+            | self.filter_subset_tiles(self.subset)
+            | self.filter_src_tiles
+            | self.filter_target_tiles(overwrite=overwrite)
+        )
+        tiles = list()
+
+        for tile in pipe.results():
+            if tile.status == "pending":
+                self.tiles_to_process += 1
+            tiles.append(tile)
+
+        LOGGER.info(f"{self.tiles_to_process} tiles to process")
+
+        return tiles
+
+    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """
         Override this method when implementing pipes
         """
         raise NotImplementedError()
 
-    def get_grid_tiles(self) -> Set[Tile]:
+    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[Tile]:
         """
         Seed all available tiles within given grid.
         Use 1x1 degree tiles covering all land area as starting point.
@@ -49,157 +68,130 @@ class Pipe(object):
         LOGGER.debug("Get grid Tiles")
         tiles = set()
 
-        for i in range(-89, 91):
-            for j in range(-180, 180):
+        for i in range(min_y + 1, max_y + 1):
+            for j in range(min_x, max_x):
                 origin = self.grid.xy_grid_origin(j, i)
                 tiles.add(Tile(origin=origin, grid=self.grid, layer=self.layer))
 
-        LOGGER.info(f"Found {len(tiles)} tile inside grid")
-        # logger.debug(tiles)
+        tile_count = len(tiles)
+        LOGGER.info(f"Found {tile_count} tile inside grid")
+        utils.set_workers(tile_count)
 
         return tiles
 
-    def filter_subset_tiles(self, tiles: Iterator[Tile]) -> Iterator[Tile]:
+    @staticmethod
+    @stage(workers=CORES)
+    def filter_src_tiles():
+        """
+        Override this method when implementing pipes
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    @stage(workers=CORES)
+    def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """
         Apply filter in case user only want to process only a subset.
         Useful for testing.
         """
         for tile in tiles:
-            if not self.subset:
-                yield tile
-            elif tile.tile_id in self.subset:
-                yield tile
-            else:
+            if subset and tile.status == "pending" and tile.tile_id not in subset:
                 LOGGER.debug(f"Tile {tile} not in subset. Skip.")
+                tile.status = "skipped (not in subset)"
+            yield tile
 
     @staticmethod
-    def filter_target_tiles(
-        tiles: Iterator[Tile], overwrite: bool = True
-    ) -> Iterator[Tile]:
+    @stage(workers=CORES)
+    def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """
         Don't process tiles if they already exists in target location,
         unless overwrite is set to True
         """
         for tile in tiles:
-            if overwrite or not tile.dst_exists():
-                LOGGER.debug(f"Processing tile {tile}")
-                yield tile
-            else:
+            if (
+                not overwrite
+                and tile.status == "pending"
+                and tile.dst[tile.default_format].exists()
+            ):
+                tile.status = "skipped (tile exists)"
                 LOGGER.debug(f"Tile {tile} already in destination. Skip.")
+            yield tile
 
     @staticmethod
-    def delete_if_empty(tiles: Iterator[Tile]) -> Iterator[Tile]:
+    @stage(workers=CORES)
+    def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
-        Exclude empty intermediate tiles and delete local copy
+        Copy local file to geotiff format
         """
         for tile in tiles:
-            if tile.local_src_is_empty():
-                tile.rm_local_src()
-            else:
-                yield tile
+            if tile.status == "pending":
+                tile.create_gdal_geotiff()
+            yield tile
 
     @staticmethod
+    @stage(workers=CORES)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Upload tile to target location
         """
         for tile in tiles:
-            tile.upload()
+            if tile.status == "pending":
+                tile.upload()
             yield tile
 
     @staticmethod
+    @stage(workers=CORES)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """
         Delete local file
         """
         for tile in tiles:
-            tile.rm_local_src()
+            if tile.status == "pending":
+                for dst_format in tile.local_dst.keys():
+                    tile.rm_local_src(dst_format)
             yield tile
 
-    def upload_vrt(self, uris: List[str]) -> Dict[str, Any]:
-        vrt = self._create_vrt(uris)
-        return self._upload_vrt(vrt)
-
-    def _create_vrt(self, uris: List[str]) -> str:
+    def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """
-        ! Important this is not a parallelpipe Stage and must be run with only one worker
-        Create VRT file from input URI.
+        Fetching all tiles, which ran through the pipe. Check and sort by status.
         """
 
-        vrt = "all.vrt"
-        tile_list = "tiles.txt"
+        tiles: List[Tile] = list()
+        skipped_tiles: List[Tile] = list()
+        failed_tiles: List[Tile] = list()
+        existing_tiles: List[Tile] = list()
 
-        self._write_tile_list(tile_list, uris)
+        for tile in pipe.results():
 
-        cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
-        env = utils.set_aws_credentials()
+            # Checking again which tiles are already in the final output folder.
+            # We need this to build the final geojson file which includes all the tiles.
+            # There might be already files which have been processed in a previous run
+            # So we cannot rely on the tile status alone.
+            # S3 is eventually consistent and it might take up to 15min for a file to become available after upload
+            # We hence don't check if remote files exists for processed files,
+            # just for those which were skipped or failed during the current run
 
-        LOGGER.info("Create VRT file")
-        p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
+            if tile.status == "pending" or tile.dst[tile.default_format].exists():
+                existing_tiles.append(tile)
 
-        o: Any
-        e: Any
-        o, e = p.communicate()
-
-        os.remove(tile_list)
-
-        if p.returncode != 0:
-            LOGGER.error("Could not create VRT file")
-            LOGGER.exception(e)
-            raise GDALError(e)
-        else:
-            return vrt
-
-    def _upload_vrt(self, vrt):
-        LOGGER.info("Upload vrt")
-        return S3.upload_file(
-            vrt, utils.get_bucket(), os.path.join(self.layer.prefix, vrt)
-        )
-
-    def upload_extent(self, tiles: List[Tile]) -> Dict[str, Any]:
-        extent: Optional[Union[Polygon, MultiPolygon]] = self._to_polygon(tiles)
-        fc: FeatureCollection = self._to_feature_collection(extent)
-        return self._upload_extent(fc)
-
-    def _to_polygon(self, tiles: List[Tile]) -> Optional[Union[Polygon, MultiPolygon]]:
-        LOGGER.debug("Create Polygon from tile bounds")
-        extent: Optional[Union[Polygon, MultiPolygon]] = None
-        for tile in tiles:
-            geom: Polygon = self._bounds_to_polygon(tile.bounds)
-            if not extent:
-                extent = geom
+            # Sorting tiles based on their status final reporting
+            if tile.status == "pending":
+                tile.status = "processed"
+                tiles.append(tile)
+            elif tile.status == "failed":
+                failed_tiles.append(tile)
             else:
-                extent = extent.union(geom)
-        return extent
+                skipped_tiles.append(tile)
 
-    @staticmethod
-    def _to_feature_collection(geom: Polygon) -> FeatureCollection:
-        feature: Feature = Feature(geometry=geom)
-        return FeatureCollection([feature])
+        self._upload_geometries(existing_tiles)
 
-    def _upload_extent(self, fc: FeatureCollection) -> Dict[str, Any]:
-        LOGGER.info("Upload extent")
-        return S3.put_object(
-            Body=str.encode(dumps(fc)),
-            Bucket=utils.get_bucket(),
-            Key=os.path.join(self.layer.prefix, "extent.geojson"),
-        )
+        return tiles, skipped_tiles, failed_tiles
 
-    @staticmethod
-    def _write_tile_list(tile_list: str, uris: List[str]) -> None:
-        with open(tile_list, "w") as input_tiles:
-            for uri in uris:
-                tile_uri = f"/vsis3/{utils.get_bucket()}/{uri}\n"
-                input_tiles.write(tile_uri)
-
-    @staticmethod
-    def _bounds_to_polygon(bounds: box) -> Polygon:
-        return Polygon(
-            [
-                (bounds[0], bounds[1]),
-                (bounds[2], bounds[1]),
-                (bounds[2], bounds[3]),
-                (bounds[0], bounds[3]),
-                (bounds[0], bounds[1]),
-            ]
-        )
+    def _upload_geometries(self, tiles) -> None:
+        """
+        Computing VRT, extent GeoJSON and Tile GeoJSON and upload to S3
+        """
+        if len(tiles):
+            # upload_geometries.upload_vrt(tiles, self.layer.prefix)
+            upload_geometries.upload_geom(tiles, self.layer.prefix)
+            upload_geometries.upload_tile_geoms(tiles, self.layer.prefix)

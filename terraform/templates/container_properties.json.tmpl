@@ -1,8 +1,14 @@
 {
   "command": [],
   "image": "${image_url}",
-  "vcpus": 48,
-  "memory": 380000,
+  "vcpus": ${cpu},
+  "memory": ${memory},
+  "retry_strategy": {
+    "attemps": 2
+    },
+  "timeout": {
+    "attempt_duration_seconds":4500
+    },
   "environment": [
     {
       "name": "ENV",
@@ -15,6 +21,14 @@
     {
       "name": "ECS_TASK_METADATA_RPS_LIMIT",
       "value": "100,150"
+    },
+    {
+      "name": "LC_ALL",
+      "value": "C.UTF-8"
+    },
+    {
+      "name": "LANG",
+      "value": "C.UTF-8"
     }
   ],
   "jobRoleArn": "${job_role_arn}",
@@ -35,9 +49,13 @@
   ],
   "ulimits": [
     {
-      "hardLimit": 1024,
+      "hardLimit": ${hardULimit},
       "name": "nofile",
-      "softLimit": 1024
+      "softLimit": ${softULimit}
     }
-  ]
+  ],
+  "linuxParameters": {
+      "maxSwap": ${maxSwap},
+      "swappiness": ${swappiness}
+  }
 }
