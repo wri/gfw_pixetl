@@ -120,7 +120,6 @@ class Tile(object):
         LOGGER.debug(f"Local Source URI: {uri}")
         return uri
 
-    @processify
     def create_gdal_geotiff(self) -> None:
         dst_format = "gdal-geotiff"
         if self.default_format != dst_format:
