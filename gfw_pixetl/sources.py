@@ -14,7 +14,7 @@ from shapely.geometry import Polygon
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
-from gfw_pixetl.errors import retry_if_not_recognized
+from gfw_pixetl.errors import retry_if_rasterio_error
 from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
 
 LOGGER = get_module_logger(__name__)
@@ -150,7 +150,7 @@ class RasterSource(Source):
         return reproject_left, reproject_bottom, reproject_right, reproject_top
 
     @retry(
-        retry_on_exception=retry_if_not_recognized,
+        retry_on_exception=retry_if_rasterio_error,
         stop_max_attempt_number=7,
         wait_exponential_multiplier=1000,
         wait_exponential_max=300000,
