@@ -13,7 +13,6 @@ from retrying import retry
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.decorators import processify
 from gfw_pixetl.errors import (
     GDALError,
     GDALAWSConfigError,
@@ -83,7 +82,7 @@ class Tile(object):
         geotiff_profile.pop("nbits", None)
         geotiff_profile.pop("sparse_ok", None)
         geotiff_profile.pop("interleave", None)
-        geotiff_profile["compression"] = "DEFLATE"
+        geotiff_profile["compress"] = "DEFLATE"
 
         self.dst: Dict[str, Destination] = {
             "gdal-geotiff": Destination(

@@ -1,199 +1,215 @@
 whrc_aboveground_biomass_stock_2000: # v4
     Mg_ha-1:
+        version: v4
         data_type: uint16
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/biomass/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: whrc_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: whrc_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
+#                resampling: average
 
 gfw_aboveground_carbon_stock_2000:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/agc_2000/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_aboveground_carbon_stock_2000/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_aboveground_carbon_stock_2000/Mg/10/40000
+#                resampling: average
 
 gfw_aboveground_carbon_stock_in_emissions_year:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/agc_emis_year/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_aboveground_carbon_stock_in_emissions_year/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_aboveground_carbon_stock_in_emissions_year/Mg/10/40000
+#                resampling: average
 
 gfw_aboveground_carbon_stock_in_emissions_year__us_removals:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/agc_emis_year/US_removals/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__us_removals/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__us_removals/Mg/10/40000
+#                resampling: average
 
 gfw_aboveground_carbon_stock_in_emissions_year__biomass_swap:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/agc_emis_year/biomass_swap/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__biomass_swap/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__biomass_swap/Mg/10/40000
+#                resampling: average
 
 gfw_aboveground_carbon_stock_in_emissions_year__legal_amazon_loss:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/agc_emis_year/legal_Amazon_loss/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__legal_amazon_loss/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__legal_amazon_loss/Mg/10/40000
+#                resampling: average
 
 gfw_aboveground_carbon_stock_in_emissions_year__no_primary_gain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/agc_emis_year/no_primary_gain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__no_primary_gain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_aboveground_carbon_stock_in_emissions_year__no_primary_gain/Mg/10/40000
+#                resampling: average
 
 gfw_belowground_carbon_stock_2000:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/bgc_2000/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_belowground_carbon_stock_2000/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_belowground_carbon_stock_2000/Mg/10/40000
+#                resampling: average
 
 
 gfw_belowground_carbon_stock_in_emissions_year:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/bgc_emis_year/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_belowground_carbon_stock_in_emissions_year/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_belowground_carbon_stock_in_emissions_year/Mg/10/40000
+#                resampling: average
 
-birdlife_biodiversity_intactness:  # v201909
-    index:
-        data_type: Float32
-        no_data: 0
-        grids:
-            10/40000:
-                type: raster
-                uri: s3://gfw-files/tmaschler/intactness_2018_update/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: birdlife_biodiversity_intactness/index/10/40000
-                resampling: average
-    top10:
-        data_type: boolean
-        no_data: 0
-        grids:
-            10/40000:
-                type: raster
-                depends_on: birdlife_biodiversity_intactness/index/10/40000
-                calc: 1*(A>(-5.57))
-            90/27008:
-                type: raster
-                depends_on: birdlife_biodiversity_intactness/top10/10/40000
-                resampling: max
+#birdlife_biodiversity_intactness:  # v201909
+#    index:
+#        version: v201909
+#        data_type: Float32
+#        no_data: 0
+#        grids:
+#            10/40000:
+#                type: raster
+#                uri: s3://gfw-files/tmaschler/intactness_2018_update/tiles.geojson
+#            90/27008:
+#                type: raster
+#                depends_on: birdlife_biodiversity_intactness/index/10/40000
+#                resampling: average
+#    top10:
+#        version: v201909
+#        data_type: boolean
+#        no_data: 0
+#        grids:
+#            10/40000:
+#                type: raster
+#                depends_on: birdlife_biodiversity_intactness/index/10/40000
+#                calc: 1*(A>(-5.57))
+#            90/27008:
+#                type: raster
+#                depends_on: birdlife_biodiversity_intactness/top10/10/40000
+#                resampling: max
 
-birdlife_biodiversity_significance:  # v201909  # TODO clarify prefix
-    index:
-        data_type: Float64
-        no_data: 0
-        grids:
-            10/40000:
-                type: raster
-                uri: s3://gfw-files/tmaschler/significance_2018_update/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: birdlife_biodiversity_significance/index/10/40000
-                resampling: average
-    top10:
-        data_type: boolean
-        no_data: 0
-        grids:
-            10/40000:
-                type: raster
-                depends_on: birdlife_biodiversity_significance/index/10/40000
-                calc: 1*(A>5)
-            90/27008:
-                type: raster
-                depends_on: birdlife_biodiversity_significance/top10/10/40000
-                resampling: max
+#birdlife_biodiversity_significance:  # v201909  # TODO clarify prefix
+#    index:
+#        version: v201909
+#        data_type: Float64
+#        no_data: 0
+#        grids:
+#            10/40000:
+#                type: raster
+#                uri: s3://gfw-files/tmaschler/significance_2018_update/tiles.geojson
+#            90/27008:
+#                type: raster
+#                depends_on: birdlife_biodiversity_significance/index/10/40000
+#                resampling: average
+#    top10:
+#        version: v201909
+#        data_type: boolean
+#        no_data: 0
+#        grids:
+#            10/40000:
+#                type: raster
+#                depends_on: birdlife_biodiversity_significance/index/10/40000
+#                calc: 1*(A>5)
+#            90/27008:
+#                type: raster
+#                depends_on: birdlife_biodiversity_significance/top10/10/40000
+#                resampling: max
 
 gfw_deadwood_carbon_stock_2000:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/deadwood_carbon_2000/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_deadwood_carbon_stock_2000/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_deadwood_carbon_stock_2000/Mg/10/40000
+#                resampling: average
 
 gfw_deadwood_carbon_stock_in_emissions_year:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/deadwood_carbon_emis_year/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_deadwood_carbon_stock_in_emissions_year/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_deadwood_carbon_stock_in_emissions_year/Mg/10/40000
+#                resampling: average
 
 aqueduct_erosion_risk:
     level:
+        version: v1
         data_type: uint
         nbits: 3
         grids:
@@ -203,13 +219,14 @@ aqueduct_erosion_risk:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/erosion/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: aqueduct_erosion_risk/level/10/40000
-                resampling: mode
+#            90/27008:
+#                type: raster
+#                depends_on: aqueduct_erosion_risk/level/10/40000
+#                resampling: mode
 
 gfw_forest_age_category:  # v20191106
     category:
+        version: v20191106
         data_type: uint
         nbits: 10
         grids:
@@ -219,6 +236,7 @@ gfw_forest_age_category:  # v20191106
 
 esa_landcover_2015: # v20160111
     class:
+        version: v20160111
         data_type: uint
         grids:
             10/40000:
@@ -231,6 +249,7 @@ esa_landcover_2015: # v20160111
 
 gfw_gross_annual_removals_biomass:  # v20191106
     Mg:
+        version: v20191106
         data_type: float32
         no_data: 0
         grids:
@@ -238,330 +257,356 @@ gfw_gross_annual_removals_biomass:  # v20191106
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_annual_removals_biomass/standard/tiles.geojson
 
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_annual_removals_biomass/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_annual_removals_biomass/Mg/10/40000
+#                resampling: average
 
 gfw_gross_cumul_removals_co2:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_cumul_removals_co2/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_cumul_removals_co2/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_cumul_removals_co2/Mg/10/40000
+#                resampling: average
 
 
 gfw_gross_cumul_removals_co2__us_removals:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_cumul_removals_co2/US_removals/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_cumul_removals_co2__us_removal/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_cumul_removals_co2__us_removal/Mg/10/40000
+#                resampling: average
 
 gfw_gross_cumul_removals_co2__biomass_swap:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_cumul_removals_co2/biomass_swap/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_cumul_removals_co2__biomass_swap/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_cumul_removals_co2__biomass_swap/Mg/10/40000
+#                resampling: average
 
 gfw_gross_cumul_removals_co2__legal_amazon_loss:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_cumul_removals_co2/legal_Amazon_loss/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_cumul_removals_co2__legal_amazon_loss/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_cumul_removals_co2__legal_amazon_loss/Mg/10/40000
+#                resampling: average
 
 gfw_gross_cumul_removals_co2__maxgain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_cumul_removals_co2/maxgain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_cumul_removals_co2__maxgain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_cumul_removals_co2__maxgain/Mg/10/40000
+#                resampling: average
 
 gfw_gross_cumul_removals_co2__no_primary_gain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_cumul_removals_co2/no_primary_gain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_cumul_removals_co2__no_primary_gain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_cumul_removals_co2__no_primary_gain/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only__us_removals:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/US_removals/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only__us_removals/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only__us_removals/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only__biomass_swap:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/biomass_swap/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only__biomass_swap/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only__biomass_swap/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only__convert_to_grassland:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/convert_to_grassland/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only__convert_to_grassland/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only__convert_to_grassland/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only__legal_amazon_loss:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/legal_Amazon_loss/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only__legal_amazon_loss/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only__legal_amazon_loss/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only__no_primary_gain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/no_primary_gain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only__no_primary_gain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only__no_primary_gain/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only__no_shifting_ag:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/no_shifting_ag/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only__no_shifting_ag/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only__no_shifting_ag/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_co2_only__soil_only:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_co2_only_co2e/soil_only/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_co2_only__soil_only/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_co2_only__soil_only/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2__us_removals:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/US_removals/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2__us_removals/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2__us_removals/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2__biomass_swap:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/biomass_swap/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2__biomass_swap/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2__biomass_swap/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2__convert_to_grassland:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/convert_to_grassland/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2__convert_to_grassland/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2__convert_to_grassland/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2__legal_amazon_loss:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/legal_Amazon_loss/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2__legal_amazon_loss/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2__legal_amazon_loss/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2__no_primary_gain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/no_primary_gain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2__no_primary_gain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2__no_primary_gain/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2__no_shifting_ag:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/no_shifting_ag/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2__no_shifting_ag/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2__no_shifting_ag/Mg/10/40000
+#                resampling: average
 
 gfw_gross_emissions_co2e_non_co2__soil_only:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gross_emissions_non_co2_co2e/soil_only/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_gross_emissions_co2e_non_co2__soil_only/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_gross_emissions_co2e_non_co2__soil_only/Mg/10/40000
+#                resampling: average
 
 idn_primary_forest_2000:  # v20140601
     is:
+        version: v20140601
         data_type: boolean
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/idn_primary_forest/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: idn_primary_forest_2000/is/10/40000
-                resampling: mode
+#            90/27008:
+#                type: raster
+#                depends_on: idn_primary_forest_2000/is/10/40000
+#                resampling: mode
 
 gfw_intact_or_primary_forest_2000: # v20191106
     is:
+        version: v20191106
         data_type: boolean
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/ifl_primary/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: intact_primary_forest_2000/is/10/40000
-                resampling: mode
+#            90/27008:
+#                type: raster
+#                depends_on: intact_primary_forest_2000/is/10/40000
+#                resampling: mode
 
 jpl_tropics_abovegroundbiomass_2000: # v20191106
     Mg_ha-1:
+        version: v20191106
         data_type: Float32
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/jpl_tropics_abovegroundbiomass_density_2000/Mg_ha-1/tiles.geojson
     extent:
+        version: v20191106
         data_type: boolean
         grids:
             10/40000:
@@ -571,173 +616,187 @@ jpl_tropics_abovegroundbiomass_2000: # v20191106
 
 gfw_litter_carbon_stock_2000:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/litter_carbon_2000/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_litter_carbon_stock_2000/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_litter_carbon_stock_2000/Mg/10/40000
+#                resampling: average
 
 gfw_litter_carbon_stock_in_emissions_year:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/litter_carbon_emis_year/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_litter_carbon_stock_in_emissions_year/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_litter_carbon_stock_in_emissions_year/Mg/10/40000
+#                resampling: average
 
 jpl_mangrove_aboveground_biomass_stock_2000:  # v20190215
     Mg_ha-1:
+        version: v20190215
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/mangrove_biomass/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: jpl_mangrove_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: jpl_mangrove_aboveground_biomass_stock_2000/Mg_ha-1/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2/Mg/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e__us_removals:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/US_removals/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2__us_removals/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2__us_removals/Mg/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e__biomass_swap:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/biomass_swap/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2__biomass_swap/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2__biomass_swap/Mg/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e__convert_to_grassland:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/convert_to_grassland/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2__convert_to_grassland/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2__convert_to_grassland/Mg/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e__legal_amazon_loss:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/legal_Amazon_loss/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2__legal_amazon_loss/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2__legal_amazon_loss/Mg/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e__maxgain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/maxgain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2__maxgain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2__maxgain/Mg/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e__no_primary_gain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/no_primary_gain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2__no_primary_gain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2__no_primary_gain/Mg/10/40000
+#                resampling: average
 
 gfw_net_flux_co2e__no_shifting_ag:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/net_flux_co2e/no_shifting_ag/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_net_flux_co2__no_shifting_ag/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_net_flux_co2__no_shifting_ag/Mg/10/40000
+#                resampling: average
 
 gfw_peatlands__flux:  # v20191106
     is:
+        version: v20191106
         data_type: boolean
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/peatlands_flux/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_peatlands__flux/is/10/40000
-                resampling: mode
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_peatlands__flux/is/10/40000
+#                resampling: mode
 
 gfw_pixel_area:  # 20150327
     m2:
+        version: v20150327
         data_type: Float32
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/area/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_pixel_area/m2/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_pixel_area/m2/10/40000
+#                resampling: average
 
 umd_regional_primary_forest_2001:  # v201901
     is:
+        version: v201901
         data_type: boolean
         grids:
             10/40000:
@@ -750,81 +809,87 @@ umd_regional_primary_forest_2001:  # v201901
 
 gfw_soil_carbon_stock_in_emissions_year:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/soil_carbon_emis_year/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_soil_carbon_stock_in_emissions_year/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_soil_carbon_stock_in_emissions_year/Mg/10/40000
+#                resampling: average
 
 gfw_soil_carbon_stock_in_emissions_year__us_removals:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/soil_carbon_emis_year/US_removals/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_soil_carbon_stock_in_emissions_year__us_removals/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_soil_carbon_stock_in_emissions_year__us_removals/Mg/10/40000
+#                resampling: average
 
 gfw_soil_carbon_stock_in_emissions_year__biomass_swap:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/soil_carbon_emis_year/biomass_swap/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_soil_carbon_stock_in_emissions_year__biomass_swap/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_soil_carbon_stock_in_emissions_year__biomass_swap/Mg/10/40000
+#                resampling: average
 
 gfw_soil_carbon_stock_in_emissions_year__legal_amazon_loss:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/soil_carbon_emis_year/legal_Amazon_loss/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_soil_carbon_stock_in_emissions_year__legal_amazon_loss/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_soil_carbon_stock_in_emissions_year__legal_amazon_loss/Mg/10/40000
+#                resampling: average
 
 gfw_soil_carbon_stock_in_emissions_year__no_primary_gain:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/soil_carbon_emis_year/no_primary_gain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_soil_carbon_stock_in_emissions_year__no_primary_gain/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_soil_carbon_stock_in_emissions_year__no_primary_gain/Mg/10/40000
+#                resampling: average
 
 gfw_soil_carbon_stock_2000:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/soil_carbon_2000/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_soil_carbon_stock_2000/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_soil_carbon_stock_2000/Mg/10/40000
+#                resampling: average
 
 #tsc_tree_cover_loss_drivers:  # v2018
 #    type:
@@ -842,6 +907,7 @@ gfw_soil_carbon_stock_2000:  # v20191106
 
 tsc_tree_cover_loss_drivers:   # v2019
     type:
+        version: v2019
         data_type: uint
         nbits: 3
         no_data: 0
@@ -857,57 +923,62 @@ tsc_tree_cover_loss_drivers:   # v2019
 
 gfw_total_carbon_stock_2000:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/total_carbon_2000/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_total_carbon_stock_2000/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_total_carbon_stock_2000/Mg/10/40000
+#                resampling: average
 
 gfw_total_carbon_stock_in_emissions_year:  # v20191106
     Mg:
+        version: v20191106
         data_type: Float32
         no_data: 0
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/total_carbon_emis_year/standard/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: gfw_total_carbon_stock_in_emissions_year/Mg/10/40000
-                resampling: average
+#            90/27008:
+#                type: raster
+#                depends_on: gfw_total_carbon_stock_in_emissions_year/Mg/10/40000
+#                resampling: average
 
 umd_tree_cover_loss:  # v1.6
     year:
+        version: v1.6
         data_type: uint
         nbits: 5
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/loss/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: umd_tree_cover_loss/year/10/40000
-                resampling: mode
+#            90/27008:
+#                type: raster
+#                depends_on: umd_tree_cover_loss/year/10/40000
+#                resampling: mode
 
 umd_tree_cover_gain:  # v1.6
     is:
+        version: v1.6
         data_type: boolean
         grids:
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/gain/tiles.geojson
-            90/27008:
-                type: raster
-                depends_on: umd_tree_cover_gain/is/10/40000
-                resampling: mode
+#            90/27008:
+#                type: raster
+#                depends_on: umd_tree_cover_gain/is/10/40000
+#                resampling: mode
 
 umd_tree_cover_density_2000:  # v1.6
     percent:
+        version: v1.6
         data_type: uint
         nbits: 7
         grids:
@@ -919,6 +990,7 @@ umd_tree_cover_density_2000:  # v1.6
                 depends_on: umd_tree_cover_density_2000/percent/10/40000
                 resampling: average
     threshold:
+        version: v1.6
         data_type: uint
         nbits: 3
         grids:
@@ -928,11 +1000,12 @@ umd_tree_cover_density_2000:  # v1.6
                 calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
             90/27008:
                 type: raster
-                depends_on: umd_tree_cover_density_2000/threshold/10/40000
-                resampling: mode
+                depends_on: umd_tree_cover_density_2000/percent/90/27008
+                calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
 
 umd_tree_cover_density_2010:  # v1.6
     percent:
+        version: v1.6
         data_type: uint
         nbits: 7
         grids:
@@ -944,6 +1017,7 @@ umd_tree_cover_density_2010:  # v1.6
                 depends_on: umd_tree_cover_density_2010/percent/10/40000
                 resampling: average
     threshold:
+        version: v1.6
         data_type: uint
         nbits: 3
         grids:
@@ -953,11 +1027,12 @@ umd_tree_cover_density_2010:  # v1.6
                 calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
             90/27008:
                 type: raster
-                depends_on: umd_tree_cover_density_2010/threshold/10/40000
-                resampling: mode
+                depends_on: umd_tree_cover_density_2010/percent/90/27008
+                calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
 
 birdlife_alliance_for_zero_extinction_site: # v20190816
     is:
+        version: v20190816
         data_type: Boolean
         grids:
             10/40000:
@@ -972,6 +1047,7 @@ birdlife_alliance_for_zero_extinction_site: # v20190816
 
 aqueduct_baseline_water_stress:  # v2.1
     level:
+        version: v2.1
         data_type: uint
         nbits: 3
         grids:
@@ -986,6 +1062,7 @@ aqueduct_baseline_water_stress:  # v2.1
 
 bra_biomes:  # v20150601
     name:
+        version: v20150601
         data_type: uint
         nbits: 3
         grids:
@@ -1000,6 +1077,7 @@ bra_biomes:  # v20150601
 
 wwf_eco_regions:  # v2012
     name:
+        version: v2012
         data_type: uint
         nbits: 5
         grids:
@@ -1014,6 +1092,7 @@ wwf_eco_regions:  # v2012
 
 birdlife_endemic_bird_areas:  # v2014
     is:
+        version: v2014
         data_type: boolean
         grids:
             10/40000:
@@ -1027,6 +1106,7 @@ birdlife_endemic_bird_areas:  # v2014
 
 gfw_land_rights: # v2016
     is:
+        version: v2016
         data_type: boolean
         grids:
             10/40000:
@@ -1040,6 +1120,7 @@ gfw_land_rights: # v2016
 
 gfw_managed_forests:  # v20190103
     is:
+        version: v20190103
         data_type: boolean
         grids:
             10/40000:
@@ -1053,6 +1134,7 @@ gfw_managed_forests:  # v20190103
 
 gfw_mining:  # v20190205
     is:
+        version: v20190205
         data_type: boolean
         grids:
             10/40000:
@@ -1066,6 +1148,7 @@ gfw_mining:  # v20190205
 
 gfw_oil_gas:  # v20190321
     is:
+        version: v20190321
         data_type: boolean
         grids:
             10/40000:
@@ -1079,6 +1162,7 @@ gfw_oil_gas:  # v20190321
 
 gfw_oil_palm: ########  # v20191031
     is:
+        version: v20191031
         data_type: boolean
         grids:
             10/40000:
@@ -1092,6 +1176,7 @@ gfw_oil_palm: ########  # v20191031
 
 gfw_plantations:  # v1.3
     type:
+        version: v1.3
         data_type: uint
         nbits: 4
         grids:
@@ -1106,6 +1191,7 @@ gfw_plantations:  # v1.3
 
 gfw_resource_rights:  # v2015
     is:
+        version: v2015
         data_type: boolean
         grids:
             10/40000:
@@ -1119,6 +1205,7 @@ gfw_resource_rights:  # v2015
 
 gfw_wood_fiber: ######## # v20190917
     is:
+        version: v20190917
         data_type: boolean
         grids:
             10/40000:
@@ -1133,6 +1220,7 @@ gfw_wood_fiber: ######## # v20190917
 
 idn_forest_area:  # v20180410 # v201909
     type:
+        version: v20180410
         data_type: uint32
         nbits: 17
         grids:
@@ -1147,6 +1235,7 @@ idn_forest_area:  # v20180410 # v201909
 
 idn_forest_moratorium:  # v20190123
     is:
+        version: v20190123
         data_type: boolean
         grids:
             10/40000:
@@ -1160,6 +1249,7 @@ idn_forest_moratorium:  # v20190123
 
 idn_land_cover_2017:  # v20180720
     class:
+        version: v20180720
         data_type: uint16
         grids:
             10/40000:
@@ -1173,6 +1263,7 @@ idn_land_cover_2017:  # v20180720
 
 ifl_intact_forest_landscapes:  # v20180628
     year:
+        version: v20180628
         data_type: uint16
         grids:
             10/40000:
@@ -1186,6 +1277,7 @@ ifl_intact_forest_landscapes:  # v20180628
 
 birdlife_key_biodiversity_area:  ######## # v20190902 # v20191211
     is:
+        version: v20191211
         data_type: boolean
         grids:
             10/40000:
@@ -1199,6 +1291,7 @@ birdlife_key_biodiversity_area:  ######## # v20190902 # v20191211
 
 landmark_land_rights: ######## # v20191111
     is:
+        version: v20191111
         data_type: boolean
         grids:
             10/40000:
@@ -1212,6 +1305,7 @@ landmark_land_rights: ######## # v20191111
 
 gmw_mangroves_1996:  # v20180701
     is:
+        version: v20180701
         data_type: boolean
         grids:
             10/40000:
@@ -1225,6 +1319,7 @@ gmw_mangroves_1996:  # v20180701
 
 gmw_mangroves_2016: # v20180701
     is:
+        version: v20180701
         data_type: boolean
         grids:
             10/40000:
@@ -1238,6 +1333,7 @@ gmw_mangroves_2016: # v20180701
 
 mex_protected_areas: # v20161003
     is:
+        version: v20161003
         data_type: boolean
         grids:
             10/40000:
@@ -1251,6 +1347,7 @@ mex_protected_areas: # v20161003
 
 mex_payment_ecosystem_services: # v20160613
     is:
+        version: v20160613
         data_type: boolean
         grids:
             10/40000:
@@ -1264,6 +1361,7 @@ mex_payment_ecosystem_services: # v20160613
 
 mex_forest_zoning: # v20160502
     zone:
+        version: v20160502
         data_type: uint
         nbits: 5
         grids:
@@ -1278,6 +1376,7 @@ mex_forest_zoning: # v20160502
 
 gfw_peatlands: # v20190103
     is:
+        version: v20190103
         data_type: boolean
         grids:
             10/40000:
@@ -1291,6 +1390,7 @@ gfw_peatlands: # v20190103
 
 per_forest_concessions: # v20161001
     type:
+        version: v20161001
         data_type: uint
         nbits: 3
         grids:
@@ -1305,6 +1405,7 @@ per_forest_concessions: # v20161001
 
 per_permanent_production_forests:  # v20150901
     is:
+        version: v20150901
         data_type: boolean
         grids:
             10/40000:
@@ -1318,6 +1419,7 @@ per_permanent_production_forests:  # v20150901
 
 per_protected_areas:  # v20160901
     is:
+        version: v20160901
         data_type: boolean
         grids:
             10/40000:
@@ -1331,6 +1433,7 @@ per_protected_areas:  # v20160901
 
 mapbox_river_basins: # v2014
      name:
+        version: v2014
         data_type: uint16
         nbits: 13
         grids:
@@ -1345,6 +1448,7 @@ mapbox_river_basins: # v2014
 
 rspo_oil_palm: ######## #v20200114
     certification_status:
+        version: v20200114
         data_type: uint
         nbits: 3
         grids:
@@ -1359,6 +1463,7 @@ rspo_oil_palm: ######## #v20200114
 
 gfw_tiger_landscapes:  #v201904
     is:
+        version: v201904
         data_type: boolean
         grids:
             10/40000:
@@ -1372,6 +1477,7 @@ gfw_tiger_landscapes:  #v201904
 
 tnc_urban_water_intake:  # v2016
     is:
+        version: v2016
         data_type: boolean
         grids:
             10/40000:
@@ -1385,6 +1491,7 @@ tnc_urban_water_intake:  # v2016
 
 wdpa_protected_areas:  # v201909  # v201912
     iucn_cat:
+        version: v201912
         data_type: uint
         nbits: 2
         grids:

@@ -41,6 +41,13 @@ def retry_if_volume_not_ready(exception) -> bool:
     return is_not_ready
 
 
+def retry_if_rasterio_error(exception) -> bool:
+    is_rasterio_error: bool = isinstance(exception, RasterioIOError)
+    if is_rasterio_error:
+        LOGGER.warning("RasterioIO Error - RETRY")
+    return is_rasterio_error
+
+
 def retry_if_rasterio_io_error(exception) -> bool:
     is_rasterio_io_error: bool = isinstance(
         exception, RasterioIOError
@@ -50,10 +57,11 @@ def retry_if_rasterio_io_error(exception) -> bool:
     return is_rasterio_io_error
 
 
-def retry_if_not_recognized(exception) -> bool:
-    if_not_recognized: bool = isinstance(
-        exception, RasterioIOError
-    ) and "not recognized as a supported file format" in str(exception)
-    if if_not_recognized:
-        LOGGER.warning("RasterioIO Error - RETRY")
-    return if_not_recognized
+#
+# def retry_if_not_recognized(exception) -> bool:
+#     if_not_recognized: bool = isinstance(
+#         exception, RasterioIOError
+#     ) and ("not recognized as a supported file format" in str(exception) or "Please try again" in str(exception))
+#     if if_not_recognized:
+#         LOGGER.warning("RasterioIO Error - RETRY")
+#     return if_not_recognized

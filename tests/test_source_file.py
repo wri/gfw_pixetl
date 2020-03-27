@@ -15,7 +15,7 @@ with open(os.path.join(FIXURES, "sources.yaml"), "r") as stream:
     SOURCES = yaml.load(stream, Loader=yaml.BaseLoader)
 
 FIELD_MANDATORY: List[str] = ["grids", "data_type"]
-FIELD_OPTIONAL: List[str] = ["no_data", "nbits"]
+FIELD_OPTIONAL: List[str] = ["no_data", "nbits", "version"]
 FIELD_POSSIBLE: Set[str] = set(FIELD_MANDATORY) | set(FIELD_OPTIONAL)
 
 GRID_MANDATORY: List[str] = ["type"]
