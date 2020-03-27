@@ -162,6 +162,7 @@ class RasterSrcTile(Tile):
         """
         Divides raster source into larger windows which will still fit into memory
         """
+
         max_blocks: int = int(sqrt(self._max_blocks(dst)))
         x_blocks: int = int(dst.width / dst.block_shapes[0][0])
         y_blocks: int = int(dst.height / dst.block_shapes[0][1])
@@ -206,17 +207,24 @@ class RasterSrcTile(Tile):
             )
         return array
 
-    def _max_blocks(self, dst: DatasetWriter) -> int:
+    def _max_blocks(self, dst: DatasetWriter, divisor=8) -> int:
         """
         Calculate the maximum amount of blocks we can fit into memory,
         making sure that blocks can always fill a squared extent.
-        We can only use a quarter the available memory per process per block
-        b/c we might have two copies of the array at the same time.
-        Using a divisor of 4 leads to max memory usage of about 75%.
+        We can only use a fraction of the available memory per process per block
+        b/c we might have multiple copies of the array at the same time.
+        Using a divisor of 8 leads to max memory usage of about 75%.
         """
 
+        if self.layer.calc is not None:
+
+            divisor = (
+                divisor ** 2
+            )  # further reduce block size in case we need to perform additional computations
+        LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
+
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_block = utils.available_memory_per_process() / 8
+        memory_per_block = utils.available_memory_per_process() / divisor
         return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
 
     def _max_block_size(self, dst: DatasetWriter) -> float:
@@ -241,7 +249,10 @@ class RasterSrcTile(Tile):
         dst_windows: List[Window] = [ul, ur, ll, lr]
         src_windows: List[Window] = [self._reproject_dst_window(w) for w in dst_windows]
 
-        return max([w.width * w.height for w in dst_windows + src_windows])
+        max_block_size = max([w.width * w.height for w in dst_windows + src_windows])
+        LOGGER.debug(f"Max block size for tile {self.tile_id} set to {max_block_size}")
+
+        return max_block_size
 
     def _max_itemsize(self) -> int:
         """
