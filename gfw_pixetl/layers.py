@@ -19,13 +19,13 @@ LOGGER = get_module_logger(__name__)
 
 
 class Layer(object):
-    def __init__(self, name: str, version: str, field: str, grid: Grid):
-        self.field = field
-        self.name = name
-        self.version = version
-        self.grid = grid
+    def __init__(self, name: str, version: str, field: str, grid: Grid) -> None:
+        self.field: str = field
+        self.name: str = name
+        self.version: str = version
+        self.grid: Grid = grid
 
-        self.prefix = self._get_prefix()
+        self.prefix: str = self._get_prefix()
 
         if not os.path.exists(self.prefix):
             os.makedirs(self.prefix)
@@ -36,18 +36,22 @@ class Layer(object):
 
         self._set_dst_profile()
 
-        self.resampling = (
+        self.resampling: Resampling = (
             resampling_factory(source_grid["resampling"])
             if "resampling" in source_grid.keys()
             else Resampling.nearest
         )
-        self.calc = source_grid["calc"] if "calc" in source_grid.keys() else None
-        self.rasterize_method = (
+        self.calc: Optional[str] = source_grid[
+            "calc"
+        ] if "calc" in source_grid.keys() else None
+        self.rasterize_method: Optional[str] = (
             source_grid["rasterize_method"]
             if "rasterize_method" in source_grid.keys()
             else None
         )
-        self.order = source_grid["order"] if "order" in source_grid.keys() else None
+        self.order: Optional[str] = source_grid[
+            "order"
+        ] if "order" in source_grid.keys() else None
 
     def _get_prefix(
         self,
@@ -55,7 +59,7 @@ class Layer(object):
         version: Optional[str] = None,
         grid: Optional[Grid] = None,
         field: Optional[str] = None,
-    ):
+    ) -> str:
         if not name:
             name = self.name
         if not version:
@@ -78,7 +82,7 @@ class Layer(object):
             field,
         )
 
-    def _set_dst_profile(self):
+    def _set_dst_profile(self) -> None:
 
         nbits = self._source["nbits"] if "nbits" in self._source else None
         no_data = self._source["no_data"] if "no_data" in self._source else None
@@ -87,14 +91,14 @@ class Layer(object):
             self._source["data_type"], nbits, no_data
         )
 
-        self.dst_profile: Dict[str, Any] = {
+        self.dst_profile = {
             "dtype": data_type.data_type,
             "compress": data_type.compression,
             "tiled": True,
             "blockxsize": self.grid.blockxsize,
             "blockysize": self.grid.blockysize,
             "pixeltype": "SIGNEDBYTE" if data_type.signed_byte else "DEFAULT",
-            "nodata": int(data_type.no_data) if data_type.has_no_data() else None,
+            "nodata": int(data_type.no_data) if data_type.no_data is not None else None,
         }
 
         if data_type.nbits:
@@ -102,13 +106,13 @@ class Layer(object):
 
 
 class VectorSrcLayer(Layer):
-    def __init__(self, name: str, version: str, field: str, grid: Grid):
+    def __init__(self, name: str, version: str, field: str, grid: Grid) -> None:
         super().__init__(name, version, field, grid)
         self.src: VectorSource = VectorSource(table_name=self.name)
 
 
 class RasterSrcLayer(Layer):
-    def __init__(self, name: str, version: str, field: str, grid: Grid):
+    def __init__(self, name: str, version: str, field: str, grid: Grid) -> None:
         super().__init__(name, version, field, grid)
 
         if "depends_on" in self._source["grids"][grid.name].keys():
