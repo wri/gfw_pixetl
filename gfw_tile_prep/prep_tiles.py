@@ -295,13 +295,6 @@ SRC = {
         "data_type": "Byte",
         "nodata": 0
     },
-    "carbon_flux_custom_area_1": {
-        "type": "raster",
-        "src": "{protocol}/gfw-files/dgibbs/Mars_GHG_accounting/IDN_spam2010V1r1_global_grid_land_2010_2005CropAreas_rasterized.tif",
-        "s3_target": "{protocol}/gfw-files/2018_update/carbon_flux_custom_area_1/{tile_id}.tif",
-        "data_type": "Int16",
-        "nodata": 0
-    },
     "area": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/analyses/area_28m/hanson_2013_area_{tile_id}.tif",
