@@ -248,8 +248,8 @@ esa_landcover_2015: # v20160111
                 resampling: mode
             90/9984:
                 type: raster
-                    depends_on: esa_landcover_2015/class/10/40000
-                    resampling: mode
+                depends_on: esa_landcover_2015/class/10/40000
+                resampling: mode
 
 gfw_gross_annual_removals_biomass:  # v20191106
     Mg:
