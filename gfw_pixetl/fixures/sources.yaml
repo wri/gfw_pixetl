@@ -246,6 +246,10 @@ esa_landcover_2015: # v20160111
                 type: raster
                 depends_on: esa_landcover_2015/class/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                    depends_on: esa_landcover_2015/class/10/40000
+                    resampling: mode
 
 gfw_gross_annual_removals_biomass:  # v20191106
     Mg:
@@ -806,6 +810,10 @@ umd_regional_primary_forest_2001:  # v201901
                 type: raster
                 depends_on: umd_regional_primary_forest_2001/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: umd_regional_primary_forest_2001/is/10/40000
+                resampling: mode
 
 gfw_soil_carbon_stock_in_emissions_year:  # v20191106
     Mg:
@@ -920,6 +928,10 @@ tsc_tree_cover_loss_drivers:   # v2019
                 type: raster
                 depends_on: tsc_tree_cover_loss_drivers/type/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: tsc_tree_cover_loss_drivers/type/10/40000
+                resampling: mode
 
 gfw_total_carbon_stock_2000:  # v20191106
     Mg:
@@ -989,6 +1001,10 @@ umd_tree_cover_density_2000:  # v1.6
                 type: raster
                 depends_on: umd_tree_cover_density_2000/percent/10/40000
                 resampling: average
+            90/9984:
+                type: raster
+                depends_on: umd_tree_cover_density_2000/percent/10/40000
+                resampling: average
     threshold:
         version: v1.6
         data_type: uint
@@ -1002,6 +1018,10 @@ umd_tree_cover_density_2000:  # v1.6
                 type: raster
                 depends_on: umd_tree_cover_density_2000/percent/90/27008
                 calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
+            90/9984:
+                type: raster
+                depends_on: umd_tree_cover_density_2000/percent/90/9984
+                calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
 
 umd_tree_cover_density_2010:  # v1.6
     percent:
@@ -1013,6 +1033,10 @@ umd_tree_cover_density_2010:  # v1.6
                 type: raster
                 uri: s3://gfw-files/2018_update/tcd_2010/tiles.geojson
             90/27008:
+                type: raster
+                depends_on: umd_tree_cover_density_2010/percent/10/40000
+                resampling: average
+            90/9984:
                 type: raster
                 depends_on: umd_tree_cover_density_2010/percent/10/40000
                 resampling: average
@@ -1029,6 +1053,10 @@ umd_tree_cover_density_2010:  # v1.6
                 type: raster
                 depends_on: umd_tree_cover_density_2010/percent/90/27008
                 calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
+            90/9984:
+                type: raster
+                depends_on: umd_tree_cover_density_2010/percent/90/9984
+                calc: 1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)
 
 birdlife_alliance_for_zero_extinction_site: # v20190816
     is:
@@ -1041,6 +1069,10 @@ birdlife_alliance_for_zero_extinction_site: # v20190816
 #                type: vector
 #                order: desc
             90/27008:
+                type: raster
+                depends_on: birdlife_alliance_for_zero_extinction_site/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: birdlife_alliance_for_zero_extinction_site/is/10/40000
                 resampling: mode
@@ -1059,6 +1091,10 @@ aqueduct_baseline_water_stress:  # v2.1
                 type: raster
                 depends_on: aqueduct_baseline_water_stress/level/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: aqueduct_baseline_water_stress/level/10/40000
+                resampling: mode
 
 bra_biomes:  # v20150601
     name:
@@ -1071,6 +1107,10 @@ bra_biomes:  # v20150601
                 uri: s3://gfw-files/2018_update/bra_biomes/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: bra_biomes/name/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: bra_biomes/name/10/40000
                 resampling: mode
@@ -1089,6 +1129,10 @@ wwf_eco_regions:  # v2012
                 type: raster
                 depends_on: wwf_eco_regions/name/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: wwf_eco_regions/name/10/40000
+                resampling: mode
 
 birdlife_endemic_bird_areas:  # v2014
     is:
@@ -1100,6 +1144,10 @@ birdlife_endemic_bird_areas:  # v2014
                 uri: s3://gfw-files/2018_update/endemic_bird_areas/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: birdlife_endemic_bird_areas/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: birdlife_endemic_bird_areas/is/10/40000
                 resampling: mode
@@ -1117,6 +1165,10 @@ gfw_land_rights: # v2016
                 type: raster
                 depends_on: gfw_land_rights/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: gfw_land_rights/is/10/40000
+                resampling: mode
 
 gfw_managed_forests:  # v20190103
     is:
@@ -1128,6 +1180,10 @@ gfw_managed_forests:  # v20190103
                 uri: s3://gfw-files/2018_update/logging/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: gfw_managed_forests/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: gfw_managed_forests/is/10/40000
                 resampling: mode
@@ -1145,6 +1201,10 @@ gfw_mining:  # v20190205
                 type: raster
                 depends_on: gfw_mining/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: gfw_mining/is/10/40000
+                resampling: mode
 
 gfw_oil_gas:  # v20190321
     is:
@@ -1159,6 +1219,10 @@ gfw_oil_gas:  # v20190321
                 type: raster
                 depends_on: gfw_oil_gas/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: gfw_oil_gas/is/10/40000
+                resampling: mode
 
 gfw_oil_palm: ########  # v20191031
     is:
@@ -1170,6 +1234,10 @@ gfw_oil_palm: ########  # v20191031
                 uri: s3://gfw-files/2018_update/oil_palm/v20191031/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: gfw_oil_palm/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: gfw_oil_palm/is/10/40000
                 resampling: mode
@@ -1188,6 +1256,10 @@ gfw_plantations:  # v1.3
                 type: raster
                 depends_on: gfw_plantations/type/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: gfw_plantations/type/10/40000
+                resampling: mode
 
 gfw_resource_rights:  # v2015
     is:
@@ -1199,6 +1271,10 @@ gfw_resource_rights:  # v2015
                 uri: s3://gfw-files/2018_update/resource_rights/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: gfw_resource_rights/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: gfw_resource_rights/is/10/40000
                 resampling: mode
@@ -1216,7 +1292,10 @@ gfw_wood_fiber: ######## # v20190917
                 type: raster
                 depends_on: gfw_wood_fiber/is/10/40000
                 resampling: mode
-
+            90/9984:
+                type: raster
+                depends_on: gfw_wood_fiber/is/10/40000
+                resampling: mode
 
 idn_forest_area:  # v20180410 # v201909
     type:
@@ -1229,6 +1308,10 @@ idn_forest_area:  # v20180410 # v201909
                 uri: s3://gfw-files/2018_update/idn_forest_area/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: idn_forest_area/type/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: idn_forest_area/type/10/40000
                 resampling: mode
@@ -1246,6 +1329,10 @@ idn_forest_moratorium:  # v20190123
                 type: raster
                 depends_on: idn_forest_moratorium/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: idn_forest_moratorium/is/10/40000
+                resampling: mode
 
 idn_land_cover_2017:  # v20180720
     class:
@@ -1257,6 +1344,10 @@ idn_land_cover_2017:  # v20180720
                 uri: s3://gfw-files/2018_update/idn_land_cover/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: idn_land_cover/class/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: idn_land_cover/class/10/40000
                 resampling: mode
@@ -1274,6 +1365,10 @@ ifl_intact_forest_landscapes:  # v20180628
                 type: raster
                 depends_on: ifl_intact_forest_landscapes/year/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: ifl_intact_forest_landscapes/year/10/40000
+                resampling: mode
 
 birdlife_key_biodiversity_area:  ######## # v20190902 # v20191211
     is:
@@ -1285,6 +1380,10 @@ birdlife_key_biodiversity_area:  ######## # v20190902 # v20191211
                 uri: s3://gfw-files/2018_update/kba/v20191211/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: birdlife_key_biodiversity_area/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: birdlife_key_biodiversity_area/is/10/40000
                 resampling: mode
@@ -1302,6 +1401,10 @@ landmark_land_rights: ######## # v20191111
                 type: raster
                 depends_on: landmark_land_rights/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: landmark_land_rights/is/10/40000
+                resampling: mode
 
 gmw_mangroves_1996:  # v20180701
     is:
@@ -1313,6 +1416,10 @@ gmw_mangroves_1996:  # v20180701
                 uri: s3://gfw-files/2018_update/mangroves_1996/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: gmw_mangroves_1996/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: gmw_mangroves_1996/is/10/40000
                 resampling: mode
@@ -1330,6 +1437,10 @@ gmw_mangroves_2016: # v20180701
                 type: raster
                 depends_on: gmw_mangroves_2016/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: gmw_mangroves_2016/is/10/40000
+                resampling: mode
 
 mex_protected_areas: # v20161003
     is:
@@ -1344,6 +1455,10 @@ mex_protected_areas: # v20161003
                 type: raster
                 depends_on: mex_protected_areas/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: mex_protected_areas/is/10/40000
+                resampling: mode
 
 mex_payment_ecosystem_services: # v20160613
     is:
@@ -1355,6 +1470,10 @@ mex_payment_ecosystem_services: # v20160613
                 uri: s3://gfw-files/2018_update/mex_psa/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: mex_payment_ecosystem_services/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: mex_payment_ecosystem_services/is/10/40000
                 resampling: mode
@@ -1373,6 +1492,10 @@ mex_forest_zoning: # v20160502
                 type: raster
                 depends_on: mex_forest_zoning/zone/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: mex_forest_zoning/zone/10/40000
+                resampling: mode
 
 gfw_peatlands: # v20190103
     is:
@@ -1384,6 +1507,10 @@ gfw_peatlands: # v20190103
                 uri: s3://gfw-files/2018_update/peatlands/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: gfw_peatlands/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: gfw_peatlands/is/10/40000
                 resampling: mode
@@ -1402,6 +1529,10 @@ per_forest_concessions: # v20161001
                 type: raster
                 depends_on: per_forest_concessions/type/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: per_forest_concessions/type/10/40000
+                resampling: mode
 
 per_permanent_production_forests:  # v20150901
     is:
@@ -1416,6 +1547,10 @@ per_permanent_production_forests:  # v20150901
                 type: raster
                 depends_on: per_permanent_production_forest/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: per_permanent_production_forest/is/10/40000
+                resampling: mode
 
 per_protected_areas:  # v20160901
     is:
@@ -1427,6 +1562,10 @@ per_protected_areas:  # v20160901
                 uri: s3://gfw-files/2018_update/per_protected_areas/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: per_protected_areas/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: per_protected_areas/is/10/40000
                 resampling: mode
@@ -1445,6 +1584,10 @@ mapbox_river_basins: # v2014
                 type: raster
                 depends_on: mapbox_river_basins/name/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: mapbox_river_basins/name/10/40000
+                resampling: mode
 
 rspo_oil_palm: ######## #v20200114
     certification_status:
@@ -1457,6 +1600,10 @@ rspo_oil_palm: ######## #v20200114
                 uri: s3://gfw-files/2018_update/rspo/v20200114/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: rspo_oil_palm/certification_status/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: rspo_oil_palm/certification_status/10/40000
                 resampling: mode
@@ -1474,6 +1621,10 @@ gfw_tiger_landscapes:  #v201904
                 type: raster
                 depends_on: gfw_tiger_landscapes/is/10/40000
                 resampling: mode
+            90/9984:
+                type: raster
+                depends_on: gfw_tiger_landscapes/is/10/40000
+                resampling: mode
 
 tnc_urban_water_intake:  # v2016
     is:
@@ -1485,6 +1636,10 @@ tnc_urban_water_intake:  # v2016
                 uri: s3://gfw-files/2018_update/urb_watersheds/tiles.geojson
 #                type: vector
             90/27008:
+                type: raster
+                depends_on: tnc_urban_water_intake/is/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: tnc_urban_water_intake/is/10/40000
                 resampling: mode
@@ -1501,6 +1656,10 @@ wdpa_protected_areas:  # v201909  # v201912
 #                type: vector
 #                order: desc
             90/27008:
+                type: raster
+                depends_on: wdpa_protected_areas/iucn_cat/10/40000
+                resampling: mode
+            90/9984:
                 type: raster
                 depends_on: wdpa_protected_areas/iucn_cat/10/40000
                 resampling: mode
