@@ -27,7 +27,7 @@ LOGGER = get_module_logger(__name__)
 @click.option(
     "-g",
     "--grid_name",
-    type=click.Choice(["10/40000", "90/27008"]),
+    type=click.Choice(["10/40000", "90/27008", "90/9984"]),
     default="10/40000",
     help="Grid size of output dataset",
 )
