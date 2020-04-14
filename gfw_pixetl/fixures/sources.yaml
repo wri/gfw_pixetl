@@ -969,7 +969,7 @@ umd_tree_cover_loss:  # v1.7
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw2-data/forest_change/hansen_2019/extent.geojson
+                uri: s3://gfw2-data/forest_change/hansen_2019/tiles.geojson
 #            90/27008:
 #                type: raster
 #                depends_on: umd_tree_cover_loss/year/10/40000
