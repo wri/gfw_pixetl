@@ -10,48 +10,48 @@ def define_jobs():
     layers = yaml.load(stream)
     for layer in layers.keys():
         for attribute in layers[layer].keys():
-            if attribute == "is":
-                version = layers[layer][attribute]["version"]
-                for grid in layers[layer][attribute]["grids"].keys():
-                    if grid != "1/4000":
-                        name = f"{layer}/{attribute}/{grid}"
-                        job_name = f"{layer}__{attribute}_{grid.replace('/', '-')}"
-                        command = [
-                            layer,
-                            "--version",
-                            version,
-                            "--source_type",
-                            "raster",
-                            "--field",
-                            attribute,
-                            "--grid_name",
-                            grid,
-                            "--overwrite",
-                        ]
+            version = layers[layer][attribute]["version"]
+            for grid in layers[layer][attribute]["grids"].keys():
+                if grid == "90/9984":
+                    name = f"{layer}/{attribute}/{grid}"
+                    job_name = f"{layer}__{attribute}_{grid.replace('/', '-')}"
+                    command = [
+                        layer,
+                        "--version",
+                        version,
+                        "--source_type",
+                        "raster",
+                        "--field",
+                        attribute,
+                        "--grid_name",
+                        grid,
+                        "--overwrite",
+                    ]
 
-                        if "uri" in layers[layer][attribute]["grids"][grid].keys():
-                            runnable.append(
-                                {
-                                    "layer": name,
-                                    "job_name": job_name,
-                                    "command": command,
-                                }
-                            )
+                    if "uri" in layers[layer][attribute]["grids"][grid].keys():
+                        runnable.append(
+                            {"layer": name, "job_name": job_name, "command": command,}
+                        )
 
-                        if (
-                            "depends_on"
-                            in layers[layer][attribute]["grids"][grid].keys()
-                        ):
-                            dependent.append(
-                                {
-                                    "layer": name,
-                                    "job_name": job_name,
-                                    "command": command,
-                                    "depends_on": layers[layer][attribute]["grids"][
-                                        grid
-                                    ]["depends_on"],
-                                }
-                            )
+                    if (
+                        "depends_on" in layers[layer][attribute]["grids"][grid].keys()
+                        and "90/9984"
+                        in layers[layer][attribute]["grids"][grid]["depends_on"]
+                    ):
+                        dependent.append(
+                            {
+                                "layer": name,
+                                "job_name": job_name,
+                                "command": command,
+                                "depends_on": layers[layer][attribute]["grids"][grid][
+                                    "depends_on"
+                                ],
+                            }
+                        )
+                    else:
+                        runnable.append(
+                            {"layer": name, "job_name": job_name, "command": command,}
+                        )
 
     return runnable, dependent
 
@@ -89,7 +89,7 @@ def submit_job(job, depends_on=None):
         jobQueue=job_queue,
         dependsOn=depends_on,
         jobDefinition=job_definition,
-        containerOverrides={"command": command,},
+        containerOverrides={"command": command, "vcpus": 8, "memory": 63000},
         retryStrategy={"attempts": attempts},
         timeout={"attemptDurationSeconds": attempt_duration_seconds},
     )
