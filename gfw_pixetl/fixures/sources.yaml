@@ -961,15 +961,15 @@ gfw_total_carbon_stock_in_emissions_year:  # v20191106
 #                depends_on: gfw_total_carbon_stock_in_emissions_year/Mg/10/40000
 #                resampling: average
 
-umd_tree_cover_loss:  # v1.6
+umd_tree_cover_loss:  # v1.7
     year:
-        version: v1.6
+        version: v1.7
         data_type: uint
         nbits: 5
         grids:
             10/40000:
                 type: raster
-                uri: s3://gfw-files/2018_update/loss/tiles.geojson
+                uri: s3://gfw2-data/forest_change/hansen_2019/extent.geojson
 #            90/27008:
 #                type: raster
 #                depends_on: umd_tree_cover_loss/year/10/40000
@@ -1345,11 +1345,11 @@ idn_land_cover_2017:  # v20180720
 #                type: vector
             90/27008:
                 type: raster
-                depends_on: idn_land_cover/class/10/40000
+                depends_on: idn_land_cover_2017/class/10/40000
                 resampling: mode
             90/9984:
                 type: raster
-                depends_on: idn_land_cover/class/10/40000
+                depends_on: idn_land_cover_2017/class/10/40000
                 resampling: mode
 
 ifl_intact_forest_landscapes:  # v20180628
@@ -1545,11 +1545,11 @@ per_permanent_production_forests:  # v20150901
 #                type: vector
             90/27008:
                 type: raster
-                depends_on: per_permanent_production_forest/is/10/40000
+                depends_on: per_permanent_production_forests/is/10/40000
                 resampling: mode
             90/9984:
                 type: raster
-                depends_on: per_permanent_production_forest/is/10/40000
+                depends_on: per_permanent_production_forests/is/10/40000
                 resampling: mode
 
 per_protected_areas:  # v20160901
