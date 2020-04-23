@@ -284,7 +284,7 @@ class RasterSrcTile(Tile):
         try:
             return vrt.read(
                 window=window,
-                out_shape=(int(round(dst_window.width)), int(round(dst_window.height))),
+                out_shape=(int(round(dst_window.height)), int(round(dst_window.width))),
                 masked=True,
             )
         except rasterio.RasterioIOError:

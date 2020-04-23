@@ -16,9 +16,9 @@ LOGGER = get_module_logger(__name__)
 
 GRID = grid_factory("1/4000")
 RASTER_LAYER: Dict[str, Any] = {
-    "name": "aqueduct_erosion_risk",
-    "version": "v201911",
-    "field": "level",
+    "name": "umd_tree_cover_density_2000",
+    "version": "v1.6",
+    "field": "percent",
     "grid": GRID,
 }
 
@@ -41,13 +41,23 @@ def test_transform_final():
     if isinstance(LAYER, layers.RasterSrcLayer):
         tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
 
+        with rasterio.open(tile.src.uri) as tile_src:
+            window = rasterio.windows.from_bounds(
+                10, 9, 11, 10, transform=tile_src.transform
+            )
+            input = tile_src.read(1, window=window)
+
         tile.transform()
 
         LOGGER.debug(tile.local_dst[tile.default_format].uri)
         with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
             src_profile = src.profile
+            output = src.read(1)
 
         LOGGER.debug(src_profile)
+
+        assert input.shape == output.shape
+        np.testing.assert_array_equal(input, output)
 
         assert src_profile["blockxsize"] == GRID.blockxsize
         assert src_profile["blockysize"] == GRID.blockysize
