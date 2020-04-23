@@ -994,6 +994,9 @@ umd_tree_cover_density_2000:  # v1.6
         data_type: uint
         nbits: 7
         grids:
+            1/4000:
+                type: raster
+                uri: s3://gfw-files/2018_update/tcd_2000/tiles.geojson
             10/40000:
                 type: raster
                 uri: s3://gfw-files/2018_update/tcd_2000/tiles.geojson
