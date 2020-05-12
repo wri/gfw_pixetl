@@ -1,5 +1,14 @@
 #!/bin/bash
 
+set -e
+
+if [ "${ENV}" != "dev" ]
+then
+  echo "Environment not set to 'dev'"
+  exit 1
+fi
+
+
 function select_workspace {
 
   # get current terraform workspaces
@@ -28,20 +37,23 @@ function select_workspace {
 }
 
 
-if [ -z "${ENV}" ]; then
-  ENV=dev
-fi
-
 if [ -f "/root/.aws/credentials" ]; then
     export AWS_PROFILE=gfw-${ENV}
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
     unset AWS_DEFAULT_REGION
 
-    echo "Using enviroment ${ENV} and AWS_PROFILE ${AWS_PROFILE}"
+    echo "Using environment ${ENV} and AWS_PROFILE ${AWS_PROFILE}"
 else
-  echo "Using enviroment ${ENV} and AWS_ACCESS_KEY_ID"
+  echo "Using environment ${ENV} and AWS_ACCESS_KEY_ID"
 fi
+
+
+TERRAFORM_DIR="/usr/local/src/terraform"
+pushd "${TERRAFORM_DIR}"
+
+terraform init \
+  -backend-config=vars/backend-${ENV}.tfvars
 
 
 # get current git branch and replace / with -
@@ -54,13 +66,21 @@ else
   cur_branch=$(echo "${1#"$prefix"}" | tr "/" "-")
 fi
 
-if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]
+# select workspace
+if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ] || [ "$cur_branch" == "default" ]
 then
-  echo "Setting workspace to 'default'"
-  terraform workspace select default
+  echo "Cannot delete default branch"
+  exit 1
 else
   select_workspace "$cur_branch"
 fi
+
+terraform destroy \
+        -var-file="vars/terraform-${ENV}.tfvars" \
+        -auto-approve
+terraform workspace select default
+terraform workspace delete "${cur_branch}"
+
 
 
 
