@@ -207,6 +207,18 @@ gfw_deadwood_carbon_stock_in_emissions_year:  # v20191106
 #                depends_on: gfw_deadwood_carbon_stock_in_emissions_year/Mg/10/40000
 #                resampling: average
 
+usfs_fia_regions:  # v20191106
+    name:
+        version: v20191106
+        data_type: uint
+        nbits: 4
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: s3://gfw-files/2018_update/FIA_regions_US_extent/tiles.geojson
+
+
 aqueduct_erosion_risk:
     level:
         version: v1
@@ -234,7 +246,7 @@ gfw_forest_age_category:  # v20191106
                 type: raster
                 uri: s3://gfw-files/2018_update/forest_age_category/standard/tiles.geojson
 
-esa_landcover_2015: # v20160111
+esa_land_cover_2015: # v20160111
     class:
         version: v20160111
         data_type: uint
@@ -244,11 +256,11 @@ esa_landcover_2015: # v20160111
                 uri: s3://gfw-files/2018_update/global_landcover/tiles.geojson
             90/27008:
                 type: raster
-                depends_on: esa_landcover_2015/class/10/40000
+                depends_on: esa_land_cover_2015/class/10/40000
                 resampling: mode
             90/9984:
                 type: raster
-                depends_on: esa_landcover_2015/class/10/40000
+                depends_on: esa_land_cover_2015/class/10/40000
                 resampling: mode
 
 gfw_gross_annual_removals_biomass:  # v20191106
