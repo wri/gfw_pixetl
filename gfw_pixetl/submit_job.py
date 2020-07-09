@@ -12,7 +12,7 @@ def define_jobs():
         for attribute in layers[layer].keys():
             version = layers[layer][attribute]["version"]
             for grid in layers[layer][attribute]["grids"].keys():
-                if grid == "90/9984":
+                if grid != "1/4000":
                     name = f"{layer}/{attribute}/{grid}"
                     job_name = f"{layer}__{attribute}_{grid.replace('/', '-')}"
                     command = [
@@ -30,14 +30,15 @@ def define_jobs():
 
                     if "uri" in layers[layer][attribute]["grids"][grid].keys():
                         runnable.append(
-                            {"layer": name, "job_name": job_name, "command": command,}
+                            {
+                                "layer": name,
+                                "job_name": job_name,
+                                "command": command,
+                                "grid": grid,
+                            }
                         )
 
-                    if (
-                        "depends_on" in layers[layer][attribute]["grids"][grid].keys()
-                        and "90/9984"
-                        in layers[layer][attribute]["grids"][grid]["depends_on"]
-                    ):
+                    elif "depends_on" in layers[layer][attribute]["grids"][grid].keys():
                         dependent.append(
                             {
                                 "layer": name,
@@ -46,11 +47,8 @@ def define_jobs():
                                 "depends_on": layers[layer][attribute]["grids"][grid][
                                     "depends_on"
                                 ],
+                                "grid": grid,
                             }
-                        )
-                    else:
-                        runnable.append(
-                            {"layer": name, "job_name": job_name, "command": command,}
                         )
 
     return runnable, dependent
@@ -63,12 +61,17 @@ def jobs():
     for job in runnable:
         running[job["layer"]] = submit_job(job)
 
-    for job in dependent:
-        try:
-            depends_on = [{"jobId": running[job["depends_on"]], "type": "SEQUENTIAL"}]
-            running[job["layer"]] = submit_job(job, depends_on)
-        except KeyError as e:
-            print(str(e))
+    while dependent:
+        jobs = dependent
+        dependent = list()
+        for job in jobs:
+            try:
+                depends_on = [
+                    {"jobId": running[job["depends_on"]], "type": "SEQUENTIAL"}
+                ]
+                running[job["layer"]] = submit_job(job, depends_on)
+            except KeyError:
+                dependent.append(job)
 
 
 def submit_job(job, depends_on=None):
@@ -78,6 +81,11 @@ def submit_job(job, depends_on=None):
     job_queue = "pixetl-job-queue"
     job_definition = "pixetl"
     command = job["command"]
+    grid = job["grid"]
+
+    vcpus = 48 if grid == "10/40000" else 8
+    memory = 380000 if grid == "10/40000" else 63000
+
     attempts = 2
     attempt_duration_seconds = 7200
 
@@ -89,7 +97,7 @@ def submit_job(job, depends_on=None):
         jobQueue=job_queue,
         dependsOn=depends_on,
         jobDefinition=job_definition,
-        containerOverrides={"command": command, "vcpus": 8, "memory": 63000},
+        containerOverrides={"command": command, "vcpus": vcpus, "memory": memory},
         retryStrategy={"attempts": attempts},
         timeout={"attemptDurationSeconds": attempt_duration_seconds},
     )

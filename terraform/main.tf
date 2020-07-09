@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">=0.12.24"
+  required_version = ">=0.12.26"
   backend "s3" {
     key     = "wri__gfw_pixetl.tfstate"
     region  = "us-east-1"
