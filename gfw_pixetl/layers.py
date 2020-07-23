@@ -4,11 +4,11 @@ from typing import Any, Dict, Optional, List, Tuple
 from urllib.parse import urlparse
 
 import boto3
-import yaml
 from rasterio.warp import Resampling
 from shapely.geometry import MultiPolygon, shape, Polygon
 from shapely.ops import unary_union
 
+from .models import LayerModel
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
@@ -19,10 +19,10 @@ LOGGER = get_module_logger(__name__)
 
 
 class Layer(object):
-    def __init__(self, name: str, version: str, field: str, grid: Grid) -> None:
-        self.field: str = field
-        self.name: str = name
-        self.version: str = version
+    def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
+        self.field: str = layer_def.pixel_meaning
+        self.name: str = layer_def.dataset
+        self.version: str = layer_def.version
         self.grid: Grid = grid
 
         self.prefix: str = self._get_prefix()
@@ -30,28 +30,16 @@ class Layer(object):
         if not os.path.exists(self.prefix):
             os.makedirs(self.prefix)
 
-        self._source: Dict[str, Any] = _get_source(self.name, self.field)
-        source_grid = self._source["grids"][grid.name]
-        self.dst_profile: Dict[str, Any]
-
-        self._set_dst_profile()
+        self.dst_profile: Dict[str, Any] = self._get_dst_profile(layer_def, grid)
 
         self.resampling: Resampling = (
-            resampling_factory(source_grid["resampling"])
-            if "resampling" in source_grid.keys()
+            resampling_factory(layer_def.resampling)
+            if layer_def.resampling is not None
             else Resampling.nearest
         )
-        self.calc: Optional[str] = source_grid[
-            "calc"
-        ] if "calc" in source_grid.keys() else None
-        self.rasterize_method: Optional[str] = (
-            source_grid["rasterize_method"]
-            if "rasterize_method" in source_grid.keys()
-            else None
-        )
-        self.order: Optional[str] = source_grid[
-            "order"
-        ] if "order" in source_grid.keys() else None
+        self.calc: Optional[str] = layer_def.calc
+        self.rasterize_method: Optional[str] = layer_def.rasterize_method
+        self.order: Optional[str] = layer_def.order
 
     def _get_prefix(
         self,
@@ -82,52 +70,42 @@ class Layer(object):
             field,
         )
 
-    def _set_dst_profile(self) -> None:
-
-        nbits = self._source["nbits"] if "nbits" in self._source else None
-        no_data = self._source["no_data"] if "no_data" in self._source else None
+    @classmethod
+    def _get_dst_profile(cls, layer_def: LayerModel, grid: Grid) -> Dict[str, Any]:
+        nbits = layer_def.nbits
+        no_data = layer_def.no_data
 
         data_type: DataType = data_type_factory(
-            self._source["data_type"], nbits, no_data
+            layer_def.data_type, nbits, no_data
         )
 
-        self.dst_profile = {
+        dst_profile = {
             "dtype": data_type.data_type,
             "compress": data_type.compression,
             "tiled": True,
-            "blockxsize": self.grid.blockxsize,
-            "blockysize": self.grid.blockysize,
+            "blockxsize": grid.blockxsize,
+            "blockysize": grid.blockysize,
             "pixeltype": "SIGNEDBYTE" if data_type.signed_byte else "DEFAULT",
             "nodata": int(data_type.no_data) if data_type.no_data is not None else None,
         }
 
         if data_type.nbits:
-            self.dst_profile.update({"nbits": int(data_type.nbits)})
+            dst_profile.update({"nbits": int(data_type.nbits)})
+
+        return dst_profile
 
 
 class VectorSrcLayer(Layer):
-    def __init__(self, name: str, version: str, field: str, grid: Grid) -> None:
-        super().__init__(name, version, field, grid)
+    def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
+        super().__init__(layer_def, grid)
         self.src: VectorSource = VectorSource(table_name=self.name)
 
 
 class RasterSrcLayer(Layer):
-    def __init__(self, name: str, version: str, field: str, grid: Grid) -> None:
-        super().__init__(name, version, field, grid)
+    def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
+        super().__init__(layer_def, grid)
 
-        if "depends_on" in self._source["grids"][grid.name].keys():
-            src_name, src_field, src_grid_width, src_grid_cols = self._source["grids"][
-                grid.name
-            ]["depends_on"].split("/")
-            src_grid = grid_factory("/".join([src_grid_width, src_grid_cols]))
-            prefix = self._get_prefix(
-                name=src_name, version=version, field=src_field, grid=src_grid
-            )
-            bucket = utils.get_bucket()
-
-            self._src_uri = f"s3://{bucket}/{prefix}/geotiff/tiles.geojson"
-        else:
-            self._src_uri = self._source["grids"][grid.name]["uri"]
+        self._src_uri = layer_def.uri
 
         # self.input_files = self._input_files()
         # self.geom = self._geom()
@@ -159,36 +137,13 @@ class RasterSrcLayer(Layer):
         return unary_union(geoms)
 
 
-def layer_factory(name: str, version: str, field: str, grid: Grid) -> Layer:
-    source_type: str = _get_source_type(name, field, grid.name)
+def layer_factory(layer_def: LayerModel) -> Layer:
+    source_type: str = layer_def.source_type
+    grid: Grid = grid_factory(layer_def.grid)
 
     if source_type == "vector":
-        layer: Layer = VectorSrcLayer(name, version, field, grid)
+        layer: Layer = VectorSrcLayer(layer_def, grid)
     elif source_type == "raster":
-        layer = RasterSrcLayer(name, version, field, grid)
-    else:
-        raise NotImplementedError("Unknown source type")
+        layer = RasterSrcLayer(layer_def, grid)
 
     return layer
-
-
-def _get_source(name: str, field: str) -> Dict[str, Any]:
-    cur_dir = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(cur_dir, "fixures", "sources.yaml"), "r") as stream:
-        sources: Dict[str, Any] = yaml.safe_load(stream)
-    try:
-        return sources[name][field]
-    except KeyError:
-        message = "No such data layer"
-        LOGGER.exception(message)
-        raise ValueError(message)
-
-
-def _get_source_type(name: str, field: str, grid_name: str) -> str:
-    source = _get_source(name, field)
-    try:
-        return source["grids"][grid_name]["type"]
-    except KeyError:
-        message = "Selected grid is not supported"
-        LOGGER.exception(message)
-        raise ValueError(message)
