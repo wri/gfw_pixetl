@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, Optional, List, Tuple
+from typing import Any, Dict, Optional, List, Tuple, Union
 from urllib.parse import urlparse
 
 import boto3
@@ -75,9 +75,7 @@ class Layer(object):
         nbits = layer_def.nbits
         no_data = layer_def.no_data
 
-        data_type: DataType = data_type_factory(
-            layer_def.data_type, nbits, no_data
-        )
+        data_type: DataType = data_type_factory(layer_def.data_type, nbits, no_data)
 
         dst_profile = {
             "dtype": data_type.data_type,
@@ -116,10 +114,12 @@ class RasterSrcLayer(Layer):
         input_files = list()
 
         o = urlparse(self._src_uri, allow_fragments=False)
-        bucket: str = o.netloc
-        prefix: str = o.path.lstrip("/")
+        bucket: Union[str, bytes] = o.netloc
+        prefix: str = str(o.path).lstrip("/")
 
-        LOGGER.debug(f"Get input files for layer {self.name} using {bucket} {prefix}")
+        LOGGER.debug(
+            f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
+        )
         obj = s3.Object(bucket, prefix)
         body = obj.get()["Body"].read()
 

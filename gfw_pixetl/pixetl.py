@@ -29,9 +29,7 @@ LOGGER = get_module_logger(__name__)
     help="Overwrite existing tile in output location",
 )
 def cli(
-    json: str,
-    subset: Optional[List[str]],
-    overwrite: bool,
+    json: str, subset: Optional[List[str]], overwrite: bool,
 ):
     """"""
 
@@ -44,7 +42,7 @@ def cli(
         "grid": "1/4000",
         "source_type": "raster",
         "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson",
-        "resampling": "average"
+        "resampling": "average",
     }
 
     # layer_def = LayerModel.parse_raw(json)
@@ -57,9 +55,7 @@ def cli(
         LOGGER.error(message)
         raise ValueError(message)
 
-    tiles, skipped_tiles, failed_tiles = pixetl(
-        layer_def, subset, overwrite,
-    )
+    tiles, skipped_tiles, failed_tiles = pixetl(layer_def, subset, overwrite,)
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
@@ -78,9 +74,7 @@ def cli(
 
 
 def pixetl(
-    layer_def: LayerModel,
-    subset: Optional[List[str]] = None,
-    overwrite: bool = False,
+    layer_def: LayerModel, subset: Optional[List[str]] = None, overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
@@ -102,8 +96,6 @@ def pixetl(
             LOGGER.info("Running on subset: {}".format(subset))
         else:
             LOGGER.info("Running on full extent")
-
-        import ipdb; ipdb.set_trace()
 
         layer: Layer = layer_factory(layer_def)
 
