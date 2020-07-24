@@ -10,27 +10,25 @@ from shapely.geometry import Point, box
 
 from gfw_pixetl import layers
 from gfw_pixetl.errors import GDALNoneTypeError
-from gfw_pixetl.grids import grid_factory
+from gfw_pixetl.models import LayerModel
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
+from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
 
-GRID = grid_factory("10/40000")
-RASTER_LAYER: Dict[str, Any] = {
-    "name": "whrc_aboveground_biomass_stock_2000",
+
+LAYER_DICT = {
+    **minimal_layer_dict,
+    "dataset": "whrc_aboveground_biomass_stock_2000",
     "version": "v201911",
-    "field": "Mg_ha-1",
-    "grid": GRID,
+    "pixel_meaning": "Mg_ha-1",
+    "data_type": "uint16",
+    "no_data": 0,
 }
+LAYER = layers.layer_factory(LayerModel.parse_obj(LAYER_DICT))
 
-LAYER_TYPE = layers._get_source_type(
-    RASTER_LAYER["name"], RASTER_LAYER["field"], RASTER_LAYER["grid"].name
-)
-
-LAYER = layers.layer_factory(**RASTER_LAYER)
-
-TILE = Tile(Point(10, 10), GRID, LAYER)
+TILE = Tile(Point(10, 10), LAYER.grid, LAYER)
 
 
 class Img(object):

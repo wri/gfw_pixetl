@@ -1,14 +1,12 @@
 import os
-from typing import Any, Dict
 
 from gfw_pixetl import layers
-from gfw_pixetl.grids import grid_factory
+from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import RasterPipe, pipe_factory
+from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
 
-GRID_10 = grid_factory("10/40000")
-GRID_1 = grid_factory("1/4000")
 
 SUBSET = ["10N_010E", "20N_010E", "30N_010E"]
 
@@ -18,14 +16,14 @@ def test_pipe_factory_vector_src_layer():
 
 
 def test_pipe_factory_raster_src_layer():
-    raster_layer: Dict[str, Any] = {
-        "name": "aqueduct_erosion_risk",
+    layer_dict = {
+        **minimal_layer_dict,
+        "dataset": "aqueduct_erosion_risk",
         "version": "v201911",
-        "field": "level",
-        "grid": GRID_10,
+        "pixel_meaning": "level",
+        "no_data": 0,
     }
-
-    layer = layers.layer_factory(**raster_layer)
+    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
     pipe = pipe_factory(layer)
     assert isinstance(pipe, RasterPipe)

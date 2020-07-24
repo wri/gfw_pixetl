@@ -1,6 +1,5 @@
 import os
 from math import isclose
-from typing import Any, Dict
 
 import numpy as np
 import rasterio
@@ -8,30 +7,30 @@ from rasterio.windows import Window
 from shapely.geometry import Point
 
 from gfw_pixetl import layers, get_module_logger
-from gfw_pixetl.grids import grid_factory
+from gfw_pixetl.models import LayerModel
 from gfw_pixetl.tiles import RasterSrcTile
+from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
 LOGGER = get_module_logger(__name__)
 
-GRID = grid_factory("1/4000")
-RASTER_LAYER: Dict[str, Any] = {
-    "name": "umd_tree_cover_density_2000",
+layer_dict = {
+    **minimal_layer_dict,
+    "dataset": "umd_tree_cover_density_2000",
     "version": "v1.6",
-    "field": "percent",
-    "grid": GRID,
+    "pixel_meaning": "percent",
+    "data_type": "uint",
+    "nbits": 7,
+    "grid": "1/4000",
+    "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson",
+    "resampling": "average",
 }
-
-LAYER_TYPE = layers._get_source_type(
-    RASTER_LAYER["name"], RASTER_LAYER["field"], RASTER_LAYER["grid"].name
-)
-
-LAYER = layers.layer_factory(**RASTER_LAYER)
+LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
 
 def test_src_tile_intersects():
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
         assert tile.within()
     else:
         raise ValueError("Not a RasterSrcLayer")
@@ -39,7 +38,7 @@ def test_src_tile_intersects():
 
 def test_transform_final():
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
 
         with rasterio.open(tile.src.uri) as tile_src:
             window = rasterio.windows.from_bounds(
@@ -59,18 +58,18 @@ def test_transform_final():
         assert input.shape == output.shape
         np.testing.assert_array_equal(input, output)
 
-        assert src_profile["blockxsize"] == GRID.blockxsize
-        assert src_profile["blockysize"] == GRID.blockysize
+        assert src_profile["blockxsize"] == LAYER.grid.blockxsize
+        assert src_profile["blockysize"] == LAYER.grid.blockysize
         # assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
         assert src_profile["count"] == 1
-        assert src_profile["crs"] == {"init": GRID.srs.srs}
+        assert src_profile["crs"] == {"init": LAYER.grid.srs.srs}
         assert src_profile["driver"] == "GTiff"
         assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
-        assert src_profile["height"] == GRID.cols
+        assert src_profile["height"] == LAYER.grid.cols
         assert src_profile["interleave"] == "band"
         assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
         assert src_profile["tiled"] is True
-        assert src_profile["width"] == GRID.rows
+        assert src_profile["width"] == LAYER.grid.rows
         # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
 
         assert not hasattr(src_profile, "compress")
@@ -83,7 +82,7 @@ def test_transform_final():
 def test__calc():
     window = Window(0, 0, 1, 3)
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
 
         tile.layer.calc = "A+1"
         data = np.zeros((1, 3))
@@ -110,7 +109,7 @@ def test__set_dtype():
     masked_data = np.ma.masked_values(data, 0)
     count = masked_data.mask.sum()
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
         tile.dst[tile.default_format].nodata = 5
         result = tile._set_dtype(masked_data, window)
         masked_result = np.ma.masked_values(result, 5)
@@ -121,7 +120,7 @@ def test__set_dtype():
 
 
 def test__snap_coordinates():
-    tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+    tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
 
     lat = 9.777
     lng = 10.111
@@ -137,7 +136,7 @@ def test__snap_coordinates():
 
 
 def test__vrt_transform():
-    tile = RasterSrcTile(Point(10, 10), GRID, LAYER)
+    tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
 
     transform, width, height = tile._vrt_transform(9.1, 9.1, 9.2, 9.2)
 
