@@ -9,7 +9,7 @@ from shapely.geometry import MultiPolygon, shape, Polygon
 from shapely.ops import unary_union
 
 from .models import LayerModel
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.sources import VectorSource
@@ -32,11 +32,7 @@ class Layer(object):
 
         self.dst_profile: Dict[str, Any] = self._get_dst_profile(layer_def, grid)
 
-        self.resampling: Resampling = (
-            resampling_factory(layer_def.resampling)
-            if layer_def.resampling is not None
-            else Resampling.nearest
-        )
+        self.resampling: Resampling = resampling_factory(layer_def.resampling)
         self.calc: Optional[str] = layer_def.calc
         self.rasterize_method: Optional[str] = layer_def.rasterize_method
         self.order: Optional[str] = layer_def.order

@@ -5,6 +5,7 @@ parallelpipe~=0.2.6
 pre-commit~=1.18.3
 psutil~=5.6.7
 psycopg2~=2.8.4
+pydantic~=1.6.1
 pyproj~=2.4.0
 pytest~=5.2.1
 pytest-cov~=2.8.1

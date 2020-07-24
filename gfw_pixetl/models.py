@@ -3,6 +3,18 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+# from .resampling import ResamplingMethod
+
+
+class Order(str, Enum):
+    asc = "asc"
+    desc = "desc"
+
+
+class RasterizeMethod(str, Enum):
+    count = "count"
+    value = "value"
+
 
 class SourceType(str, Enum):
     raster = "raster"
@@ -18,8 +30,9 @@ class LayerModel(BaseModel):
     nbits: Optional[int]
     no_data: Optional[int]
     grid: str  # Make an enum?
-    rasterize_method: Optional[str]
-    resampling: Optional[str]
+    rasterize_method: Optional[RasterizeMethod]
+    # resampling: Optional[ResamplingMethod] = "nearest"
+    resampling: str = "nearest"
     uri: Optional[str]
     calc: Optional[str]
-    order: Optional[str]
+    order: Optional[Order]

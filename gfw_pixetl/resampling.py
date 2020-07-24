@@ -1,3 +1,5 @@
+from enum import Enum
+
 from rasterio.warp import Resampling
 
 methods = {
@@ -14,6 +16,9 @@ methods = {
     "q1": Resampling.q1,
     "q3": Resampling.q3,
 }
+
+# Make an enum out of methods dict to allow the Pydantic model to verify against
+# ResamplingMethod = Enum("ResamplingMethod", [(k, k) for k, v in methods.items()])
 
 
 def resampling_factory(method: str) -> Resampling:
