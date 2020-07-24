@@ -1,9 +1,18 @@
+from gfw_pixetl.settings.globals import (
+    READER_HOST,
+    READER_PORT,
+    READER_DBNAME,
+    READER_USERNAME,
+    READER_PASSWORD,
+)
+
+
 class PgConn(object):
-    db_host = "localhost"
-    db_port = 5432
-    db_name = "gadm"
-    db_user = "postgres"
-    db_password = "postgres"  # pragma: allowlist secret
+    db_host = READER_HOST
+    db_port = READER_PORT
+    db_name = READER_DBNAME
+    db_user = READER_USERNAME
+    db_password = READER_PASSWORD
 
     def pg_conn(self):
         return f"PG:dbname={self.db_name} port={self.db_port} host={self.db_host} user={self.db_user} password={self.db_password}"
