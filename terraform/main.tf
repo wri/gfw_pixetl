@@ -27,7 +27,7 @@ module "compute_environment_ephemeral_storage" {
   key_pair           = data.terraform_remote_state.core.outputs.key_pair_tmaschler_gfw
   subnets            = data.terraform_remote_state.core.outputs.private_subnet_ids
   tags               = local.tags
-  security_group_ids = [data.terraform_remote_state.core.outputs.default_security_group_id]
+  security_group_ids = [data.terraform_remote_state.core.outputs.default_security_group_id, data.terraform_remote_state.core.outputs.postgresql_security_group_id]
   iam_policy_arn     = [data.terraform_remote_state.core.outputs.iam_policy_s3_write_data-lake_arn]
   suffix             = local.name_suffix
   //  instance_types     = ["r5d"]
