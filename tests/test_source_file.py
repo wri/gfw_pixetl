@@ -22,7 +22,7 @@ GRID_MANDATORY: List[str] = ["type"]
 GRID_TYPE_VALUE: List[str] = ["raster", "vector"]
 
 GRID_VECTOR_MANDATORY: List[str] = []
-GRID_VECTOR_OPTIONAL: List[str] = ["order", "rasterize_method"]
+GRID_VECTOR_OPTIONAL: List[str] = ["order", "rasterize_method", "calc"]
 GRID_VECTOR_POSSIBLE: Set[str] = (
     set(GRID_MANDATORY) | set(GRID_VECTOR_MANDATORY)
 ) | set(GRID_VECTOR_OPTIONAL)

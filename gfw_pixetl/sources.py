@@ -28,9 +28,10 @@ class Source:
 
 
 class VectorSource(Source):
-    def __init__(self, table_name) -> None:
+    def __init__(self, name: str, version: str) -> None:
         self.conn: PgConn = PgConn()
-        self.table_name: str = table_name
+        self.schema: str = name
+        self.table: str = version
 
 
 class RasterSource(Source):

@@ -125,59 +125,59 @@ gfw_belowground_carbon_stock_in_emissions_year:  # v20191106
 #                depends_on: gfw_belowground_carbon_stock_in_emissions_year/Mg/10/40000
 #                resampling: average
 
-#birdlife_biodiversity_intactness:  # v201909
-#    index:
-#        version: v201909
-#        data_type: Float32
-#        no_data: 0
-#        grids:
-#            10/40000:
-#                type: raster
-#                uri: s3://gfw-files/tmaschler/intactness_2018_update/tiles.geojson
-#            90/27008:
-#                type: raster
-#                depends_on: birdlife_biodiversity_intactness/index/10/40000
-#                resampling: average
-#    top10:
-#        version: v201909
-#        data_type: boolean
-#        no_data: 0
-#        grids:
-#            10/40000:
-#                type: raster
-#                depends_on: birdlife_biodiversity_intactness/index/10/40000
-#                calc: 1*(A>(-5.57))
-#            90/27008:
-#                type: raster
-#                depends_on: birdlife_biodiversity_intactness/top10/10/40000
-#                resampling: max
+birdlife_biodiversity_intactness:  # v201909
+    index:
+        version: v201909
+        data_type: Float32
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: s3://gfw-data-lake-dev/birdlife_biodiversity_intactness/v201909/raw/25_pct/tiles.geojson
+            90/27008:
+                type: raster
+                depends_on: birdlife_biodiversity_intactness/index/10/40000
+                resampling: average
+    top10:
+        version: v201909
+        data_type: boolean
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                depends_on: birdlife_biodiversity_intactness/index/10/40000
+                calc: 1*(A>(-5.57))
+            90/27008:
+                type: raster
+                depends_on: birdlife_biodiversity_intactness/top10/10/40000
+                resampling: max
 
-#birdlife_biodiversity_significance:  # v201909  # TODO clarify prefix
-#    index:
-#        version: v201909
-#        data_type: Float64
-#        no_data: 0
-#        grids:
-#            10/40000:
-#                type: raster
-#                uri: s3://gfw-files/tmaschler/significance_2018_update/tiles.geojson
-#            90/27008:
-#                type: raster
-#                depends_on: birdlife_biodiversity_significance/index/10/40000
-#                resampling: average
-#    top10:
-#        version: v201909
-#        data_type: boolean
-#        no_data: 0
-#        grids:
-#            10/40000:
-#                type: raster
-#                depends_on: birdlife_biodiversity_significance/index/10/40000
-#                calc: 1*(A>5)
-#            90/27008:
-#                type: raster
-#                depends_on: birdlife_biodiversity_significance/top10/10/40000
-#                resampling: max
+birdlife_biodiversity_significance:  # v201909  # TODO clarify prefix
+    index:
+        version: v201909
+        data_type: Float64
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                uri: s3://gfw-data-lake-dev/birdlife_biodiversity_significance/v201909/raw/25_pct/tiles.geojson
+            90/27008:
+                type: raster
+                depends_on: birdlife_biodiversity_significance/index/10/40000
+                resampling: average
+    top10:
+        version: v201909
+        data_type: boolean
+        no_data: 0
+        grids:
+            10/40000:
+                type: raster
+                depends_on: birdlife_biodiversity_significance/index/10/40000
+                calc: 1*(A>5)
+            90/27008:
+                type: raster
+                depends_on: birdlife_biodiversity_significance/top10/10/40000
+                resampling: max
 
 gfw_deadwood_carbon_stock_2000:  # v20191106
     Mg:
@@ -1664,12 +1664,14 @@ wdpa_protected_areas:  # v201909  # v201912
         version: v201912
         data_type: uint
         nbits: 2
+        no_data: 0
         grids:
             10/40000:
-                type: raster
-                uri: s3://gfw-files/2018_update/wdpa/v201912/tiles.geojson
-#                type: vector
-#                order: desc
+#                type: raster
+#                uri: s3://gfw-files/2018_update/wdpa/v201912/tiles.geojson
+                type: vector
+                order: desc
+                calc: "CASE WHEN iucn_cat::text = 'Ia'::text OR iucn_cat::text = 'Ib'::text OR iucn_cat::text = 'II'::text THEN 1 ELSE 2 END"
             90/27008:
                 type: raster
                 depends_on: wdpa_protected_areas/iucn_cat/10/40000

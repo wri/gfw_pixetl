@@ -6,7 +6,7 @@ from shapely.geometry import Polygon
 
 from gfw_pixetl import layers
 from gfw_pixetl.models import LayerModel
-from gfw_pixetl.pipes import Pipe
+from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils import upload_geometries
 from gfw_pixetl.sources import Destination
@@ -17,12 +17,11 @@ os.environ["ENV"] = "test"
 
 
 LAYER_DICT = {
+    **minimal_layer_dict,
     "dataset": "aqueduct_erosion_risk",
     "version": "v201911",
     "pixel_meaning": "level",
-    "data_type": "uint16",
     "grid": "1/4000",
-    "source_type": "raster",
     "no_data": 0,
 }
 LAYER_DEF = LayerModel.parse_obj(LAYER_DICT)
@@ -43,7 +42,12 @@ def test_create_tiles():
 
 
 def test_get_grid_tiles():
-    assert len(PIPE.get_grid_tiles(min_x=10, min_y=10, max_x=12, max_y=12)) == 4
+    message = ""
+    try:
+        len(PIPE.get_grid_tiles(min_x=10, min_y=10, max_x=12, max_y=12))
+    except NotImplementedError:
+        message = "not implemented"
+    assert message == "not implemented"
 
     layer_dict = {
         **LAYER_DICT,
@@ -51,7 +55,7 @@ def test_get_grid_tiles():
     }
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
-    pipe = Pipe(layer)
+    pipe = RasterPipe(layer)
     assert len(pipe.get_grid_tiles(min_x=0, min_y=0, max_x=20, max_y=20)) == 4
 
 

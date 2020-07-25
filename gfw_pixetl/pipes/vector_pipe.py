@@ -1,9 +1,10 @@
 import multiprocessing
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Tuple, Set
 
 from parallelpipe import stage
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.tiles import VectorSrcTile, Tile
 from gfw_pixetl.pipes import Pipe
 
@@ -19,7 +20,7 @@ class VectorPipe(Pipe):
         """
 
         LOGGER.debug("Start Vector Pipe")
-        tiles = self.get_grid_tiles
+        tiles = self.collect_tiles(overwrite=overwrite)
         pipe = (
             tiles
             | self.filter_subset_tiles
@@ -32,6 +33,31 @@ class VectorPipe(Pipe):
         )
 
         return self._process_pipe(pipe)
+
+    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[VectorSrcTile]:  # type: ignore
+        """
+        Seed all available tiles within given grid.
+        Use 1x1 degree tiles covering all land area as starting point.
+        Then see in which target grid cell it would fall.
+        Remove duplicated grid cells.
+        """
+
+        assert isinstance(self.layer, VectorSrcLayer)
+        LOGGER.debug("Get Grid Tiles")
+        tiles: Set[VectorSrcTile] = set()
+
+        for i in range(min_y + 1, max_y + 1):
+            for j in range(min_x, max_x):
+                origin = self.grid.xy_grid_origin(j, i)
+                tiles.add(
+                    VectorSrcTile(origin=origin, grid=self.grid, layer=self.layer)
+                )
+
+        tile_count = len(tiles)
+        LOGGER.info(f"Found {tile_count} tile inside grid")
+        # utils.set_workers(tile_count)
+
+        return tiles
 
     @staticmethod
     @stage(workers=WORKERS)
