@@ -9,7 +9,6 @@ from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
 
-
 LAYER_DICT = {
     **minimal_layer_dict,
     "dataset": "aqueduct_erosion_risk",
@@ -17,7 +16,7 @@ LAYER_DICT = {
     "pixel_meaning": "level",
     "grid": "1/4000",
 }
-raster_layer_def = LayerModel.parse_obj(LAYER_DICT)
+RASTER_LAYER_DEF = LayerModel.parse_obj(LAYER_DICT)
 
 SUBSET = ["10N_010E"]
 
@@ -30,7 +29,7 @@ def test_pixetl():
         RasterPipe, "create_tiles", return_value=(list(), list(), list())
     ):
         tiles, skipped_tiles, failed_tiles = pixetl(
-            raster_layer_def, subset=SUBSET, overwrite=True,
+            RASTER_LAYER_DEF, subset=SUBSET, overwrite=True,
         )
 
     assert tiles == list()

@@ -33,22 +33,8 @@ def cli(
 ):
     """"""
 
-    layer_dict = {
-        "dataset": "umd_tree_cover_density_2000",
-        "version": "v1.6",
-        "pixel_meaning": "percent",
-        "data_type": "uint",
-        "nbits": 7,
-        "grid": "1/4000",
-        "source_type": "raster",
-        "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson",
-        "resampling": "average",
-    }
-
-    # layer_def = LayerModel.parse_raw(json)
-    layer_def = LayerModel.parse_obj(layer_dict)
-
     # Validate fields now, rather than later
+    layer_def = LayerModel.parse_raw(json)
 
     if not utils.verify_version_pattern(layer_def.version):
         message = "Version number does not match pattern"
