@@ -75,7 +75,7 @@ class VectorSrcTile(Tile):
     def src_vector_intersects(self) -> bool:
 
         try:
-            logger.debug("Check if tile intersects with postgis table")
+            logger.debug(f"Check if tile {self.tile_id} intersects with postgis table")
             conn = psycopg2.connect(
                 dbname=self.src.conn.db_name,
                 user=self.src.conn.db_user,
@@ -99,7 +99,7 @@ class VectorSrcTile(Tile):
 
             try:
                 exists = bool(cursor.fetchone()[0])
-            except ProgrammingError:
+            except (ProgrammingError, TypeError):
                 exists = False
 
             cursor.close()
