@@ -1664,12 +1664,14 @@ wdpa_protected_areas:  # v201909  # v201912
         version: v201912
         data_type: uint
         nbits: 2
+        no_data: 0
         grids:
             10/40000:
-                type: raster
-                uri: s3://gfw-files/2018_update/wdpa/v201912/tiles.geojson
-#                type: vector
-#                order: desc
+#                type: raster
+#                uri: s3://gfw-files/2018_update/wdpa/v201912/tiles.geojson
+                type: vector
+                order: desc
+                calc: "CASE WHEN iucn_cat::text = 'Ia'::text OR iucn_cat::text = 'Ib'::text OR iucn_cat::text = 'II'::text THEN 1 ELSE 2 END"
             90/27008:
                 type: raster
                 depends_on: wdpa_protected_areas/iucn_cat/10/40000

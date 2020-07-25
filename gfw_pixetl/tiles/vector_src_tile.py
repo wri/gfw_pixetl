@@ -1,7 +1,10 @@
 from typing import List
 
 import psycopg2
+from psycopg2._psycopg import ProgrammingError
 from shapely.geometry import Point
+from sqlalchemy import text, select, table, Table, Column
+from sqlalchemy.sql.elements import TextClause, literal_column
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import to_gdal_dt
@@ -11,7 +14,6 @@ from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.tiles import Tile
 
-
 logger = get_module_logger(__name__)
 
 
@@ -19,6 +21,56 @@ class VectorSrcTile(Tile):
     def __init__(self, origin: Point, grid: Grid, layer: VectorSrcLayer) -> None:
         super().__init__(origin, grid, layer)
         self.src: VectorSource = layer.src
+
+    def intersect_filter(self) -> TextClause:
+        return text(
+            f"""ST_Intersects(
+                        geom,
+                        ST_MakeEnvelope(
+                            {self.bounds.left},
+                            {self.bounds.bottom},
+                            {self.bounds.right},
+                            {self.bounds.top},
+                            4326)
+                    )"""
+        )
+
+    def intersection(self) -> TextClause:
+        return text(
+            f"""
+            st_intersection(
+                geom,
+                ST_MakeEnvelope(
+                    {self.bounds.left},
+                    {self.bounds.bottom},
+                    {self.bounds.right},
+                    {self.bounds.top},
+                    4326)
+            )"""
+        )
+
+    def intersection_geom(self) -> TextClause:
+        return text(
+            f"""CASE
+                        WHEN st_geometrytype({str(self.intersection())}) = 'ST_GeometryCollection'::text
+                        THEN st_collectionextract({str(self.intersection())}, 3)
+                        ELSE st_intersection(geom, {str(self.intersection())})
+                END"""
+        )
+
+    def order_column(self, val) -> Column:
+        if self.layer.order == "desc":
+            order: Column = val.desc()
+        elif self.layer.order == "asc":
+            order = val.asc()
+        else:
+            order = val
+        return order
+
+    def src_table(self) -> Table:
+        src_table: Table = table(self.src.table)
+        src_table.schema = self.src.schema
+        return src_table
 
     def src_vector_intersects(self) -> bool:
 
@@ -31,10 +83,25 @@ class VectorSrcTile(Tile):
                 host=self.src.conn.db_host,
                 port=self.src.conn.db_port,
             )
+
             cursor = conn.cursor()
-            exists_query = f"SELECT exists (SELECT 1 FROM {self.src.table_name}__{self.grid.name} WHERE tile_id__{self.grid.name} = '{self.tile_id}' LIMIT 1)"
-            cursor.execute(exists_query)
-            exists = cursor.fetchone()[0]
+
+            sql = (
+                select([literal_column("1")])
+                .select_from(self.src_table())
+                .where(self.intersect_filter())
+            )
+            # exists_query = select([literal_column("exists")]).select_from(select_1)
+
+            logger.debug(str(sql))
+
+            cursor.execute(str(sql))
+
+            try:
+                exists = bool(cursor.fetchone()[0])
+            except ProgrammingError:
+                exists = False
+
             cursor.close()
             conn.close()
         except psycopg2.Error:
@@ -43,13 +110,15 @@ class VectorSrcTile(Tile):
             )
             raise
 
+        logger.debug(f"EXISTS: {exists}")
+
         if exists:
             logger.info(
-                f"Tile id {self.tile_id} exists in database table {self.src.table_name}"
+                f"Tile id {self.tile_id} exists in database table {self.src.schema}.{self.src.table}"
             )
         else:
             logger.info(
-                f"Tile id {self.tile_id} does not exists in database table {self.src.table_name}"
+                f"Tile id {self.tile_id} does not exists in database table {self.src.schema}.{self.src.table}"
             )
         return exists
 
@@ -62,17 +131,29 @@ class VectorSrcTile(Tile):
 
         cmd: List[str] = ["gdal_rasterize"]
 
+        val_column = literal_column(str(self.layer.calc))
+        geom_column = literal_column(str(self.intersection_geom()))
+
+        sql = (
+            select([val_column.label(self.layer.field), geom_column.label("geom")])
+            .select_from(self.src_table())
+            .where(self.intersect_filter())
+            .order_by(self.order_column(val_column))
+        )
+
+        print(str(sql))
+
         if self.layer.rasterize_method == "count":
             cmd += ["-burn", "1", "-add"]
         else:
             cmd += ["-a", self.layer.field]
 
-        if self.dst[self.default_format].profile["no_data"]:
-            cmd += ["-a_nodata", str(self.dst[self.default_format].profile["no_data"])]
+        if self.dst[self.default_format].has_no_data():
+            cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
 
         cmd += [
             "-sql",
-            f"select * from {self.layer.name}_{self.layer.version}__{self.grid.name} where tile_id__{self.grid.name} = '{self.tile_id}'",
+            str(sql),
             "-te",
             str(self.bounds.left),
             str(self.bounds.bottom),
@@ -84,9 +165,9 @@ class VectorSrcTile(Tile):
             "-a_srs",
             "EPSG:4326",
             "-ot",
-            to_gdal_dt(self.dst[self.default_format].profile["data_type"]),
+            to_gdal_dt(self.dst[self.default_format].dtype),
             "-co",
-            f"COMPRESS={self.dst[self.default_format].profile['compression']}",
+            f"COMPRESS={self.dst[self.default_format].profile['compress']}",  # TODO: make compress property
             "-co",
             "TILED=YES",
             "-co",
@@ -109,3 +190,8 @@ class VectorSrcTile(Tile):
             raise
         else:
             self.set_local_dst(self.default_format)
+
+            # invoking gdal-geotiff here instead of in a separate stage to assure we don't run out of memory
+            # the transform stage uses all available memory for concurrent processes.
+            # Having another stage which needs a lot of memory might cause the process to crash
+            self.create_gdal_geotiff()

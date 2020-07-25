@@ -108,7 +108,9 @@ class Layer(object):
 class VectorSrcLayer(Layer):
     def __init__(self, name: str, version: str, field: str, grid: Grid) -> None:
         super().__init__(name, version, field, grid)
-        self.src: VectorSource = VectorSource(table_name=self.name)
+        self.src: VectorSource = VectorSource(name=self.name, version=self.version)
+        if not self.calc:
+            self.calc = self.field
 
 
 class RasterSrcLayer(Layer):

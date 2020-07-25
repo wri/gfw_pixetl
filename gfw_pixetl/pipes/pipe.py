@@ -65,19 +65,20 @@ class Pipe(object):
         Remove duplicated grid cells.
         """
 
-        LOGGER.debug("Get grid Tiles")
-        tiles = set()
-
-        for i in range(min_y + 1, max_y + 1):
-            for j in range(min_x, max_x):
-                origin = self.grid.xy_grid_origin(j, i)
-                tiles.add(Tile(origin=origin, grid=self.grid, layer=self.layer))
-
-        tile_count = len(tiles)
-        LOGGER.info(f"Found {tile_count} tile inside grid")
-        utils.set_workers(tile_count)
-
-        return tiles
+        raise NotImplementedError
+        # LOGGER.debug("Get grid Tiles")
+        # tiles = set()
+        #
+        # for i in range(min_y + 1, max_y + 1):
+        #     for j in range(min_x, max_x):
+        #         origin = self.grid.xy_grid_origin(j, i)
+        #         tiles.add(Tile(origin=origin, grid=self.grid, layer=self.layer))
+        #
+        # tile_count = len(tiles)
+        # LOGGER.info(f"Found {tile_count} tile inside grid")
+        # utils.set_workers(tile_count)
+        #
+        # return tiles
 
     @staticmethod
     @stage(workers=CORES)
