@@ -12,7 +12,7 @@ class Order(str, Enum):
 
 
 class RasterizeMethod(str, Enum):
-    count = "count"
+    _count = "count"
     value = "value"
 
 
