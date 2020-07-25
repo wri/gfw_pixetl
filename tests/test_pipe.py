@@ -6,7 +6,7 @@ from shapely.geometry import Polygon
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
-from gfw_pixetl.pipes import Pipe
+from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils import upload_geometries
 from gfw_pixetl.sources import Destination
@@ -42,7 +42,12 @@ def test_create_tiles():
 
 
 def test_get_grid_tiles():
-    assert len(PIPE.get_grid_tiles(min_x=10, min_y=10, max_x=12, max_y=12)) == 4
+    message = ""
+    try:
+        len(PIPE.get_grid_tiles(min_x=10, min_y=10, max_x=12, max_y=12))
+    except NotImplementedError:
+        message = "not implemented"
+    assert message == "not implemented"
 
     grid = grid_factory("10/40000")
     raster_layer: Dict[str, Any] = {
@@ -53,7 +58,7 @@ def test_get_grid_tiles():
     }
 
     layer = layers.layer_factory(**raster_layer)
-    pipe = Pipe(layer)
+    pipe = RasterPipe(layer)
     tiles = pipe.get_grid_tiles(min_x=0, min_y=0, max_x=20, max_y=20)
     assert len(tiles) == 4
 

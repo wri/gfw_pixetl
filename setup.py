@@ -19,6 +19,7 @@ setup(
         "rasterio[s3]~=1.1.2",
         "retrying~=1.3.3",
         "shapely~=1.6.4.post2",
+        "SQLAlchemy~=1.3.18",
     ],
     entry_points="""
             [console_scripts]
