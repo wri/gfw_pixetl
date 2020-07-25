@@ -110,7 +110,7 @@ def test_vector_layer():
     assert layer.dst_profile["pixeltype"] == "DEFAULT"
     assert layer.dst_profile["nodata"] == 0
     assert layer.dst_profile["nbits"] == 2
-    assert layer.calc is None
+    assert layer.calc == "Mg_ha-1"
     assert layer.resampling == Resampling.nearest
     assert layer.rasterize_method is None
     assert layer.order == "desc"
