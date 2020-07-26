@@ -1,5 +1,3 @@
-from enum import Enum
-
 from rasterio.warp import Resampling
 
 methods = {
