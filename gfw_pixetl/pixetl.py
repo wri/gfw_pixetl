@@ -17,7 +17,6 @@ LOGGER = get_module_logger(__name__)
 
 
 @click.command()
-@click.option("-j", "--json", type=str, help="JSON defining layer")
 @click.option(
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
@@ -28,10 +27,11 @@ LOGGER = get_module_logger(__name__)
     default=False,
     help="Overwrite existing tile in output location",
 )
+@click.argument("layer_json", type=str)
 def cli(
-    json: str, subset: Optional[List[str]], overwrite: bool,
+    layer_json: str, subset: Optional[List[str]], overwrite: bool,
 ):
-    layer_def = LayerModel.parse_raw(json)
+    layer_def = LayerModel.parse_raw(layer_json)
 
     # Validate fields sooner rather than later
     # On the other hand, moving this validation inside pixetl() would allow
@@ -51,6 +51,10 @@ def cli(
     # to validate automatically.
     if layer_def.data_type not in data_types.keys():
         raise ValueError(f"Invalid data_type specified: {layer_def.data_type}")
+
+    # Raster sources must have an source URI
+    if layer_def.source_type == "raster" and layer_def.uri is None:
+        raise ValueError("URI specification is required for raster sources")
 
     tiles, skipped_tiles, failed_tiles = pixetl(layer_def, subset, overwrite,)
 

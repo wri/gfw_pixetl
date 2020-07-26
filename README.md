@@ -24,19 +24,13 @@ Source files must be loaded into Postgres/ Aurora database prior to running this
 ╚██████╔╝██║     ╚███╔███╔╝    ██║     ██║██╔╝ ██╗███████╗   ██║   ███████╗
  ╚═════╝ ╚═╝      ╚══╝╚══╝     ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝
 
-Usage: pixetl [OPTIONS] NAME
+Usage: pixetl [OPTIONS] LAYER_JSON
 
-  NAME: Name of dataset
+  LAYER_JSON: Layer specification in JSON
 
 Options:
-  -v, --version TEXT                        Version of dataset
-  -s, --source_type [raster|vector]         Type of input file(s)
-  -f, --field TEXT                          Field represented in output dataset
-  -g, --grid_name [3x3|10x10|30x30|90x90]   Grid size of output dataset
-  -e, --env [dev|prod]                      Environment
+  --subset TEXT                             Subset of tiles to process
   -o, --overwrite                           Overwrite existing tile in output location
-  -d, --debug                               Log debug messages
-  -w, --cwd                                 Work directory (default /tmp)
   --help                                    Show this message and exit.
 ```
 
@@ -45,7 +39,7 @@ Make sure you map a local directory to container's /tmp directory.
 
 Also add you aws credentials as environment variables.
 
-Use dame Options and Name as listed above
+Use same Options and Name as listed above
 ```bash
 
 docker build . -t globalforestwatch/pixetl
@@ -73,49 +67,67 @@ PixETLDefinition:
 ```
 
 # Data sources
-You can define layer sources in `.yaml` files located in `fixures/` sub directory.
+You define layer sources in JSON as the one required argument.
 
 Layer source definitions follow this pattern
 
-```yaml
-wdpa_protected_areas:           # Layer name
-    -                           # Default source description
-        field: iucn_cat
-        order: desc
-        data_type: uint
-        nbits: 2
-     -                          # Optional alternative source description
-        field: is
-        ...
-
+```json
+{
+    "option": "value",
+    ...
+}
 ```
 
 Supported Options:
 
 Raster Sources:
 
-| Option | Mandatory | Description |
-|--------|-----------|-------------|
-| field | yes | Field/ Value represented by pixel |
-| src_uri | yes | URI of source file on S3 |
-| data_type | yes | data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
-| no_data | no | No data value |
-| nbits | no | Max number of bits used for given datatype |
-| resampling | no | resampling method (nearest, mod, avg, etc) |
-| single_tile | no | source file is single file |
-| calc | no | Numpy calculation to be performed on the tile. Use same syntax as for [gdal_calc](https://gdal.org/programs/gdal_calc.html) . Refer to tile as `A` |
+| Option        | Mandatory | Description |
+|---------------|-----------|-------------|
+| source_type   | yes       | Always "raster"
+| dataset       | yes       | Name of the dataset
+| version       | yes       | Version of the dataset
+| pixel_meaning | yes       | Field/ Value represented by pixel |
+| data_type     | yes       | Data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
+| grid          | yes       | Grid size of output dataset
+| no_data       | no        | No data value (true or false)|
+| nbits         | no        | Max number of bits used for given datatype |
+| uri           | yes       | URI of source file on S3 |
+| resampling    | no        | Resampling method (nearest, mod, avg, etc) |
+| calc          | no        | Numpy calculation to be performed on the tile. Use same syntax as for [gdal_calc](https://gdal.org/programs/gdal_calc.html) . Refer to tile as `A` |
 
 Vector Sources
 
-| Option | Mandatory | Description |
-|--------|-----------|-------------|
-| field| yes | Field in source table used for pixel value |
-| data_type | yes | data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
-| no_data | no | No data value |
-| nbits | no | Max number of bits used for given datatype |
-| order | no | how to order field values of source table (asc, desc) |
-| rasterize_method | no | how to rasterize tile (value/ count). `Value` uses value from table, `count` counts number of features intersecting with pixel |
+| Option           | Mandatory | Description |
+|------------------|-----------|-------------|
+| source_type      | yes       | Always "vector"
+| dataset          | yes       | Name of the dataset
+| version          | yes       | Version of the dataset
+| pixel_meaning    | yes       | Field in source table used for pixel value |
+| data_type        | yes       | Data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
+| grid             | yes       | Grid size of output dataset
+| no_data          | no        | No data value (true or false)|
+| nbits            | no        | Max number of bits used for given datatype |
+| order            | no        | How to order field values of source table (asc, desc) |
+| rasterize_method | no        | How to rasterize tile (value or count). `value` uses value from table, `count` counts number of features intersecting with pixel |
 
+For example here is a pretty-printed sample raster layer definition followed
+by the command that one would issue to process it:
+{
+     "source_type": "raster",
+     "dataset": "umd_tree_cover_density_2000",
+     "version": "v1.6",
+     "pixel_meaning": "percent",
+     "data_type": "uint",
+     "nbits": 7,
+     "grid": "1/4000",
+     "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson",
+     "resampling": "average",
+ }
+
+```bash
+pixetl '{"source_type": "raster", "dataset": "umd_tree_cover_density_2000", "version": "v1.6", "pixel_meaning": "percent", "data_type": "uint", "nbits": 7, "grid": "1/4000", "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson", "resampling": "average"}'
+```
 
 # Extending ETL
 
