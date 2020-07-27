@@ -21,7 +21,7 @@ module "container_registry" {
 
 
 module "compute_environment" {
-  source             = "git::https://github.com/wri/gfw-terraform-modules.git//modules/compute_environment?ref=v0.2.6"
+  source             = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=v0.2.4"
   project            = local.project
   key_pair           = data.terraform_remote_state.core.outputs.key_pair_tmaschler_gfw
   subnets            = data.terraform_remote_state.core.outputs.private_subnet_ids
