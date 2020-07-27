@@ -7,7 +7,7 @@ output "job_queue_arn" {
 }
 
 output "compute_environment_arn" {
-  value = module.compute_environment_ephemeral_storage.arn
+  value = module.compute_environment.arn
 }
 
 output "image_url" {

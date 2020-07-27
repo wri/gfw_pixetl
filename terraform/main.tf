@@ -20,8 +20,7 @@ module "container_registry" {
 }
 
 
-
-module "compute_environment_ephemeral_storage" {
+module "compute_environment" {
   source             = "git::https://github.com/wri/gfw-terraform-modules.git//modules/compute_environment?ref=v0.2.6"
   project            = local.project
   key_pair           = data.terraform_remote_state.core.outputs.key_pair_tmaschler_gfw
