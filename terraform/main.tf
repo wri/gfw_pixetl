@@ -30,6 +30,7 @@ module "compute_environment_ephemeral_storage" {
   security_group_ids = [data.terraform_remote_state.core.outputs.default_security_group_id, data.terraform_remote_state.core.outputs.postgresql_security_group_id]
   iam_policy_arn     = [data.terraform_remote_state.core.outputs.iam_policy_s3_write_data-lake_arn]
   suffix             = local.name_suffix
+  ebs_volume_size    = 75
   //  instance_types     = ["r5d"]
 
 }
