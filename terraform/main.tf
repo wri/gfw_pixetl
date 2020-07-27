@@ -30,6 +30,10 @@ module "compute_environment" {
   iam_policy_arn     = [data.terraform_remote_state.core.outputs.iam_policy_s3_write_data-lake_arn]
   suffix             = local.name_suffix
   ebs_volume_size    = 75
+  ecs_role_policy_arns = [
+    data.terraform_remote_state.core.outputs.iam_policy_s3_write_data-lake_arn
+  ]
+  use_ephemeral_storage    = true
+  compute_environment_name = "pixetl_large_store"
   //  instance_types     = ["r5d"]
-
 }
