@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from typing import List, Optional, Tuple
@@ -18,6 +19,12 @@ LOGGER = get_module_logger(__name__)
 
 @click.command()
 @click.option(
+    "-d", "--dataset", type=str, required=True, help="Name of dataset to process"
+)
+@click.option(
+    "-v", "--version", type=str, required=True, help="Version of dataset to process"
+)
+@click.option(
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
 )
 @click.option(
@@ -29,17 +36,23 @@ LOGGER = get_module_logger(__name__)
 )
 @click.argument("layer_json", type=str)
 def cli(
-    layer_json: str, subset: Optional[List[str]], overwrite: bool,
+    dataset: str,
+    version: str,
+    subset: Optional[List[str]],
+    overwrite: bool,
+    layer_json: str,
 ):
-    layer_def = LayerModel.parse_raw(layer_json)
-
     # Validate fields sooner rather than later
     # On the other hand, moving this validation inside pixetl() would allow
     # for easier testing...
-    if not utils.verify_version_pattern(layer_def.version):
-        message = "Version number does not match pattern"
+    if not utils.verify_version_pattern(version):
+        message = "Invalid version string"
         LOGGER.error(message)
         raise ValueError(message)
+
+    layer_dict = json.loads(layer_json)
+    layer_dict.update({"dataset": dataset, "version": version})
+    layer_def = LayerModel.parse_obj(layer_dict)
 
     # Validate resampling_method values. I tried to do this with an enum
     # (see commented-out lines in models.py and resampling.py) but couldn't
@@ -56,6 +69,7 @@ def cli(
     if layer_def.source_type == "raster" and layer_def.uri is None:
         raise ValueError("URI specification is required for raster sources")
 
+    # Finally, actually process the layer
     tiles, skipped_tiles, failed_tiles = pixetl(layer_def, subset, overwrite,)
 
     nb_tiles = len(tiles)

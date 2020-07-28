@@ -29,6 +29,8 @@ Usage: pixetl [OPTIONS] LAYER_JSON
   LAYER_JSON: Layer specification in JSON
 
 Options:
+  -d, --dataset TEXT                        Name of dataset to process  [required]
+  -v, --version TEXT                        Version of dataset to process  [required]
   --subset TEXT                             Subset of tiles to process
   -o, --overwrite                           Overwrite existing tile in output location
   --help                                    Show this message and exit.
@@ -67,7 +69,7 @@ PixETLDefinition:
 ```
 
 # Data sources
-You define layer sources in JSON as the one required argument.
+You define layer sources in JSON as the one required argument
 
 Layer source definitions follow this pattern
 
@@ -84,9 +86,7 @@ Raster Sources:
 
 | Option        | Mandatory | Description |
 |---------------|-----------|-------------|
-| source_type   | yes       | Always "raster"
-| dataset       | yes       | Name of the dataset
-| version       | yes       | Version of the dataset
+| source_type   | yes       | Always "raster" |
 | pixel_meaning | yes       | Field/ Value represented by pixel |
 | data_type     | yes       | Data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
 | grid          | yes       | Grid size of output dataset
@@ -100,9 +100,7 @@ Vector Sources
 
 | Option           | Mandatory | Description |
 |------------------|-----------|-------------|
-| source_type      | yes       | Always "vector"
-| dataset          | yes       | Name of the dataset
-| version          | yes       | Version of the dataset
+| source_type      | yes       | Always "vector" |
 | pixel_meaning    | yes       | Field in source table used for pixel value |
 | data_type        | yes       | Data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
 | grid             | yes       | Grid size of output dataset
@@ -115,8 +113,6 @@ For example here is a pretty-printed sample raster layer definition followed
 by the command that one would issue to process it:
 {
      "source_type": "raster",
-     "dataset": "umd_tree_cover_density_2000",
-     "version": "v1.6",
      "pixel_meaning": "percent",
      "data_type": "uint",
      "nbits": 7,
@@ -126,7 +122,7 @@ by the command that one would issue to process it:
  }
 
 ```bash
-pixetl '{"source_type": "raster", "dataset": "umd_tree_cover_density_2000", "version": "v1.6", "pixel_meaning": "percent", "data_type": "uint", "nbits": 7, "grid": "1/4000", "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson", "resampling": "average"}'
+pixetl -d umd_tree_cover_density_2000 -v v1.6 '{"source_type": "raster", "pixel_meaning": "percent", "data_type": "uint", "nbits": 7, "grid": "1/4000", "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson", "resampling": "average"}'
 ```
 
 # Extending ETL
