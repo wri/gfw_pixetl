@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from typing import List, Optional, Tuple
@@ -5,31 +6,23 @@ from typing import List, Optional, Tuple
 import click
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.grids import Grid, grid_factory
+from gfw_pixetl.data_type import dtypes_dict as data_types
 from gfw_pixetl.layers import Layer, layer_factory
-from gfw_pixetl.tiles import Tile
 from gfw_pixetl.logo import logo
+from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
+from gfw_pixetl.resampling import methods as resampling_methods
+from gfw_pixetl.tiles import Tile
 
 LOGGER = get_module_logger(__name__)
 
 
 @click.command()
-@click.argument("name", type=str)
-@click.option("-v", "--version", type=str, help="Version of dataset")
 @click.option(
-    "-s",
-    "--source_type",
-    type=click.Choice(["raster", "vector", "tcd_raster"]),
-    help="Type of input file(s)",
+    "-d", "--dataset", type=str, required=True, help="Name of dataset to process"
 )
-@click.option("-f", "--field", type=str, help="Field represented in output dataset")
 @click.option(
-    "-g",
-    "--grid_name",
-    type=click.Choice(["10/40000", "90/27008", "90/9984"]),
-    default="10/40000",
-    help="Grid size of output dataset",
+    "-v", "--version", type=str, required=True, help="Version of dataset to process"
 )
 @click.option(
     "--subset", type=str, default=None, multiple=True, help="Subset of tiles to process"
@@ -41,20 +34,43 @@ LOGGER = get_module_logger(__name__)
     default=False,
     help="Overwrite existing tile in output location",
 )
+@click.argument("layer_json", type=str)
 def cli(
-    name: str,
+    dataset: str,
     version: str,
-    source_type: str,
-    field: str,
-    grid_name: str,
     subset: Optional[List[str]],
     overwrite: bool,
+    layer_json: str,
 ):
-    """NAME: Name of dataset"""
+    # Validate fields sooner rather than later
+    # On the other hand, moving this validation inside pixetl() would allow
+    # for easier testing...
+    if not utils.verify_version_pattern(version):
+        message = "Invalid version string"
+        LOGGER.error(message)
+        raise ValueError(message)
 
-    tiles, skipped_tiles, failed_tiles = pixetl(
-        name, version, source_type, field, grid_name, subset, overwrite,
-    )
+    layer_dict = json.loads(layer_json)
+    layer_dict.update({"dataset": dataset, "version": version})
+    layer_def = LayerModel.parse_obj(layer_dict)
+
+    # Validate resampling_method values. I tried to do this with an enum
+    # (see commented-out lines in models.py and resampling.py) but couldn't
+    # get it to work
+    if layer_def.resampling not in resampling_methods.keys():
+        raise ValueError(f"Invalid resampling method specified: {layer_def.resampling}")
+
+    # Validate data_type values. Ideally turn this into an enum for Pydantic
+    # to validate automatically.
+    if layer_def.data_type not in data_types.keys():
+        raise ValueError(f"Invalid data_type specified: {layer_def.data_type}")
+
+    # Raster sources must have an source URI
+    if layer_def.source_type == "raster" and layer_def.uri is None:
+        raise ValueError("URI specification is required for raster sources")
+
+    # Finally, actually process the layer
+    tiles, skipped_tiles, failed_tiles = pixetl(layer_def, subset, overwrite,)
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
@@ -73,25 +89,15 @@ def cli(
 
 
 def pixetl(
-    name: str,
-    version: str,
-    source_type: str,
-    field: str,
-    grid_name: str = "10/40000",
-    subset: Optional[List[str]] = None,
-    overwrite: bool = False,
+    layer_def: LayerModel, subset: Optional[List[str]] = None, overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
     LOGGER.info(
-        "Start tile prepartion for Layer {name}, Version {version}, grid {grid_name}, source type {source_type}, field {field} with overwrite set to {overwrite}.".format(
-            name=name,
-            version=version,
-            grid_name=grid_name,
-            source_type=source_type,
-            field=field,
-            overwrite=overwrite,
-        )
+        f"Start tile preparation for dataset {layer_def.dataset}, "
+        f"version {layer_def.version}, grid {layer_def.grid}, "
+        f"source type {layer_def.source_type}, field {layer_def.pixel_meaning}, "
+        f"with overwrite set to {overwrite}."
     )
 
     old_cwd = os.getcwd()
@@ -101,19 +107,12 @@ def pixetl(
     utils.set_available_memory()
 
     try:
-
         if subset:
             LOGGER.info("Running on subset: {}".format(subset))
         else:
             LOGGER.info("Running on full extent")
 
-        if not utils.verify_version_pattern(version):
-            message = "Version number does not match pattern"
-            LOGGER.error(message)
-            raise ValueError(message)
-
-        grid: Grid = grid_factory(grid_name)
-        layer: Layer = layer_factory(name=name, version=version, grid=grid, field=field)
+        layer: Layer = layer_factory(layer_def)
 
         pipe: Pipe = pipe_factory(layer, subset)
 

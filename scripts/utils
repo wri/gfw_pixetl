@@ -6,11 +6,11 @@ function get_suffix {
     # get current git branch and replace / with -
   if [ -z "${1}" ]; then
 #    echo "No target branch set. Using current branch"
-    read -r cur_branch < <(git rev-parse --abbrev-ref HEAD | tr "/" "-")
+    read -r cur_branch < <(git rev-parse --abbrev-ref HEAD | tr "/" "-" | tr '[:upper:]' '[:lower:]')
   else
 #    echo "Target branch set to ${1}"
     prefix="refs/heads/"
-    cur_branch=$(echo "${1#"$prefix"}" | tr "/" "-")
+    cur_branch=$(echo "${1#"$prefix"}" | tr "/" "-" | tr '[:upper:]' '[:lower:]')
   fi
 
   if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]

@@ -1,30 +1,29 @@
 import os
-from typing import Any, Dict, Set
+from typing import Set
 from unittest import mock
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
-from gfw_pixetl.pipes import RasterPipe, Pipe
+from gfw_pixetl.models import LayerModel
+from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.tiles import RasterSrcTile
 from gfw_pixetl.sources import Destination
+from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
 
 GRID_10 = grid_factory("10/40000")
 GRID_1 = grid_factory("1/4000")
 
-RASTER_LAYER: Dict[str, Any] = {
-    "name": "aqueduct_erosion_risk",
+LAYER_DICT = {
+    **minimal_layer_dict,
+    "dataset": "aqueduct_erosion_risk",
     "version": "v201911",
-    "field": "level",
-    "grid": GRID_10,
+    "pixel_meaning": "level",
+    "no_data": 0,
 }
+LAYER = layers.layer_factory(LayerModel.parse_obj(LAYER_DICT))
 
-LAYER_TYPE = layers._get_source_type(
-    RASTER_LAYER["name"], RASTER_LAYER["field"], RASTER_LAYER["grid"].name
-)
-
-LAYER = layers.layer_factory(**RASTER_LAYER)
 SUBSET = ["10N_010E", "20N_010E", "30N_010E"]
 PIPE = RasterPipe(LAYER, SUBSET)
 
@@ -147,14 +146,15 @@ def test_transform():
 
 
 def _get_subset_tiles() -> Set[RasterSrcTile]:
-    raster_layer: Dict[str, Any] = {
-        "name": "aqueduct_erosion_risk",
+    layer_dict = {
+        **minimal_layer_dict,
+        "dataset": "aqueduct_erosion_risk",
         "version": "v201911",
-        "field": "level",
-        "grid": GRID_1,
+        "pixel_meaning": "level",
+        "no_data": 0,
+        "grid": "1/4000",
     }
-
-    layer = layers.layer_factory(**raster_layer)
+    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
     assert isinstance(layer, layers.RasterSrcLayer)
 
