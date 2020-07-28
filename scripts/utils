@@ -10,7 +10,7 @@ function get_suffix {
   else
 #    echo "Target branch set to ${1}"
     prefix="refs/heads/"
-    cur_branch=$(echo "${1#"$prefix"}" | tr "/" "-")
+    cur_branch=$(echo "${1#"$prefix"}" | tr "/" "-" | tr '[:upper:]' '[:lower:]')
   fi
 
   if [ "$cur_branch" == "master" ] || [ "$cur_branch" == "develop" ]
