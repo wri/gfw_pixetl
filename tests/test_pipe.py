@@ -1,31 +1,31 @@
 import os
-from typing import Any, Dict, Set
+from typing import Set
 from unittest import mock
 
 from shapely.geometry import Polygon
 
 from gfw_pixetl import layers
-from gfw_pixetl.grids import grid_factory
+from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils import upload_geometries
 from gfw_pixetl.sources import Destination
+from tests import minimal_layer_dict
+
 
 os.environ["ENV"] = "test"
 
-GRID = grid_factory("1/4000")
-RASTER_LAYER: Dict[str, Any] = {
-    "name": "aqueduct_erosion_risk",
+
+LAYER_DICT = {
+    **minimal_layer_dict,
+    "dataset": "aqueduct_erosion_risk",
     "version": "v201911",
-    "field": "level",
-    "grid": GRID,
+    "pixel_meaning": "level",
+    "grid": "1/4000",
+    "no_data": 0,
 }
-
-LAYER_TYPE = layers._get_source_type(
-    RASTER_LAYER["name"], RASTER_LAYER["field"], RASTER_LAYER["grid"].name
-)
-
-LAYER = layers.layer_factory(**RASTER_LAYER)
+LAYER_DEF = LayerModel.parse_obj(LAYER_DICT)
+LAYER = layers.layer_factory(LAYER_DEF)
 SUBSET = ["10N_010E", "11N_010E", "11N_011E"]
 PIPE = Pipe(LAYER, SUBSET)
 
@@ -49,18 +49,14 @@ def test_get_grid_tiles():
         message = "not implemented"
     assert message == "not implemented"
 
-    grid = grid_factory("10/40000")
-    raster_layer: Dict[str, Any] = {
-        "name": "aqueduct_erosion_risk",
-        "version": "v201911",
-        "field": "level",
-        "grid": grid,
+    layer_dict = {
+        **LAYER_DICT,
+        "grid": "10/40000",
     }
+    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
-    layer = layers.layer_factory(**raster_layer)
     pipe = RasterPipe(layer)
-    tiles = pipe.get_grid_tiles(min_x=0, min_y=0, max_x=20, max_y=20)
-    assert len(tiles) == 4
+    assert len(pipe.get_grid_tiles(min_x=0, min_y=0, max_x=20, max_y=20)) == 4
 
 
 def test_filter_subset_tiles():

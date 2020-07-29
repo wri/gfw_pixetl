@@ -1,21 +1,24 @@
+import json
 import os
 from unittest import mock
 
+from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import RasterPipe
-from gfw_pixetl.grids import grid_factory, Grid
-from gfw_pixetl.layers import layer_factory, Layer
 from gfw_pixetl.pixetl import pixetl
+from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
 
-GRID_NAME = "1/4000"
-GRID: Grid = grid_factory(GRID_NAME)
-FIELD = "level"
-NAME = "aqueduct_erosion_risk"
-VERSION = "v201911"
-SUBSET = ["10N_010E"]
+LAYER_DICT = {
+    **minimal_layer_dict,
+    "dataset": "aqueduct_erosion_risk",
+    "version": "v201911",
+    "pixel_meaning": "level",
+    "grid": "1/4000",
+}
+RASTER_LAYER_DEF = LayerModel.parse_obj(LAYER_DICT)
 
-LAYER: Layer = layer_factory(name=NAME, version=VERSION, grid=GRID, field=FIELD)
+SUBSET = ["10N_010E"]
 
 
 def test_pixetl():
@@ -26,13 +29,7 @@ def test_pixetl():
         RasterPipe, "create_tiles", return_value=(list(), list(), list())
     ):
         tiles, skipped_tiles, failed_tiles = pixetl(
-            name=NAME,
-            version=VERSION,
-            source_type="raster",
-            field=FIELD,
-            grid_name=GRID_NAME,
-            subset=SUBSET,
-            overwrite=True,
+            RASTER_LAYER_DEF, subset=SUBSET, overwrite=True,
         )
 
     assert tiles == list()
