@@ -66,8 +66,8 @@ class Layer(object):
             field,
         )
 
-    @classmethod
-    def _get_dst_profile(cls, layer_def: LayerModel, grid: Grid) -> Dict[str, Any]:
+    @staticmethod
+    def _get_dst_profile(layer_def: LayerModel, grid: Grid) -> Dict[str, Any]:
         nbits = layer_def.nbits
         no_data = layer_def.no_data
 
@@ -101,7 +101,7 @@ class RasterSrcLayer(Layer):
     def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
         super().__init__(layer_def, grid)
 
-        self._src_uri = layer_def.uri
+        self._src_uri = layer_def.source_uri
 
         # self.input_files = self._input_files()
         # self.geom = self._geom()
