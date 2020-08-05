@@ -22,7 +22,7 @@ layer_dict = {
     "data_type": "uint",
     "nbits": 7,
     "grid": "1/4000",
-    "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson",
+    "source_uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson",
     "resampling": "average",
 }
 LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
