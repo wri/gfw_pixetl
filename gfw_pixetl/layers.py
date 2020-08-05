@@ -112,10 +112,12 @@ class RasterSrcLayer(Layer):
         input_files = list()
 
         o = urlparse(self._src_uri, allow_fragments=False)
-        bucket: str = str(o.netloc)
+        bucket: Union[str, bytes] = o.netloc
         prefix: str = str(o.path).lstrip("/")
 
-        LOGGER.debug(f"Get input files for layer {self.name} using {bucket} {prefix}")
+        LOGGER.debug(
+            f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
+        )
         obj = s3.Object(bucket, prefix)
         body = obj.get()["Body"].read()
 
