@@ -66,7 +66,7 @@ def cli(
         raise ValueError(f"Invalid data_type specified: {layer_def.data_type}")
 
     # Raster sources must have an source URI
-    if layer_def.source_type == "raster" and layer_def.uri is None:
+    if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
     # Finally, actually process the layer
