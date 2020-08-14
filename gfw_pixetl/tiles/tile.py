@@ -5,7 +5,6 @@ from typing import List, Tuple, Dict
 
 import boto3
 import rasterio
-from botocore.exceptions import ClientError
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
@@ -21,10 +20,12 @@ from gfw_pixetl.errors import (
 )
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.settings.globals import AWS_S3_ENDPOINT
 from gfw_pixetl.sources import Destination, RasterSource
 
 LOGGER = get_module_logger(__name__)
 Bounds = Tuple[float, float, float, float]
+S3 = boto3.client("s3", endpoint_url=AWS_S3_ENDPOINT)
 
 
 class Tile(object):
@@ -140,12 +141,10 @@ class Tile(object):
 
     def upload(self) -> None:
 
-        s3 = boto3.client("s3")
-
         try:
             for dst_format in self.local_dst.keys():
                 LOGGER.info(f"Upload {dst_format} tile {self.tile_id} to s3")
-                s3.upload_file(
+                S3.upload_file(
                     self.local_dst[dst_format].uri,
                     utils.get_bucket(),
                     self.dst[dst_format].uri,

@@ -12,8 +12,9 @@ from .models import LayerModel
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
-from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.resampling import resampling_factory
+from gfw_pixetl.settings.globals import AWS_S3_ENDPOINT
+from gfw_pixetl.sources import VectorSource
 
 LOGGER = get_module_logger(__name__)
 
@@ -108,7 +109,7 @@ class RasterSrcLayer(Layer):
 
     @property
     def input_files(self) -> List[Tuple[Polygon, str]]:
-        s3 = boto3.resource("s3")
+        s3 = boto3.resource("s3", endpoint_url=AWS_S3_ENDPOINT)
         input_files = list()
 
         o = urlparse(self._src_uri, allow_fragments=False)

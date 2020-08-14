@@ -1,16 +1,14 @@
 import multiprocessing
 from typing import Iterator, List, Optional, Set, Tuple
 
-import boto3
 from parallelpipe import stage
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.utils import upload_geometries
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.tiles.tile import Tile
+from gfw_pixetl.utils import upload_geometries
 
 LOGGER = get_module_logger(__name__)
-S3 = boto3.client("s3")
 WORKERS = utils.get_workers()
 CORES = multiprocessing.cpu_count()
 

@@ -8,9 +8,11 @@ from shapely.ops import unary_union
 
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl import utils, get_module_logger
+from gfw_pixetl.settings.globals import AWS_S3_ENDPOINT
+
 
 LOGGER = get_module_logger(__name__)
-S3 = boto3.client("s3")
+S3 = boto3.client("s3", endpoint_url=AWS_S3_ENDPOINT)
 
 
 def upload_vrt(tiles: List[Tile], prefix) -> List[Dict[str, Any]]:
