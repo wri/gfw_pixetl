@@ -9,7 +9,7 @@ from pyproj import CRS
 from gfw_pixetl.utils.utils import (
     get_bucket,
     verify_version_pattern,
-    set_aws_credentials,
+    # set_aws_credentials,
     set_cwd,
     set_available_memory,
     set_workers,
@@ -18,7 +18,9 @@ from gfw_pixetl.utils.utils import (
     _write_tile_list,
     create_vrt,
     world_bounds,
+    get_aws_s3_endpoint,
 )
+
 
 os.environ["ENV"] = "test"
 URIS = [
@@ -75,31 +77,32 @@ def test_verify_version_pattern():
     assert verify_version_pattern("v.1.2.3") is False
 
 
-def test_set_aws_credentials():
-    env = os.environ.copy()
-    result = set_aws_credentials()
-
-    assert env == result
-    # Only checking for session token, since key and secret might be available on github
-    # assert "AWS_ACCESS_KEY_ID" not in result.keys()
-    # assert "AWS_SECRET_ACCESS_KEY" not in result.keys()
-    assert "AWS_SESSION_TOKEN" not in result.keys()
-
-    os.environ["AWS_BATCH_JOB_ID"] = "test"
-    os.environ["JOB_ROLE_ARN"] = "test"
-    env = os.environ.copy()
-
-    with mock.patch("boto3.client", return_value=Client):
-        result = set_aws_credentials()
-
-    assert env != result
-    # Only checking for session token, since key and secret might be available on github
-    # assert "AWS_ACCESS_KEY_ID" in result.keys()
-    # assert "AWS_SECRET_ACCESS_KEY" in result.keys()
-    assert "AWS_SESSION_TOKEN" in result.keys()
-
-    del os.environ["AWS_BATCH_JOB_ID"]
-    del os.environ["JOB_ROLE_ARN"]
+#
+# def test_set_aws_credentials():
+#     env = os.environ.copy()
+#     result = set_aws_credentials()
+#
+#     assert env == result
+#     # Only checking for session token, since key and secret might be available on github
+#     # assert "AWS_ACCESS_KEY_ID" not in result.keys()
+#     # assert "AWS_SECRET_ACCESS_KEY" not in result.keys()
+#     assert "AWS_SESSION_TOKEN" not in result.keys()
+#
+#     os.environ["AWS_BATCH_JOB_ID"] = "test"
+#     os.environ["JOB_ROLE_ARN"] = "test"
+#     env = os.environ.copy()
+#
+#     with mock.patch("boto3.client", return_value=Client):
+#         result = set_aws_credentials()
+#
+#     assert env != result
+#     # Only checking for session token, since key and secret might be available on github
+#     # assert "AWS_ACCESS_KEY_ID" in result.keys()
+#     # assert "AWS_SECRET_ACCESS_KEY" in result.keys()
+#     assert "AWS_SESSION_TOKEN" in result.keys()
+#
+#     del os.environ["AWS_BATCH_JOB_ID"]
+#     del os.environ["JOB_ROLE_ARN"]
 
 
 def test_set_cwd():
@@ -178,3 +181,11 @@ def test_world_bounds():
     assert bottom == -20048966.1040146
     assert right == 20037508.342789244
     assert top == 20048966.104014594
+
+
+def test_get_aws_s3_endpoint():
+    """get_endpoint_url should optionally return server name without protocol"""
+
+    assert get_aws_s3_endpoint(None) is None
+    assert get_aws_s3_endpoint("http://motoserver:5000") == "motoserver:5000"
+    assert get_aws_s3_endpoint("motoserver:5000") == "motoserver:5000"

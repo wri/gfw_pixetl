@@ -15,6 +15,12 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
+from gfw_pixetl.settings.globals import (
+    AWS_HTTPS,
+    GDAL_DISABLE_READDIR_ON_OPEN,
+    AWS_VIRTUAL_HOSTING,
+    AWS_S3_ENDPOINT,
+)
 from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
 
 LOGGER = get_module_logger(__name__)
@@ -163,9 +169,15 @@ class RasterSource(Source):
         LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
-            with rasterio.open(self.url) as src:
-                LOGGER.info(f"File {self.url} exists")
-                return src.bounds, src.profile
+            with rasterio.Env(
+                AWS_HTTPS=AWS_HTTPS,
+                GDAL_DISABLE_READDIR_ON_OPEN=GDAL_DISABLE_READDIR_ON_OPEN,
+                AWS_VIRTUAL_HOSTING=AWS_VIRTUAL_HOSTING,
+                AWS_S3_ENDPOINT=AWS_S3_ENDPOINT,
+            ):
+                with rasterio.open(self.url) as src:
+                    LOGGER.info(f"File {self.url} exists")
+                    return src.bounds, src.profile
 
         except Exception as e:
 
@@ -173,7 +185,7 @@ class RasterSource(Source):
                 LOGGER.info(f"File does not exist {self.url}")
                 raise FileNotFoundError(f"File does not exist: {self.url}")
             elif isinstance(e, rasterio.RasterioIOError):
-                LOGGER.warning(
+                LOGGER.exception(
                     f"RasterioIO Error while opening {self.url}. Will make attempts to retry"
                 )
                 raise
@@ -227,4 +239,8 @@ def _file_does_not_exist(e: Exception) -> bool:
         in str(e)
         or str(e) == "The specified key does not exist."
         or "No such file or directory" in str(e)
+        or (
+            "not recognized as a supported file format" in str(e)
+            and AWS_S3_ENDPOINT is not None
+        )  # motoserver 404 responses
     )

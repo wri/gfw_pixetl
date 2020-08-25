@@ -1,5 +1,6 @@
-import boto3
 import yaml
+
+from gfw_pixetl.utils.aws import get_batch_client
 
 
 def define_jobs():
@@ -75,7 +76,7 @@ def jobs():
 
 
 def submit_job(job, depends_on=None):
-    client = boto3.client("batch")
+    batch_client = get_batch_client()
 
     job_name = job["job_name"]
     job_queue = "pixetl-job-queue"
@@ -92,7 +93,7 @@ def submit_job(job, depends_on=None):
     if depends_on is None:
         depends_on = list()
 
-    response = client.submit_job(
+    response = batch_client.submit_job(
         jobName=job_name,
         jobQueue=job_queue,
         dependsOn=depends_on,

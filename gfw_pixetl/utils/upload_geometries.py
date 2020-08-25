@@ -1,18 +1,16 @@
 import os
 from typing import Dict, List, Sequence, Tuple, Union, Optional, Any
 
-import boto3
 from geojson import FeatureCollection, Feature, dumps
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl import utils, get_module_logger
-from gfw_pixetl.settings.globals import AWS_S3_ENDPOINT
-
+from gfw_pixetl.utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
-S3 = boto3.client("s3", endpoint_url=AWS_S3_ENDPOINT)
+S3 = get_s3_client()
 
 
 def upload_vrt(tiles: List[Tile], prefix) -> List[Dict[str, Any]]:

@@ -3,7 +3,6 @@ import os
 import subprocess as sp
 from typing import List, Tuple, Dict
 
-import boto3
 import rasterio
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
@@ -20,12 +19,12 @@ from gfw_pixetl.errors import (
 )
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.settings.globals import AWS_S3_ENDPOINT
 from gfw_pixetl.sources import Destination, RasterSource
+from gfw_pixetl.utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
 Bounds = Tuple[float, float, float, float]
-S3 = boto3.client("s3", endpoint_url=AWS_S3_ENDPOINT)
+S3 = get_s3_client()
 
 
 class Tile(object):
@@ -169,7 +168,7 @@ class Tile(object):
     )
     def _run_gdal_subcommand(cmd: List[str]) -> Tuple[str, str]:
 
-        env = utils.set_aws_credentials()
+        env = os.environ.copy()  # utils.set_aws_credentials()
         LOGGER.debug(f"RUN subcommand, using env {env}")
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
         o, e = p.communicate()
