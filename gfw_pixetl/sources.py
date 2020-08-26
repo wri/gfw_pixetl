@@ -234,13 +234,20 @@ class Destination(RasterSource):
 
 
 def _file_does_not_exist(e: Exception) -> bool:
-    return isinstance(e, RasterioIOError) and (
-        "does not exist in the file system, and is not recognized as a supported dataset name."
-        in str(e)
-        or str(e) == "The specified key does not exist."
-        or "No such file or directory" in str(e)
-        or (
-            "not recognized as a supported file format" in str(e)
-            and AWS_S3_ENDPOINT is not None
-        )  # motoserver 404 responses
-    )
+    """
+    Check if RasterIO can access file.
+
+    If file is inaccessible or does not exist, rasterio will always raise RasterioIOError.
+    Error messages will differ, depending on the access method, if file exists or is inaccessible.
+    However, end result should always be the same.
+    """
+
+    errors = [
+        "does not exist in the file system, and is not recognized as a supported dataset name"
+        "The specified key does not exist",
+        "No such file or directory",
+        "not recognized as a supported file format",
+        "Access Denied",
+    ]
+
+    return isinstance(e, RasterioIOError) and any(error in str(e) for error in errors)
