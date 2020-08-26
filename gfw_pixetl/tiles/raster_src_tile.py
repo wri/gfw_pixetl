@@ -17,13 +17,8 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
-from gfw_pixetl.settings.globals import (
-    AWS_VIRTUAL_HOSTING,
-    AWS_HTTPS,
-    AWS_S3_ENDPOINT,
-    GDAL_DISABLE_READDIR_ON_OPEN,
-    GDAL_ENV,
-)
+from gfw_pixetl.settings.globals import GDAL_ENV
+
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 

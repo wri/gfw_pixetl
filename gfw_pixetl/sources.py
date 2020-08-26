@@ -15,13 +15,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
-from gfw_pixetl.settings.globals import (
-    AWS_HTTPS,
-    GDAL_DISABLE_READDIR_ON_OPEN,
-    AWS_VIRTUAL_HOSTING,
-    AWS_S3_ENDPOINT,
-    GDAL_ENV,
-)
+from gfw_pixetl.settings.globals import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
 
 LOGGER = get_module_logger(__name__)
