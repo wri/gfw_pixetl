@@ -185,7 +185,7 @@ class RasterSource(Source):
                 LOGGER.info(f"File does not exist {self.url}")
                 raise FileNotFoundError(f"File does not exist: {self.url}")
             elif isinstance(e, rasterio.RasterioIOError):
-                LOGGER.exception(
+                LOGGER.warning(
                     f"RasterioIO Error while opening {self.url}. Will make attempts to retry"
                 )
                 raise
