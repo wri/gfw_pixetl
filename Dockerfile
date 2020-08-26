@@ -4,7 +4,8 @@ ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-RUN apt update -y && apt install -y python3-pip libpq-dev ca-certificates
+RUN apt update -y && apt install -y python3-pip libpq-dev ca-certificates \
+    postgresql-client-12
 RUN update-ca-certificates
 RUN mkdir -p /etc/pki/tls/certs
 RUN cp /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt

@@ -1,0 +1,58 @@
+version: "3"
+
+services:
+  pixetl_test:
+    build:
+      context: .
+      args:
+        - ENV=test
+    container_name: pixetl_test
+    volumes:
+      - ./gfw_pixetl:/usr/local/app/gfw_pixetl:ro
+      - ./tests:/usr/local/app/tests
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./tests/fixtures/tmp:/tmp
+    environment:
+      - ENV=test
+      - DB_PASSWORD=postgres  # pragma: allowlist secret
+      - DB_HOST=test_database
+      - DB_USER=gfw
+      - DATABASE=_test
+      - AWS_ACCESS_KEY_ID=testing  # pragma: allowlist secret
+      - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
+      - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret
+      - AWS_SESSION_TOKEN=testing  # pragma: allowlist secret
+      - ENDPOINT_URL=http://motoserver:5000
+      - AWS_HTTPS=NO
+      - AWS_VIRTUAL_HOSTING=FALSE
+      - GDAL_DISABLE_READDIR_ON_OPEN=YES
+    working_dir: /tmp
+    entrypoint: /usr/local/app/wait_for_postgres.sh pytest -vv --cov-report term --cov-report xml:/usr/local/app/tests/cobertura.xml --cov=gfw_pixetl
+    depends_on:
+      - test_database
+      - motoserver
+
+  test_database:
+    container_name: pixetl-test-database
+    image: postgis/postgis:11-3.0-alpine
+    ports:
+      - 54323:5432
+    environment:
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=_test
+      - POSTGRES_USER=gfw
+      - POSTGRES_PASSWORD=postgres  # pragma: allowlist secret
+    volumes:
+      - test_database_data:/var/lib/postgresql/data
+    restart: on-failure
+
+  motoserver:
+    container_name: motoserver
+    image: motoserver/moto:latest
+    ports:
+      - 5000:5000
+    entrypoint: moto_server s3 -H 0.0.0.0
+    restart: on-failure
+
+volumes:
+  test_database_data:

@@ -13,7 +13,9 @@ from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.aws import get_s3_client
 from tests import minimal_layer_dict
+from tests.conftest import BUCKET
 
 os.environ["ENV"] = "test"
 
@@ -103,17 +105,30 @@ def test_get_local_dst_uri():
     )
 
 
-@mock.patch("gfw_pixetl.tiles.tile.os")
-def test_upload(mocked_os):
+def test_upload():
+    s3_client = get_s3_client()
+    resp = s3_client.list_objects_v2(
+        Bucket=BUCKET, Prefix="whrc_aboveground_biomass_stock_2000"
+    )
+    assert resp["KeyCount"] == 1
+    os.makedirs(
+        "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/geotiff/",  # pragma: allowlist secret
+        exist_ok=True,
+    )
+    with open(
+        "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/geotiff/20N_010E.tif",
+        "w+",
+    ):
+        pass
+    tile = Tile(Point(10, 20), LAYER.grid, LAYER)
     with mock.patch("rasterio.open", return_value=EmptyImg()):
-        TILE.set_local_dst(TILE.default_format)
-        with mock.patch("boto3.client") as MockClient:
-            mocked_client = MockClient.return_value
-            mocked_client.upload_file.return_value = True
+        tile.set_local_dst(TILE.default_format)
+        tile.upload()
 
-            TILE.upload()
-            mocked_client.assrt_called_once_with("s3")
-            mocked_client.upload_file.assert_called_once()
+    resp = s3_client.list_objects_v2(
+        Bucket=BUCKET, Prefix="whrc_aboveground_biomass_stock_2000"
+    )
+    assert resp["KeyCount"] == 2
 
 
 @mock.patch("gfw_pixetl.tiles.tile.os")
