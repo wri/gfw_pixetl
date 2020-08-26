@@ -43,8 +43,8 @@ class VectorSource(Source):
 class RasterSource(Source):
     def __init__(self, uri: str) -> None:
 
-        profile: Dict[str, Any]
-        bounds: BoundingBox
+        self.profile: Dict[str, Any]
+        self.bounds: BoundingBox
 
         self.uri: str = uri
         self.url: str = uri

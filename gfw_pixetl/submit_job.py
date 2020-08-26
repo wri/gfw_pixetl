@@ -8,7 +8,7 @@ def define_jobs():
     dependent = list()
 
     stream = open("gfw_pixetl/fixures/sources.yaml", "r")
-    layers = yaml.load(stream)
+    layers = yaml.safe_load(stream)
     for layer in layers.keys():
         for attribute in layers[layer].keys():
             version = layers[layer][attribute]["version"]

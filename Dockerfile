@@ -15,7 +15,7 @@ WORKDIR ${DIR}
 
 COPY . .
 
-RUN pip3 install pipenv
+RUN pip3 install pipenv=2020.8.13
 RUN pipenv install --system --deploy --ignore-pipfile --dev
 RUN pip3 install -e .
 
