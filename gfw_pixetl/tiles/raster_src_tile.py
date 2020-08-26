@@ -22,6 +22,7 @@ from gfw_pixetl.settings.globals import (
     AWS_HTTPS,
     AWS_S3_ENDPOINT,
     GDAL_DISABLE_READDIR_ON_OPEN,
+    GDAL_ENV,
 )
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
@@ -94,13 +95,7 @@ class RasterSrcTile(Tile):
         has_data = False
 
         try:
-            with rasterio.Env(
-                GDAL_TIFF_INTERNAL_MASK=True,
-                AWS_HTTPS=AWS_HTTPS,
-                GDAL_DISABLE_READDIR_ON_OPEN=GDAL_DISABLE_READDIR_ON_OPEN,
-                AWS_VIRTUAL_HOSTING=AWS_VIRTUAL_HOSTING,
-                AWS_S3_ENDPOINT=AWS_S3_ENDPOINT,
-            ):
+            with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, **GDAL_ENV):
                 src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
                 transform, width, height = self._vrt_transform(
@@ -160,12 +155,7 @@ class RasterSrcTile(Tile):
         Creates local output file and returns list of size optimized windows to process.
         """
         LOGGER.debug(f"Create local output file for tile {self.tile_id}")
-        with rasterio.Env(
-            AWS_HTTPS=AWS_HTTPS,
-            GDAL_DISABLE_READDIR_ON_OPEN=GDAL_DISABLE_READDIR_ON_OPEN,
-            AWS_VIRTUAL_HOSTING=AWS_VIRTUAL_HOSTING,
-            AWS_S3_ENDPOINT=AWS_S3_ENDPOINT,
-        ):
+        with rasterio.Env(**GDAL_ENV):
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
                 "w",
@@ -414,12 +404,7 @@ class RasterSrcTile(Tile):
         """
         Write blocks into output raster
         """
-        with rasterio.Env(
-            AWS_HTTPS=AWS_HTTPS,
-            GDAL_DISABLE_READDIR_ON_OPEN=GDAL_DISABLE_READDIR_ON_OPEN,
-            AWS_VIRTUAL_HOSTING=AWS_VIRTUAL_HOSTING,
-            AWS_S3_ENDPOINT=AWS_S3_ENDPOINT,
-        ):
+        with rasterio.Env(**GDAL_ENV):
             with rasterio.open(
                 self.local_dst[self.default_format].uri,
                 "r+",

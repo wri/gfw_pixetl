@@ -20,6 +20,7 @@ from gfw_pixetl.settings.globals import (
     GDAL_DISABLE_READDIR_ON_OPEN,
     AWS_VIRTUAL_HOSTING,
     AWS_S3_ENDPOINT,
+    GDAL_ENV,
 )
 from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
 
@@ -169,12 +170,7 @@ class RasterSource(Source):
         LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
-            with rasterio.Env(
-                AWS_HTTPS=AWS_HTTPS,
-                GDAL_DISABLE_READDIR_ON_OPEN=GDAL_DISABLE_READDIR_ON_OPEN,
-                AWS_VIRTUAL_HOSTING=AWS_VIRTUAL_HOSTING,
-                AWS_S3_ENDPOINT=AWS_S3_ENDPOINT,
-            ):
+            with rasterio.Env(**GDAL_ENV):
                 with rasterio.open(self.url) as src:
                     LOGGER.info(f"File {self.url} exists")
                     return src.bounds, src.profile
@@ -243,7 +239,7 @@ def _file_does_not_exist(e: Exception) -> bool:
     """
 
     errors = [
-        "does not exist in the file system, and is not recognized as a supported dataset name"
+        "does not exist in the file system, and is not recognized as a supported dataset name",
         "The specified key does not exist",
         "No such file or directory",
         "not recognized as a supported file format",
