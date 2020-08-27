@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
-pip install -r requirements.txt
-pip install -e .
+export PIPENV_IGNORE_VIRTUALENVS=1
+export LDFLAGS="-L/usr/local/opt/openssl/lib"
+export CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+pip install pipenv
+pipenv install --python /usr/local/bin/python3.8
 
 detect-secrets scan > .secrets.baseline
 pre-commit install

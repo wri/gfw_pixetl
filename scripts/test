@@ -1,49 +1,36 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
-cur_dir=$(dirname "$0")
-source ${cur_dir}/utils
 
-BRANCH=""
+# Default values
+POSITIONAL=()
+BUILD=true
+# extracting cmd line arguments
+while [[ $# -gt 0 ]]
+do
+  key="$1"
 
-while getopts b:k:s: option; do
-  case "${option}" in
-
-  b) BRANCH=${OPTARG} ;;
-  k) AWS_ACCESS_KEY_ID=${OPTARG} ;;
-  s) AWS_SECRET_ACCESS_KEY=${OPTARG} ;;
+  case $key in
+      --no_build)
+      BUILD=false
+      shift # past argument
+      ;;
+      *)    # unknown option
+      POSITIONAL+=("$1") # save it in an array for later
+      shift # past argument
+      ;;
   esac
 done
+set -- "${POSITIONAL[@]}" # restore positional parameters
 
-SUFFIX=$(get_suffix "${BRANCH}")
 
-AWS_PROFILE="gfw-dev" # For tests always use dev profile, even for master and develop branch, we need to access the test bucket
-
-if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
-  # when running locally, use AWS Profile and load latest code, write data to tmp
-  echo "Running test with CWD set to /tmp"
-  docker run -e AWS_DEFAULT_PROFILE=${AWS_PROFILE} \
-              -v /tmp:/tmp \
-              -v ${PWD}:/usr/local/app \
-              -v ${HOME}/.aws:/root/.aws:ro\
-              -e ENV="test" \
-              --rm \
-              --entrypoint pytest pixetl"${SUFFIX}" \
-              --cov-report term --cov-report xml --cov=/usr/local/app \
-              /usr/local/app/tests/
-else
-  # when running on Github, use Secrets and link pwd to tmp to have access to coverage file
-  echo "Running test with CWD set to ."
-  docker run -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
-              -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}  \
-              -v /tmp:/tmp \
-              -v ${PWD}:/usr/local/app \
-              -w /usr/local/app \
-              -e ENV="test" \
-              --rm \
-              --entrypoint pytest pixetl"${SUFFIX}" \
-              --cov-report term --cov-report xml --cov=/usr/local/app \
-              /usr/local/app/tests/
+if [ "${BUILD}" = true ]; then
+  docker-compose -f docker-compose.test.yml --project-name gfw-pixetl_test build pixetl_test
 fi
 
+set +e
+docker-compose -f docker-compose.test.yml --project-name gfw-pixetl_test run --rm --name pixetl_test pixetl_test /usr/local/app/tests/"$*"
+exit_code=$?
+docker-compose -f docker-compose.test.yml --project-name gfw-pixetl_test down --remove-orphans
+exit $exit_code
