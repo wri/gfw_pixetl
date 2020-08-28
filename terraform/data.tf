@@ -30,7 +30,6 @@ data "template_file" "iam_trust_entity" {
   }
 }
 
-
 data "local_file" "ecs-task_assume" {
   filename = "${path.root}/templates/ecs-task_assume.json"
 }
