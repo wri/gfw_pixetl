@@ -1,5 +1,4 @@
 terraform {
-  required_version = ">=0.12.26"
   backend "s3" {
     key     = "wri__gfw_pixetl.tfstate"
     region  = "us-east-1"
@@ -7,14 +6,9 @@ terraform {
   }
 }
 
-# Download any stable version in AWS provider of 2.36.0 or higher in 2.36 train
-provider "aws" {
-  region  = "us-east-1"
-  version = "~> 3.4.0"
-}
 
 module "container_registry" {
-  source     = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/container_registry?ref=v0.2.7"
+  source     = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/container_registry?ref=develop"
   image_name = "${local.project}${local.name_suffix}"
   root_dir   = "../${path.root}"
 }
@@ -22,7 +16,7 @@ module "container_registry" {
 
 
 module "compute_environment_ephemeral_storage" {
-  source             = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=v0.2.7"
+  source             = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=develop"
   project            = local.project
   key_pair           = data.terraform_remote_state.core.outputs.key_pair_tmaschler_gfw
   subnets            = data.terraform_remote_state.core.outputs.private_subnet_ids
