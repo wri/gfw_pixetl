@@ -16,7 +16,7 @@ CORES = cpu_count()
 
 
 class RasterPipe(Pipe):
-    def get_grid_tiles(self, min_x=-80, min_y=-16, max_x=-70, max_y=-14) -> Set[RasterSrcTile]:  # type: ignore
+    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[RasterSrcTile]:  # type: ignore
         """Seed all available tiles within given grid.
 
         Use 1x1 degree tiles covering all land area as starting point.
