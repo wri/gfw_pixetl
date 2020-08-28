@@ -8,7 +8,7 @@ terraform {
 
 
 module "container_registry" {
-  source     = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/container_registry?ref=develop"
+  source     = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/container_registry?ref=v0.3.0"
   image_name = "${local.project}${local.name_suffix}"
   root_dir   = "../${path.root}"
 }
@@ -16,7 +16,7 @@ module "container_registry" {
 
 
 module "compute_environment_ephemeral_storage" {
-  source             = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=develop"
+  source             = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=v0.3.0"
   project            = local.project
   key_pair           = data.terraform_remote_state.core.outputs.key_pair_tmaschler_gfw
   subnets            = data.terraform_remote_state.core.outputs.private_subnet_ids

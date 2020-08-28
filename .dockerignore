@@ -12,7 +12,6 @@ venv/*
 cc-test-reporter
 coverage.xml
 test.log
-wait_for_postgres.sh
 README.md
 .idea/*
 .coverage
