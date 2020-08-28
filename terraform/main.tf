@@ -1,10 +1,12 @@
 terraform {
+
   backend "s3" {
     key     = "wri__gfw_pixetl.tfstate"
     region  = "us-east-1"
     encrypt = true
   }
 }
+
 
 
 module "container_registry" {
