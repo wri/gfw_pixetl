@@ -1,8 +1,6 @@
 .mypy_cache/*
 .pytest_cache/*
-gfw-data-lake-dev/*
-gfw-data-lake/*
-docker/*
+tmp/*
 scripts/*
 terraform/*
 terraform/.terraform/*
@@ -14,6 +12,10 @@ venv/*
 cc-test-reporter
 coverage.xml
 test.log
+README.md
 .idea/*
 .coverage
 .DS_Store
+docker-compose.*
+.secrets.baseline
+.pre-commit-config.yaml
