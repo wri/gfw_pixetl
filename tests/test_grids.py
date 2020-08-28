@@ -9,14 +9,14 @@ os.environ["ENV"] = "test"
 
 def test_grid_factory():
 
-    grid: Grid = grid_factory("3/50000")
+    grid: Grid = grid_factory("3/33600")
     assert isinstance(grid, Grid)
     assert grid.width == 3
     assert grid.height == 3
-    assert grid.cols == 50000
-    assert grid.rows == 50000
-    assert grid.blockxsize == 400
-    assert grid.blockysize == 400
+    assert grid.cols == 33600
+    assert grid.rows == 33600
+    assert grid.blockxsize == 480
+    assert grid.blockysize == 480
     assert grid.srs.to_string() == "EPSG:4326"
 
     grid: Grid = grid_factory("10/40000")

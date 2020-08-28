@@ -26,6 +26,7 @@ GDAL_DISABLE_READDIR_ON_OPEN: Optional[str] = os.environ.get(
 
 ENDPOINT_URL: Optional[str] = os.environ.get("ENDPOINT_URL", None)
 AWS_S3_ENDPOINT: Optional[str] = get_aws_s3_endpoint(ENDPOINT_URL)
+AWS_BATCH_JOB_ID: Optional[str] = os.environ.get("AWS_BATCH_JOB_ID", None)
 GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS", None
 )

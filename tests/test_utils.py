@@ -6,6 +6,7 @@ from unittest import mock
 from dateutil.tz import tzutc
 from pyproj import CRS
 
+from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import _write_tile_list, create_vrt
 from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.utils import (  # set_aws_credentials,
@@ -13,7 +14,6 @@ from gfw_pixetl.utils.utils import (  # set_aws_credentials,
     get_bucket,
     get_workers,
     set_available_memory,
-    set_cwd,
     set_workers,
     verify_version_pattern,
     world_bounds,

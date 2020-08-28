@@ -2,18 +2,13 @@ import datetime
 import multiprocessing
 import os
 import re
-import shutil
-import uuid
 from typing import Optional, Tuple
-from urllib.parse import urlparse
 
 import psutil
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
-from retrying import retry
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready
 
 LOGGER = get_module_logger(__name__)
 
@@ -68,47 +63,6 @@ def verify_version_pattern(version: str) -> bool:
         return True
 
 
-def set_cwd() -> str:
-    if "AWS_BATCH_JOB_ID" in os.environ.keys():
-        check_volume_ready()
-        cwd: str = os.environ["AWS_BATCH_JOB_ID"]
-    else:
-        cwd = str(uuid.uuid4())
-
-    if os.path.exists(cwd):
-        shutil.rmtree(cwd)
-    os.mkdir(cwd)
-    os.chdir(cwd)
-    LOGGER.info(f"Current Work Directory set to {os.getcwd()}")
-    return cwd
-
-
-def remove_work_directory(old_cwd, cwd) -> None:
-    os.chdir(old_cwd)
-    if os.path.exists(cwd):
-        LOGGER.info("Delete temporary work directory")
-        shutil.rmtree(cwd)
-
-
-@retry(
-    retry_on_exception=retry_if_volume_not_ready,
-    stop_max_attempt_number=7,
-    wait_fixed=2000,
-)
-def check_volume_ready() -> bool:
-    """This check assures we make use of the ephemeral volume of the AWS
-    compute environment.
-
-    We only perform this check if we use this module in AWS Batch
-    compute environment (AWS_BATCH_JOB_ID is present) The READY file is
-    created during bootstrap process after formatting and mounting
-    ephemeral volume
-    """
-    if not os.path.exists("READY") and "AWS_BATCH_JOB_ID" in os.environ.keys():
-        raise VolumeNotReadyError("Mounted Volume not ready")
-    return True
-
-
 def set_workers(workers: int) -> int:
     """Set environment variable with number of workers Cannot exceed number of
     cores and must be at least one."""
@@ -134,14 +88,6 @@ def set_available_memory() -> int:
 def available_memory_per_process() -> float:
     """Snapshot of currently available memory per core or process."""
     return set_available_memory() / get_workers()
-
-
-def replace_inf_nan(number: float, replacement: float) -> float:
-    if number == float("inf") or number == float("nan"):
-        LOGGER.debug("Replace number")
-        return replacement
-    else:
-        return number
 
 
 def snapped_window(window):

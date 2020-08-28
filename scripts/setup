@@ -7,8 +7,5 @@ export CPPFLAGS="-I/usr/local/opt/openssl/include"
 pip install pipenv
 pipenv install --python /usr/local/bin/python3.8
 
-detect-secrets scan > .secrets.baseline
-pre-commit install
-
-docker-compose -f docker/terraform/docker-compose.yml build
-./scripts/cibuild
+pipenv run detect-secrets scan > .secrets.baseline
+pipenv run pre-commit install

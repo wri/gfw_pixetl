@@ -1,5 +1,9 @@
 from typing import Optional
 
+from gfw_pixetl import get_module_logger
+
+LOGGER = get_module_logger(__name__)
+
 
 def to_bool(value: Optional[str]) -> Optional[bool]:
     boolean = {
@@ -19,3 +23,11 @@ def to_bool(value: Optional[str]) -> Optional[bool]:
             raise ValueError(f"Cannot convert value {value} to boolean")
 
     return response
+
+
+def replace_inf_nan(number: float, replacement: float) -> float:
+    if number == float("inf") or number == float("nan"):
+        LOGGER.debug("Replace number")
+        return replacement
+    else:
+        return number

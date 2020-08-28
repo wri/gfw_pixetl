@@ -5,7 +5,7 @@ import click
 from google.cloud import storage
 
 from gfw_pixetl.sources import RasterSource
-from gfw_pixetl.utils import upload_geometries
+from gfw_pixetl.utils import get_bucket, upload_geometries
 from gfw_pixetl.utils.aws import get_s3_client
 
 
@@ -46,7 +46,7 @@ def get_key_from_vsi(vsi_path):
     return "/".join(key)
 
 
-def get_extent(bucket, prefix, provider, dst_bucket, dst_prefix):
+def get_extent(bucket, prefix, provider, dataset, version):
 
     get_files = {"aws": get_aws_files, "gs": get_gs_files}
     files = get_files[provider](bucket, prefix)
@@ -61,16 +61,17 @@ def get_extent(bucket, prefix, provider, dst_bucket, dst_prefix):
 
         tiles.append(DummyTile(src))
 
-    upload_geometries.upload_tile_geoms(tiles, bucket=dst_bucket, prefix=dst_prefix + "tiles.geojson")  # type: ignore
-    upload_geometries.upload_geom(tiles, bucket=dst_bucket, prefix=dst_prefix + "extent.geojson")  # type: ignore
+    data_lake_bucket = get_bucket()
+    upload_geometries.upload_tile_geoms(tiles, bucket=data_lake_bucket, prefix=f"{dataset}/{version}/raw/tiles.geojson")  # type: ignore
+    upload_geometries.upload_geom(tiles, bucket=data_lake_bucket, prefix=f"{dataset}/{version}/raw/extent.geojson")  # type: ignore
 
 
 @click.command()
 @click.argument("bucket", type=str)
 @click.argument("prefix", type=str)
 @click.option("--provider", type=str, default="aws")
-@click.option("--dst_bucket", type=str, required=False)
-@click.option("--dst_prefix", type=str, required=False)
+@click.option("--dataset", type=str, required=True)
+@click.option("--version", type=str, required=True)
 def cli(bucket, prefix, provider, dst_bucket, dst_prefix):
 
     if not dst_bucket:
