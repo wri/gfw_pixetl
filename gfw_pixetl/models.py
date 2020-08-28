@@ -33,6 +33,6 @@ class LayerModel(BaseModel):
     rasterize_method: Optional[RasterizeMethod]
     # resampling: Optional[ResamplingMethod] = "nearest"
     resampling: str = "nearest"
-    uri: Optional[str]
+    source_uri: Optional[str]
     calc: Optional[str]
     order: Optional[Order]

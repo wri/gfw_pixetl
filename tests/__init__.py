@@ -6,5 +6,5 @@ minimal_layer_dict = {
     "grid": "10/40000",
     "source_type": "raster",
     # "no_data": 0,
-    # "uri": "s3://gfw-files/2018_update/biomass/tiles.geojson",
+    # "source_uri": "s3://gfw-files/2018_update/biomass/tiles.geojson",
 }

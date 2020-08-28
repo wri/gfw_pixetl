@@ -1,10 +1,10 @@
 import os
 
-import boto3
 import click
 
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.utils import upload_geometries
+from gfw_pixetl.utils.aws import get_s3_client
 
 
 class DummyTile(object):
@@ -15,8 +15,8 @@ class DummyTile(object):
 def get_extent(bucket, prefix):
     print(bucket)
     print(prefix)
-    s3 = boto3.client("s3")
-    files = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    s3_client = get_s3_client()
+    files = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
 
     tiles = list()
 

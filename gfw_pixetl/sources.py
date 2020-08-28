@@ -15,6 +15,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
+from gfw_pixetl.settings.globals import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
 
 LOGGER = get_module_logger(__name__)
@@ -37,8 +38,8 @@ class VectorSource(Source):
 class RasterSource(Source):
     def __init__(self, uri: str) -> None:
 
-        profile: Dict[str, Any]
-        bounds: BoundingBox
+        self.profile: Dict[str, Any]
+        self.bounds: BoundingBox
 
         self.uri: str = uri
         self.url: str = uri
@@ -163,9 +164,10 @@ class RasterSource(Source):
         LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
-            with rasterio.open(self.url) as src:
-                LOGGER.info(f"File {self.url} exists")
-                return src.bounds, src.profile
+            with rasterio.Env(**GDAL_ENV):
+                with rasterio.open(self.url) as src:
+                    LOGGER.info(f"File {self.url} exists")
+                    return src.bounds, src.profile
 
         except Exception as e:
 
@@ -222,9 +224,20 @@ class Destination(RasterSource):
 
 
 def _file_does_not_exist(e: Exception) -> bool:
-    return isinstance(e, RasterioIOError) and (
-        "does not exist in the file system, and is not recognized as a supported dataset name."
-        in str(e)
-        or str(e) == "The specified key does not exist."
-        or "No such file or directory" in str(e)
-    )
+    """
+    Check if RasterIO can access file.
+
+    If file is inaccessible or does not exist, rasterio will always raise RasterioIOError.
+    Error messages will differ, depending on the access method, if file exists or is inaccessible.
+    However, end result should always be the same.
+    """
+
+    errors = [
+        "does not exist in the file system, and is not recognized as a supported dataset name",
+        "The specified key does not exist",
+        "No such file or directory",
+        "not recognized as a supported file format",
+        "Access Denied",
+    ]
+
+    return isinstance(e, RasterioIOError) and any(error in str(e) for error in errors)

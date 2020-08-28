@@ -3,9 +3,7 @@ import os
 import subprocess as sp
 from typing import List, Tuple, Dict
 
-import boto3
 import rasterio
-from botocore.exceptions import ClientError
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
@@ -22,9 +20,11 @@ from gfw_pixetl.errors import (
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.sources import Destination, RasterSource
+from gfw_pixetl.utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
 Bounds = Tuple[float, float, float, float]
+S3 = get_s3_client()
 
 
 class Tile(object):
@@ -140,12 +140,10 @@ class Tile(object):
 
     def upload(self) -> None:
 
-        s3 = boto3.client("s3")
-
         try:
             for dst_format in self.local_dst.keys():
                 LOGGER.info(f"Upload {dst_format} tile {self.tile_id} to s3")
-                s3.upload_file(
+                S3.upload_file(
                     self.local_dst[dst_format].uri,
                     utils.get_bucket(),
                     self.dst[dst_format].uri,
@@ -170,7 +168,7 @@ class Tile(object):
     )
     def _run_gdal_subcommand(cmd: List[str]) -> Tuple[str, str]:
 
-        env = utils.set_aws_credentials()
+        env = os.environ.copy()  # utils.set_aws_credentials()
         LOGGER.debug(f"RUN subcommand, using env {env}")
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
         o, e = p.communicate()

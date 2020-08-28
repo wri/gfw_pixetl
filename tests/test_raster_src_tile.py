@@ -10,6 +10,7 @@ from gfw_pixetl import layers, get_module_logger
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.tiles import RasterSrcTile
 from tests import minimal_layer_dict
+from tests.conftest import BUCKET, GEOJSON_NAME
 
 os.environ["ENV"] = "test"
 LOGGER = get_module_logger(__name__)
@@ -22,7 +23,7 @@ layer_dict = {
     "data_type": "uint",
     "nbits": 7,
     "grid": "1/4000",
-    "uri": "s3://gfw-files/2018_update/tcd_2000/tiles.geojson",
+    "source_uri": f"s3://{BUCKET}/{GEOJSON_NAME}",
     "resampling": "average",
 }
 LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
@@ -60,7 +61,7 @@ def test_transform_final():
 
         assert src_profile["blockxsize"] == LAYER.grid.blockxsize
         assert src_profile["blockysize"] == LAYER.grid.blockysize
-        # assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
+        assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
         assert src_profile["count"] == 1
         assert src_profile["crs"] == {"init": LAYER.grid.srs.srs}
         assert src_profile["driver"] == "GTiff"

@@ -25,6 +25,10 @@ class VolumeNotReadyError(Exception):
     pass
 
 
+class ValueConversionError(Exception):
+    pass
+
+
 def retry_if_none_type_error(exception) -> bool:
     """Return True if we should retry (in this case when it's an IOError), False otherwise"""
     is_none_type_error: bool = isinstance(exception, GDALNoneTypeError)

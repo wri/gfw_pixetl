@@ -3,7 +3,6 @@ import os
 from typing import Any, Dict, Optional, List, Tuple, Union
 from urllib.parse import urlparse
 
-import boto3
 from rasterio.warp import Resampling
 from shapely.geometry import MultiPolygon, shape, Polygon
 from shapely.ops import unary_union
@@ -12,8 +11,9 @@ from .models import LayerModel
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
-from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.resampling import resampling_factory
+from gfw_pixetl.sources import VectorSource
+from .utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
 
@@ -66,8 +66,8 @@ class Layer(object):
             field,
         )
 
-    @classmethod
-    def _get_dst_profile(cls, layer_def: LayerModel, grid: Grid) -> Dict[str, Any]:
+    @staticmethod
+    def _get_dst_profile(layer_def: LayerModel, grid: Grid) -> Dict[str, Any]:
         nbits = layer_def.nbits
         no_data = layer_def.no_data
 
@@ -101,14 +101,14 @@ class RasterSrcLayer(Layer):
     def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
         super().__init__(layer_def, grid)
 
-        self._src_uri = layer_def.uri
+        self._src_uri = layer_def.source_uri
 
         # self.input_files = self._input_files()
         # self.geom = self._geom()
 
     @property
     def input_files(self) -> List[Tuple[Polygon, str]]:
-        s3 = boto3.resource("s3")
+        s3_client = get_s3_client()
         input_files = list()
 
         o = urlparse(self._src_uri, allow_fragments=False)
@@ -118,8 +118,8 @@ class RasterSrcLayer(Layer):
         LOGGER.debug(
             f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
         )
-        obj = s3.Object(bucket, prefix)
-        body = obj.get()["Body"].read()
+        response = s3_client.get_object(Bucket=bucket, Key=prefix)
+        body = response["Body"].read()
 
         features = json.loads(body.decode("utf-8"))["features"]
         for feature in features:

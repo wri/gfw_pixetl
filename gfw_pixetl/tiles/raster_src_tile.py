@@ -17,6 +17,8 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.settings.globals import GDAL_ENV
+
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 
@@ -88,7 +90,7 @@ class RasterSrcTile(Tile):
         has_data = False
 
         try:
-            with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+            with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, **GDAL_ENV):
                 src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
                 transform, width, height = self._vrt_transform(
@@ -148,12 +150,13 @@ class RasterSrcTile(Tile):
         Creates local output file and returns list of size optimized windows to process.
         """
         LOGGER.debug(f"Create local output file for tile {self.tile_id}")
-        with rasterio.open(
-            self.get_local_dst_uri(self.default_format),
-            "w",
-            **self.dst[self.default_format].profile,
-        ) as dst:
-            windows = [window for window in self._windows(dst)]
+        with rasterio.Env(**GDAL_ENV):
+            with rasterio.open(
+                self.get_local_dst_uri(self.default_format),
+                "w",
+                **self.dst[self.default_format].profile,
+            ) as dst:
+                windows = [window for window in self._windows(dst)]
         self.set_local_dst(self.default_format)
 
         return windows
@@ -396,11 +399,12 @@ class RasterSrcTile(Tile):
         """
         Write blocks into output raster
         """
-        with rasterio.open(
-            self.local_dst[self.default_format].uri,
-            "r+",
-            **self.dst[self.default_format].profile,
-        ) as dst:
-            LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
-            dst.write(array, window=dst_window)
-            del array
+        with rasterio.Env(**GDAL_ENV):
+            with rasterio.open(
+                self.local_dst[self.default_format].uri,
+                "r+",
+                **self.dst[self.default_format].profile,
+            ) as dst:
+                LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
+                dst.write(array, window=dst_window)
+                del array

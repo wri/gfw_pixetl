@@ -5,17 +5,22 @@ import re
 import shutil
 import subprocess as sp
 import uuid
-from dateutil.tz import tzutc
-from typing import Any, Dict, List, Optional, Tuple
 
-import boto3
+from typing import Any, List, Optional, Tuple
+from urllib.parse import urlparse
+
 import psutil
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready, GDALError
+from gfw_pixetl.errors import (
+    VolumeNotReadyError,
+    retry_if_volume_not_ready,
+    GDALError,
+    ValueConversionError,
+)
 
 LOGGER = get_module_logger(__name__)
 
@@ -89,48 +94,86 @@ def verify_version_pattern(version: str) -> bool:
         return True
 
 
-def set_aws_credentials():
-    """
-    GDALwrap doesn't seem to be able to handle role permissions.
-    Instead it requires presents of credentials in ENV variables or .aws/credential file.
-    When run in batch environment, we alter ENV variables for sub process and add AWS credentials.
-    """
+# def set_aws_credentials():
+#     """
+#     GDALwrap doesn't seem to be able to handle role permissions.
+#     Instead it requires presents of credentials in ENV variables or .aws/credential file.
+#     When run in batch environment, we alter ENV variables for sub process and add AWS credentials.
+#     AWS_S3_ENDPOINT can be set to route requests to a different server, for example for tests
+#     """
 
-    # only need to set credentials in AWS Batch environment
-    if "AWS_BATCH_JOB_ID" in os.environ.keys():
+#
+# # only need to set credentials in AWS Batch environment
+# if "AWS_BATCH_JOB_ID" in os.environ.keys():
+#
+#     global TOKEN_EXPIRATION
+#     global AWS_ACCESS_KEY_ID
+#     global AWS_SECRET_ACCESS_KEY
+#     global AWS_SESSION_TOKEN
+#
+#     env: Dict[str, Any] = os.environ.copy()
+#     sts_client = get_sts_client()
+#
+#     if not TOKEN_EXPIRATION or TOKEN_EXPIRATION <= datetime.datetime.now(
+#         tz=tzutc()
+#     ):
+#         LOGGER.debug("Update session token")
+#
+#         credentials: Dict[str, Any] = sts_client.assume_role(
+#             RoleArn=JOB_ROLE_ARN, RoleSessionName="pixETL"
+#         )
+#
+#         TOKEN_EXPIRATION = credentials["Credentials"]["Expiration"]
+#         AWS_ACCESS_KEY_ID = credentials["Credentials"]["AccessKeyId"]
+#         AWS_SECRET_ACCESS_KEY = credentials["Credentials"]["SecretAccessKey"]
+#         AWS_SESSION_TOKEN = credentials["Credentials"]["SessionToken"]
+#
+#     LOGGER.debug("Set AWS credentials")
+#     env["AWS_ACCESS_KEY_ID"] = AWS_ACCESS_KEY_ID
+#     env["AWS_SECRET_ACCESS_KEY"] = AWS_SECRET_ACCESS_KEY
+#     env["AWS_SESSION_TOKEN"] = AWS_SESSION_TOKEN
+#     env["AWS_S3_ENDPOINT"] = AWS_S3_ENDPOINT
+#
+#     LOGGER.debug(f"ENV: {env}")
+#     return env
+#
+# else:
+#     return os.environ.copy()
 
-        global TOKEN_EXPIRATION
-        global AWS_ACCESS_KEY_ID
-        global AWS_SECRET_ACCESS_KEY
-        global AWS_SESSION_TOKEN
 
-        env: Dict[str, Any] = os.environ.copy()
-        client = boto3.client("sts")
+def get_aws_s3_endpoint(endpoint: Optional[str]) -> Optional[str]:
+    """check if AWS_S3_ENDPOINT or ENDPOINT_URL is set and remove protocol from endpoint if present"""
 
-        if not TOKEN_EXPIRATION or TOKEN_EXPIRATION <= datetime.datetime.now(
-            tz=tzutc()
-        ):
-            LOGGER.debug("Update session token")
-
-            credentials: Dict[str, Any] = client.assume_role(
-                RoleArn=os.environ["JOB_ROLE_ARN"], RoleSessionName="pixETL"
-            )
-
-            TOKEN_EXPIRATION = credentials["Credentials"]["Expiration"]
-            AWS_ACCESS_KEY_ID = credentials["Credentials"]["AccessKeyId"]
-            AWS_SECRET_ACCESS_KEY = credentials["Credentials"]["SecretAccessKey"]
-            AWS_SESSION_TOKEN = credentials["Credentials"]["SessionToken"]
-
-        LOGGER.debug("Set AWS credentials")
-        env["AWS_ACCESS_KEY_ID"] = AWS_ACCESS_KEY_ID
-        env["AWS_SECRET_ACCESS_KEY"] = AWS_SECRET_ACCESS_KEY
-        env["AWS_SESSION_TOKEN"] = AWS_SESSION_TOKEN
-
-        LOGGER.debug(f"ENV: {env}")
-        return env
-
+    if endpoint:
+        o = urlparse(endpoint, allow_fragments=False)
+        if o.scheme and o.netloc:
+            result: Optional[str] = o.netloc
+        else:
+            result = o.path
     else:
-        return os.environ.copy()
+        result = None
+
+    return result
+
+
+def to_bool(value: Optional[str]) -> Optional[bool]:
+    boolean = {
+        "false": False,
+        "true": True,
+        "no": False,
+        "yes": True,
+        "0": False,
+        "1": True,
+    }
+    if value is None:
+        response = None
+    else:
+        try:
+            response = boolean[value.lower()]
+        except KeyError:
+            raise ValueConversionError(f"Cannot convert value {value} to boolean")
+
+    return response
 
 
 def set_cwd() -> str:
@@ -166,7 +209,6 @@ def check_volume_ready() -> bool:
     We only perform this check if we use this module in AWS Batch compute environment (AWS_BATCH_JOB_ID is present)
     The READY file is created during bootstrap process after formatting and mounting ephemeral volume
     """
-
     if not os.path.exists("READY") and "AWS_BATCH_JOB_ID" in os.environ.keys():
         raise VolumeNotReadyError("Mounted Volume not ready")
     return True
@@ -214,7 +256,8 @@ def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
     _write_tile_list(tile_list, uris)
 
     cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
-    env = set_aws_credentials()
+    # env = set_aws_credentials()
+    env = os.environ.copy()
 
     LOGGER.info(f"Create VRT file {vrt}")
     p: sp.Popen = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
