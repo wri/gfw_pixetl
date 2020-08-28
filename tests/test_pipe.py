@@ -7,11 +7,10 @@ from shapely.geometry import Polygon
 from gfw_pixetl import layers
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
+from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils import upload_geometries
-from gfw_pixetl.sources import Destination
 from tests import minimal_layer_dict
-
 
 os.environ["ENV"] = "test"
 

@@ -1,9 +1,9 @@
 from gfw_pixetl.settings.globals import (
-    READER_HOST,
-    READER_PORT,
     READER_DBNAME,
-    READER_USERNAME,
+    READER_HOST,
     READER_PASSWORD,
+    READER_PORT,
+    READER_USERNAME,
 )
 
 

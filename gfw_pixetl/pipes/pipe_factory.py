@@ -1,7 +1,7 @@
 from typing import List, Optional
 
-from gfw_pixetl.layers import RasterSrcLayer, VectorSrcLayer, Layer
-from gfw_pixetl.pipes import Pipe, VectorPipe, RasterPipe
+from gfw_pixetl.layers import Layer, RasterSrcLayer, VectorSrcLayer
+from gfw_pixetl.pipes import Pipe, RasterPipe, VectorPipe
 
 
 def pipe_factory(layer: Layer, subset: Optional[List[str]] = None) -> Pipe:

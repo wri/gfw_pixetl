@@ -15,20 +15,16 @@
       "value": "${environment}"
     },
     {
-      "name": "JOB_ROLE_ARN",
-      "value": "${clone_role_arn}"
-    },
-    {
       "name": "ECS_TASK_METADATA_RPS_LIMIT",
       "value": "100,150"
     },
     {
-      "name": "LC_ALL",
-      "value": "C.UTF-8"
+      "name": "GOOGLE_APPLICATION_CREDENTIALS",
+      "value": "/root/.gcs/private_key.json"
     },
     {
-      "name": "LANG",
-      "value": "C.UTF-8"
+      "name": "GCS_KEY_SECRET_ARN",
+      "value": "${gcs_key_secret_arn}"
     }
   ],
   "jobRoleArn": "${job_role_arn}",

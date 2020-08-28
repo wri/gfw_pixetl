@@ -13,7 +13,7 @@ data "template_file" "container_properties" {
     image_url      = module.container_registry.repository_url
     environment    = var.environment
     job_role_arn   = aws_iam_role.aws_ecs_service_role.arn
-    clone_role_arn = aws_iam_role.aws_ecs_service_role_clone.arn
+    gcs_key_secret_arn = data.terraform_remote_state.core.outputs.secrets_read-gfw-gee-export_arn
     cpu            = 48
     memory         = 380000
     hardULimit     = 1024
@@ -30,12 +30,6 @@ data "template_file" "iam_trust_entity" {
   }
 }
 
-data "template_file" "iam_assume_role" {
-  template = file("${path.root}/templates/iam_assume_role.json.tmpl")
-  vars = {
-    role_arn = aws_iam_role.aws_ecs_service_role_clone.arn
-  }
-}
 
 data "local_file" "ecs-task_assume" {
   filename = "${path.root}/templates/ecs-task_assume.json"

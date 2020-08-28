@@ -1,7 +1,7 @@
 import copy
 import os
 import subprocess as sp
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
 
 import rasterio
 from rasterio.coords import BoundingBox
@@ -12,8 +12,8 @@ from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.errors import (
-    GDALError,
     GDALAWSConfigError,
+    GDALError,
     GDALNoneTypeError,
     retry_if_none_type_error,
 )
@@ -28,9 +28,7 @@ S3 = get_s3_client()
 
 
 class Tile(object):
-    """
-    A tile object which represents a single tile within a given grid
-    """
+    """A tile object which represents a single tile within a given grid."""
 
     def __str__(self):
         return self.tile_id
