@@ -42,7 +42,7 @@ def get_gs_files(bucket: str, prefix: str) -> List[str]:
 
 
 def get_key_from_vsi(vsi_path):
-    _, protocol, bucket, *key = vsi_path.split("/")
+    _, _, bucket, *key = vsi_path.split("/")
     return "/".join(key)
 
 

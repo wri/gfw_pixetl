@@ -1,4 +1,3 @@
-import itertools
 import multiprocessing
 from typing import Iterator, List, Optional, Set, Tuple
 
