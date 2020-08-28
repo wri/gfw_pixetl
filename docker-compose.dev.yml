@@ -9,6 +9,7 @@ services:
     container_name: pixetl_dev
     volumes:
       - $HOME/.aws:/root/.aws:ro
+#      - $HOME/.gsutil:/root/.gsutil:ro
       - ./gfw_pixetl:/usr/local/app/gfw_pixetl:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./tmp:/tmp
@@ -19,6 +20,8 @@ services:
       - DB_USER=gfw
       - DATABASE=_test
       - AWS_DEFAULT_PROFILE=gfw-dev
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
+      - GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
 #      - AWS_ACCESS_KEY_ID=testing  # pragma: allowlist secret
 #      - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
 #      - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret
@@ -28,11 +31,11 @@ services:
 #      - AWS_VIRTUAL_HOSTING=FALSE
 #      - GDAL_DISABLE_READDIR_ON_OPEN=YES
 #    working_dir: /tmp
-#    entrypoint: pixetl
+#    entrypoint: pixetl_prep
     depends_on:
       - dev_database
 #      - motoserver
-
+#google.auth.exceptions.DefaultCredentialsError: File /root/.gsutil/forma-250-afd1045c0521.json was not found
   dev_database:
     container_name: pixetl-dev-database
     image: postgis/postgis:11-3.0-alpine

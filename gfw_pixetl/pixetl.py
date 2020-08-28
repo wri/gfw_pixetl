@@ -72,7 +72,11 @@ def cli(
         raise ValueError("URI specification is required for raster sources")
 
     # Finally, actually process the layer
-    tiles, skipped_tiles, failed_tiles = pixetl(layer_def, subset, overwrite,)
+    tiles, skipped_tiles, failed_tiles = pixetl(
+        layer_def,
+        subset,
+        overwrite,
+    )
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
@@ -91,7 +95,9 @@ def cli(
 
 
 def pixetl(
-    layer_def: LayerModel, subset: Optional[List[str]] = None, overwrite: bool = False,
+    layer_def: LayerModel,
+    subset: Optional[List[str]] = None,
+    overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 

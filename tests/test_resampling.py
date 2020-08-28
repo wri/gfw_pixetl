@@ -1,4 +1,5 @@
 from rasterio.warp import Resampling
+
 from gfw_pixetl.resampling import resampling_factory
 
 

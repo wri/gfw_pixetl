@@ -6,7 +6,6 @@ from gfw_pixetl import layers
 from gfw_pixetl.models import LayerModel
 from tests import minimal_layer_dict
 
-
 os.environ["ENV"] = "test"
 
 

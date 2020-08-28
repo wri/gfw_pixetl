@@ -1,6 +1,6 @@
 import os
 
-from gfw_pixetl.data_type import DataType, data_type_factory, to_gdal_dt, dtypes_dict
+from gfw_pixetl.data_type import DataType, data_type_factory, dtypes_dict, to_gdal_dt
 
 os.environ["ENV"] = "test"
 

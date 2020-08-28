@@ -5,18 +5,17 @@ from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
 
-
 LOGGER = get_module_logger(__name__)
 
 
 class Grid(object):
-    """
-    Output tiles will be organized in a regular grid.
-    Each tile within grid has same width and height and is subdivided into blocks.
-    Blocks must fully fit into tile.
-    By default tile width and height, block width and height and  pixel width and height
-    are considered equal respectively.
-    Grid identifier are the coordinates of the top left corner (ie 10N_010E)
+    """Output tiles will be organized in a regular grid.
+
+    Each tile within grid has same width and height and is subdivided
+    into blocks. Blocks must fully fit into tile. By default tile width
+    and height, block width and height and  pixel width and height are
+    considered equal respectively. Grid identifier are the coordinates
+    of the top left corner (ie 10N_010E)
     """
 
     def __str__(self):
@@ -34,12 +33,13 @@ class Grid(object):
         return self.name == other.name
 
     def __init__(self, srs: str, width: int, cols: int) -> None:
-        """
-        Generate tile grid.
-        Grid must have equal width and height.
-        Pixel row and column must be a multiple of 16, to be able to devide tile into blocks.
-        Tiles must fully fit into 360 degree extent.
-        If tile height does not fully fit into 180 degree extent, extent will be equally cropped at top and bottom.
+        """Generate tile grid.
+
+        Grid must have equal width and height. Pixel row and column must
+        be a multiple of 16, to be able to devide tile into blocks.
+        Tiles must fully fit into 360 degree extent. If tile height does
+        not fully fit into 180 degree extent, extent will be equally
+        cropped at top and bottom.
         """
 
         assert not 360 % width, "Tiles must fully fit into 360 degree extent"
@@ -67,19 +67,21 @@ class Grid(object):
         return self.point_grid_origin(Point(x, y))
 
     def point_grid_origin(self, point: Point) -> Point:
-        """
-        Calculate top left corner of corresponding grid tile for any given point.
-        In case tiles don't align with equator and central meridian we have to introduce an offset.
-        We always assume that grids and offset are whole numbers
+        """Calculate top left corner of corresponding grid tile for any given
+        point.
+
+        In case tiles don't align with equator and central meridian we
+        have to introduce an offset. We always assume that grids and
+        offset are whole numbers
         """
 
         lng_offset: int = int(self.width / 2) if (360 / self.width) % 2 else 0
         lat_offset: int = int(self.height / 2) if (180 / self.height) % 2 else 0
 
-        lng: int = (math.floor(point.x / self.width) * self.width)
+        lng: int = math.floor(point.x / self.width) * self.width
         lng = self._apply_lng_offset(lng, point.x, lng_offset)
 
-        lat: int = (math.ceil(point.y / self.height) * self.height)
+        lat: int = math.ceil(point.y / self.height) * self.height
         lat = self._apply_lat_offset(lat, point.y, lat_offset)
 
         # Make sure we are are still on earth
@@ -89,15 +91,12 @@ class Grid(object):
         return Point(lng, lat)
 
     def xy_grid_id(self, x: float, y: float) -> str:
-        """
-        Wrapper function, in case you want to pass points as x/y coordiantes
-        """
+        """Wrapper function, in case you want to pass points as x/y
+        coordiantes."""
         return self.point_grid_id(Point(x, y))
 
     def point_grid_id(self, point: Point) -> str:
-        """
-        Calculate the GRID ID based on a coordinate inside tile
-        """
+        """Calculate the GRID ID based on a coordinate inside tile."""
         point = self.point_grid_origin(point)
         col = int(point.x)
         row = int(point.y)
@@ -110,7 +109,8 @@ class Grid(object):
         return f"{lat}_{lng}"
 
     def _apply_lng_offset(self, lng, x, offset):
-        """apply longitudinal offset and shift grid cell in case point doesn't fall into it"""
+        """apply longitudinal offset and shift grid cell in case point doesn't
+        fall into it."""
         if lng != 0 and offset:
             offset = offset * int(lng / abs(lng))
 
@@ -124,7 +124,8 @@ class Grid(object):
         return lng
 
     def _apply_lat_offset(self, lat, y, offset):
-        """apply latitudinal offset and shift grid cell in case point doesn't fall into it"""
+        """apply latitudinal offset and shift grid cell in case point doesn't
+        fall into it."""
         if lat != 0 and offset:
             offset = -(offset * int(lat / abs(lat)))
 
@@ -137,8 +138,8 @@ class Grid(object):
         return lat
 
     def _get_block_size(self):
-        """
-        Try to divide tile into blocks between 128 and 512 pixels.
+        """Try to divide tile into blocks between 128 and 512 pixels.
+
         Blocks must be a multiple of 16.
         """
 
@@ -166,35 +167,22 @@ class Grid(object):
 
 
 def grid_factory(grid_name) -> Grid:
-    """
-    Different Grid layout used for this project
-    """
+    """Different Grid layout used for this project."""
 
-    # RAAD alerts
-    if grid_name == "3/50000":
-        grid: Grid = Grid("epsg:4326", 3, 50000)
+    grids = {
+        "1/4000": Grid("epsg:4326", 1, 4000),  # TEST grid
+        "3/33600": Grid("epsg:4326", 3, 33600),  # RAAD alerts, ~10m pixel
+        "10/40000": Grid("epsg:4326", 10, 40000),  # UMD alerts, ~30m pixel
+        "8/32000": Grid(
+            "epsg:4326", 8, 32000
+        ),  # UMD alerts, ~30m pixel, data cube optimized Grid
+        "90/27008": Grid("epsg:4326", 90, 27008),  # VIIRS Fire alerts, ~375m pixel
+        "90/9984": Grid("epsg:4326", 90, 9984),  # MODIS Fire alerts, ~1000m pixel
+    }
 
-    # GLAD alerts and UMD Forest Loss Standard Grid
-    elif grid_name == "10/40000":
-        grid = Grid("epsg:4326", 10, 40000)
-
-    # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
-    elif grid_name == "8/32000":
-        grid = Grid("epsg:4326", 8, 32000)
-
-    # VIIRS Fire alerts
-    elif grid_name == "90/27008":
-        grid = Grid("epsg:4326", 90, 27008)
-
-    # MODIS Fire alerts
-    elif grid_name == "90/9984":
-        grid = Grid("epsg:4326", 90, 9984)
-
-    # TEST grid
-    elif grid_name == "1/4000":
-        grid = Grid("epsg:4326", 1, 4000)
-
-    else:
+    try:
+        grid = grids[grid_name]
+    except KeyError:
         message = f"Unknown grid name: {grid_name}"
         LOGGER.exception(message)
         raise ValueError(message)
