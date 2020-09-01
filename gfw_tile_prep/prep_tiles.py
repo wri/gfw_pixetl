@@ -55,7 +55,7 @@ SRC = {
     },
     "NetFluxCo2e": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/standard/per_hectare/20200824/{tile_id}_net_flux_mg_CO2e_ha_biomass_soil_2001_19.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/standard/per_hectare/20200824/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/maxgain/20191106/{tile_id}_net_flux_t_CO2e_ha_2001_15_biomass_soil_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/net_flux_co2e/maxgain/{tile_id}.tif",
