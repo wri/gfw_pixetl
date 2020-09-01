@@ -110,7 +110,7 @@ SRC = {
     },
     "DeadwoodCarbonEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/loss_pixels/standard/20200824/{tile_id}_Mg_deadwood_C_ha_emis_year.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/loss_pixels/standard/20200824/{tile_id}_Mg_deadwood_C_ha_emis_year_2000.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_0/deadwood_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/biomass_swap/20200107/{tile_id}_t_AGC_ha_emis_year_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/agc_emis_year/biomass_swap/{tile_id}.tif",
@@ -127,7 +127,7 @@ SRC = {
     },
     "LitterCarbonEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/loss_pixels/standard/20200824/{tile_id}_Mg_litter_C_ha_emis_year.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/loss_pixels/standard/20200824/{tile_id}_Mg_litter_C_ha_emis_year_2000.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_0/litter_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/biomass_swap/20200107/{tile_id}_t_AGC_ha_emis_year_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/agc_emis_year/biomass_swap/{tile_id}.tif",
@@ -144,7 +144,7 @@ SRC = {
     },
     "SoilCarbonEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/standard/20200824/{tile_id}_Mg_soil_C_ha_emis_year.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/standard/20200824/{tile_id}_Mg_soil_C_ha_emis_year_2000.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_0/soil_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/biomass_swap/20200107/{tile_id}_t_AGC_ha_emis_year_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/agc_emis_year/biomass_swap/{tile_id}.tif",
