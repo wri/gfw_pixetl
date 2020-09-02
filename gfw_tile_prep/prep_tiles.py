@@ -362,7 +362,7 @@ SRC = {
         "type": "raster",
         "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/standard/20200824/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_19.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_0/standard/gross_emissions_node_codes/{tile_id}.tif",
-        "data_type": "Byte",
+        "data_type": "Int16",
         "nodata": 0
     },
 
