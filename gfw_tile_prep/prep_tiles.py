@@ -7,7 +7,7 @@ import argparse
 import os
 
 # parallel workers
-WORKERS = 35
+WORKERS = 42
 
 # tile specifications
 TILE_SIZE = 400
@@ -60,8 +60,8 @@ SRC = {
         "type": "raster",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/standard/per_hectare/20200824/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_19.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_removals_BGCO2_all_forest_types/standard/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/maxgain/per_hectare/20200915/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_19_maxgain.tif",
-        "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_removals_BGCO2_all_forest_types/maxgain/{tile_id}.tif",
+        # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/maxgain/per_hectare/20200915/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_19_maxgain.tif",
+        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_removals_BGCO2_all_forest_types/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/biomass_swap/per_hectare/20200919/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_19_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_removals_BGCO2_all_forest_types/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/US_removals/per_hectare/20200919/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_19_US_removals.tif",
@@ -79,10 +79,10 @@ SRC = {
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/maxgain/per_hectare/20200915/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/maxgain/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/no_shifting_ag/per_hectare/20200914/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
-        "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/no_shifting_ag/{tile_id}.tif",
-        # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/convert_to_grassland/per_hectare/20200914/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_convert_to_grassland.tif",
-        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/convert_to_grassland/{tile_id}.tif",
+        # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/no_shifting_ag/per_hectare/20200914/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
+        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/no_shifting_ag/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/convert_to_grassland/per_hectare/20200914/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_convert_to_grassland.tif",
+        "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/convert_to_grassland/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/biomass_swap/per_hectare/20200919/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/net_flux_all_forest_types_all_drivers/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/US_removals/per_hectare/20200919/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_US_removals.tif",
@@ -222,10 +222,10 @@ SRC = {
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_co2_only_co2e/soil_only/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/maxgain/20200915/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_co2_only_co2e/maxgain/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
-        "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_co2_only_co2e/no_shifting_ag/{tile_id}.tif",
-        # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/convert_to_grassland/20200914/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_convert_to_grassland.tif",
-        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_co2_only_co2e/convert_to_grassland/{tile_id}.tif",
+        # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
+        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_co2_only_co2e/no_shifting_ag/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/convert_to_grassland/20200914/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_convert_to_grassland.tif",
+        "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_co2_only_co2e/convert_to_grassland/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/biomass_swap/20200919/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_co2_only_co2e/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/US_removals/20200919/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_US_removals.tif",
@@ -245,10 +245,10 @@ SRC = {
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_non_co2_co2e/soil_only/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/maxgain/20200915/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_non_co2_co2e/maxgain/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
-        "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_non_co2_co2e/no_shifting_ag/{tile_id}.tif",
-        # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/convert_to_grassland/20200914/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_convert_to_grassland.tif",
-        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_non_co2_co2e/convert_to_grassland/{tile_id}.tif",
+        # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
+        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_non_co2_co2e/no_shifting_ag/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/convert_to_grassland/20200914/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_convert_to_grassland.tif",
+        "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_non_co2_co2e/convert_to_grassland/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/biomass_swap/20200919/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_non_co2_co2e/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/US_removals/20200919/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_US_removals.tif",
@@ -406,8 +406,8 @@ SRC = {
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_node_codes/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/soil_only/standard/20200828/{tile_id}_gross_emis_decision_tree_nodes_soil_only_2001_19.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_node_codes/soil_only/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_19_no_shifting_ag.tif",
-        "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_node_codes/no_shifting_ag/{tile_id}.tif",
+        # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_19_no_shifting_ag.tif",
+        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_node_codes/no_shifting_ag/{tile_id}.tif",
         "data_type": "Int16",
         "nodata": 0
     },
