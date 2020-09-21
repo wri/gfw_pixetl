@@ -290,7 +290,7 @@ SRC = {
         # "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/biomass_swap/20200919/{tile_id}_model_extent_biomass_swap.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/biomass_swap/20200919/{tile_id}_model_extent_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/model_extent/biomass_swap/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/legal_Amazon_loss/20200920/{tile_id}_model_extent_legal_Amazon_loss.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/legal_Amazon_loss/20200920/{tile_id}model_extent_legal_Amazon_loss.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_0/model_extent/legal_Amazon_loss/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0
@@ -363,13 +363,13 @@ SRC = {
     #     "data_type": "Byte",
     #     "nodata": 0
     # },
-    "legal_Amazon_annual_loss": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/sensit_analysis_legal_Amazon_loss/annual_loss/processed/tiles/20200920/{tile_id}_legal_Amazon_annual_loss_2001_2019.tif",
-        "s3_target": "{protocol}/gfw-files/flux_2_1_0/legal_Amazon_annual_loss/{tile_id}.tif",
-        "data_type": "Byte",
-        "nodata": 0
-    },
+    # "legal_Amazon_annual_loss": {
+    #     "type": "raster",
+    #     "src": "{protocol}/gfw2-data/climate/carbon_model/sensit_analysis_legal_Amazon_loss/annual_loss/processed/tiles/20200920/{tile_id}_legal_Amazon_annual_loss_2001_2019.tif",
+    #     "s3_target": "{protocol}/gfw-files/flux_2_1_0/legal_Amazon_annual_loss/{tile_id}.tif",
+    #     "data_type": "Byte",
+    #     "nodata": 0
+    # },
     # "Mekong_first_year_annual_loss_2001_2015": {
     #     "type": "raster",
     #     "src": "{protocol}/gfw2-data/climate/carbon_model/sensit_analysis_Mekong_loss/processed/20200210/{tile_id}_Mekong_loss_2001_15.tif",
@@ -406,6 +406,8 @@ SRC = {
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_node_codes/soil_only/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_19_no_shifting_ag.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_node_codes/no_shifting_ag/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/legal_Amazon_loss/20200920/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_19_legal_Amazon_loss.tif",
+        "s3_target": "{protocol}/gfw-files/flux_2_1_0/gross_emissions_node_codes/legal_Amazon_loss/{tile_id}.tif",
         "data_type": "Int16",
         "nodata": 0
     },
