@@ -289,8 +289,8 @@ SRC = {
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/model_extent/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/biomass_swap/20200919/{tile_id}_model_extent_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/model_extent/biomass_swap/{tile_id}.tif",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/legal_Amazon_loss/20200920/{tile_id}_model_extent_legal_Amazon_loss.tif",
-        "s3_target": "{protocol}/gfw-files/flux_2_1_0/model_extent/legal_Amazon_loss/{tile_id}.tif",
+        # "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/legal_Amazon_loss/20200920/{tile_id}_model_extent_legal_Amazon_loss.tif",
+        # "s3_target": "{protocol}/gfw-files/flux_2_1_0/model_extent/legal_Amazon_loss/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0
     },
