@@ -8,12 +8,10 @@ from typing import List, Optional, Tuple
 import click
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.data_type import dtypes_dict as data_types
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
-from gfw_pixetl.resampling import methods as resampling_methods
 from gfw_pixetl.tiles import Tile
 
 LOGGER = get_module_logger(__name__)
@@ -44,28 +42,10 @@ def cli(
     overwrite: bool,
     layer_json: str,
 ):
-    # Validate fields sooner rather than later
-    # On the other hand, moving this validation inside pixetl() would allow
-    # for easier testing...
-    if not utils.verify_version_pattern(version):
-        message = "Invalid version string"
-        LOGGER.error(message)
-        raise ValueError(message)
 
     layer_dict = json.loads(layer_json)
     layer_dict.update({"dataset": dataset, "version": version})
     layer_def = LayerModel.parse_obj(layer_dict)
-
-    # Validate resampling_method values. I tried to do this with an enum
-    # (see commented-out lines in models.py and resampling.py) but couldn't
-    # get it to work
-    if layer_def.resampling not in resampling_methods.keys():
-        raise ValueError(f"Invalid resampling method specified: {layer_def.resampling}")
-
-    # Validate data_type values. Ideally turn this into an enum for Pydantic
-    # to validate automatically.
-    if layer_def.data_type not in data_types.keys():
-        raise ValueError(f"Invalid data_type specified: {layer_def.data_type}")
 
     # Raster sources must have an source URI
     if layer_def.source_type == "raster" and layer_def.source_uri is None:

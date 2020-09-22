@@ -22,6 +22,7 @@ PyYAML = "~=5.1.2"
 Shapely = "~=1.6.4.post2"
 SQLAlchemy = "~=1.3.18"
 rasterio = "*"
+aenum = "*"
 
 [requires]
 python_version = "3.7"

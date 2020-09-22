@@ -1,9 +1,13 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # from .resampling import ResamplingMethod
+from gfw_pixetl.data_type import DataTypeEnum
+from gfw_pixetl.resampling import ResamplingMethodEnum
+
+VERSION_REGEX = r"^v\d{1,8}\.?\d{1,3}\.?\d{1,3}$"
 
 
 class Order(str, Enum):
@@ -23,16 +27,15 @@ class SourceType(str, Enum):
 
 class LayerModel(BaseModel):
     dataset: str
-    version: str
+    version: str = Field(..., regex=VERSION_REGEX)
     source_type: SourceType
     pixel_meaning: str
-    data_type: str  # Make an enum from dict in data_type.py
+    data_type: DataTypeEnum
     nbits: Optional[int]
-    no_data: Optional[int]
+    no_data: Optional[Union[int, float]]
     grid: str  # Make an enum?
     rasterize_method: Optional[RasterizeMethod]
-    # resampling: Optional[ResamplingMethod] = "nearest"
-    resampling: str = "nearest"
+    resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
     source_uri: Optional[str]
     calc: Optional[str]
     order: Optional[Order]
