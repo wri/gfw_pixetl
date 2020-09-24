@@ -3,11 +3,10 @@ from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 
-# from .resampling import ResamplingMethod
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.resampling import ResamplingMethodEnum
 
-VERSION_REGEX = r"^v\d{1,8}\.?\d{1,3}\.?\d{1,3}$"
+VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
 
 
 class Order(str, Enum):

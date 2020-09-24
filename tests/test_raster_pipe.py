@@ -6,8 +6,8 @@ from gfw_pixetl import layers
 from gfw_pixetl.grids import grid_factory
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import RasterPipe
-from gfw_pixetl.tiles import RasterSrcTile
 from gfw_pixetl.sources import Destination
+from gfw_pixetl.tiles import RasterSrcTile
 from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
@@ -29,8 +29,9 @@ PIPE = RasterPipe(LAYER, SUBSET)
 
 
 def test_create_tiles_subset():
-    """
-    THIS TEST NEEDS TO BE REFACTORED. SHAME ON ME!
+    """THIS TEST NEEDS TO BE REFACTORED.
+
+    SHAME ON ME!
     """
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
@@ -70,8 +71,9 @@ def test_create_tiles_subset():
 
 
 def test_create_tiles_all():
-    """
-    THIS TEST NEEDS TO BE REFACTORED. SHAME ON ME!
+    """THIS TEST NEEDS TO BE REFACTORED.
+
+    SHAME ON ME!
     """
     pipe = RasterPipe(LAYER)
     with mock.patch.object(

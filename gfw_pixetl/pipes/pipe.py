@@ -14,9 +14,11 @@ CORES = multiprocessing.cpu_count()
 
 
 class Pipe(object):
-    """
-    Base Pipe including all the basic stages to seed, filter, delete and upload tiles.
-    Create a subclass and override create_tiles() method to create your own pipe.
+    """Base Pipe including all the basic stages to seed, filter, delete and
+    upload tiles.
+
+    Create a subclass and override create_tiles() method to create your
+    own pipe.
     """
 
     def __init__(self, layer: Layer, subset: Optional[List[str]] = None) -> None:
@@ -26,9 +28,7 @@ class Pipe(object):
         self.tiles_to_process = 0
 
     def collect_tiles(self, overwrite: bool) -> List[Tile]:
-        """
-        Raster Pipe
-        """
+        """Raster Pipe."""
 
         LOGGER.info("Start Raster Pipe")
 
@@ -50,17 +50,15 @@ class Pipe(object):
         return tiles
 
     def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
-        """
-        Override this method when implementing pipes
-        """
+        """Override this method when implementing pipes."""
         raise NotImplementedError()
 
     def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[Tile]:
-        """
-        Seed all available tiles within given grid.
+        """Seed all available tiles within given grid.
+
         Use 1x1 degree tiles covering all land area as starting point.
-        Then see in which target grid cell it would fall.
-        Remove duplicated grid cells.
+        Then see in which target grid cell it would fall. Remove
+        duplicated grid cells.
         """
 
         raise NotImplementedError
@@ -81,16 +79,14 @@ class Pipe(object):
     @staticmethod
     @stage(workers=CORES)
     def filter_src_tiles():
-        """
-        Override this method when implementing pipes
-        """
+        """Override this method when implementing pipes."""
         raise NotImplementedError()
 
     @staticmethod
     @stage(workers=CORES)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
-        """
-        Apply filter in case user only want to process only a subset.
+        """Apply filter in case user only want to process only a subset.
+
         Useful for testing.
         """
         for tile in tiles:
@@ -102,10 +98,8 @@ class Pipe(object):
     @staticmethod
     @stage(workers=CORES)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
-        """
-        Don't process tiles if they already exists in target location,
-        unless overwrite is set to True
-        """
+        """Don't process tiles if they already exists in target location,
+        unless overwrite is set to True."""
         for tile in tiles:
             if (
                 not overwrite
@@ -119,9 +113,7 @@ class Pipe(object):
     @staticmethod
     @stage(workers=CORES)
     def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
-        """
-        Copy local file to geotiff format
-        """
+        """Copy local file to geotiff format."""
         for tile in tiles:
             if tile.status == "pending":
                 tile.create_gdal_geotiff()
@@ -130,9 +122,7 @@ class Pipe(object):
     @staticmethod
     @stage(workers=CORES)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
-        """
-        Upload tile to target location
-        """
+        """Upload tile to target location."""
         for tile in tiles:
             if tile.status == "pending":
                 tile.upload()
@@ -141,9 +131,7 @@ class Pipe(object):
     @staticmethod
     @stage(workers=CORES)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
-        """
-        Delete local file
-        """
+        """Delete local file."""
         for tile in tiles:
             if tile.status == "pending":
                 for dst_format in tile.local_dst.keys():
@@ -151,8 +139,9 @@ class Pipe(object):
             yield tile
 
     def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile], List[Tile]]:
-        """
-        Fetching all tiles, which ran through the pipe. Check and sort by status.
+        """Fetching all tiles, which ran through the pipe.
+
+        Check and sort by status.
         """
 
         tiles: List[Tile] = list()
@@ -187,9 +176,7 @@ class Pipe(object):
         return tiles, skipped_tiles, failed_tiles
 
     def _upload_geometries(self, tiles) -> None:
-        """
-        Computing VRT, extent GeoJSON and Tile GeoJSON and upload to S3
-        """
+        """Computing VRT, extent GeoJSON and Tile GeoJSON and upload to S3."""
         if len(tiles):
             # upload_geometries.upload_vrt(tiles, self.layer.prefix)
             upload_geometries.upload_geom(tiles, self.layer.prefix)

@@ -5,7 +5,6 @@ import re
 import shutil
 import subprocess as sp
 import uuid
-
 from typing import Any, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -16,10 +15,10 @@ from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import (
-    VolumeNotReadyError,
-    retry_if_volume_not_ready,
     GDALError,
     ValueConversionError,
+    VolumeNotReadyError,
+    retry_if_volume_not_ready,
 )
 
 LOGGER = get_module_logger(__name__)
@@ -35,8 +34,8 @@ Bounds = Tuple[float, float, float, float]
 
 
 class Secret:
-    """
-    Holds a string value that should not be revealed in tracebacks etc.
+    """Holds a string value that should not be revealed in tracebacks etc.
+
     You should cast the value to `str` at the point it is required.
     """
 
@@ -52,9 +51,7 @@ class Secret:
 
 
 def get_bucket(env: Optional[str] = None) -> str:
-    """
-    compose bucket name based on environment
-    """
+    """compose bucket name based on environment."""
 
     if not env and "ENV" in os.environ:
         env = os.environ["ENV"]
@@ -143,7 +140,8 @@ def get_bucket(env: Optional[str] = None) -> str:
 
 
 def get_aws_s3_endpoint(endpoint: Optional[str]) -> Optional[str]:
-    """check if AWS_S3_ENDPOINT or ENDPOINT_URL is set and remove protocol from endpoint if present"""
+    """check if AWS_S3_ENDPOINT or ENDPOINT_URL is set and remove protocol from
+    endpoint if present."""
 
     if endpoint:
         o = urlparse(endpoint, allow_fragments=False)
@@ -205,10 +203,13 @@ def remove_work_directory(old_cwd, cwd) -> None:
     wait_fixed=2000,
 )
 def check_volume_ready() -> bool:
-    """
-    This check assures we make use of the ephemeral volume of the AWS compute environment.
-    We only perform this check if we use this module in AWS Batch compute environment (AWS_BATCH_JOB_ID is present)
-    The READY file is created during bootstrap process after formatting and mounting ephemeral volume
+    """This check assures we make use of the ephemeral volume of the AWS
+    compute environment.
+
+    We only perform this check if we use this module in AWS Batch
+    compute environment (AWS_BATCH_JOB_ID is present) The READY file is
+    created during bootstrap process after formatting and mounting
+    ephemeral volume
     """
     if not os.path.exists("READY") and "AWS_BATCH_JOB_ID" in os.environ.keys():
         raise VolumeNotReadyError("Mounted Volume not ready")
@@ -216,10 +217,8 @@ def check_volume_ready() -> bool:
 
 
 def set_workers(workers: int) -> int:
-    """
-    Set environment variable with number of workers
-    Cannot exceed number of cores and must be at least one
-    """
+    """Set environment variable with number of workers Cannot exceed number of
+    cores and must be at least one."""
     global WORKERS
     WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
     LOGGER.info(f"Set workers to {WORKERS}")
@@ -227,9 +226,7 @@ def set_workers(workers: int) -> int:
 
 
 def get_workers() -> int:
-    """
-    Return number of workers for parallel jobs
-    """
+    """Return number of workers for parallel jobs."""
     return WORKERS
 
 
@@ -242,9 +239,7 @@ def set_available_memory() -> int:
 
 
 def available_memory_per_process() -> float:
-    """
-    Snapshot of currently available memory per core or process
-    """
+    """Snapshot of currently available memory per core or process."""
     return set_available_memory() / get_workers()
 
 
@@ -292,9 +287,8 @@ def replace_inf_nan(number: float, replacement: float) -> float:
 
 
 def snapped_window(window):
-    """
-        Make sure window is snapped to grid and contains full pixels to avoid missing rows and columns
-        """
+    """Make sure window is snapped to grid and contains full pixels to avoid
+    missing rows and columns."""
     col_off, row_off, width, height = window.flatten()
 
     return Window(
@@ -306,9 +300,7 @@ def snapped_window(window):
 
 
 def world_bounds(crs: CRS) -> Bounds:
-    """
-        Get world bounds got given CRT
-        """
+    """Get world bounds got given CRT."""
 
     from_crs = CRS(4326)
 

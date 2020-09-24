@@ -6,7 +6,6 @@ from gfw_pixetl import layers
 from gfw_pixetl.models import LayerModel
 from tests import minimal_layer_dict
 
-
 os.environ["ENV"] = "test"
 
 
@@ -35,7 +34,7 @@ def test_raster_layer_uri():
 def test_raster_layer_depended():
     layer_dict = {
         **minimal_layer_dict,
-        "data_type": "uint",
+        "data_type": "uint8",
         "nbits": 3,
         "grid": "90/27008",
         "no_data": 0,
@@ -63,7 +62,7 @@ def test_raster_layer_depended():
 def test_raster_calc_layer():
     layer_dict = {
         **minimal_layer_dict,
-        "data_type": "uint",
+        "data_type": "uint8",
         "nbits": 3,
         "no_data": 0,
         "calc": "1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)",
@@ -95,7 +94,7 @@ def test_vector_layer():
         "source_type": "vector",
         "no_data": 0,
         "nbits": 2,
-        "data_type": "uint",
+        "data_type": "uint8",
         "order": "desc",
     }
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))

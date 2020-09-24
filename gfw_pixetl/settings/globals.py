@@ -1,6 +1,5 @@
 import os
-
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from gfw_pixetl.utils import Secret, get_aws_s3_endpoint, to_bool
 

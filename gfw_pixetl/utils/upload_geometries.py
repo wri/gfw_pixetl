@@ -1,12 +1,12 @@
 import os
-from typing import Dict, List, Sequence, Tuple, Union, Optional, Any
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-from geojson import FeatureCollection, Feature, dumps
-from shapely.geometry import Polygon, MultiPolygon
+from geojson import Feature, FeatureCollection, dumps
+from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import unary_union
 
+from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl import utils, get_module_logger
 from gfw_pixetl.utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
@@ -14,9 +14,7 @@ S3 = get_s3_client()
 
 
 def upload_vrt(tiles: List[Tile], prefix) -> List[Dict[str, Any]]:
-    """
-    Create VRT file for input file and upload to S3
-    """
+    """Create VRT file for input file and upload to S3."""
     response = list()
     uris: Dict[str, List[str]] = _uris_per_dst_format(tiles)
 
@@ -30,9 +28,7 @@ def upload_vrt(tiles: List[Tile], prefix) -> List[Dict[str, Any]]:
 def upload_geom(
     tiles: List[Tile], prefix: str, bucket: str = utils.get_bucket()
 ) -> List[Dict[str, Any]]:
-    """
-    Create geojson file for tile extent and upload to S3
-    """
+    """Create geojson file for tile extent and upload to S3."""
 
     fc: FeatureCollection
     response: List[Dict[str, Any]] = list()
@@ -53,9 +49,7 @@ def upload_geom(
 def upload_tile_geoms(
     tiles: List[Tile], prefix: str, bucket: str = utils.get_bucket()
 ) -> List[Dict[str, Any]]:
-    """
-    Create geojson listing all tiles and upload to S3
-    """
+    """Create geojson listing all tiles and upload to S3."""
 
     fc: FeatureCollection
     response: List[Dict[str, Any]] = list()
@@ -112,16 +106,17 @@ def _geoms_uris_per_dst_format(
             if dst_format not in geoms.keys():
                 geoms[dst_format] = list()
             geoms[dst_format].append(
-                (tile.dst[dst_format].geom, {"name": f"{tile.dst[dst_format].url}"},)
+                (
+                    tile.dst[dst_format].geom,
+                    {"name": f"{tile.dst[dst_format].url}"},
+                )
             )
 
     return geoms
 
 
 def _union_tile_geoms(tiles: List[Tile]) -> Dict[str, Union[Polygon, MultiPolygon]]:
-    """
-    Union tiles bounds into a single geometry
-    """
+    """Union tiles bounds into a single geometry."""
 
     LOGGER.debug("Create Polygon from tile bounds")
 
@@ -137,9 +132,7 @@ def _union_tile_geoms(tiles: List[Tile]) -> Dict[str, Union[Polygon, MultiPolygo
 def _to_feature_collection(
     geoms: Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
 ) -> FeatureCollection:
-    """
-    Convert list of features to feature collection
-    """
+    """Convert list of features to feature collection."""
 
     features: List[Feature] = [
         Feature(geometry=item[0], properties=item[1]) for item in geoms
@@ -150,7 +143,11 @@ def _to_feature_collection(
 def _upload_geom(fc: FeatureCollection, bucket: str, key: str) -> Dict[str, Any]:
 
     LOGGER.info(f"Upload geometry to {bucket} {key}")
-    return S3.put_object(Body=str.encode(dumps(fc)), Bucket=bucket, Key=key,)
+    return S3.put_object(
+        Body=str.encode(dumps(fc)),
+        Bucket=bucket,
+        Key=key,
+    )
 
 
 def _upload_vrt(key: str, vrt: str, prefix: str) -> Dict[str, Any]:

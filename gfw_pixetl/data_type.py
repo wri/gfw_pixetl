@@ -1,6 +1,6 @@
 import math
 from enum import Enum
-from typing import Optional, Union, Callable, Dict
+from typing import Callable, Dict, Optional, Union
 
 from gfw_pixetl import get_module_logger
 
@@ -9,8 +9,8 @@ LOGGER = get_module_logger(__name__)
 
 class DataTypeEnum(str, Enum):
     boolean = "boolean"
-    uint = "uint"
-    int = "int"
+    uint8 = "uint8"
+    int8 = "int8"
     uint16 = "uint16"
     int16 = "int16"
     uint32 = "uint32"
@@ -51,25 +51,23 @@ class DataType(object):
     ):
         dtype = data_type.lower()
 
-        if "int" in dtype and (no_data is not None or not isinstance(no_data, int)):
-            message = (
-                f"No data value must be of type `int` or None for data type {data_type}"
-            )
+        if "int" in dtype and (no_data is not None and not isinstance(no_data, int)):
+            message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
             raise ValueError(message)
-        elif (
-            "float" in dtype
-            or dtype in ["half", "single", "double"]
-            and (no_data is not None or not isinstance(no_data, float))
+        elif ("float" in dtype or dtype in ["half", "single", "double"]) and (
+            no_data is not None and not isinstance(no_data, float)
         ):
-            message = f"No data value must be of type `float` or None for data type {data_type}"
+            message = f"No data value {no_data} must be of type `float` or None for data type {data_type}"
             raise ValueError(message)
-        elif nbits == 1 and (no_data != 0 or no_data is not None):
-            message = "No data value must be 0 or None for data type Boolean"
+        elif nbits == 1 and (no_data != 0 and no_data is not None):
+            message = f"No data value {no_data} must be 0 or None for data type Boolean"
             raise ValueError(message)
 
 
 def data_type_constructor(
-    data_type: str, nbits: Optional[int] = None, compression: str = "DEFLATE",
+    data_type: str,
+    nbits: Optional[int] = None,
+    compression: str = "DEFLATE",
 ):
     """Using closure design for a data type constructor."""
 
@@ -90,8 +88,8 @@ def data_type_factory(
 
     dtypes_constructor: Dict[str, Callable] = {
         DataTypeEnum.boolean: data_type_constructor("uint8", 1, "CCITTFAX4"),
-        DataTypeEnum.uint: data_type_constructor("uint8", _8bits),
-        DataTypeEnum.int: data_type_constructor("int8", _8bits),
+        DataTypeEnum.uint8: data_type_constructor("uint8", _8bits),
+        DataTypeEnum.int8: data_type_constructor("int8", _8bits),
         DataTypeEnum.uint16: data_type_constructor("uint16", _16bits),
         DataTypeEnum.int16: data_type_constructor("int16", _16bits),
         DataTypeEnum.uint32: data_type_constructor("uint32", _32bits),

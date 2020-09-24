@@ -28,7 +28,9 @@ def test_pixetl():
         RasterPipe, "create_tiles", return_value=(list(), list(), list())
     ):
         tiles, skipped_tiles, failed_tiles = pixetl(
-            RASTER_LAYER_DEF, subset=SUBSET, overwrite=True,
+            RASTER_LAYER_DEF,
+            subset=SUBSET,
+            overwrite=True,
         )
 
     assert tiles == list()

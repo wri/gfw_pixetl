@@ -30,7 +30,8 @@ class ValueConversionError(Exception):
 
 
 def retry_if_none_type_error(exception) -> bool:
-    """Return True if we should retry (in this case when it's an IOError), False otherwise"""
+    """Return True if we should retry (in this case when it's an IOError),
+    False otherwise."""
     is_none_type_error: bool = isinstance(exception, GDALNoneTypeError)
     if is_none_type_error:
         LOGGER.warning("GDALNoneType exception - RETRY")
@@ -38,7 +39,8 @@ def retry_if_none_type_error(exception) -> bool:
 
 
 def retry_if_volume_not_ready(exception) -> bool:
-    """Return True if we should retry (in this case when Volume not yet ready), False otherwise"""
+    """Return True if we should retry (in this case when Volume not yet ready),
+    False otherwise."""
     is_not_ready: bool = isinstance(exception, VolumeNotReadyError)
     if is_not_ready:
         LOGGER.warning("Volume not ready - RETRY")

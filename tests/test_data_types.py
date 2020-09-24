@@ -1,7 +1,9 @@
 import math
 import os
 
-from gfw_pixetl.data_type import DataType, data_type_factory, to_gdal_dt, DataTypeEnum
+import pytest
+
+from gfw_pixetl.data_type import DataType, DataTypeEnum, data_type_factory, to_gdal_dt
 
 os.environ["ENV"] = "test"
 
@@ -10,7 +12,15 @@ def test_data_type():
     for dt in DataTypeEnum.__members__.keys():
         data_type: DataType = data_type_factory(dt)
         assert isinstance(data_type, DataType)
-        assert data_type.data_type == DataTypeEnum.__members__[dt]
+        if dt == "boolean":
+            assert data_type.data_type == "uint8"
+        elif dt in ["half", "single", "float16"]:
+            assert data_type.data_type == "float32"
+        elif dt == "double":
+            assert data_type.data_type == "float64"
+        elif "int" in dt or "float" in dt:
+            assert data_type.data_type == DataTypeEnum.__members__[dt]
+
         # assert to_gdal_dt(data_type.data_type) == dtypes_dict[dt][0]
 
 
@@ -18,7 +28,7 @@ def test_nbits():
     data_type: DataType = data_type_factory("boolean")
     assert data_type.nbits == 1
 
-    data_type: DataType = data_type_factory("uint", nbits=5)
+    data_type: DataType = data_type_factory("uint8", nbits=5)
     assert data_type.nbits == 5
 
     data_type: DataType = data_type_factory("half")
@@ -27,21 +37,39 @@ def test_nbits():
 
 def test_no_data():
     data_type: DataType = data_type_factory("boolean")
-    assert data_type.no_data == 0
-
-    data_type = data_type_factory("uint")
-    assert data_type.no_data == 0
-
-    data_type = data_type_factory("int")
     assert data_type.no_data is None
 
-    data_type = data_type_factory("int", no_data=1)
+    data_type: DataType = data_type_factory("boolean", 0)
+    assert data_type.no_data == 0
+
+    with pytest.raises(ValueError):
+        data_type_factory("boolean", no_data=1)
+
+    data_type = data_type_factory("uint8")
+    assert data_type.no_data is None
+
+    data_type = data_type_factory("uint8", no_data=0)
+    assert data_type.no_data == 0
+
+    data_type = data_type_factory("int8")
+    assert data_type.no_data is None
+
+    data_type = data_type_factory("int8", no_data=1)
     assert data_type.no_data == 1
 
-    data_type = data_type_factory("float", no_data=math.nan)
+    data_type = data_type_factory("float32")
+    assert data_type.no_data is None
+
+    data_type = data_type_factory("float32", no_data=math.nan)
     assert math.isnan(data_type.no_data)
+
+    with pytest.raises(ValueError):
+        data_type_factory("float32", no_data=1.1)
+
+    with pytest.raises(ValueError):
+        data_type = data_type_factory("float32", no_data=1)
 
 
 def test_signed_int():
-    data_type: DataType = data_type_factory("int")
+    data_type: DataType = data_type_factory("int8")
     assert data_type.signed_byte is True

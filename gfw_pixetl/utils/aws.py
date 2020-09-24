@@ -2,7 +2,7 @@ from typing import Optional
 
 import boto3
 
-from gfw_pixetl.settings.globals import ENDPOINT_URL, AWS_REGION
+from gfw_pixetl.settings.globals import AWS_REGION, ENDPOINT_URL
 
 
 def client_constructor(service: str, endpoint_url: Optional[str] = None):

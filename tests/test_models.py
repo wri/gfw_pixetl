@@ -43,8 +43,8 @@ class TestValidation(unittest.TestCase):
 
         bad_layer_dict = copy.deepcopy(minimal_layer_dict)
         bad_layer_dict.update(no_data="NaNa")
-        _ = LayerModel.parse_obj(bad_layer_dict)
-        assert pytest.raises(ValidationError)
+        with pytest.raises(ValidationError):
+            LayerModel.parse_obj(bad_layer_dict)
 
     def test_version_pattern(self):
         good_versions = ["v2019", "v201911", "v20191122", "v1", "v1.2", "v1.2.3"]
@@ -57,5 +57,5 @@ class TestValidation(unittest.TestCase):
 
         for v in bad_versions:
             bad_layer_dict = copy.deepcopy(minimal_layer_dict)
-            bad_layer_dict.update(version=v)
-            assert pytest.raises(ValidationError)
+            with pytest.raises(ValidationError):
+                bad_layer_dict.update(version=v)

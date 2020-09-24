@@ -1,25 +1,23 @@
 import multiprocessing
 import os
 from datetime import datetime
-from dateutil.tz import tzutc
 from unittest import mock
 
+from dateutil.tz import tzutc
 from pyproj import CRS
 
-from gfw_pixetl.utils.utils import (
-    get_bucket,
-    # set_aws_credentials,
-    set_cwd,
-    set_available_memory,
-    set_workers,
-    get_workers,
-    available_memory_per_process,
+from gfw_pixetl.utils.utils import (  # set_aws_credentials,
     _write_tile_list,
+    available_memory_per_process,
     create_vrt,
-    world_bounds,
     get_aws_s3_endpoint,
+    get_bucket,
+    get_workers,
+    set_available_memory,
+    set_cwd,
+    set_workers,
+    world_bounds,
 )
-
 
 os.environ["ENV"] = "test"
 URIS = [
@@ -170,7 +168,8 @@ def test_world_bounds():
 
 
 def test_get_aws_s3_endpoint():
-    """get_endpoint_url should optionally return server name without protocol"""
+    """get_endpoint_url should optionally return server name without
+    protocol."""
 
     assert get_aws_s3_endpoint(None) is None
     assert get_aws_s3_endpoint("http://motoserver:5000") == "motoserver:5000"

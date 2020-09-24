@@ -1,18 +1,19 @@
 import json
 import os
-from typing import Any, Dict, Optional, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from rasterio.warp import Resampling
-from shapely.geometry import MultiPolygon, shape, Polygon
+from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.ops import unary_union
 
-from .models import LayerModel
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.resampling import resampling_factory
 from gfw_pixetl.sources import VectorSource
+
+from .models import LayerModel
 from .utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
