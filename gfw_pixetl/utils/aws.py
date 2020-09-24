@@ -25,3 +25,4 @@ def client_constructor(service: str, endpoint_url: Optional[str] = None):
 get_s3_client = client_constructor("s3", endpoint_url=ENDPOINT_URL)
 get_batch_client = client_constructor("batch")
 get_sts_client = client_constructor("sts")
+get_secret_client = client_constructor("secretsmanager")

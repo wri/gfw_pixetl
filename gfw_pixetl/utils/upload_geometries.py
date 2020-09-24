@@ -8,6 +8,7 @@ from shapely.ops import unary_union
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
+from gfw_pixetl.utils.gdal import create_vrt
 
 LOGGER = get_module_logger(__name__)
 S3 = get_s3_client()
@@ -19,7 +20,7 @@ def upload_vrt(tiles: List[Tile], prefix) -> List[Dict[str, Any]]:
     uris: Dict[str, List[str]] = _uris_per_dst_format(tiles)
 
     for key in uris.keys():
-        vrt = utils.create_vrt(uris[key])
+        vrt = create_vrt(uris[key])
         response.append(_upload_vrt(key, vrt, prefix))
 
     return response

@@ -16,7 +16,8 @@ from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
 from gfw_pixetl.settings.globals import GDAL_ENV
-from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
+from gfw_pixetl.utils import get_bucket, utils
+from gfw_pixetl.utils.type_casting import replace_inf_nan
 
 LOGGER = get_module_logger(__name__)
 

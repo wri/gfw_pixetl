@@ -1,6 +1,13 @@
+import os
+
 from rasterio import RasterioIOError
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.settings.globals import (
+    GCS_KEY_SECRET_ARN,
+    GOOGLE_APPLICATION_CREDENTIALS,
+)
+from gfw_pixetl.utils.aws import get_secret_client
 
 LOGGER = get_module_logger(__name__)
 
@@ -25,7 +32,7 @@ class VolumeNotReadyError(Exception):
     pass
 
 
-class ValueConversionError(Exception):
+class MissingGCSKeyError(Exception):
     pass
 
 
@@ -63,11 +70,28 @@ def retry_if_rasterio_io_error(exception) -> bool:
     return is_rasterio_io_error
 
 
-#
-# def retry_if_not_recognized(exception) -> bool:
-#     if_not_recognized: bool = isinstance(
-#         exception, RasterioIOError
-#     ) and ("not recognized as a supported file format" in str(exception) or "Please try again" in str(exception))
-#     if if_not_recognized:
-#         LOGGER.warning("RasterioIO Error - RETRY")
-#     return if_not_recognized
+def retry_if_missing_gcs_key_error(exception) -> bool:
+    is_missing_gcs_key_error: bool = isinstance(exception, MissingGCSKeyError)
+    if (
+        is_missing_gcs_key_error
+        and GOOGLE_APPLICATION_CREDENTIALS
+        and GCS_KEY_SECRET_ARN
+    ):
+        LOGGER.debug("GCS key is missing. Try to fetch key from secret manager")
+
+        client = get_secret_client()
+        response = client.get_secret_value(SecretId=GCS_KEY_SECRET_ARN)
+        os.makedirs(os.path.dirname(GOOGLE_APPLICATION_CREDENTIALS), exist_ok=True)
+
+        LOGGER.debug("Write GCS key to file")
+        with open(GOOGLE_APPLICATION_CREDENTIALS, "w") as f:
+            f.write(response["SecretString"])
+
+    elif is_missing_gcs_key_error and (
+        not GOOGLE_APPLICATION_CREDENTIALS or not GCS_KEY_SECRET_ARN
+    ):
+        raise RuntimeError(
+            "Both GOOGLE_APPLICATION_CREDENTIALS and GCS_KEY_SECRET_ARN variables must be set"
+        )
+
+    return is_missing_gcs_key_error

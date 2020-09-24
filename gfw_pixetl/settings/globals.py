@@ -1,7 +1,9 @@
 import os
 from typing import Any, Dict, Optional
 
-from gfw_pixetl.utils import Secret, get_aws_s3_endpoint, to_bool
+from gfw_pixetl.utils.path import get_aws_s3_endpoint
+from gfw_pixetl.utils.secret import Secret
+from gfw_pixetl.utils.type_casting import to_bool
 
 READER_USERNAME: Optional[str] = os.environ.get("DB_USER_RO", None)
 _password: Optional[str] = os.environ.get("DB_PASSWORD_RO", None)
@@ -24,6 +26,11 @@ GDAL_DISABLE_READDIR_ON_OPEN: Optional[str] = os.environ.get(
 
 ENDPOINT_URL: Optional[str] = os.environ.get("ENDPOINT_URL", None)
 AWS_S3_ENDPOINT: Optional[str] = get_aws_s3_endpoint(ENDPOINT_URL)
+AWS_BATCH_JOB_ID: Optional[str] = os.environ.get("AWS_BATCH_JOB_ID", None)
+GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = os.environ.get(
+    "GOOGLE_APPLICATION_CREDENTIALS", None
+)
+GCS_KEY_SECRET_ARN: Optional[str] = os.environ.get("GCS_KEY_SECRET_ARN", None)
 
 GDAL_ENV: Dict[str, Any] = dict()
 if AWS_HTTPS:

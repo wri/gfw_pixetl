@@ -1,7 +1,10 @@
-import multiprocessing
-from typing import Iterator, List, Set, Tuple
+import itertools
+from multiprocessing import Pool, cpu_count
+from multiprocessing.pool import Pool as PoolType
+from typing import Iterable, Iterator, List, Set, Tuple
 
 from parallelpipe import Stage, stage
+from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import RasterSrcLayer
@@ -9,7 +12,7 @@ from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.tiles import RasterSrcTile, Tile
 
 LOGGER = get_module_logger(__name__)
-CORES = multiprocessing.cpu_count()
+CORES = cpu_count()
 
 
 class RasterPipe(Pipe):
@@ -21,22 +24,24 @@ class RasterPipe(Pipe):
         duplicated grid cells.
         """
 
-        assert isinstance(self.layer, RasterSrcLayer)
-        LOGGER.debug("Get Grid Tiles")
-        tiles: Set[RasterSrcTile] = set()
+        x: Iterable[int] = range(min_x, max_x)
+        y: Iterable[int] = range(min_y + 1, max_y + 1)
 
-        for i in range(min_y + 1, max_y + 1):
-            for j in range(min_x, max_x):
-                origin = self.grid.xy_grid_origin(j, i)
-                tiles.add(
-                    RasterSrcTile(origin=origin, grid=self.grid, layer=self.layer)
-                )
+        x_y: List[Tuple[int, int]] = list(itertools.product(x, y))
+        pool: PoolType = Pool(processes=CORES)
+        tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, x_y))
 
-        tile_count = len(tiles)
+        tile_count: int = len(tiles)
         LOGGER.info(f"Found {tile_count} tile inside grid")
-        # utils.set_workers(tile_count)
 
         return tiles
+
+    def _get_grid_tile(self, x_y: Tuple[int, int]) -> RasterSrcTile:
+        assert isinstance(self.layer, RasterSrcLayer)
+        x: int = x_y[0]
+        y: int = x_y[1]
+        origin: Point = self.grid.xy_grid_origin(x, y)
+        return RasterSrcTile(origin=origin, grid=self.grid, layer=self.layer)
 
     def create_tiles(
         self, overwrite: bool

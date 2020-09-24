@@ -33,11 +33,14 @@ def copy_fixtures():
     yield
 
     # Delete intermediate files
-    shutil.rmtree(
-        os.path.join(
-            os.path.dirname(__file__),
-            "fixtures",
-            "tmp",
-            "whrc_aboveground_biomass_stock_2000",
+    try:
+        shutil.rmtree(
+            os.path.join(
+                os.path.dirname(__file__),
+                "fixtures",
+                "tmp",
+                "whrc_aboveground_biomass_stock_2000",
+            )
         )
-    )
+    except FileNotFoundError:
+        pass

@@ -20,6 +20,7 @@ from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.settings.globals import GDAL_ENV
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.gdal import create_vrt
 
 LOGGER = get_module_logger(__name__)
 
@@ -49,7 +50,7 @@ class RasterSrcTile(Tile):
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
         return RasterSource(
-            utils.create_vrt(files, self.tile_id + ".vrt", self.tile_id + ".txt")
+            create_vrt(files, self.tile_id + ".vrt", self.tile_id + ".txt")
         )
 
     @lazy_property

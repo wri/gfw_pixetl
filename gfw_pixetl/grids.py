@@ -169,31 +169,21 @@ class Grid(object):
 def grid_factory(grid_name) -> Grid:
     """Different Grid layout used for this project."""
 
-    # RAAD alerts
-    if grid_name == "3/50000":
-        grid: Grid = Grid("epsg:4326", 3, 50000)
+    grids = {
+        "1/4000": Grid("epsg:4326", 1, 4000),  # TEST grid
+        "3/33600": Grid("epsg:4326", 3, 33600),  # RAAD alerts, ~10m pixel
+        "10/40000": Grid("epsg:4326", 10, 40000),  # UMD alerts, ~30m pixel
+        "8/32000": Grid(
+            "epsg:4326", 8, 32000
+        ),  # UMD alerts, ~30m pixel, data cube optimized Grid
+        "90/27008": Grid("epsg:4326", 90, 27008),  # VIIRS Fire alerts, ~375m pixel
+        "90/9984": Grid("epsg:4326", 90, 9984),  # MODIS Fire alerts, ~1000m pixel
+    }
 
-    # GLAD alerts and UMD Forest Loss Standard Grid
-    elif grid_name == "10/40000":
-        grid = Grid("epsg:4326", 10, 40000)
+    try:
+        grid = grids[grid_name]
+    except KeyError:
 
-    # GLAD alerts and UMD Forest Loss Data Cube optimized Grid
-    elif grid_name == "8/32000":
-        grid = Grid("epsg:4326", 8, 32000)
-
-    # VIIRS Fire alerts
-    elif grid_name == "90/27008":
-        grid = Grid("epsg:4326", 90, 27008)
-
-    # MODIS Fire alerts
-    elif grid_name == "90/9984":
-        grid = Grid("epsg:4326", 90, 9984)
-
-    # TEST grid
-    elif grid_name == "1/4000":
-        grid = Grid("epsg:4326", 1, 4000)
-
-    else:
         message = f"Unknown grid name: {grid_name}"
         LOGGER.exception(message)
         raise ValueError(message)
