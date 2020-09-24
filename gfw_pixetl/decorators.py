@@ -5,8 +5,8 @@ from multiprocessing import Process, Queue
 
 
 def lazy_property(fn):
-    """
-    Decorator that makes a property lazy-evaluated.
+    """Decorator that makes a property lazy-evaluated.
+
     Credits: https://stevenloria.com/lazy-properties/
     """
     attr_name = "_lazy_" + fn.__name__
@@ -22,6 +22,7 @@ def lazy_property(fn):
 
 def processify(func):
     """Decorator to run a function as a process.
+
     Be sure that every argument and the return value
     is *pickable*.
     The created process is joined, so the code does not

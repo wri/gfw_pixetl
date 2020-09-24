@@ -15,6 +15,7 @@ from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.resampling import methods as resampling_methods
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
 
 LOGGER = get_module_logger(__name__)
 
@@ -72,7 +73,11 @@ def cli(
         raise ValueError("URI specification is required for raster sources")
 
     # Finally, actually process the layer
-    tiles, skipped_tiles, failed_tiles = pixetl(layer_def, subset, overwrite,)
+    tiles, skipped_tiles, failed_tiles = pixetl(
+        layer_def,
+        subset,
+        overwrite,
+    )
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
@@ -91,7 +96,9 @@ def cli(
 
 
 def pixetl(
-    layer_def: LayerModel, subset: Optional[List[str]] = None, overwrite: bool = False,
+    layer_def: LayerModel,
+    subset: Optional[List[str]] = None,
+    overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
@@ -103,7 +110,7 @@ def pixetl(
     )
 
     old_cwd = os.getcwd()
-    cwd = utils.set_cwd()
+    cwd = set_cwd()
 
     # set available memory here before any major process is running
     utils.set_available_memory()
@@ -119,12 +126,12 @@ def pixetl(
         pipe: Pipe = pipe_factory(layer, subset)
 
         tiles, skipped_tiles, failed_tiles = pipe.create_tiles(overwrite)
-        utils.remove_work_directory(old_cwd, cwd)
+        remove_work_directory(old_cwd, cwd)
 
         return tiles, skipped_tiles, failed_tiles
 
     except Exception as e:
-        utils.remove_work_directory(old_cwd, cwd)
+        remove_work_directory(old_cwd, cwd)
         LOGGER.exception(e)
         raise
 

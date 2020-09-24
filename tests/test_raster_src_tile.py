@@ -6,7 +6,7 @@ import rasterio
 from rasterio.windows import Window
 from shapely.geometry import Point
 
-from gfw_pixetl import layers, get_module_logger
+from gfw_pixetl import get_module_logger, layers
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.tiles import RasterSrcTile
 from tests import minimal_layer_dict

@@ -3,9 +3,9 @@ from typing import Any, Dict, Optional
 from unittest import mock
 
 import numpy as np
-from rasterio.windows import Window
 from rasterio import Affine
 from rasterio.crs import CRS
+from rasterio.windows import Window
 from shapely.geometry import Point, box
 
 from gfw_pixetl import layers
