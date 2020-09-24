@@ -53,9 +53,11 @@ class TestValidation(unittest.TestCase):
         for v in good_versions:
             good_layer_dict = copy.deepcopy(minimal_layer_dict)
             good_layer_dict.update(version=v)
-            _ = LayerModel.parse_obj(good_layer_dict)
+            layer = LayerModel(**good_layer_dict)
+            assert layer.version == v
 
         for v in bad_versions:
             bad_layer_dict = copy.deepcopy(minimal_layer_dict)
+            bad_layer_dict.update(version=v)
             with pytest.raises(ValidationError):
-                bad_layer_dict.update(version=v)
+                LayerModel(**bad_layer_dict)

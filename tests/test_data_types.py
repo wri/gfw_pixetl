@@ -14,7 +14,9 @@ def test_data_type():
         assert isinstance(data_type, DataType)
         if dt == "boolean":
             assert data_type.data_type == "uint8"
-        elif dt in ["half", "single", "float16"]:
+        elif dt == "half":
+            assert data_type.data_type == "float16"
+        elif dt == "single":
             assert data_type.data_type == "float32"
         elif dt == "double":
             assert data_type.data_type == "float64"
@@ -39,7 +41,7 @@ def test_no_data():
     data_type: DataType = data_type_factory("boolean")
     assert data_type.no_data is None
 
-    data_type: DataType = data_type_factory("boolean", 0)
+    data_type: DataType = data_type_factory("boolean", no_data=0)
     assert data_type.no_data == 0
 
     with pytest.raises(ValueError):
@@ -67,7 +69,7 @@ def test_no_data():
         data_type_factory("float32", no_data=1.1)
 
     with pytest.raises(ValueError):
-        data_type = data_type_factory("float32", no_data=1)
+        data_type_factory("float32", no_data=1)
 
 
 def test_signed_int():

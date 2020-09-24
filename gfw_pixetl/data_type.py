@@ -55,7 +55,7 @@ class DataType(object):
             message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
             raise ValueError(message)
         elif ("float" in dtype or dtype in ["half", "single", "double"]) and (
-            no_data is not None and not isinstance(no_data, float)
+            no_data is not None and not math.isnan(no_data)
         ):
             message = f"No data value {no_data} must be of type `float` or None for data type {data_type}"
             raise ValueError(message)
@@ -72,7 +72,9 @@ def data_type_constructor(
     """Using closure design for a data type constructor."""
 
     def get_data_type(no_data):
-        return DataType(data_type, no_data, nbits, compression)
+        return DataType(
+            data_type=data_type, no_data=no_data, nbits=nbits, compression=compression
+        )
 
     return get_data_type
 
@@ -87,7 +89,9 @@ def data_type_factory(
     _32bits: Optional[int] = None if not nbits or nbits not in range(17, 32) else nbits
 
     dtypes_constructor: Dict[str, Callable] = {
-        DataTypeEnum.boolean: data_type_constructor("uint8", 1, "CCITTFAX4"),
+        DataTypeEnum.boolean: data_type_constructor(
+            "uint8", nbits=1, compression="CCITTFAX4"
+        ),
         DataTypeEnum.uint8: data_type_constructor("uint8", _8bits),
         DataTypeEnum.int8: data_type_constructor("int8", _8bits),
         DataTypeEnum.uint16: data_type_constructor("uint16", _16bits),
