@@ -72,11 +72,11 @@ def get_extent(bucket, prefix, provider, dataset, version):
 @click.option("--provider", type=str, default="aws")
 @click.option("--dataset", type=str, required=True)
 @click.option("--version", type=str, required=True)
-def cli(bucket, prefix, provider, dst_bucket, dst_prefix):
+def cli(bucket, prefix, provider, dataset, version):
 
-    if not dst_bucket:
-        dst_bucket = bucket
-    if not dst_prefix:
-        dst_prefix = prefix
+    if not dataset:
+        dataset = bucket
+    if not version:
+        dataset = prefix
 
-    get_extent(bucket, prefix, provider, dst_bucket, dst_prefix)
+    get_extent(bucket, prefix, provider, dataset, version)
