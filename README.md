@@ -7,6 +7,14 @@ PixETL reads raster and vector source data and converts data into Cloud Optimize
 
 It will upload all tiles to GFW data lake following GFW naming convention.
 
+# Installation
+
+`./scripts/setup`
+
+# Dependencies
+- GDAL 2.4.x or 3.x
+- libpq-dev
+
 # Usage
 
 ```bash
@@ -121,12 +129,20 @@ When using vector sources, PixETL will need access to the PostgreSQL database.
 Use the standard [PostgreSQL environment variables](https://www.postgresql.org/docs/11/libpq-envars.html) to configure the connection.
 
 ## Run with Docker
+
+This is probably the easiest way to run PixETL locally since you won't need to install any of the required dependencies.
+The master branch of this repo is linked to Dockerhub image `globalforestwatch/pixetl:latest`.
+You can either pull from here, or build you own local image using the provided dockerfile.
+
+```bash
+docker build . -t globalforestwatch/pixetl
+```
+
 Make sure you map a local directory to container's /tmp directory if you want to monitor temporary files created.
 Make sure you set all required ENV vars (see above).
 Also make sure that your docker container has all the required AWS privileges.
 
 ```bash
-docker build . -t globalforestwatch/pixetl
 docker run -it -v /tmp:/tmp -v $HOME/.aws:/root/.aws:ro -e AWS_PROFILE=gfw-dev globalforestwatch/pixetl [OPTIONS] NAME  # pragma: allowlist secret
 ```
 
@@ -168,8 +184,4 @@ When using the JSON format, you will have to escape the quotes inside= the `LAYE
 
 `["-d", "umd_tree_cover_density_2000", "-v", "v1.6", "{\"source_type\": \"raster\", \"pixel_meaning\": \"percent\", \"data_type\": \"uint8\", \"nbits\": 7, \"grid\": \"10/40000\", \"source_uri\": \"s3://gfw-files/2018_update/tcd_2000/tiles.geojson\", \"resampling\": \"average\"}"]`
 
-# Extending ETL
-
-Don't find the ETL you are looking for?
-
-Create a subclass of Layer and write your own ETL.
+# pixetl_prep
