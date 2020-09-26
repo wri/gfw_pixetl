@@ -1,7 +1,7 @@
 # GFW pixETL
 
-[![Maintainability](https://api.codeclimate.com/v1/badges/6eacebaf99305fb1bd1b/maintainability)](https://codeclimate.com/github/wri/gfw_pixetl/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/6eacebaf99305fb1bd1b/test_coverage)](https://codeclimate.com/github/wri/gfw_pixetl/test_coverage)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/bcfab5fc23544a389081825d3e2420fa)](https://www.codacy.com/gh/wri/gfw_pixetl/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=wri/gfw_pixetl&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/bcfab5fc23544a389081825d3e2420fa)](https://www.codacy.com/gh/wri/gfw_pixetl/dashboard?utm_source=github.com&utm_medium=referral&utm_content=wri/gfw_pixetl&utm_campaign=Badge_Coverage)
 
 PixETL reads raster and vector source data and converts data into Cloud Optimized GeoTIFF (without overviews) clipped to specified grid sizes.
 
