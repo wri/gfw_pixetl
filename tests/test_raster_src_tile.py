@@ -20,7 +20,7 @@ layer_dict = {
     "dataset": "umd_tree_cover_density_2000",
     "version": "v1.6",
     "pixel_meaning": "percent",
-    "data_type": "uint",
+    "data_type": "uint8",
     "nbits": 7,
     "grid": "1/4000",
     "source_uri": f"s3://{BUCKET}/{GEOJSON_NAME}",

@@ -183,6 +183,7 @@ def grid_factory(grid_name) -> Grid:
     try:
         grid = grids[grid_name]
     except KeyError:
+
         message = f"Unknown grid name: {grid_name}"
         LOGGER.exception(message)
         raise ValueError(message)

@@ -210,7 +210,7 @@ gfw_deadwood_carbon_stock_in_emissions_year:  # v20191106
 usfs_fia_regions:  # v20191106
     name:
         version: v20191106
-        data_type: uint
+        data_type: uint8
         nbits: 4
         no_data: 0
         grids:
@@ -222,7 +222,7 @@ usfs_fia_regions:  # v20191106
 aqueduct_erosion_risk:
     level:
         version: v1
-        data_type: uint
+        data_type: uint8
         nbits: 3
         grids:
             1/4000:
@@ -239,7 +239,7 @@ aqueduct_erosion_risk:
 gfw_forest_age_category:  # v20191106
     category:
         version: v20191106
-        data_type: uint
+        data_type: uint8
         nbits: 10
         grids:
             10/40000:
@@ -249,7 +249,7 @@ gfw_forest_age_category:  # v20191106
 esa_land_cover_2015: # v20160111
     class:
         version: v20160111
-        data_type: uint
+        data_type: uint8
         grids:
             10/40000:
                 type: raster
@@ -928,7 +928,7 @@ gfw_soil_carbon_stock_2000:  # v20191106
 tsc_tree_cover_loss_drivers:   # v2019
     type:
         version: v2019
-        data_type: uint
+        data_type: uint8
         nbits: 3
         no_data: 0
         grids:
@@ -976,7 +976,7 @@ gfw_total_carbon_stock_in_emissions_year:  # v20191106
 umd_tree_cover_loss:  # v1.7
     year:
         version: v1.7
-        data_type: uint
+        data_type: uint8
         nbits: 5
         grids:
             10/40000:
@@ -1003,7 +1003,7 @@ umd_tree_cover_gain:  # v1.6
 umd_tree_cover_density_2000:  # v1.6
     percent:
         version: v1.6
-        data_type: uint
+        data_type: uint8
         nbits: 7
         grids:
             1/4000:
@@ -1022,7 +1022,7 @@ umd_tree_cover_density_2000:  # v1.6
                 resampling: average
     threshold:
         version: v1.6
-        data_type: uint
+        data_type: uint8
         nbits: 3
         grids:
             10/40000:
@@ -1041,7 +1041,7 @@ umd_tree_cover_density_2000:  # v1.6
 umd_tree_cover_density_2010:  # v1.6
     percent:
         version: v1.6
-        data_type: uint
+        data_type: uint8
         nbits: 7
         grids:
             10/40000:
@@ -1057,7 +1057,7 @@ umd_tree_cover_density_2010:  # v1.6
                 resampling: average
     threshold:
         version: v1.6
-        data_type: uint
+        data_type: uint8
         nbits: 3
         grids:
             10/40000:
@@ -1095,7 +1095,7 @@ birdlife_alliance_for_zero_extinction_site: # v20190816
 aqueduct_baseline_water_stress:  # v2.1
     level:
         version: v2.1
-        data_type: uint
+        data_type: uint8
         nbits: 3
         grids:
             10/40000:
@@ -1114,7 +1114,7 @@ aqueduct_baseline_water_stress:  # v2.1
 bra_biomes:  # v20150601
     name:
         version: v20150601
-        data_type: uint
+        data_type: uint8
         nbits: 3
         grids:
             10/40000:
@@ -1133,7 +1133,7 @@ bra_biomes:  # v20150601
 wwf_eco_regions:  # v2012
     name:
         version: v2012
-        data_type: uint
+        data_type: uint8
         nbits: 5
         grids:
             10/40000:
@@ -1260,7 +1260,7 @@ gfw_oil_palm: ########  # v20191031
 gfw_plantations:  # v1.3
     type:
         version: v1.3
-        data_type: uint
+        data_type: uint8
         nbits: 4
         grids:
             10/40000:
@@ -1496,7 +1496,7 @@ mex_payment_ecosystem_services: # v20160613
 mex_forest_zoning: # v20160502
     zone:
         version: v20160502
-        data_type: uint
+        data_type: uint8
         nbits: 5
         grids:
             10/40000:
@@ -1533,7 +1533,7 @@ gfw_peatlands: # v20190103
 per_forest_concessions: # v20161001
     type:
         version: v20161001
-        data_type: uint
+        data_type: uint8
         nbits: 3
         grids:
             10/40000:
@@ -1607,7 +1607,7 @@ mapbox_river_basins: # v2014
 rspo_oil_palm: ######## #v20200114
     certification_status:
         version: v20200114
-        data_type: uint
+        data_type: uint8
         nbits: 3
         grids:
             10/40000:
@@ -1662,7 +1662,7 @@ tnc_urban_water_intake:  # v2016
 wdpa_protected_areas:  # v201909  # v201912
     iucn_cat:
         version: v201912
-        data_type: uint
+        data_type: uint8
         nbits: 2
         no_data: 0
         grids:

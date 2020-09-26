@@ -22,6 +22,7 @@ PyYAML = "*"
 Shapely = "*"
 SQLAlchemy = "*"
 rasterio = "*"
+aenum = "*"
 google-cloud-storage = "*"
 
 [requires]

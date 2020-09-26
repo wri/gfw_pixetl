@@ -1,37 +1,39 @@
-from typing import Optional
+import math
+from enum import Enum
+from typing import Callable, Dict, Optional, Union
 
 from gfw_pixetl import get_module_logger
 
 LOGGER = get_module_logger(__name__)
 
 
-dtypes_dict = {
-    "boolean": ("Byte", "uint8"),
-    "uint": ("Byte", "uint8"),
-    "int": ("Byte", "int8"),
-    "uint16": ("UInt16", "uint16"),
-    "int16": ("Int16", "int16"),
-    "uint32": ("UInt32", "uint32"),
-    "int32": ("Int32", "int32"),
-    "float16": ("Float32", "float16"),
-    "half": ("Float32", "float16"),
-    "float32": ("Float32", "float32"),
-    "single": ("Float32", "float32"),
-    "float64": ("Float64", "float64"),
-    "double": ("Float64", "float64"),
-}
+class DataTypeEnum(str, Enum):
+    boolean = "boolean"
+    uint8 = "uint8"
+    int8 = "int8"
+    uint16 = "uint16"
+    int16 = "int16"
+    uint32 = "uint32"
+    int32 = "int32"
+    float16 = "float16"
+    half = "half"
+    float32 = "float32"
+    single = "single"
+    float64 = "float64"
+    double = "double"
 
 
 class DataType(object):
     def __init__(
         self,
         data_type: str,
-        no_data: Optional[int],
+        no_data: Optional[Union[int, float]],
         nbits: Optional[int] = None,
         compression: str = "DEFLATE",
     ) -> None:
+        self._validate_no_data(data_type, no_data, nbits)
         self.data_type: str = data_type
-        self.no_data: Optional[int] = no_data
+        self.no_data: Optional[Union[int, float]] = no_data
         self.nbits: Optional[int] = nbits
         self.compression: str = compression
 
@@ -41,60 +43,75 @@ class DataType(object):
             self.signed_byte = False
 
     def has_no_data(self):
-        return self.no_data == 0 or self.no_data
+        return self.no_data == 0 or self.no_data or math.isnan(self.no_data)
+
+    @staticmethod
+    def _validate_no_data(
+        data_type: str, no_data: Optional[Union[int, float]], nbits: Optional[int]
+    ):
+        dtype = data_type.lower()
+
+        if "int" in dtype and (no_data is not None and not isinstance(no_data, int)):
+            message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
+            raise ValueError(message)
+        elif ("float" in dtype or dtype in ["half", "single", "double"]) and (
+            no_data is not None and not math.isnan(no_data)
+        ):
+            message = f"No data value {no_data} must be of type `float` or None for data type {data_type}"
+            raise ValueError(message)
+        elif nbits == 1 and (no_data != 0 and no_data is not None):
+            message = f"No data value {no_data} must be 0 or None for data type Boolean"
+            raise ValueError(message)
+
+
+def data_type_constructor(
+    data_type: str,
+    nbits: Optional[int] = None,
+    compression: str = "DEFLATE",
+):
+    """Using closure design for a data type constructor."""
+
+    def get_data_type(no_data):
+        return DataType(
+            data_type=data_type, no_data=no_data, nbits=nbits, compression=compression
+        )
+
+    return get_data_type
 
 
 def data_type_factory(
-    data_type: str, nbits: Optional[int] = None, no_data: Optional[int] = None
+    data_type: str,
+    nbits: Optional[int] = None,
+    no_data: Optional[Union[int, float]] = None,
 ) -> DataType:
+    _8bits: Optional[int] = None if not nbits or nbits not in range(1, 8) else nbits
+    _16bits: Optional[int] = None if not nbits or nbits not in range(9, 16) else nbits
+    _32bits: Optional[int] = None if not nbits or nbits not in range(17, 32) else nbits
 
-    _8bits: Optional[int] = None if not nbits and nbits not in range(1, 8) else nbits
-    _16bits: Optional[int] = None if not nbits and nbits not in range(9, 16) else nbits
-    _32bits: Optional[int] = None if not nbits and nbits not in range(17, 32) else nbits
-    no_data_0: int = 0 if not no_data else no_data
-    no_data_none: Optional[int] = None if not no_data else no_data
+    dtypes_constructor: Dict[str, Callable] = {
+        DataTypeEnum.boolean: data_type_constructor(
+            "uint8", nbits=1, compression="CCITTFAX4"
+        ),
+        DataTypeEnum.uint8: data_type_constructor("uint8", _8bits),
+        DataTypeEnum.int8: data_type_constructor("int8", _8bits),
+        DataTypeEnum.uint16: data_type_constructor("uint16", _16bits),
+        DataTypeEnum.int16: data_type_constructor("int16", _16bits),
+        DataTypeEnum.uint32: data_type_constructor("uint32", _32bits),
+        DataTypeEnum.int32: data_type_constructor("int32", _32bits),
+        DataTypeEnum.float16: data_type_constructor("float16", 16),
+        DataTypeEnum.half: data_type_constructor("float16", 16),
+        DataTypeEnum.float32: data_type_constructor("float32"),
+        DataTypeEnum.single: data_type_constructor("float32"),
+        DataTypeEnum.float64: data_type_constructor("float64"),
+        DataTypeEnum.double: data_type_constructor("float64"),
+    }
 
     dtype = data_type.lower()
+
     try:
-        dtype_numpy: str = dtypes_dict[dtype][1]
+        dt = dtypes_constructor[dtype](no_data)
+
     except KeyError:
-        message = "Unknown data type {}".format(data_type)
-        LOGGER.exception(message)
-        raise ValueError(message)
-
-    if dtype == "boolean":
-        dt = DataType(
-            data_type=dtype_numpy, no_data=0, nbits=1, compression="CCITTFAX4"
-        )
-
-    elif dtype == "uint":
-        return DataType(data_type=dtype_numpy, no_data=no_data_0, nbits=_8bits)
-
-    elif dtype == "int":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=_8bits)
-
-    elif dtype == "uint16":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_0, nbits=_16bits)
-
-    elif dtype == "int16":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=_16bits)
-
-    elif dtype == "uint32":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_0, nbits=_32bits)
-
-    elif dtype == "int32":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=_32bits)
-
-    elif dtype == "float16" or dtype == "half":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_none, nbits=16)
-
-    elif dtype == "float32" or dtype == "single":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_none)
-
-    elif dtype == "float64" or dtype == "double":
-        dt = DataType(data_type=dtype_numpy, no_data=no_data_none)
-
-    else:
         message = "Unknown data type {}".format(data_type)
         LOGGER.exception(message)
         raise ValueError(message)

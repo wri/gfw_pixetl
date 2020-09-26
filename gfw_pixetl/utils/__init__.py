@@ -6,6 +6,5 @@ from gfw_pixetl.utils.utils import (
     set_available_memory,
     set_workers,
     snapped_window,
-    verify_version_pattern,
     world_bounds,
 )

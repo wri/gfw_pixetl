@@ -15,7 +15,6 @@ from gfw_pixetl.utils.utils import (  # set_aws_credentials,
     get_workers,
     set_available_memory,
     set_workers,
-    verify_version_pattern,
     world_bounds,
 )
 
@@ -59,19 +58,6 @@ def test_get_bucket():
     os.environ["ENV"] = "test"
     bucket = get_bucket()
     assert bucket == "gfw-data-lake-test"
-
-
-def test_verify_version_pattern():
-    assert verify_version_pattern("v2019") is True
-    assert verify_version_pattern("v201911") is True
-    assert verify_version_pattern("v20191122") is True
-    assert verify_version_pattern("v1") is True
-    assert verify_version_pattern("v1.2") is True
-    assert verify_version_pattern("v1.2.3") is True
-    assert verify_version_pattern("v1.beta") is False
-    assert verify_version_pattern("1.2") is False
-    assert verify_version_pattern("version1.2.3") is False
-    assert verify_version_pattern("v.1.2.3") is False
 
 
 #

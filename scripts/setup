@@ -7,5 +7,6 @@ export CPPFLAGS="-I/usr/local/opt/openssl/include"
 pip install pipenv
 pipenv install --python /usr/local/bin/python3.8
 
+pipenv run pip install -e .
 pipenv run detect-secrets scan > .secrets.baseline
 pipenv run pre-commit install
