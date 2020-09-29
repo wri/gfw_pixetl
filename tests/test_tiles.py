@@ -30,7 +30,7 @@ LAYER_DICT = {
 }
 LAYER = layers.layer_factory(LayerModel.parse_obj(LAYER_DICT))
 
-TILE = Tile(Point(10, 10), LAYER.grid, LAYER)
+TILE = Tile("10N_010E", LAYER.grid, LAYER)
 
 
 class Img(object):

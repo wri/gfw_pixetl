@@ -63,7 +63,7 @@ def test_transform_final():
         assert src_profile["blockysize"] == LAYER.grid.blockysize
         assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
         assert src_profile["count"] == 1
-        assert src_profile["crs"] == {"init": LAYER.grid.srs.srs}
+        assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
         assert src_profile["driver"] == "GTiff"
         assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
         assert src_profile["height"] == LAYER.grid.cols

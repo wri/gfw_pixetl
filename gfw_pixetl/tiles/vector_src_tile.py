@@ -18,8 +18,8 @@ logger = get_module_logger(__name__)
 
 
 class VectorSrcTile(Tile):
-    def __init__(self, origin: Point, grid: Grid, layer: VectorSrcLayer) -> None:
-        super().__init__(origin, grid, layer)
+    def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
+        super().__init__(tile_id, grid, layer)
         self.src: VectorSource = layer.src
 
     def intersect_filter(self) -> TextClause:

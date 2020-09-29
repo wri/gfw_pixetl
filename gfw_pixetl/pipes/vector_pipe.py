@@ -1,19 +1,17 @@
-import itertools
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 from multiprocessing.pool import Pool as PoolType
-from typing import Iterable, Iterator, List, Set, Tuple
+from typing import Iterator, List, Set, Tuple
 
 from parallelpipe import stage
-from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.pipes import Pipe
+from gfw_pixetl.settings.globals import CORES
 from gfw_pixetl.tiles import Tile, VectorSrcTile
 
 LOGGER = get_module_logger(__name__)
 WORKERS = utils.get_workers()
-CORES = cpu_count()
 
 
 class VectorPipe(Pipe):
@@ -28,39 +26,31 @@ class VectorPipe(Pipe):
             | self.filter_src_tiles
             | self.filter_target_tiles(overwrite=overwrite)
             | self.rasterize
-            # | self.create_gdal_geotiff
             | self.upload_file
             | self.delete_file
         )
 
         return self._process_pipe(pipe)
 
-    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[VectorSrcTile]:  # type: ignore
+    def get_grid_tiles(self) -> Set[VectorSrcTile]:  # type: ignore
         """Seed all available tiles within given grid.
 
         Use 1x1 degree tiles covering all land area as starting point.
         Then see in which target grid cell it would fall. Remove
         duplicated grid cells.
         """
-
-        x: Iterable[int] = range(min_x, max_x)
-        y: Iterable[int] = range(min_y + 1, max_y + 1)
-
-        x_y: List[Tuple[int, int]] = list(itertools.product(x, y))
+        tile_ids = self.grid.get_tile_ids()
         pool: PoolType = Pool(processes=CORES)
-        tiles: Set[VectorSrcTile] = set(pool.map(self._get_grid_tile, x_y))
+        tiles: Set[VectorSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
         LOGGER.info(f"Found {tile_count} tile inside grid")
 
         return tiles
 
-    def _get_grid_tile(self, x_y: Tuple[int, int]) -> VectorSrcTile:
+    def _get_grid_tile(self, tile_id: str) -> VectorSrcTile:
         assert isinstance(self.layer, VectorSrcLayer)
-        x: int = x_y[0]
-        y: int = x_y[1]
-        origin: Point = self.grid.xy_grid_origin(x, y)
-        return VectorSrcTile(origin=origin, grid=self.grid, layer=self.layer)
+        return VectorSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
     @staticmethod
     @stage(workers=WORKERS)

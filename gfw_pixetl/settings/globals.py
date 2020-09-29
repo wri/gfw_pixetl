@@ -1,9 +1,12 @@
+import multiprocessing
 import os
 from typing import Any, Dict, Optional
 
 from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.secret import Secret
 from gfw_pixetl.utils.type_casting import to_bool
+
+CORES = multiprocessing.cpu_count()
 
 READER_USERNAME: Optional[str] = os.environ.get("DB_USER_RO", None)
 _password: Optional[str] = os.environ.get("DB_PASSWORD_RO", None)

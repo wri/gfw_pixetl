@@ -1,19 +1,19 @@
-import multiprocessing
+from abc import ABC, abstractmethod
 from typing import Iterator, List, Optional, Set, Tuple
 
 from parallelpipe import stage
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.settings.globals import CORES
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
 
 LOGGER = get_module_logger(__name__)
 WORKERS = utils.get_workers()
-CORES = multiprocessing.cpu_count()
 
 
-class Pipe(object):
+class Pipe(ABC):
     """Base Pipe including all the basic stages to seed, filter, delete and
     upload tiles.
 
@@ -49,29 +49,32 @@ class Pipe(object):
 
         return tiles
 
+    @abstractmethod
     def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """Override this method when implementing pipes."""
-        raise NotImplementedError()
+        ...
 
-    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[Tile]:
+    @abstractmethod
+    def get_grid_tiles(self) -> Set[Tile]:
         """Seed all available tiles within given grid.
 
         Use 1x1 degree tiles covering all land area as starting point.
         Then see in which target grid cell it would fall. Remove
         duplicated grid cells.
         """
+        ...
 
-        raise NotImplementedError
-
-    def _get_grid_tile(self, x_y: Tuple[int, int]) -> Tile:
+    @abstractmethod
+    def _get_grid_tile(self, tile_id: str) -> Tile:
         """Override this method when implementing pipes."""
-        raise NotImplementedError
+        ...
 
     @staticmethod
     @stage(workers=CORES)
+    @abstractmethod
     def filter_src_tiles():
         """Override this method when implementing pipes."""
-        raise NotImplementedError()
+        ...
 
     @staticmethod
     @stage(workers=CORES)

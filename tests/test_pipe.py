@@ -5,6 +5,7 @@ from unittest import mock
 from shapely.geometry import Polygon
 
 from gfw_pixetl import layers
+from gfw_pixetl.grids import LatLngGrid
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
@@ -26,7 +27,7 @@ LAYER_DICT = {
 LAYER_DEF = LayerModel.parse_obj(LAYER_DICT)
 LAYER = layers.layer_factory(LAYER_DEF)
 SUBSET = ["10N_010E", "11N_010E", "11N_011E"]
-PIPE = Pipe(LAYER, SUBSET)
+PIPE = RasterPipe(LAYER, SUBSET)
 
 
 def test_pipe():
@@ -43,7 +44,7 @@ def test_create_tiles():
 def test_get_grid_tiles():
     message = ""
     try:
-        len(PIPE.get_grid_tiles(min_x=10, min_y=10, max_x=12, max_y=12))
+        len(PIPE.get_grid_tiles())
     except NotImplementedError:
         message = "not implemented"
     assert message == "not implemented"
@@ -55,7 +56,7 @@ def test_get_grid_tiles():
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
     pipe = RasterPipe(layer)
-    assert len(pipe.get_grid_tiles(min_x=0, min_y=0, max_x=20, max_y=20)) == 4
+    assert len(pipe.get_grid_tiles()) == 4
 
 
 def test_filter_subset_tiles():
@@ -145,6 +146,7 @@ def _get_subset_tiles() -> Set[Tile]:
     tiles = set()
     for i in range(10, 12):
         for j in range(10, 12):
-            origin = PIPE.grid.xy_grid_origin(j, i)
-            tiles.add(Tile(origin=origin, grid=PIPE.grid, layer=PIPE.layer))
+            assert isinstance(PIPE.grid, LatLngGrid)
+            tile_id = PIPE.grid.xy_to_tile_id(j, i)
+            tiles.add(Tile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
     return tiles

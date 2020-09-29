@@ -10,7 +10,6 @@ from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
 from rasterio.windows import Window, bounds, from_bounds, union
 from retrying import retry
-from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.decorators import lazy_property, processify
@@ -29,8 +28,8 @@ Bounds = Tuple[float, float, float, float]
 
 
 class RasterSrcTile(Tile):
-    def __init__(self, origin: Point, grid: Grid, layer: RasterSrcLayer) -> None:
-        super().__init__(origin, grid, layer)
+    def __init__(self, tile_id: str, grid: Grid, layer: RasterSrcLayer) -> None:
+        super().__init__(tile_id, grid, layer)
         self.layer: RasterSrcLayer = layer
         # self.src: RasterSource = RasterSource(uri=self._vrt())
 
@@ -57,7 +56,7 @@ class RasterSrcTile(Tile):
     def intersecting_window(self) -> Window:
         dst_left, dst_bottom, dst_right, dst_top = self.dst[self.default_format].bounds
         src_left, src_bottom, src_right, src_top = self.src.reproject_bounds(
-            self.grid.srs
+            self.grid.crs
         )
 
         left = max(dst_left, src_left)
@@ -90,7 +89,7 @@ class RasterSrcTile(Tile):
                 src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
                 transform, width, height = self._vrt_transform(
-                    *self.src.reproject_bounds(self.grid.srs)
+                    *self.src.reproject_bounds(self.grid.crs)
                 )
                 vrt: WarpedVRT = WarpedVRT(
                     src,

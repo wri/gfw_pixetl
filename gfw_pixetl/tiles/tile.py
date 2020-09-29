@@ -1,6 +1,7 @@
 import copy
 import os
 import subprocess as sp
+from abc import ABC
 from typing import Dict, List, Tuple
 
 import rasterio
@@ -8,7 +9,6 @@ from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
 from retrying import retry
-from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.errors import (
@@ -27,7 +27,7 @@ Bounds = Tuple[float, float, float, float]
 S3 = get_s3_client()
 
 
-class Tile(object):
+class Tile(ABC):
     """A tile object which represents a single tile within a given grid."""
 
     def __str__(self):
@@ -44,20 +44,15 @@ class Tile(object):
             return NotImplemented
         return self.tile_id == other.tile_id and self.grid == other.grid
 
-    def __init__(self, origin: Point, grid: Grid, layer: Layer) -> None:
+    def __init__(self, tile_id: str, grid: Grid, layer: Layer) -> None:
 
         self.grid: Grid = grid
         self.layer: Layer = layer
 
         self.local_dst: Dict[str, RasterSource] = dict()
 
-        self.tile_id: str = grid.point_grid_id(origin)
-        self.bounds: BoundingBox = BoundingBox(
-            left=origin.x,
-            bottom=origin.y - grid.height,
-            right=origin.x + grid.width,
-            top=origin.y,
-        )
+        self.tile_id: str = tile_id
+        self.bounds: BoundingBox = grid.get_tile_bounds(tile_id)
 
         gdal_profile = {
             "driver": "GTiff",
@@ -65,10 +60,10 @@ class Tile(object):
             "height": grid.rows,
             "count": 1,
             "transform": rasterio.transform.from_origin(
-                origin.x, origin.y, grid.xres, grid.yres
+                self.bounds.left, self.bounds.top, grid.xres, grid.yres
             ),
             "crs": CRS.from_string(
-                grid.srs.to_string()
+                grid.crs.to_string()
             ),  # Need to convert from ProjPy CRS to RasterIO CRS
             "sparse_ok": "TRUE",
             "interleave": "BAND",
