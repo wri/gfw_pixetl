@@ -5,13 +5,13 @@ from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.secret import Secret
 from gfw_pixetl.utils.type_casting import to_bool
 
-READER_USERNAME: Optional[str] = os.environ.get("DB_USER_RO", None)
-_password: Optional[str] = os.environ.get("DB_PASSWORD_RO", None)
-READER_PASSWORD: Optional[Secret] = Secret(_password) if _password else None
-READER_HOST: Optional[str] = os.environ.get("DB_HOST_RO", None)
-_port: Optional[str] = os.environ.get("DB_PORT_RO", None)
-READER_PORT: Optional[int] = int(_port) if _port else None
-READER_DBNAME: Optional[str] = os.environ.get("DATABASE_RO", None)
+DB_USERNAME: Optional[str] = os.environ.get("PGUSER", None)
+_password: Optional[str] = os.environ.get("PGPASSWORD", None)
+DB_PASSWORD: Optional[Secret] = Secret(_password) if _password else None
+DB_HOST: Optional[str] = os.environ.get("PGHOST", None)
+_port: Optional[str] = os.environ.get("PGPORT", None)
+DB_PORT: Optional[int] = int(_port) if _port else None
+DB_NAME: Optional[str] = os.environ.get("PGDATABASE", None)
 
 AWS_REGION: str = os.environ.get("AWS_REGION", "us-east-1")
 JOB_ROLE_ARN: Optional[str] = os.environ.get("JOB_ROLE_ARN", None)
