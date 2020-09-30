@@ -14,10 +14,10 @@ services:
       - ./tests/fixtures/tmp:/tmp
     environment:
       - ENV=test
-      - DB_PASSWORD=postgres  # pragma: allowlist secret
-      - DB_HOST=test_database
-      - DB_USER=gfw
-      - DATABASE=_test
+      - PGPASSWORD=postgres  # pragma: allowlist secret
+      - PGHOST=test_database
+      - PGUSER=gfw
+      - PGDATABASE=_test
       - AWS_ACCESS_KEY_ID=testing  # pragma: allowlist secret
       - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
       - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret

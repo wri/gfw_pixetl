@@ -34,20 +34,20 @@ def test_pipe():
     assert isinstance(PIPE, Pipe)
 
 
-def test_create_tiles():
-    try:
-        PIPE.create_tiles(overwrite=False)
-    except NotImplementedError as e:
-        assert isinstance(e, NotImplementedError)
+# def test_create_tiles():
+#     try:
+#         PIPE.create_tiles(overwrite=False)
+#     except NotImplementedError as e:
+#         assert isinstance(e, NotImplementedError)
 
 
 def test_get_grid_tiles():
-    message = ""
-    try:
-        len(PIPE.get_grid_tiles())
-    except NotImplementedError:
-        message = "not implemented"
-    assert message == "not implemented"
+    # message = ""
+    # try:
+    #     len(PIPE.get_grid_tiles())
+    # except NotImplementedError:
+    #     message = "not implemented"
+    # assert message == "not implemented"
 
     layer_dict = {
         **LAYER_DICT,
@@ -56,7 +56,7 @@ def test_get_grid_tiles():
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
     pipe = RasterPipe(layer)
-    assert len(pipe.get_grid_tiles()) == 4
+    assert len(pipe.get_grid_tiles()) == 648
 
 
 def test_filter_subset_tiles():

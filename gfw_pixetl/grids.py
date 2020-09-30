@@ -10,6 +10,7 @@ from rasterio.coords import BoundingBox
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.settings.globals import CORES
 
 LOGGER = get_module_logger(__name__)
@@ -53,18 +54,23 @@ class Grid(ABC):
         self.cols: int = self._get_cols()
         self.rows: int = self._get_rows()
         self.name: str = self._get_name()
-
-        self.to_wgs84: Transformer = Transformer.from_crs(
-            self.crs, CRS.from_epsg(4326), always_xy=True
-        )
-        self.from_wgs84: Transformer = Transformer.from_crs(
-            CRS.from_epsg(4326), self.crs, always_xy=True
-        )
         self.bounds: BoundingBox = self._get_bounds()
         self.xres: float = self._get_xres()
         self.yres: float = self._get_yres()
         self.blockxsize: int = self._get_block_size()
         self.blockysize: int = self._get_block_size()
+
+    def to_wgs84(self, x: float, y: float) -> Tuple[float, float]:
+        transformer = Transformer.from_crs(
+            self.crs, CRS.from_epsg(4326), always_xy=True
+        )
+        return transformer.transform(x, y)
+
+    def from_wgs84(self, x: float, y: float) -> Tuple[float, float]:
+        transformer = Transformer.from_crs(
+            CRS.from_epsg(4326), self.crs, always_xy=True
+        )
+        return transformer.transform(x, y)
 
     @abstractmethod
     def get_tile_ids(self) -> Set[str]:
@@ -78,8 +84,8 @@ class Grid(ABC):
 
     def _get_bounds(self) -> BoundingBox:
         area_of_use = self.crs.area_of_use
-        left, top = self.from_wgs84.transform(area_of_use.west, area_of_use.north)
-        right, bottom = self.from_wgs84.transform(area_of_use.east, area_of_use.south)
+        left, top = self.from_wgs84(area_of_use.west, area_of_use.north)
+        right, bottom = self.from_wgs84(area_of_use.east, area_of_use.south)
         return BoundingBox(left=left, right=right, top=top, bottom=bottom)
 
     @abstractmethod
@@ -122,6 +128,9 @@ class LatLngGrid(Grid):
     Grid identifier are the coordinates of the top left corner (ie
     10N_010E)
     """
+
+    def __repr__(self):
+        return f"LatLngGrid(srs={self.crs.to_string()}, name={self.name})"
 
     def __init__(self, width: int, cols: int, crs: str = "epsg:4326") -> None:
         """Generate tile grid.
@@ -180,17 +189,22 @@ class LatLngGrid(Grid):
     def xy_to_tile_id(self, x: float, y: float) -> str:
         """Wrapper function, in case you want to pass points as x/y
         coordiantes."""
-        return self.point_to_tile_id(Point(x, y))
+        #     return self.point_to_tile_id(Point(x, y))
+        #
+        # def point_to_tile_id(self, point: Point) -> str:
+        #     """Calculate the GRID ID based on a coordinate inside tile."""
+        #     point = self.point_to_tile_origin(point)
+        #     col = int(point.x)
+        #     row = int(point.y)
 
-    def point_to_tile_id(self, point: Point) -> str:
-        """Calculate the GRID ID based on a coordinate inside tile."""
-        point = self.point_to_tile_origin(point)
-        col = int(point.x)
-        row = int(point.y)
-        # col: int = math.floor(point.x / self.width) * self.width
+        p = self.xy_to_tile_origin(x, y)
+        x = p.x
+        y = p.y
+        col = int(x)
+        row = int(y)
+        # col: int = math.floor(x / self.width) * self.width
         lng: str = f"{str(col).zfill(3)}E" if (col >= 0) else f"{str(-col).zfill(3)}W"
-
-        # row: int = math.ceil(point.y / self.height) * self.height
+        # row: int = math.ceil(y / self.height) * self.height
         lat: str = f"{str(row).zfill(2)}N" if (row >= 0) else f"{str(-row).zfill(2)}S"
 
         return f"{lat}_{lng}"
@@ -329,6 +343,9 @@ class WebMercatorGrid(Grid):
     Output tiles within grid always have a block size of 256 px (equal to raster tile cache tile).
     Max size of a tile within grid can not be larger than 65536x65526 pixel (256x256).
     """
+
+    def __repr__(self):
+        return f"WebMercatorGrid(srs={self.crs.to_string()}, name={self.name})"
 
     def __init__(self, zoom: int, crs: str = "epsg:3857") -> None:
         """Initialize Webmercator tile grid of a given Zoom level."""

@@ -31,7 +31,7 @@ LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
 def test_src_tile_intersects():
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
+        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
         assert tile.within()
     else:
         raise ValueError("Not a RasterSrcLayer")
@@ -39,7 +39,7 @@ def test_src_tile_intersects():
 
 def test_transform_final():
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
+        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
         with rasterio.open(tile.src.uri) as tile_src:
             window = rasterio.windows.from_bounds(
@@ -83,7 +83,7 @@ def test_transform_final():
 def test__calc():
     window = Window(0, 0, 1, 3)
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
+        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
         tile.layer.calc = "A+1"
         data = np.zeros((1, 3))
@@ -110,7 +110,7 @@ def test__set_dtype():
     masked_data = np.ma.masked_values(data, 0)
     count = masked_data.mask.sum()
     if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
+        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
         tile.dst[tile.default_format].nodata = 5
         result = tile._set_dtype(masked_data, window)
         masked_result = np.ma.masked_values(result, 5)
@@ -121,7 +121,7 @@ def test__set_dtype():
 
 
 def test__snap_coordinates():
-    tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
     lat = 9.777
     lng = 10.111
@@ -137,7 +137,7 @@ def test__snap_coordinates():
 
 
 def test__vrt_transform():
-    tile = RasterSrcTile(Point(10, 10), LAYER.grid, LAYER)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
     transform, width, height = tile._vrt_transform(9.1, 9.1, 9.2, 9.2)
 

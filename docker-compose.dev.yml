@@ -15,10 +15,10 @@ services:
       - ./tmp:/tmp
     environment:
       - ENV=dev
-      - DB_PASSWORD=postgres  # pragma: allowlist secret
-      - DB_HOST=test_database
-      - DB_USER=gfw
-      - DATABASE=_test
+      - PGPASSWORD=postgres  # pragma: allowlist secret
+      - PGHOST=test_database
+      - PGUSER=gfw
+      - PGDATABASE=_test
       - AWS_DEFAULT_PROFILE=gfw-dev
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
 #      - GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
