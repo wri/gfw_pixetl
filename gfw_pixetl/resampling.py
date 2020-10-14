@@ -1,4 +1,10 @@
+from aenum import Enum, extend_enum
 from rasterio.warp import Resampling
+
+
+class ResamplingMethodEnum(str, Enum):
+    pass
+
 
 methods = {
     "nearest": Resampling.nearest,
@@ -15,8 +21,9 @@ methods = {
     "q3": Resampling.q3,
 }
 
-# Make an enum out of methods dict to allow the Pydantic model to verify against
-# ResamplingMethod = Enum("ResamplingMethod", [(k, k) for k, v in methods.items()])
+
+for key in methods.keys():
+    extend_enum(ResamplingMethodEnum, key, key)
 
 
 def resampling_factory(method: str) -> Resampling:

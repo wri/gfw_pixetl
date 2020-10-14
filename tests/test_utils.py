@@ -1,26 +1,22 @@
 import multiprocessing
 import os
 from datetime import datetime
-from dateutil.tz import tzutc
 from unittest import mock
 
+from dateutil.tz import tzutc
 from pyproj import CRS
 
-from gfw_pixetl.utils.utils import (
+from gfw_pixetl.utils.cwd import set_cwd
+from gfw_pixetl.utils.gdal import _write_tile_list, create_vrt
+from gfw_pixetl.utils.path import get_aws_s3_endpoint
+from gfw_pixetl.utils.utils import (  # set_aws_credentials,
+    available_memory_per_process,
     get_bucket,
-    verify_version_pattern,
-    # set_aws_credentials,
-    set_cwd,
+    get_workers,
     set_available_memory,
     set_workers,
-    get_workers,
-    available_memory_per_process,
-    _write_tile_list,
-    create_vrt,
     world_bounds,
-    get_aws_s3_endpoint,
 )
-
 
 os.environ["ENV"] = "test"
 URIS = [
@@ -62,19 +58,6 @@ def test_get_bucket():
     os.environ["ENV"] = "test"
     bucket = get_bucket()
     assert bucket == "gfw-data-lake-test"
-
-
-def test_verify_version_pattern():
-    assert verify_version_pattern("v2019") is True
-    assert verify_version_pattern("v201911") is True
-    assert verify_version_pattern("v20191122") is True
-    assert verify_version_pattern("v1") is True
-    assert verify_version_pattern("v1.2") is True
-    assert verify_version_pattern("v1.2.3") is True
-    assert verify_version_pattern("v1.beta") is False
-    assert verify_version_pattern("1.2") is False
-    assert verify_version_pattern("version1.2.3") is False
-    assert verify_version_pattern("v.1.2.3") is False
 
 
 #
@@ -184,7 +167,8 @@ def test_world_bounds():
 
 
 def test_get_aws_s3_endpoint():
-    """get_endpoint_url should optionally return server name without protocol"""
+    """get_endpoint_url should optionally return server name without
+    protocol."""
 
     assert get_aws_s3_endpoint(None) is None
     assert get_aws_s3_endpoint("http://motoserver:5000") == "motoserver:5000"

@@ -6,7 +6,7 @@ import rasterio
 from rasterio.windows import Window
 from shapely.geometry import Point
 
-from gfw_pixetl import layers, get_module_logger
+from gfw_pixetl import get_module_logger, layers
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.tiles import RasterSrcTile
 from tests import minimal_layer_dict
@@ -20,7 +20,7 @@ layer_dict = {
     "dataset": "umd_tree_cover_density_2000",
     "version": "v1.6",
     "pixel_meaning": "percent",
-    "data_type": "uint",
+    "data_type": "uint8",
     "nbits": 7,
     "grid": "1/4000",
     "source_uri": f"s3://{BUCKET}/{GEOJSON_NAME}",

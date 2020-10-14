@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="gfw_pixetl",
@@ -10,6 +10,6 @@ setup(
     entry_points="""
             [console_scripts]
             pixetl=gfw_pixetl.pixetl:cli
-            pixetl_prep=gfw_pixetl.source_prep:cli
+            pixetl_prep=gfw_pixetl.pixetl_prep:cli
             """,
 )

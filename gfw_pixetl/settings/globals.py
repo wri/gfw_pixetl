@@ -1,16 +1,17 @@
 import os
+from typing import Any, Dict, Optional
 
-from typing import Optional, Dict, Any
+from gfw_pixetl.utils.path import get_aws_s3_endpoint
+from gfw_pixetl.utils.secret import Secret
+from gfw_pixetl.utils.type_casting import to_bool
 
-from gfw_pixetl.utils import Secret, get_aws_s3_endpoint, to_bool
-
-READER_USERNAME: Optional[str] = os.environ.get("DB_USER_RO", None)
-_password: Optional[str] = os.environ.get("DB_PASSWORD_RO", None)
-READER_PASSWORD: Optional[Secret] = Secret(_password) if _password else None
-READER_HOST: Optional[str] = os.environ.get("DB_HOST_RO", None)
-_port: Optional[str] = os.environ.get("DB_PORT_RO", None)
-READER_PORT: Optional[int] = int(_port) if _port else None
-READER_DBNAME: Optional[str] = os.environ.get("DATABASE_RO", None)
+DB_USERNAME: Optional[str] = os.environ.get("PGUSER", None)
+_password: Optional[str] = os.environ.get("PGPASSWORD", None)
+DB_PASSWORD: Optional[Secret] = Secret(_password) if _password else None
+DB_HOST: Optional[str] = os.environ.get("PGHOST", None)
+_port: Optional[str] = os.environ.get("PGPORT", None)
+DB_PORT: Optional[int] = int(_port) if _port else None
+DB_NAME: Optional[str] = os.environ.get("PGDATABASE", None)
 
 AWS_REGION: str = os.environ.get("AWS_REGION", "us-east-1")
 JOB_ROLE_ARN: Optional[str] = os.environ.get("JOB_ROLE_ARN", None)
@@ -25,6 +26,11 @@ GDAL_DISABLE_READDIR_ON_OPEN: Optional[str] = os.environ.get(
 
 ENDPOINT_URL: Optional[str] = os.environ.get("ENDPOINT_URL", None)
 AWS_S3_ENDPOINT: Optional[str] = get_aws_s3_endpoint(ENDPOINT_URL)
+AWS_BATCH_JOB_ID: Optional[str] = os.environ.get("AWS_BATCH_JOB_ID", None)
+GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = os.environ.get(
+    "GOOGLE_APPLICATION_CREDENTIALS", None
+)
+GCS_KEY_SECRET_ARN: Optional[str] = os.environ.get("GCS_KEY_SECRET_ARN", None)
 
 GDAL_ENV: Dict[str, Any] = dict()
 if AWS_HTTPS:

@@ -1,18 +1,18 @@
 from gfw_pixetl.settings.globals import (
-    READER_HOST,
-    READER_PORT,
-    READER_DBNAME,
-    READER_USERNAME,
-    READER_PASSWORD,
+    DB_HOST,
+    DB_NAME,
+    DB_PASSWORD,
+    DB_PORT,
+    DB_USERNAME,
 )
 
 
 class PgConn(object):
-    db_host = READER_HOST
-    db_port = READER_PORT
-    db_name = READER_DBNAME
-    db_user = READER_USERNAME
-    db_password = READER_PASSWORD
+    db_host = DB_HOST
+    db_port = DB_PORT
+    db_name = DB_NAME
+    db_user = DB_USERNAME
+    db_password = DB_PASSWORD
 
     def pg_conn(self):
         return f"PG:dbname={self.db_name} port={self.db_port} host={self.db_host} user={self.db_user} password={self.db_password}"

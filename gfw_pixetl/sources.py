@@ -3,9 +3,9 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import rasterio
 from numpy import dtype as ndtype
-from pyproj import Transformer, CRS
-from rasterio.crs import CRS as rCRS
+from pyproj import CRS, Transformer
 from rasterio.coords import BoundingBox
+from rasterio.crs import CRS as rCRS
 from rasterio.errors import RasterioIOError
 from rasterio.windows import Window
 from retrying import retry
@@ -16,7 +16,8 @@ from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
 from gfw_pixetl.settings.globals import GDAL_ENV
-from gfw_pixetl.utils import get_bucket, replace_inf_nan, utils
+from gfw_pixetl.utils import get_bucket, utils
+from gfw_pixetl.utils.type_casting import replace_inf_nan
 
 LOGGER = get_module_logger(__name__)
 
@@ -121,14 +122,22 @@ class RasterSource(Source):
 
     @lru_cache(maxsize=2, typed=False)
     def reproject_bounds(self, crs: CRS) -> Bounds:
-        """
-        Reproject src bounds to dst CRT.
-        Make sure that coordinates fall within real world coordinates system
+        """Reproject src bounds to dst CRT.
+
+        Make sure that coordinates fall within real world coordinates
+        system
         """
 
         left, bottom, right, top = self.bounds
 
-        LOGGER.debug("SRC Extent: {}, {}, {}, {}".format(left, bottom, right, top,))
+        LOGGER.debug(
+            "SRC Extent: {}, {}, {}, {}".format(
+                left,
+                bottom,
+                right,
+                top,
+            )
+        )
 
         min_lng, min_lat, max_lng, max_lat = utils.world_bounds(crs)
 
@@ -158,9 +167,7 @@ class RasterSource(Source):
         wait_exponential_max=300000,
     )
     def fetch_meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
-        """
-        Open file to fetch metadata
-        """
+        """Open file to fetch metadata."""
         LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
@@ -224,12 +231,12 @@ class Destination(RasterSource):
 
 
 def _file_does_not_exist(e: Exception) -> bool:
-    """
-    Check if RasterIO can access file.
+    """Check if RasterIO can access file.
 
-    If file is inaccessible or does not exist, rasterio will always raise RasterioIOError.
-    Error messages will differ, depending on the access method, if file exists or is inaccessible.
-    However, end result should always be the same.
+    If file is inaccessible or does not exist, rasterio will always
+    raise RasterioIOError. Error messages will differ, depending on the
+    access method, if file exists or is inaccessible. However, end
+    result should always be the same.
     """
 
     errors = [

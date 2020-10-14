@@ -8,13 +8,12 @@ from typing import List, Optional, Tuple
 import click
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.data_type import dtypes_dict as data_types
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
-from gfw_pixetl.resampling import methods as resampling_methods
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
 
 LOGGER = get_module_logger(__name__)
 
@@ -44,35 +43,21 @@ def cli(
     overwrite: bool,
     layer_json: str,
 ):
-    # Validate fields sooner rather than later
-    # On the other hand, moving this validation inside pixetl() would allow
-    # for easier testing...
-    if not utils.verify_version_pattern(version):
-        message = "Invalid version string"
-        LOGGER.error(message)
-        raise ValueError(message)
 
     layer_dict = json.loads(layer_json)
     layer_dict.update({"dataset": dataset, "version": version})
     layer_def = LayerModel.parse_obj(layer_dict)
-
-    # Validate resampling_method values. I tried to do this with an enum
-    # (see commented-out lines in models.py and resampling.py) but couldn't
-    # get it to work
-    if layer_def.resampling not in resampling_methods.keys():
-        raise ValueError(f"Invalid resampling method specified: {layer_def.resampling}")
-
-    # Validate data_type values. Ideally turn this into an enum for Pydantic
-    # to validate automatically.
-    if layer_def.data_type not in data_types.keys():
-        raise ValueError(f"Invalid data_type specified: {layer_def.data_type}")
 
     # Raster sources must have an source URI
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
     # Finally, actually process the layer
-    tiles, skipped_tiles, failed_tiles = pixetl(layer_def, subset, overwrite,)
+    tiles, skipped_tiles, failed_tiles = pixetl(
+        layer_def,
+        subset,
+        overwrite,
+    )
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
@@ -91,7 +76,9 @@ def cli(
 
 
 def pixetl(
-    layer_def: LayerModel, subset: Optional[List[str]] = None, overwrite: bool = False,
+    layer_def: LayerModel,
+    subset: Optional[List[str]] = None,
+    overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
@@ -103,7 +90,7 @@ def pixetl(
     )
 
     old_cwd = os.getcwd()
-    cwd = utils.set_cwd()
+    cwd = set_cwd()
 
     # set available memory here before any major process is running
     utils.set_available_memory()
@@ -119,12 +106,12 @@ def pixetl(
         pipe: Pipe = pipe_factory(layer, subset)
 
         tiles, skipped_tiles, failed_tiles = pipe.create_tiles(overwrite)
-        utils.remove_work_directory(old_cwd, cwd)
+        remove_work_directory(old_cwd, cwd)
 
         return tiles, skipped_tiles, failed_tiles
 
     except Exception as e:
-        utils.remove_work_directory(old_cwd, cwd)
+        remove_work_directory(old_cwd, cwd)
         LOGGER.exception(e)
         raise
 
