@@ -1,10 +1,10 @@
 import os
+from copy import deepcopy
 from math import isclose
 
 import numpy as np
 import rasterio
 from rasterio.windows import Window
-from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger, layers
 from gfw_pixetl.models import LayerModel
@@ -28,56 +28,107 @@ layer_dict = {
 }
 LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
+layer_dict_wm = deepcopy(layer_dict)
+layer_dict_wm["grid"] = "zoom_14"
+
+LAYER_WM = layers.layer_factory(LayerModel(**layer_dict_wm))
+
 
 def test_src_tile_intersects():
-    if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
-        assert tile.within()
-    else:
-        raise ValueError("Not a RasterSrcLayer")
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    assert tile.within()
+
+
+def test_src_tile_intersects_wm():
+    assert isinstance(LAYER_WM, layers.RasterSrcLayer)
+
+    tile = RasterSrcTile("030R_030C", LAYER_WM.grid, LAYER_WM)
+    assert tile.within()
 
 
 def test_transform_final():
-    if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
-        with rasterio.open(tile.src.uri) as tile_src:
-            window = rasterio.windows.from_bounds(
-                10, 9, 11, 10, transform=tile_src.transform
-            )
-            input = tile_src.read(1, window=window)
+    with rasterio.open(tile.src.uri) as tile_src:
+        window = rasterio.windows.from_bounds(
+            10, 9, 11, 10, transform=tile_src.transform
+        )
+        input = tile_src.read(1, window=window)
 
-        tile.transform()
+    tile.transform()
 
-        LOGGER.debug(tile.local_dst[tile.default_format].uri)
-        with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
-            src_profile = src.profile
-            output = src.read(1)
+    LOGGER.debug(tile.local_dst[tile.default_format].uri)
+    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
+        src_profile = src.profile
+        output = src.read(1)
 
-        LOGGER.debug(src_profile)
+    LOGGER.debug(src_profile)
 
-        assert input.shape == output.shape
-        np.testing.assert_array_equal(input, output)
+    assert input.shape == output.shape
+    np.testing.assert_array_equal(input, output)
 
-        assert src_profile["blockxsize"] == LAYER.grid.blockxsize
-        assert src_profile["blockysize"] == LAYER.grid.blockysize
-        assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
-        assert src_profile["count"] == 1
-        assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
-        assert src_profile["driver"] == "GTiff"
-        assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
-        assert src_profile["height"] == LAYER.grid.cols
-        assert src_profile["interleave"] == "band"
-        assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
-        assert src_profile["tiled"] is True
-        assert src_profile["width"] == LAYER.grid.rows
-        # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
+    assert src_profile["blockxsize"] == LAYER.grid.blockxsize
+    assert src_profile["blockysize"] == LAYER.grid.blockysize
+    assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
+    assert src_profile["count"] == 1
+    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["driver"] == "GTiff"
+    assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
+    assert src_profile["height"] == LAYER.grid.cols
+    assert src_profile["interleave"] == "band"
+    assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
+    assert src_profile["tiled"] is True
+    assert src_profile["width"] == LAYER.grid.rows
+    # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
 
-        assert not hasattr(src_profile, "compress")
+    assert not hasattr(src_profile, "compress")
 
-        os.remove(tile.local_dst[tile.default_format].uri)
-    else:
-        raise ValueError("Not a RasterSrcLayer")
+    os.remove(tile.local_dst[tile.default_format].uri)
+
+
+def test_transform_final_wm():
+    assert isinstance(LAYER_WM, layers.RasterSrcLayer)
+
+    tile = RasterSrcTile("030R_030C", LAYER.grid, LAYER_WM)
+
+    with rasterio.open(tile.src.uri) as tile_src:
+        window = rasterio.windows.from_bounds(
+            10, 9, 11, 10, transform=tile_src.transform
+        )
+        input = tile_src.read(1, window=window)
+
+    tile.transform()
+
+    LOGGER.debug(tile.local_dst[tile.default_format].uri)
+    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
+        src_profile = src.profile
+        output = src.read(1)
+
+    LOGGER.debug(src_profile)
+
+    assert input.shape == output.shape
+    np.testing.assert_array_equal(input, output)
+
+    assert src_profile["blockxsize"] == LAYER.grid.blockxsize
+    assert src_profile["blockysize"] == LAYER.grid.blockysize
+    assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
+    assert src_profile["count"] == 1
+    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["driver"] == "GTiff"
+    assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
+    assert src_profile["height"] == LAYER.grid.cols
+    assert src_profile["interleave"] == "band"
+    assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
+    assert src_profile["tiled"] is True
+    assert src_profile["width"] == LAYER.grid.rows
+    # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
+
+    assert not hasattr(src_profile, "compress")
+
+    os.remove(tile.local_dst[tile.default_format].uri)
 
 
 def test__calc():

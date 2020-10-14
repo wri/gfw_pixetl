@@ -123,6 +123,7 @@ class RasterSrcLayer(Layer):
 
         features = json.loads(body.decode("utf-8"))["features"]
         for feature in features:
+            LOGGER.debug(f"{feature}")
             input_files.append(
                 (shape(feature["geometry"]), feature["properties"]["name"])
             )

@@ -1,8 +1,8 @@
 import os
 
-from shapely.geometry import Point
+import pytest
 
-from gfw_pixetl.grids import Grid, LatLngGrid, grid_factory
+from gfw_pixetl.grids import Grid, LatLngGrid, WebMercatorGrid, grid_factory
 
 os.environ["ENV"] = "test"
 
@@ -106,12 +106,25 @@ def test_get_tile_id():
     grid_id = grid.xy_to_tile_id(-1, -1)
     assert grid_id == "04N_004W"
 
-    try:
+    with pytest.raises(AssertionError):
         grid.xy_to_tile_id(90, 90)
-    except Exception as e:
-        assert isinstance(e, AssertionError)
 
-    try:
+    with pytest.raises(AssertionError):
         grid.xy_to_tile_id(-90, -90)
-    except Exception as e:
-        assert isinstance(e, AssertionError)
+
+
+def test_wm_grids():
+    grid = grid_factory("zoom_1")
+    assert isinstance(grid, WebMercatorGrid)
+    assert len(grid.get_tile_ids()) == 1 == grid.nb_tiles
+
+    grid = grid_factory("zoom_10")
+    assert isinstance(grid, WebMercatorGrid)
+    assert len(grid.get_tile_ids()) == 16 == grid.nb_tiles
+
+    grid = grid_factory("zoom_14")
+    assert isinstance(grid, WebMercatorGrid)
+    assert len(grid.get_tile_ids()) == 4096 == grid.nb_tiles
+
+    with pytest.raises(ValueError):
+        grid_factory("zoom_30")

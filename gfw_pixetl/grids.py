@@ -386,7 +386,7 @@ class WebMercatorGrid(Grid):
         false_southing = self.bounds.top * -1
 
         grid_height = self.bounds.top + self.bounds.bottom + (2 * false_southing)
-        grid_width = self.bounds.east + self.bounds.west + (2 * false_easting)
+        grid_width = self.bounds.left + self.bounds.right + (2 * false_easting)
 
         tile_height = grid_height / nb_tiles
         tile_width = grid_width / nb_tiles
