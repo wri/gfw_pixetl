@@ -10,7 +10,7 @@ from gfw_pixetl import get_module_logger, layers
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.tiles import RasterSrcTile
 from tests import minimal_layer_dict
-from tests.conftest import BUCKET, GEOJSON_NAME
+from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME
 
 os.environ["ENV"] = "test"
 LOGGER = get_module_logger(__name__)
@@ -85,6 +85,46 @@ def test_transform_final():
     assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
     assert src_profile["tiled"] is True
     assert src_profile["width"] == LAYER.grid.rows
+    # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
+
+    assert not hasattr(src_profile, "compress")
+
+    os.remove(tile.local_dst[tile.default_format].uri)
+
+
+def test_transform_final_wm():
+    layer_dict_wm = deepcopy(layer_dict)
+    layer_dict_wm["grid"] = "zoom_0"
+    layer_dict_wm["source_uri"] = f"s3://{BUCKET}/{GEOJSON_2_NAME}"
+
+    layer_wm = layers.layer_factory(LayerModel(**layer_dict_wm))
+
+    assert isinstance(layer_wm, layers.RasterSrcLayer)
+    tile = RasterSrcTile("000R_000C", layer_wm.grid, layer_wm)
+
+    tile.transform()
+
+    LOGGER.debug(tile.local_dst[tile.default_format].uri)
+    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
+        src_profile = src.profile
+        output = src.read(1)
+
+    LOGGER.debug(src_profile)
+
+    assert output.shape == (256, 256)
+
+    assert src_profile["blockxsize"] == layer_wm.grid.blockxsize
+    assert src_profile["blockysize"] == layer_wm.grid.blockysize
+    assert src_profile["compress"].lower() == layer_wm.dst_profile["compress"].lower()
+    assert src_profile["count"] == 1
+    assert src_profile["crs"] == {"init": layer_wm.grid.crs.srs}
+    assert src_profile["driver"] == "GTiff"
+    assert src_profile["dtype"] == layer_wm.dst_profile["dtype"]
+    assert src_profile["height"] == layer_wm.grid.cols
+    assert src_profile["interleave"] == "band"
+    assert src_profile["nodata"] == layer_wm.dst_profile["nodata"]
+    assert src_profile["tiled"] is True
+    assert src_profile["width"] == layer_wm.grid.rows
     # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
 
     assert not hasattr(src_profile, "compress")
