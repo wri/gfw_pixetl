@@ -10,8 +10,8 @@ from rasterio.coords import BoundingBox
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.settings.globals import CORES
+from gfw_pixetl.utils.utils import AreaOfUse
 
 LOGGER = get_module_logger(__name__)
 
@@ -50,6 +50,7 @@ class Grid(ABC):
         """
 
         self.crs: CRS = CRS.from_string(crs)
+        self.area_of_use: AreaOfUse = self._get_area_of_use()
 
         self.cols: int = self._get_cols()
         self.rows: int = self._get_rows()
@@ -82,10 +83,24 @@ class Grid(ABC):
         """Returns BBox for a given grid ID."""
         ...
 
+    def _get_area_of_use(self) -> AreaOfUse:
+        """Area of use for given projection.
+
+        Use AOU as defined by projection, but allow to optionally
+        override with custom values
+        """
+        aou = self.crs.area_of_use
+        return AreaOfUse(
+            west=aou.west,
+            north=aou.north,
+            east=aou.east,
+            south=aou.south,
+            name=aou.name,
+        )
+
     def _get_bounds(self) -> BoundingBox:
-        area_of_use = self.crs.area_of_use
-        left, top = self.from_wgs84(area_of_use.west, area_of_use.north)
-        right, bottom = self.from_wgs84(area_of_use.east, area_of_use.south)
+        left, top = self.from_wgs84(self.area_of_use.west, self.area_of_use.north)
+        right, bottom = self.from_wgs84(self.area_of_use.east, self.area_of_use.south)
         return BoundingBox(left=left, right=right, top=top, bottom=bottom)
 
     @abstractmethod
@@ -163,9 +178,6 @@ class LatLngGrid(Grid):
         super().__init__(crs)
 
     def xy_to_tile_origin(self, x: float, y: float) -> Point:
-        return self.point_to_tile_origin(Point(x, y))
-
-    def point_to_tile_origin(self, point: Point) -> Point:
         """Calculate top left corner of corresponding grid tile for any given
         point.
 
@@ -174,28 +186,24 @@ class LatLngGrid(Grid):
         offset are whole numbers
         """
 
-        lng: int = math.floor(point.x / self.width) * self.width
-        lng = self._apply_lng_offset(lng, point.x)
+        lng: int = math.floor(x / self.width) * self.width
+        lng = self._apply_lng_offset(lng, x)
 
-        lat: int = math.ceil(point.y / self.height) * self.height
-        lat = self._apply_lat_offset(lat, point.y)
+        lat: int = math.ceil(y / self.height) * self.height
+        lat = self._apply_lat_offset(lat, y)
+
+        print("LAT", lat)
+        print("LNG", lng)
 
         # Make sure we are are still on earth
-        assert 180 >= lng >= -180, "Origin's Longitude is out of bounds"
-        assert 90 >= lat >= -90, "Origin's Latitude is out of bounds"
+        assert 180 - self.width >= lng >= -180, "Origin's Longitude is out of bounds"
+        assert 90 >= lat >= -90 + self.height, "Origin's Latitude is out of bounds"
 
         return Point(lng, lat)
 
     def xy_to_tile_id(self, x: float, y: float) -> str:
         """Wrapper function, in case you want to pass points as x/y
         coordiantes."""
-        #     return self.point_to_tile_id(Point(x, y))
-        #
-        # def point_to_tile_id(self, point: Point) -> str:
-        #     """Calculate the GRID ID based on a coordinate inside tile."""
-        #     point = self.point_to_tile_origin(point)
-        #     col = int(point.x)
-        #     row = int(point.y)
 
         p = self.xy_to_tile_origin(x, y)
         x = p.x
@@ -367,6 +375,13 @@ class WebMercatorGrid(Grid):
         tile_ids: Set[str] = set(pool.map(self._get_tile_ids, rows_cols))
 
         return tile_ids
+
+    def _get_area_of_use(self) -> AreaOfUse:
+        """Use more precise North/South coordinates than what is returned by
+        PyProj."""
+        return AreaOfUse(
+            west=-180, south=-85.05112878, east=180, north=85.05112878, name="World"
+        )
 
     def _get_tile_ids(self, row_col: Tuple[int, int]):
         row = row_col[0]

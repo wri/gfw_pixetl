@@ -73,17 +73,17 @@ def test_get_tile_id():
     grid_id = grid.xy_to_tile_id(1, 1)
     assert grid_id == "10N_000E"
 
-    grid_id = grid.xy_to_tile_id(90, 90)
-    assert grid_id == "90N_090E"
-
     grid_id = grid.xy_to_tile_id(-1, -1)
     assert grid_id == "00N_010W"
 
-    grid_id = grid.xy_to_tile_id(-90, -90)
-    assert grid_id == "90S_090W"
+    grid_id = grid.xy_to_tile_id(90, 90)
+    assert grid_id == "90N_090E"
+
+    with pytest.raises(AssertionError):
+        grid.xy_to_tile_id(-90, -90)
 
     # Grid IDs for 8x8 degree grid, 32000x32000 pixels
-    # This grid edges do not intersect with equator or central meridian
+    # Grid edges do not intersect with equator or central meridian
     grid = grid_factory("8/32000")
 
     assert isinstance(grid, LatLngGrid)

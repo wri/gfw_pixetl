@@ -44,55 +44,16 @@ def test_src_tile_intersects():
 def test_src_tile_intersects_wm():
     assert isinstance(LAYER_WM, layers.RasterSrcLayer)
 
-    tile = RasterSrcTile("030R_030C", LAYER_WM.grid, LAYER_WM)
+    tile = RasterSrcTile("030R_034C", LAYER_WM.grid, LAYER_WM)
     assert tile.within()
+
+    tile = RasterSrcTile("010R_014C", LAYER_WM.grid, LAYER_WM)
+    assert not tile.within()
 
 
 def test_transform_final():
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
-
-    with rasterio.open(tile.src.uri) as tile_src:
-        window = rasterio.windows.from_bounds(
-            10, 9, 11, 10, transform=tile_src.transform
-        )
-        input = tile_src.read(1, window=window)
-
-    tile.transform()
-
-    LOGGER.debug(tile.local_dst[tile.default_format].uri)
-    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
-        src_profile = src.profile
-        output = src.read(1)
-
-    LOGGER.debug(src_profile)
-
-    assert input.shape == output.shape
-    np.testing.assert_array_equal(input, output)
-
-    assert src_profile["blockxsize"] == LAYER.grid.blockxsize
-    assert src_profile["blockysize"] == LAYER.grid.blockysize
-    assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
-    assert src_profile["count"] == 1
-    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
-    assert src_profile["driver"] == "GTiff"
-    assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
-    assert src_profile["height"] == LAYER.grid.cols
-    assert src_profile["interleave"] == "band"
-    assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
-    assert src_profile["tiled"] is True
-    assert src_profile["width"] == LAYER.grid.rows
-    # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
-
-    assert not hasattr(src_profile, "compress")
-
-    os.remove(tile.local_dst[tile.default_format].uri)
-
-
-def test_transform_final_wm():
-    assert isinstance(LAYER_WM, layers.RasterSrcLayer)
-
-    tile = RasterSrcTile("030R_030C", LAYER.grid, LAYER_WM)
 
     with rasterio.open(tile.src.uri) as tile_src:
         window = rasterio.windows.from_bounds(

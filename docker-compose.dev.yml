@@ -31,7 +31,7 @@ services:
 #      - AWS_VIRTUAL_HOSTING=FALSE
 #      - GDAL_DISABLE_READDIR_ON_OPEN=YES
     working_dir: /tmp
-#    entrypoint: pixetl_prep
+#    entrypoint: /bin/bash
     depends_on:
       - dev_database
 #      - motoserver
