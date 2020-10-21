@@ -2,7 +2,6 @@ from typing import List
 
 import psycopg2
 from psycopg2._psycopg import ProgrammingError
-from shapely.geometry import Point
 from sqlalchemy import Column, Table, select, table, text
 from sqlalchemy.sql.elements import TextClause, literal_column
 
