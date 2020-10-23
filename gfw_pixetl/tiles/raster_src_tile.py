@@ -86,7 +86,9 @@ class RasterSrcTile(Tile):
         has_data = False
 
         try:
-            with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, **GDAL_ENV):
+            with rasterio.Env(
+                GDAL_TIFF_INTERNAL_MASK=self.layer.use_internal_mask, **GDAL_ENV
+            ):
                 src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
                 transform, width, height = self._vrt_transform(

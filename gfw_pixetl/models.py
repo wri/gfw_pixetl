@@ -38,3 +38,4 @@ class LayerModel(BaseModel):
     source_uri: Optional[str]
     calc: Optional[str]
     order: Optional[Order]
+    use_internal_mask: bool = True

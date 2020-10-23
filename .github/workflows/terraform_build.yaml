@@ -47,8 +47,8 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret_staging }}
         AWS_REGION: ${{ secrets.aws_region_staging }}
       run: |
-        ./scripts/infra plan -w ${{ github.ref }}
-        ./scripts/infra apply
+        ./scripts/infra plan -w ${{ github.ref }} && ./scripts/infra apply
+        ENV=dev ./scripts/infra plan -w default && ./scripts/infra apply
 
     - name: Deploy dev
       if: success() && (! contains(github.ref, 'develop')) && (! contains(github.ref, 'master'))

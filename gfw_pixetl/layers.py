@@ -103,6 +103,7 @@ class RasterSrcLayer(Layer):
         super().__init__(layer_def, grid)
 
         self._src_uri = layer_def.source_uri
+        self.use_internal_mask: bool = layer_def.use_internal_mask
 
         # self.input_files = self._input_files()
         # self.geom = self._geom()
