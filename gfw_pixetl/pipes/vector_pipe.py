@@ -7,7 +7,7 @@ from parallelpipe import stage
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.pipes import Pipe
-from gfw_pixetl.settings.globals import CORES
+from gfw_pixetl.settings.globals import SETTINGS
 from gfw_pixetl.tiles import Tile, VectorSrcTile
 
 LOGGER = get_module_logger(__name__)
@@ -40,7 +40,7 @@ class VectorPipe(Pipe):
         duplicated grid cells.
         """
         tile_ids = self.grid.get_tile_ids()
-        pool: PoolType = Pool(processes=CORES)
+        pool: PoolType = Pool(processes=SETTINGS.cores)
         tiles: Set[VectorSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)

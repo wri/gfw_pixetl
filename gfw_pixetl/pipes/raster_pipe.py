@@ -7,7 +7,7 @@ from parallelpipe import Stage, stage
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.pipes import Pipe
-from gfw_pixetl.settings.globals import CORES
+from gfw_pixetl.settings.globals import SETTINGS
 from gfw_pixetl.tiles import RasterSrcTile, Tile
 
 LOGGER = get_module_logger(__name__)
@@ -23,7 +23,7 @@ class RasterPipe(Pipe):
         """
 
         tile_ids = self.grid.get_tile_ids()
-        pool: PoolType = Pool(processes=CORES)
+        pool: PoolType = Pool(processes=SETTINGS.cores)
         tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
@@ -59,7 +59,7 @@ class RasterPipe(Pipe):
         return tiles, skipped_tiles, failed_tiles
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=SETTINGS.cores)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """Only process tiles which intersect with source raster."""
         for tile in tiles:

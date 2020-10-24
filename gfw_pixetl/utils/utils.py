@@ -3,11 +3,11 @@ import multiprocessing
 import os
 from typing import NamedTuple, Optional, Tuple
 
-import psutil
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.settings.globals import SETTINGS
 
 LOGGER = get_module_logger(__name__)
 
@@ -75,17 +75,17 @@ def get_workers() -> int:
     return WORKERS
 
 
-def set_available_memory() -> int:
-    global AVAILABLE_MEMORY
-    if not AVAILABLE_MEMORY:
-        AVAILABLE_MEMORY = psutil.virtual_memory()[1]
-        LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
-    return AVAILABLE_MEMORY  # type: ignore
+# def set_available_memory() -> int:
+#     global AVAILABLE_MEMORY
+#     if not AVAILABLE_MEMORY:
+#         AVAILABLE_MEMORY = psutil.virtual_memory()[1]
+#         LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
+#     return AVAILABLE_MEMORY  # type: ignore
 
 
 def available_memory_per_process() -> float:
     """Snapshot of currently available memory per core or process."""
-    return set_available_memory() / get_workers()
+    return SETTINGS.max_mem * 1000 / get_workers()
 
 
 def snapped_window(window):

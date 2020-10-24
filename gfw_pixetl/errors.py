@@ -3,10 +3,7 @@ import os
 from rasterio import RasterioIOError
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.settings.globals import (
-    GCS_KEY_SECRET_ARN,
-    GOOGLE_APPLICATION_CREDENTIALS,
-)
+from gfw_pixetl.settings.globals import SETTINGS
 from gfw_pixetl.utils.aws import get_secret_client
 
 LOGGER = get_module_logger(__name__)
@@ -74,21 +71,23 @@ def retry_if_missing_gcs_key_error(exception) -> bool:
     is_missing_gcs_key_error: bool = isinstance(exception, MissingGCSKeyError)
     if (
         is_missing_gcs_key_error
-        and GOOGLE_APPLICATION_CREDENTIALS
-        and GCS_KEY_SECRET_ARN
+        and SETTINGS.google_application_credentials
+        and SETTINGS.gcs_key_secret_arn
     ):
         LOGGER.debug("GCS key is missing. Try to fetch key from secret manager")
 
         client = get_secret_client()
-        response = client.get_secret_value(SecretId=GCS_KEY_SECRET_ARN)
-        os.makedirs(os.path.dirname(GOOGLE_APPLICATION_CREDENTIALS), exist_ok=True)
+        response = client.get_secret_value(SecretId=SETTINGS.gcs_key_secret_arn)
+        os.makedirs(
+            os.path.dirname(SETTINGS.google_application_credentials), exist_ok=True
+        )
 
         LOGGER.debug("Write GCS key to file")
-        with open(GOOGLE_APPLICATION_CREDENTIALS, "w") as f:
+        with open(SETTINGS.google_application_credentials, "w") as f:
             f.write(response["SecretString"])
 
     elif is_missing_gcs_key_error and (
-        not GOOGLE_APPLICATION_CREDENTIALS or not GCS_KEY_SECRET_ARN
+        not SETTINGS.google_application_credentials or not SETTINGS.gcs_key_secret_arn
     ):
         raise RuntimeError(
             "Both GOOGLE_APPLICATION_CREDENTIALS and GCS_KEY_SECRET_ARN variables must be set"

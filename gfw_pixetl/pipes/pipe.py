@@ -5,7 +5,7 @@ from parallelpipe import stage
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.settings.globals import CORES
+from gfw_pixetl.settings.globals import SETTINGS
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
 
@@ -70,14 +70,14 @@ class Pipe(ABC):
         ...
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=SETTINGS.cores)
     @abstractmethod
     def filter_src_tiles():
         """Override this method when implementing pipes."""
         ...
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=SETTINGS.cores)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """Apply filter in case user only want to process only a subset.
 
@@ -90,7 +90,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=SETTINGS.cores)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """Don't process tiles if they already exists in target location,
         unless overwrite is set to True."""
@@ -105,7 +105,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=SETTINGS.cores)
     def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Copy local file to geotiff format."""
         for tile in tiles:
@@ -114,7 +114,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=SETTINGS.cores)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Upload tile to target location."""
         for tile in tiles:
@@ -123,7 +123,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=SETTINGS.cores)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Delete local file."""
         for tile in tiles:

@@ -6,14 +6,14 @@ from unittest import mock
 from dateutil.tz import tzutc
 from pyproj import CRS
 
+from gfw_pixetl.settings.globals import SETTINGS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import _write_tile_list, create_vrt
 from gfw_pixetl.utils.path import get_aws_s3_endpoint
-from gfw_pixetl.utils.utils import (  # set_aws_credentials,
+from gfw_pixetl.utils.utils import (
     available_memory_per_process,
     get_bucket,
     get_workers,
-    set_available_memory,
     set_workers,
     world_bounds,
 )
@@ -97,10 +97,10 @@ def test_set_cwd():
     os.rmdir(new_dir)
 
 
-def test_set_available_memory():
-    mem = set_available_memory()
-    assert isinstance(mem, int)
-    assert mem == set_available_memory()
+# def test_set_available_memory():
+#     mem = set_available_memory()
+#     assert isinstance(mem, int)
+#     assert mem == set_available_memory()
 
 
 def test_set_workers():
@@ -119,12 +119,11 @@ def test_set_workers():
 
 
 def test_available_memory_per_process():
-    mem = set_available_memory()
     set_workers(1)
-    assert available_memory_per_process() == mem
+    assert available_memory_per_process() == SETTINGS.max_mem * 1000
 
     set_workers(2)
-    assert available_memory_per_process() == mem / 2
+    assert available_memory_per_process() == SETTINGS.max_mem * 1000 / 2
 
 
 def test__write_tile_list():
