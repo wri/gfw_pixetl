@@ -26,7 +26,7 @@ jobs:
     - name: Run codacy-coverage-reporter
       uses: codacy/codacy-coverage-reporter-action@master
       with:
-        project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        project-token: ${{ secrets.codacy_project_token }}
         coverage-reports: tests/cobertura.xml
     - name: Deploy production
       if: success() && contains(github.ref, 'master')

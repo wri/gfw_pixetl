@@ -8,6 +8,21 @@ import pydantic
 from pydantic import BaseSettings, Field
 
 
+def set_aws_s3_endpoint():
+    endpoint = os.environ.get("ENDPOINT_URL", None)
+    if endpoint:
+        o = urlparse(endpoint, allow_fragments=False)
+        if o.scheme and o.netloc:
+            result: Optional[str] = o.netloc
+        else:
+            result = o.path
+        os.environ["AWS_S3_ENDPOINT"] = result
+    else:
+        result = None
+
+    return result
+
+
 class Secret:
     """Holds a string value that should not be revealed in tracebacks etc.
 
@@ -61,22 +76,7 @@ class GdalEnv(EnvSettings):
     aws_https: Optional[str] = None
     aws_virtual_hosting: Optional[str] = None
     gdal_disable_readdir_on_open: Optional[str] = None
-    aws_s3_endpoint: Optional[str] = Field(None, env="ENDPOINT_URL")
-
-    @pydantic.validator("aws_s3_endpoint", pre=True, always=True)
-    def get_aws_s3_endpoint(cls, v):
-        if v:
-            o = urlparse(v, allow_fragments=False)
-            if o.scheme and o.netloc:
-                result: Optional[str] = o.netloc
-            else:
-                result = o.path
-        else:
-            result = None
-
-        os.environ["AWS_S3_ENDPOINT"] = result
-
-        return result or None
+    aws_s3_endpoint: Optional[str] = set_aws_s3_endpoint()
 
 
 SETTINGS = Settings()
