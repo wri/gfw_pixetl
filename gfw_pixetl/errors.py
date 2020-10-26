@@ -72,12 +72,12 @@ def retry_if_missing_gcs_key_error(exception) -> bool:
     if (
         is_missing_gcs_key_error
         and SETTINGS.google_application_credentials
-        and SETTINGS.gcs_key_secret_arn
+        and SETTINGS.aws_gcs_key_secret_arn
     ):
         LOGGER.debug("GCS key is missing. Try to fetch key from secret manager")
 
         client = get_secret_client()
-        response = client.get_secret_value(SecretId=SETTINGS.gcs_key_secret_arn)
+        response = client.get_secret_value(SecretId=SETTINGS.aws_gcs_key_secret_arn)
         os.makedirs(
             os.path.dirname(SETTINGS.google_application_credentials), exist_ok=True
         )
@@ -87,7 +87,8 @@ def retry_if_missing_gcs_key_error(exception) -> bool:
             f.write(response["SecretString"])
 
     elif is_missing_gcs_key_error and (
-        not SETTINGS.google_application_credentials or not SETTINGS.gcs_key_secret_arn
+        not SETTINGS.google_application_credentials
+        or not SETTINGS.aws_gcs_key_secret_arn
     ):
         raise RuntimeError(
             "Both GOOGLE_APPLICATION_CREDENTIALS and GCS_KEY_SECRET_ARN variables must be set"

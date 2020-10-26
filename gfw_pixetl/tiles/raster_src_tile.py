@@ -16,7 +16,7 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
-from gfw_pixetl.settings.globals import GDAL_ENV
+from gfw_pixetl.settings.globals import GDAL_ENV, Settings
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.gdal import create_vrt
@@ -97,7 +97,9 @@ class RasterSrcTile(Tile):
                     transform=transform,
                     width=width,
                     height=height,
-                    warp_mem_limit=int(utils.available_memory_per_process() / 1000),
+                    warp_mem_limit=int(
+                        utils.available_memory_per_process() / 1000
+                    ),  # Memory in MB
                     resampling=self.layer.resampling,
                 )
 
@@ -202,7 +204,7 @@ class RasterSrcTile(Tile):
             )
         return array
 
-    def _max_blocks(self, dst: DatasetWriter, divisor=8) -> int:
+    def _max_blocks(self, dst: DatasetWriter) -> int:
         """Calculate the maximum amount of blocks we can fit into memory,
         making sure that blocks can always fill a squared extent.
 
@@ -211,6 +213,8 @@ class RasterSrcTile(Tile):
         same time. Using a divisor of 8 leads to max memory usage of
         about 75%.
         """
+
+        divisor = Settings.divisor
 
         if self.layer.calc is not None:
 

@@ -84,8 +84,10 @@ def get_workers() -> int:
 
 
 def available_memory_per_process() -> float:
+    mem = SETTINGS.max_mem * 1000 / get_workers()  # Memory in bytes
     """Snapshot of currently available memory per core or process."""
-    return SETTINGS.max_mem * 1000 / get_workers()
+    LOGGER.info(f"Available memory per worker set to {mem}")
+    return mem
 
 
 def snapped_window(window):

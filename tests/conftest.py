@@ -44,7 +44,7 @@ with rasterio.open(TILE_3_PATH, "w", **profile) as dst:
 def copy_fixtures():
     # Upload file to mocked S3 bucket
     s3_client = boto3.client(
-        "s3", region_name=SETTINGS.aws_region, endpoint_url=SETTINGS.endpoint_url
+        "s3", region_name=SETTINGS.aws_region, endpoint_url=SETTINGS.aws_endpoint_url
     )
 
     s3_client.create_bucket(Bucket=BUCKET)

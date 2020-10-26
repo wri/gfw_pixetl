@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 import psutil
 import pydantic
-from pydantic import BaseSettings, Field
+from pydantic import BaseSettings, Field, PositiveInt
 
 
 def set_aws_s3_endpoint():
@@ -50,22 +50,71 @@ class EnvSettings(BaseSettings):
 
 
 class Settings(EnvSettings):
-    cores: int = multiprocessing.cpu_count()
-    max_mem: int = psutil.virtual_memory()[1] / 1000
-    db_username: Optional[str] = Field(None, env="PGUSER")
-    db_password: Optional[Secret] = Field(None, env="PGPASSWORD")
-    db_host: Optional[str] = Field(None, env="PGHOST")
-    db_port: Optional[int] = Field(None, env="PGPORT")
-    db_name: Optional[str] = Field(None, env="PGDATABASE")
-    aws_region: str = "us-east-1"
-    job_role_arn: Optional[str] = None
-    aws_https: Optional[str] = None
-    aws_virtual_hosting: Optional[bool] = None
-    gdal_disable_readdir_on_open: Optional[str] = None
-    endpoint_url: Optional[str] = None
-    aws_batch_job_id: Optional[str] = None
-    google_application_credentials: Optional[str] = None
-    gcs_key_secret_arn: Optional[str] = None
+    #####################
+    # Resource management
+    ######################
+    cores: PositiveInt = Field(
+        multiprocessing.cpu_count(), description="Max number of cores to use"
+    )
+    max_mem: PositiveInt = Field(
+        psutil.virtual_memory()[1] / 1000, description="Max memory available to pixETL"
+    )
+    divisor: PositiveInt = Field(
+        4,
+        description="Fraction of memory per worker to use to compute maximum block size."
+        "(ie 4 => size =  25% of available memory)",
+    )
+
+    ########################
+    # PostgreSQL authentication
+    ########################
+    db_username: Optional[str] = Field(
+        None, env="PGUSER", description="PostgreSQL user name"
+    )
+    db_password: Optional[Secret] = Field(
+        None, env="PGPASSWORD", description="PostgreSQL password"
+    )
+    db_host: Optional[str] = Field(None, env="PGHOST", description="PostgreSQL host")
+    db_port: Optional[int] = Field(None, env="PGPORT", description="PostgreSQL port")
+    db_name: Optional[str] = Field(
+        None, env="PGDATABASE", description="PostgreSQL database name"
+    )
+
+    #######################
+    # Google authentication
+    #######################
+    google_application_credentials: Optional[str] = Field(
+        None, description="Path to Google application credential file"
+    )
+
+    ######################
+    # AWS configuration
+    ######################
+    aws_region: str = Field("us-east-1", description="AWS region")
+    aws_batch_job_id: Optional[str] = Field(None, description="AWS Batch job ID")
+    aws_job_role_arn: Optional[str] = Field(
+        None,
+        description="ARN of the AWS IAM role which runs the batch job on docker host",
+    )
+    aws_gcs_key_secret_arn: Optional[str] = Field(
+        None, description="ARN of AWS Secret which holds GCS key"
+    )
+    aws_https: Optional[str] = Field(
+        None, description="Use HTTPS to connect to AWS (required for Moto)"
+    )
+    aws_virtual_hosting: Optional[bool] = Field(
+        None, description="Use AWS Virtutal hosting (required for Moto)"
+    )
+    aws_endpoint_url: Optional[str] = Field(
+        None, description="Endpoint URL for AWS S3 Server (required for Moto)"
+    )
+
+    #######################
+    # GDAL configuration
+    #######################
+    gdal_disable_readdir_on_open: Optional[str] = Field(
+        None, description="Disable read dir on open for GDAL (required for Moto)"
+    )
 
     @pydantic.validator("db_password", pre=True, always=True)
     def hide_password(cls, v):
