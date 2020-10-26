@@ -22,12 +22,12 @@ services:
       - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
       - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret
       - AWS_SESSION_TOKEN=testing  # pragma: allowlist secret
-      - ENDPOINT_URL=http://motoserver:5000
+      - AWS_ENDPOINT_URL=http://motoserver:5000
       - AWS_HTTPS=NO
       - AWS_VIRTUAL_HOSTING=FALSE
       - GDAL_DISABLE_READDIR_ON_OPEN=YES
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
-      - GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
+      - AWS_GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
     working_dir: /tmp
     entrypoint: /usr/local/app/wait_for_postgres.sh pytest -vv --cov-report term --cov-report xml:/usr/local/app/tests/cobertura.xml --cov=gfw_pixetl
     depends_on:

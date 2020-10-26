@@ -9,7 +9,7 @@ from pydantic import BaseSettings, Field, PositiveInt
 
 
 def set_aws_s3_endpoint():
-    endpoint = os.environ.get("ENDPOINT_URL", None)
+    endpoint = os.environ.get("AWS_ENDPOINT_URL", None)
     if endpoint:
         o = urlparse(endpoint, allow_fragments=False)
         if o.scheme and o.netloc:
