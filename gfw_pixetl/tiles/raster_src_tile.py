@@ -164,14 +164,14 @@ class RasterSrcTile(Tile):
         """Divides raster source into larger windows which will still fit into
         memory."""
 
-        max_blocks: int = int(sqrt(self._max_blocks(dst)))
+        block_count: int = int(sqrt(self._max_blocks(dst)))
         x_blocks: int = int(dst.width / dst.block_shapes[0][0])
         y_blocks: int = int(dst.height / dst.block_shapes[0][1])
 
-        for i in range(0, x_blocks, max_blocks):
-            for j in range(0, y_blocks, max_blocks):
-                max_i = min(i + max_blocks, x_blocks)
-                max_j = min(j + max_blocks, y_blocks)
+        for i in range(0, x_blocks, block_count):
+            for j in range(0, y_blocks, block_count):
+                max_i = min(i + block_count, x_blocks)
+                max_j = min(j + block_count, y_blocks)
                 window = self._union_blocks(dst, i, j, max_i, max_j)
                 try:
                     yield utils.snapped_window(
@@ -224,15 +224,23 @@ class RasterSrcTile(Tile):
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
         max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_block = utils.available_memory_per_process() / divisor
-        return floor(sqrt(memory_per_block / max_bytes_per_block)) ** 2
+        memory_per_process = utils.available_memory_per_process() / divisor
+
+        # make sure we get an number we whose sqrt is a whole number
+        max_blocks = floor(sqrt(memory_per_process / max_bytes_per_block)) ** 2
+
+        LOGGER.debug(f"Maximum number of blocks to read at once: {max_blocks}")
+        return max_blocks
 
     def _max_block_size(self, dst: DatasetWriter) -> float:
         """Depending on projections, # of input pixels for output block can
-        vary Here we take the corner blocks of the output tile and compare the
-        pixel count with the pixel count in input tile, covered by each block
-        extent We return the largest amount of pixels which are possibly
-        covered by one block."""
+        vary.
+
+        Here we take the corner blocks of the output tile and compare
+        the pixel count with the pixel count in input tile, covered by
+        each block extent We return the largest amount of pixels which
+        are possibly covered by one block.
+        """
         width: float = dst.width
         height: float = dst.height
         blockxsize: int = self.dst[self.default_format].blockxsize
