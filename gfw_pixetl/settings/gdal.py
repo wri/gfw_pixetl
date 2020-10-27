@@ -26,6 +26,10 @@ class GdalEnv(EnvSettings):
     aws_virtual_hosting: Optional[str] = None
     gdal_disable_readdir_on_open: Optional[str] = None
     aws_s3_endpoint: Optional[str] = set_aws_s3_endpoint()
+    vsi_cache: str = "YES"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
+    gdal_http_max_retry: int = 4
+    gdal_http_retry_delay: int = 10
+    aws_request_payer: str = "requester"
 
 
 GDAL_ENV = GdalEnv().env_dict()

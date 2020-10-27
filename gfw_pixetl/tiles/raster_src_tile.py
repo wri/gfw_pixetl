@@ -85,8 +85,11 @@ class RasterSrcTile(Tile):
         has_data = False
 
         try:
+            chunk_size = (self._block_byte_size() * self._max_blocks(),)
             with rasterio.Env(
-                GDAL_CACHEMAX=utils.available_memory_per_process_bytes(), **GDAL_ENV
+                VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
+                CPL_VSIL_CURL_CHUNK_SIZE=chunk_size,  # Chunk size for partial downloads
+                **GDAL_ENV,
             ):
                 src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
@@ -164,7 +167,7 @@ class RasterSrcTile(Tile):
         """Divides raster source into larger windows which will still fit into
         memory."""
 
-        block_count: int = int(sqrt(self._max_blocks(dst)))
+        block_count: int = int(sqrt(self._max_blocks()))
         x_blocks: int = int(dst.width / dst.block_shapes[0][0])
         y_blocks: int = int(dst.height / dst.block_shapes[0][1])
 
@@ -204,7 +207,7 @@ class RasterSrcTile(Tile):
             )
         return array
 
-    def _max_blocks(self, dst: DatasetWriter) -> int:
+    def _max_blocks(self) -> int:
         """Calculate the maximum amount of blocks we can fit into memory,
         making sure that blocks can always fill a squared extent.
 
@@ -217,12 +220,21 @@ class RasterSrcTile(Tile):
         divisor = GLOBALS.divisor
 
         if self.layer.calc is not None:
-
             divisor = (
                 divisor ** 2
             )  # further reduce block size in case we need to perform additional computations
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
+        bytes_per_block: int = self._block_byte_size()
+        memory_per_process: float = utils.available_memory_per_process_bytes() / divisor
+
+        # make sure we get an number we whose sqrt is a whole number
+        max_blocks: int = floor(sqrt(memory_per_process / bytes_per_block)) ** 2
+
+        LOGGER.debug(f"Maximum number of blocks to read at once: {max_blocks}")
+        return max_blocks
+
+    def _block_byte_size(self):
         # max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
         block_size: int = (
             self.dst[self.default_format].blockxsize
@@ -233,53 +245,48 @@ class RasterSrcTile(Tile):
         item_size: int = np.zeros(1, dtype=self.dst[self.default_format].dtype).itemsize
         LOGGER.debug(f"Item Size: {item_size}")
 
-        max_bytes_per_block: int = block_size * item_size
-        memory_per_process: float = utils.available_memory_per_process_bytes() / divisor
+        bytes_per_block: int = block_size * item_size
+        return bytes_per_block
 
-        # make sure we get an number we whose sqrt is a whole number
-        max_blocks: int = floor(sqrt(memory_per_process / max_bytes_per_block)) ** 2
-
-        LOGGER.debug(f"Maximum number of blocks to read at once: {max_blocks}")
-        return max_blocks
-
-    def _max_block_size(self, dst: DatasetWriter) -> float:
-        """Depending on projections, # of input pixels for output block can
-        vary.
-
-        Here we take the corner blocks of the output tile and compare
-        the pixel count with the pixel count in input tile, covered by
-        each block extent We return the largest amount of pixels which
-        are possibly covered by one block.
-        """
-        width: float = dst.width
-        height: float = dst.height
-        blockxsize: int = self.dst[self.default_format].blockxsize
-        blockysize: int = self.dst[self.default_format].blockysize
-
-        ul: Window = dst.block_window(1, 0, 0)
-        ur: Window = dst.block_window(1, 0, width / blockxsize - 1)
-        ll: Window = dst.block_window(1, height / blockysize - 1, 0)
-        lr: Window = dst.block_window(
-            1, height / blockysize - 1, width / blockxsize - 1
-        )
-
-        dst_windows: List[Window] = [ul, ur, ll, lr]
-        src_windows: List[Window] = [self._reproject_dst_window(w) for w in dst_windows]
-
-        max_block_size = max([w.width * w.height for w in dst_windows + src_windows])
-        LOGGER.debug(f"Max block size for tile {self.tile_id} set to {max_block_size}")
-
-        return max_block_size
-
-    def _max_itemsize(self) -> int:
-        """Check how many bytes one pixel of the largest datatype used will
-        require."""
-        src_itemsize: int = np.zeros(1, dtype=self.src.dtype).itemsize
-        dst_itemsize: int = np.zeros(
-            1, dtype=self.dst[self.default_format].dtype
-        ).itemsize
-
-        return max(src_itemsize, dst_itemsize)
+    #
+    # def _max_block_size(self, dst: DatasetWriter) -> float:
+    #     """Depending on projections, # of input pixels for output block can
+    #     vary.
+    #
+    #     Here we take the corner blocks of the output tile and compare
+    #     the pixel count with the pixel count in input tile, covered by
+    #     each block extent We return the largest amount of pixels which
+    #     are possibly covered by one block.
+    #     """
+    #     width: float = dst.width
+    #     height: float = dst.height
+    #     blockxsize: int = self.dst[self.default_format].blockxsize
+    #     blockysize: int = self.dst[self.default_format].blockysize
+    #
+    #     ul: Window = dst.block_window(1, 0, 0)
+    #     ur: Window = dst.block_window(1, 0, width / blockxsize - 1)
+    #     ll: Window = dst.block_window(1, height / blockysize - 1, 0)
+    #     lr: Window = dst.block_window(
+    #         1, height / blockysize - 1, width / blockxsize - 1
+    #     )
+    #
+    #     dst_windows: List[Window] = [ul, ur, ll, lr]
+    #     src_windows: List[Window] = [self._reproject_dst_window(w) for w in dst_windows]
+    #
+    #     max_block_size = max([w.width * w.height for w in dst_windows + src_windows])
+    #     LOGGER.debug(f"Max block size for tile {self.tile_id} set to {max_block_size}")
+    #
+    #     return max_block_size
+    #
+    # def _max_itemsize(self) -> int:
+    #     """Check how many bytes one pixel of the largest datatype used will
+    #     require."""
+    #     src_itemsize: int = np.zeros(1, dtype=self.src.dtype).itemsize
+    #     dst_itemsize: int = np.zeros(
+    #         1, dtype=self.dst[self.default_format].dtype
+    #     ).itemsize
+    #
+    #     return max(src_itemsize, dst_itemsize)
 
     @retry(
         retry_on_exception=retry_if_rasterio_io_error,
