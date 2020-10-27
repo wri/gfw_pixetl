@@ -1,4 +1,4 @@
-FROM osgeo/gdal:ubuntu-small-3.1.2
+FROM osgeo/gdal:ubuntu-small-3.1.3
 
 ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8

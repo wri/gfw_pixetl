@@ -1,9 +1,8 @@
 from gfw_pixetl.utils.utils import (
-    available_memory_per_process,
+    available_memory_per_process_bytes,
+    available_memory_per_process_mb,
     get_bucket,
     get_module_logger,
-    get_workers,
-    set_workers,
     snapped_window,
     world_bounds,
 )

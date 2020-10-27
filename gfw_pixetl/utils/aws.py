@@ -2,7 +2,7 @@ from typing import Optional
 
 import boto3
 
-from gfw_pixetl.settings.globals import SETTINGS
+from gfw_pixetl.settings import GLOBALS
 
 
 def client_constructor(service: str, endpoint_url: Optional[str] = None):
@@ -15,14 +15,14 @@ def client_constructor(service: str, endpoint_url: Optional[str] = None):
         nonlocal service_client
         if service_client is None:
             service_client = boto3.client(
-                service, region_name=SETTINGS.aws_region, endpoint_url=endpoint_url
+                service, region_name=GLOBALS.aws_region, endpoint_url=endpoint_url
             )
         return service_client
 
     return client
 
 
-get_s3_client = client_constructor("s3", endpoint_url=SETTINGS.aws_endpoint_url)
+get_s3_client = client_constructor("s3", endpoint_url=GLOBALS.aws_endpoint_url)
 get_batch_client = client_constructor("batch")
 get_sts_client = client_constructor("sts")
 get_secret_client = client_constructor("secretsmanager")

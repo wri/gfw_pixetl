@@ -6,15 +6,14 @@ from unittest import mock
 from dateutil.tz import tzutc
 from pyproj import CRS
 
-from gfw_pixetl.settings.globals import SETTINGS
+from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import _write_tile_list, create_vrt
 from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.utils import (
-    available_memory_per_process,
+    available_memory_per_process_bytes,
+    available_memory_per_process_mb,
     get_bucket,
-    get_workers,
-    set_workers,
     world_bounds,
 )
 
@@ -104,26 +103,28 @@ def test_set_cwd():
 
 
 def test_set_workers():
-    cores = multiprocessing.cpu_count()
-    set_workers(cores)
-    assert get_workers() == cores
+    cores = GLOBALS.cores
+    GLOBALS.workers = cores
+    assert GLOBALS.workers == cores
 
-    set_workers(cores + 1)
-    assert get_workers() == cores
+    GLOBALS.workers = cores + 1
+    assert GLOBALS.workers == cores
 
-    set_workers(cores - 1)
+    GLOBALS.workers = cores - 1
     if cores == 1:
-        assert get_workers() == 1
+        assert GLOBALS.workers == 1
     else:
-        assert get_workers() == cores - 1
+        assert GLOBALS.workers == cores - 1
 
 
 def test_available_memory_per_process():
-    set_workers(1)
-    assert available_memory_per_process() == SETTINGS.max_mem * 1000
+    GLOBALS.workers = 1
+    assert available_memory_per_process_bytes() == GLOBALS.max_mem * 1000000
+    assert available_memory_per_process_mb() == GLOBALS.max_mem
 
-    set_workers(2)
-    assert available_memory_per_process() == SETTINGS.max_mem * 1000 / 2
+    GLOBALS.workers = 2
+    assert available_memory_per_process_bytes() == GLOBALS.max_mem * 1000000 / 2
+    assert available_memory_per_process_mb() == GLOBALS.max_mem / 2
 
 
 def test__write_tile_list():

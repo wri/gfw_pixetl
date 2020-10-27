@@ -6,15 +6,15 @@ from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready
-from gfw_pixetl.settings.globals import SETTINGS
+from gfw_pixetl.settings import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 
 
 def set_cwd() -> str:
-    if SETTINGS.aws_batch_job_id:
+    if GLOBALS.aws_batch_job_id:
         check_volume_ready()
-        cwd: str = SETTINGS.aws_batch_job_id
+        cwd: str = GLOBALS.aws_batch_job_id
     else:
         cwd = str(uuid.uuid4())
 

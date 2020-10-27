@@ -7,11 +7,10 @@ from parallelpipe import stage
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.pipes import Pipe
-from gfw_pixetl.settings.globals import SETTINGS
+from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.tiles import Tile, VectorSrcTile
 
 LOGGER = get_module_logger(__name__)
-WORKERS = utils.get_workers()
 
 
 class VectorPipe(Pipe):
@@ -40,7 +39,7 @@ class VectorPipe(Pipe):
         duplicated grid cells.
         """
         tile_ids = self.grid.get_tile_ids()
-        pool: PoolType = Pool(processes=SETTINGS.cores)
+        pool: PoolType = Pool(processes=GLOBALS.cores)
         tiles: Set[VectorSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
@@ -53,7 +52,7 @@ class VectorPipe(Pipe):
         return VectorSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
     @staticmethod
-    @stage(workers=WORKERS)
+    @stage(workers=GLOBALS.workers)
     def filter_src_tiles(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """Only include tiles which intersect which input vector extent."""
         for tile in tiles:
@@ -62,7 +61,7 @@ class VectorPipe(Pipe):
             yield tile
 
     @staticmethod
-    @stage(workers=WORKERS)
+    @stage(workers=GLOBALS.workers)
     def rasterize(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """Convert vector source to raster tiles."""
         for tile in tiles:

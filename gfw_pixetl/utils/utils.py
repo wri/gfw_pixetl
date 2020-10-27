@@ -1,5 +1,4 @@
 import datetime
-import multiprocessing
 import os
 from typing import NamedTuple, Optional, Tuple
 
@@ -7,7 +6,7 @@ from pyproj import CRS, Transformer
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.settings.globals import SETTINGS
+from gfw_pixetl.settings import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 
@@ -61,18 +60,19 @@ def get_bucket(env: Optional[str] = None) -> str:
     return bucket
 
 
-def set_workers(workers: int) -> int:
-    """Set environment variable with number of workers Cannot exceed number of
-    cores and must be at least one."""
-    global WORKERS
-    WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
-    LOGGER.info(f"Set workers to {WORKERS}")
-    return WORKERS
-
-
-def get_workers() -> int:
-    """Return number of workers for parallel jobs."""
-    return WORKERS
+#
+# def set_workers(workers: int) -> int:
+#     """Set environment variable with number of workers Cannot exceed number of
+#     cores and must be at least one."""
+#     global WORKERS
+#     WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
+#     LOGGER.info(f"Set workers to {WORKERS}")
+#     return WORKERS
+#
+#
+# def get_workers() -> int:
+#     """Return number of workers for parallel jobs."""
+#     return WORKERS
 
 
 # def set_available_memory() -> int:
@@ -83,8 +83,12 @@ def get_workers() -> int:
 #     return AVAILABLE_MEMORY  # type: ignore
 
 
-def available_memory_per_process() -> float:
-    mem = SETTINGS.max_mem * 1000 / get_workers()  # Memory in bytes
+def available_memory_per_process_bytes() -> float:
+    return available_memory_per_process_mb() * 1000000
+
+
+def available_memory_per_process_mb() -> float:
+    mem = GLOBALS.max_mem / GLOBALS.workers  # Memory in bytes
     """Snapshot of currently available memory per core or process."""
     LOGGER.info(f"Available memory per worker set to {mem}")
     return mem

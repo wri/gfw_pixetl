@@ -3,14 +3,13 @@ from typing import Iterator, List, Optional, Set, Tuple
 
 from parallelpipe import stage
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.settings.globals import SETTINGS
+from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
 
 LOGGER = get_module_logger(__name__)
-WORKERS = utils.get_workers()
 
 
 class Pipe(ABC):
@@ -70,14 +69,14 @@ class Pipe(ABC):
         ...
 
     @staticmethod
-    @stage(workers=SETTINGS.cores)
+    @stage(workers=GLOBALS.cores)
     @abstractmethod
     def filter_src_tiles():
         """Override this method when implementing pipes."""
         ...
 
     @staticmethod
-    @stage(workers=SETTINGS.cores)
+    @stage(workers=GLOBALS.cores)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """Apply filter in case user only want to process only a subset.
 
@@ -90,7 +89,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=SETTINGS.cores)
+    @stage(workers=GLOBALS.cores)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """Don't process tiles if they already exists in target location,
         unless overwrite is set to True."""
@@ -105,7 +104,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=SETTINGS.cores)
+    @stage(workers=GLOBALS.cores)
     def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Copy local file to geotiff format."""
         for tile in tiles:
@@ -114,7 +113,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=SETTINGS.cores)
+    @stage(workers=GLOBALS.cores)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Upload tile to target location."""
         for tile in tiles:
@@ -123,7 +122,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=SETTINGS.cores)
+    @stage(workers=GLOBALS.cores)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Delete local file."""
         for tile in tiles:

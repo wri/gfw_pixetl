@@ -9,7 +9,7 @@ from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.grids import Grid
-from gfw_pixetl.settings.globals import SETTINGS
+from gfw_pixetl.settings import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 
@@ -131,7 +131,7 @@ class LatLngGrid(Grid):
         x_y: List[Tuple[int, int]] = list(itertools.product(x, y))
 
         # Get all grid ids using top left corners
-        pool: PoolType = Pool(processes=SETTINGS.cores)
+        pool: PoolType = Pool(processes=GLOBALS.cores)
         tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
 
         return tile_ids

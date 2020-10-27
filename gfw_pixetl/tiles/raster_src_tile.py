@@ -16,7 +16,7 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
-from gfw_pixetl.settings.globals import GDAL_ENV, SETTINGS
+from gfw_pixetl.settings import GDAL_ENV, GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.gdal import create_vrt
@@ -85,7 +85,9 @@ class RasterSrcTile(Tile):
         has_data = False
 
         try:
-            with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, **GDAL_ENV):
+            with rasterio.Env(
+                GDAL_CACHEMAX=utils.available_memory_per_process_bytes(), **GDAL_ENV
+            ):
                 src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
                 transform, width, height = self._vrt_transform(
@@ -97,9 +99,7 @@ class RasterSrcTile(Tile):
                     transform=transform,
                     width=width,
                     height=height,
-                    warp_mem_limit=int(
-                        utils.available_memory_per_process() / 1000
-                    ),  # Memory in MB
+                    warp_mem_limit=utils.available_memory_per_process_mb(),
                     resampling=self.layer.resampling,
                 )
 
@@ -214,7 +214,7 @@ class RasterSrcTile(Tile):
         about 75%.
         """
 
-        divisor = SETTINGS.divisor
+        divisor = GLOBALS.divisor
 
         if self.layer.calc is not None:
 
@@ -228,10 +228,13 @@ class RasterSrcTile(Tile):
             self.dst[self.default_format].blockxsize
             * self.dst[self.default_format].blockysize
         )
+        LOGGER.debug(f"Block Size: {block_size}")
+
         item_size: int = np.zeros(1, dtype=self.dst[self.default_format].dtype).itemsize
+        LOGGER.debug(f"Item Size: {item_size}")
 
         max_bytes_per_block: int = block_size * item_size
-        memory_per_process: float = utils.available_memory_per_process() / divisor
+        memory_per_process: float = utils.available_memory_per_process_bytes() / divisor
 
         # make sure we get an number we whose sqrt is a whole number
         max_blocks: int = floor(sqrt(memory_per_process / max_bytes_per_block)) ** 2

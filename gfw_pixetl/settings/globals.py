@@ -1,26 +1,14 @@
 import multiprocessing
-import os
 from typing import Optional
-from urllib.parse import urlparse
 
 import psutil
 import pydantic
-from pydantic import BaseSettings, Field, PositiveInt
+from pydantic import Field, PositiveInt
 
+from gfw_pixetl import get_module_logger
+from gfw_pixetl.settings.models import EnvSettings
 
-def set_aws_s3_endpoint():
-    endpoint = os.environ.get("AWS_ENDPOINT_URL", None)
-    if endpoint:
-        o = urlparse(endpoint, allow_fragments=False)
-        if o.scheme and o.netloc:
-            result: Optional[str] = o.netloc
-        else:
-            result = o.path
-        os.environ["AWS_S3_ENDPOINT"] = result
-    else:
-        result = None
-
-    return result
+LOGGER = get_module_logger(__name__)
 
 
 class Secret:
@@ -40,16 +28,7 @@ class Secret:
         return self._value
 
 
-class EnvSettings(BaseSettings):
-    def env_dict(self):
-        env = self.dict(exclude_none=True, exclude_unset=True)
-        return {key.upper(): value for key, value in env.items()}
-
-    class Config:
-        case_sensitive = False
-
-
-class Settings(EnvSettings):
+class Globals(EnvSettings):
     #####################
     # Resource management
     ######################
@@ -57,12 +36,16 @@ class Settings(EnvSettings):
         multiprocessing.cpu_count(), description="Max number of cores to use"
     )
     max_mem: PositiveInt = Field(
-        psutil.virtual_memory()[1] / 1000, description="Max memory available to pixETL"
+        psutil.virtual_memory()[1] / 1000000,
+        description="Max memory available to pixETL",
     )
     divisor: PositiveInt = Field(
         4,
         description="Fraction of memory per worker to use to compute maximum block size."
         "(ie 4 => size =  25% of available memory)",
+    )
+    workers: PositiveInt = Field(
+        1, description="Number of workers to use to execute job."
     )
 
     ########################
@@ -99,34 +82,20 @@ class Settings(EnvSettings):
     aws_gcs_key_secret_arn: Optional[str] = Field(
         None, description="ARN of AWS Secret which holds GCS key"
     )
-    aws_https: Optional[str] = Field(
-        None, description="Use HTTPS to connect to AWS (required for Moto)"
-    )
-    aws_virtual_hosting: Optional[bool] = Field(
-        None, description="Use AWS Virtutal hosting (required for Moto)"
-    )
+
     aws_endpoint_url: Optional[str] = Field(
         None, description="Endpoint URL for AWS S3 Server (required for Moto)"
-    )
-
-    #######################
-    # GDAL configuration
-    #######################
-    gdal_disable_readdir_on_open: Optional[str] = Field(
-        None, description="Disable read dir on open for GDAL (required for Moto)"
     )
 
     @pydantic.validator("db_password", pre=True, always=True)
     def hide_password(cls, v):
         return Secret(v) or None
 
+    @pydantic.validator("workers", pre=True, always=True)
+    def set_workers(cls, v, *, values, **kwargs):
+        workers = max(min(values["cores"], v), 1)
+        LOGGER.info(f"Set workers to {workers}")
+        return workers
 
-class GdalEnv(EnvSettings):
-    aws_https: Optional[str] = None
-    aws_virtual_hosting: Optional[str] = None
-    gdal_disable_readdir_on_open: Optional[str] = None
-    aws_s3_endpoint: Optional[str] = set_aws_s3_endpoint()
 
-
-SETTINGS = Settings()
-GDAL_ENV = GdalEnv().env_dict()
+GLOBALS = Globals()
