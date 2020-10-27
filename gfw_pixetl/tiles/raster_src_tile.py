@@ -223,11 +223,18 @@ class RasterSrcTile(Tile):
             )  # further reduce block size in case we need to perform additional computations
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
-        max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        memory_per_process = utils.available_memory_per_process() / divisor
+        # max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
+        block_size: int = (
+            self.dst[self.default_format].blockxsize
+            * self.dst[self.default_format].blockysize
+        )
+        item_size: int = np.zeros(1, dtype=self.dst[self.default_format].dtype).itemsize
+
+        max_bytes_per_block: int = block_size * item_size
+        memory_per_process: float = utils.available_memory_per_process() / divisor
 
         # make sure we get an number we whose sqrt is a whole number
-        max_blocks = floor(sqrt(memory_per_process / max_bytes_per_block)) ** 2
+        max_blocks: int = floor(sqrt(memory_per_process / max_bytes_per_block)) ** 2
 
         LOGGER.debug(f"Maximum number of blocks to read at once: {max_blocks}")
         return max_blocks
@@ -279,11 +286,15 @@ class RasterSrcTile(Tile):
     )  # Wait 2^x * 1000 ms between retries by to 300 sec, then 300 sec afterwards.
     def _read_window(self, vrt: WarpedVRT, dst_window: Window) -> MaskedArray:
         """Read window of input raster."""
-        window = vrt.window(
-            *bounds(dst_window, self.dst[self.default_format].transform)
+        dst_bounds: Bounds = bounds(dst_window, self.dst[self.default_format].transform)
+        window = vrt.window(*dst_bounds)
+
+        src_bounds = transform_bounds(
+            self.dst[self.default_format].crs, self.src.crs, *dst_bounds
         )
+
         LOGGER.debug(
-            f"Read {dst_window} for Tile {self.tile_id} - this corresponds to {window} in source"
+            f"Read {dst_window} for Tile {self.tile_id} - this corresponds to bounds {src_bounds} in source"
         )
         try:
             return vrt.read(
