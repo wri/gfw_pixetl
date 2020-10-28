@@ -321,6 +321,9 @@ class RasterSrcTile(Tile):
         """
 
         divisor = GLOBALS.divisor
+        co_workers = floor(GLOBALS.cores / GLOBALS.workers)
+        if co_workers >= 2:
+            divisor = divisor * co_workers
 
         if self.layer.calc is not None:
             divisor = (
