@@ -146,13 +146,17 @@ class RasterSrcTile(Tile):
             pool: PoolType = Pool(processes=co_workers)
             out_files: List[str] = pool.map(self._parallel_transform, self.windows())
             if out_files:
+                tmp_dir = os.path.join(
+                    os.path.dirname(self.local_dst[self.default_format].uri), "tmp"
+                )
+                vrt = os.path.join(tmp_dir, f"{self.tile_id}.vrt")
                 create_vrt(
                     out_files,
-                    vrt=f"tmp/{self.tile_id}.vrt",
-                    tile_list=f"tmp/{self.tile_id}.txt",
+                    vrt=vrt,
+                    tile_list=os.path.join(tmp_dir, f"{self.tile_id}.txt"),
                 )
                 raster_copy(
-                    f"tmp/{self.tile_id}.vrt",
+                    vrt,
                     self.local_dst[self.default_format].uri,
                     strict=False,
                     **self.dst[self.default_format].profile,
@@ -210,7 +214,7 @@ class RasterSrcTile(Tile):
             resampling=self.layer.resampling,
         )
 
-        out_data: Optional[str] = self._transform(vrt, window)
+        out_data: Optional[str] = self._transform(vrt, window, True)
 
         vrt.close()
         src.close()
@@ -320,15 +324,17 @@ class RasterSrcTile(Tile):
         about 75%.
         """
 
+        # Decrease block size, in case we have co-workers.
+        # This way we can process more blocks in parallel.
         divisor = GLOBALS.divisor
         co_workers = floor(GLOBALS.cores / GLOBALS.workers)
         if co_workers >= 2:
             divisor = divisor * co_workers
 
+        # further reduce block size in case we need to perform additional computations
         if self.layer.calc is not None:
-            divisor = (
-                divisor ** 2
-            )  # further reduce block size in case we need to perform additional computations
+            divisor = divisor ** 2
+
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
         bytes_per_block: int = self._block_byte_size()
