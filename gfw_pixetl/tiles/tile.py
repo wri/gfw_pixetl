@@ -93,7 +93,7 @@ class Tile(ABC):
 
         self.tmp_dir = os.path.join(layer.prefix, "tmp")
         try:
-            os.makedirs("my_folder")
+            os.makedirs(self.tmp_dir)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
