@@ -177,13 +177,13 @@ def test__snap_coordinates():
 
     lat = 9.777
     lng = 10.111
-    top, left = tile._snap_coordinates(lat, lng)
+    top, left = tile.grid.snap_coordinates(lat, lng)
     assert isclose(top, lat)
     assert isclose(left, lng)
 
     lat = 9.7777
     lng = 10.1117
-    top, left = tile._snap_coordinates(lat, lng)
+    top, left = tile.grid.snap_coordinates(lat, lng)
     assert isclose(top, 9.77775)
     assert isclose(left, 10.1115)
 

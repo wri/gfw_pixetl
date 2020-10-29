@@ -90,6 +90,10 @@ class Tile(ABC):
             ),
         }
 
+        self.tmp_dir = os.path.join(layer.prefix, "tmp")
+        if not os.path.exists(self.tmp_dir):
+            os.makedirs(self.tmp_dir)
+
         self.default_format = "geotiff"
         self.status = "pending"
 

@@ -1,11 +1,9 @@
-import math
 import os
 from copy import deepcopy
 from math import floor, sqrt
 from multiprocessing import Pool
 from multiprocessing.pool import Pool as PoolType
-from pathlib import Path
-from typing import Generator, Iterator, List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
 
 import numpy as np
 import rasterio
@@ -87,35 +85,8 @@ class RasterSrcTile(Tile):
         """Write input data to output tile."""
         LOGGER.info(f"Transform tile {self.tile_id}")
 
-        window: Window
-        has_data = False
-
         try:
-            chunk_size = (self._block_byte_size() * self._max_blocks(),)
-            with rasterio.Env(
-                VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
-                CPL_VSIL_CURL_CHUNK_SIZE=chunk_size,  # Chunk size for partial downloads
-                **GDAL_ENV,
-            ):
-                src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
-
-                transform, width, height = self._vrt_transform(
-                    *self.src.reproject_bounds(self.grid.crs)
-                )
-                vrt: WarpedVRT = WarpedVRT(
-                    src,
-                    crs=self.dst[self.default_format].crs,
-                    transform=transform,
-                    width=width,
-                    height=height,
-                    warp_mem_limit=utils.available_memory_per_process_mb(),
-                    resampling=self.layer.resampling,
-                )
-
-                has_data = self._process_windows(vrt)
-
-                vrt.close()
-                src.close()
+            has_data = self._process_windows()
 
         except Exception as e:
             LOGGER.exception(e)
@@ -130,45 +101,13 @@ class RasterSrcTile(Tile):
 
         return has_data
 
-    def _process_windows(self, vrt) -> bool:
-
-        has_data: bool = False
-
-        # in case we have more workers than cores we can further subdivide the read process
-        # In that case we will need to write the windows into separate files
-        # and merger them into one file at the end of the write process
-
-        co_workers: int = floor(GLOBALS.cores / GLOBALS.workers)
-        if co_workers >= 2:
-
-            LOGGER.info(f"Process tile {self.tile_id} with {co_workers} co_workers")
-
-            pool: PoolType = Pool(processes=co_workers)
-            out_files: List[str] = pool.map(self._parallel_transform, self.windows())
-            if out_files:
-                tmp_dir = os.path.join(
-                    os.path.dirname(self.local_dst[self.default_format].uri), "tmp"
-                )
-                vrt = os.path.join(tmp_dir, f"{self.tile_id}.vrt")
-                create_vrt(
-                    out_files,
-                    vrt=vrt,
-                    tile_list=os.path.join(tmp_dir, f"{self.tile_id}.txt"),
-                )
-                raster_copy(
-                    vrt,
-                    self.local_dst[self.default_format].uri,
-                    strict=False,
-                    **self.dst[self.default_format].profile,
-                )
-                # Clean up tmp files
-                for f in out_files:
-                    os.remove(f)
-                has_data = True
-
-        # Otherwise we just read the entire image in one process
-        else:
-
+    def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
+        chunk_size = (self._block_byte_size() * self._max_blocks(),)
+        with rasterio.Env(
+            VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
+            CPL_VSIL_CURL_CHUNK_SIZE=chunk_size,  # Chunk size for partial downloads
+            **GDAL_ENV,
+        ):
             src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
             transform, width, height = self._vrt_transform(
@@ -184,35 +123,86 @@ class RasterSrcTile(Tile):
                 resampling=self.layer.resampling,
             )
 
-            LOGGER.info(f"Process tile {self.tile_id} with a single worker")
-            out_file: Optional[str] = None
-            for window in self.windows():
-                _out_file = self._processified_transform(vrt, window)
-                if _out_file:
-                    out_file = _out_file
+        return src, vrt
 
-            has_data = out_file is not None
+    def _process_windows(self) -> bool:
 
-            vrt.close()
-            src.close()
+        # In case we have more workers than cores we can further subdivide the read process.
+        # In that case we will need to write the windows into separate files
+        # and merger them into one file at the end of the write process
+        co_workers: int = utils.get_co_workers()
+        if co_workers >= 2:
+            has_data: bool = self._process_windows_parallel(co_workers)
+
+        # Otherwise we just read the entire image in one process
+        # And write directly to target file.
+        else:
+            has_data = self._process_windows_sequential()
 
         return has_data
 
-    def _parallel_transform(self, window):
-        src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
+    def _process_windows_parallel(self, co_workers):
+        """Process windows in parallel and write output into separate files.
 
-        transform, width, height = self._vrt_transform(
-            *self.src.reproject_bounds(self.grid.crs)
+        Create VRT of output files and copy results into final GTIFF
+        """
+        has_data = False
+
+        LOGGER.info(f"Process tile {self.tile_id} with {co_workers} co_workers")
+
+        pool: PoolType = Pool(processes=co_workers)
+        out_files: List[Optional[str]] = pool.map(
+            self._parallel_transform, self.windows()
         )
-        vrt: WarpedVRT = WarpedVRT(
-            src,
-            crs=self.dst[self.default_format].crs,
-            transform=transform,
-            width=width,
-            height=height,
-            warp_mem_limit=utils.available_memory_per_process_mb(),
-            resampling=self.layer.resampling,
-        )
+        all_files: List[str] = [f for f in out_files if f is not None]
+        if all_files:
+            # merge all data into one VRT and copy to target file
+            vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
+            create_vrt(
+                all_files,
+                vrt=vrt_name,
+                tile_list=os.path.join(self.tmp_dir, f"{self.tile_id}.txt"),
+            )
+            raster_copy(
+                vrt_name,
+                self.local_dst[self.default_format].uri,
+                strict=False,
+                **self.dst[self.default_format].profile,
+            )
+            # Clean up tmp files
+            for f in all_files:
+                LOGGER.debug(f"Delete temporary file {f}")
+                os.remove(f)
+            has_data = True
+
+        return has_data
+
+    def _process_windows_sequential(self):
+        """Read on window after the other and update target file."""
+        LOGGER.info(f"Process tile {self.tile_id} with a single worker")
+
+        src: DatasetReader
+        vrt: WarpedVRT
+
+        src, vrt = self._src_to_vrt()
+        out_files = list()
+        for window in self.windows():
+            out_files.append(self._processified_transform(vrt, window))
+
+        has_data = any(value is not None for value in out_files)
+
+        vrt.close()
+        src.close()
+
+        return has_data
+
+    def _parallel_transform(self, window) -> Optional[str]:
+        """When transforming in parallel, we need to read SRC and create VRT in
+        every process."""
+        src: DatasetReader
+        vrt: WarpedVRT
+
+        src, vrt = self._src_to_vrt()
 
         out_data: Optional[str] = self._transform(vrt, window, True)
 
@@ -225,19 +215,19 @@ class RasterSrcTile(Tile):
     def _processified_transform(
         self, vrt: WarpedVRT, window: Window, write_to_seperate_files=False
     ) -> Optional[str]:
+        """Wrapper to run _transform in a separate process.
+
+        This will make sure that memory get completely cleared once
+        block is processed. With out this, we might experience memory
+        leakage, in particular for float data types.
+        """
         return self._transform(vrt, window, write_to_seperate_files)
 
     def _transform(
         self, vrt: WarpedVRT, window: Window, write_to_seperate_files=False
     ) -> Optional[str]:
         """Reading windows from input VRT, reproject, resample, transform and
-        write to destination.
-
-        We run this in a separate process, to make sure that memory get
-        completely cleared once block is processed. With out this, we
-        might experience memory leakage, in particular for float data
-        types.
-        """
+        write to destination."""
         masked_array: MaskedArray = self._read_window(vrt, window)
         if self._block_has_data(masked_array):
             LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
@@ -360,46 +350,6 @@ class RasterSrcTile(Tile):
         bytes_per_block: int = block_size * item_size
         return bytes_per_block
 
-    #
-    # def _max_block_size(self, dst: DatasetWriter) -> float:
-    #     """Depending on projections, # of input pixels for output block can
-    #     vary.
-    #
-    #     Here we take the corner blocks of the output tile and compare
-    #     the pixel count with the pixel count in input tile, covered by
-    #     each block extent We return the largest amount of pixels which
-    #     are possibly covered by one block.
-    #     """
-    #     width: float = dst.width
-    #     height: float = dst.height
-    #     blockxsize: int = self.dst[self.default_format].blockxsize
-    #     blockysize: int = self.dst[self.default_format].blockysize
-    #
-    #     ul: Window = dst.block_window(1, 0, 0)
-    #     ur: Window = dst.block_window(1, 0, width / blockxsize - 1)
-    #     ll: Window = dst.block_window(1, height / blockysize - 1, 0)
-    #     lr: Window = dst.block_window(
-    #         1, height / blockysize - 1, width / blockxsize - 1
-    #     )
-    #
-    #     dst_windows: List[Window] = [ul, ur, ll, lr]
-    #     src_windows: List[Window] = [self._reproject_dst_window(w) for w in dst_windows]
-    #
-    #     max_block_size = max([w.width * w.height for w in dst_windows + src_windows])
-    #     LOGGER.debug(f"Max block size for tile {self.tile_id} set to {max_block_size}")
-    #
-    #     return max_block_size
-    #
-    # def _max_itemsize(self) -> int:
-    #     """Check how many bytes one pixel of the largest datatype used will
-    #     require."""
-    #     src_itemsize: int = np.zeros(1, dtype=self.src.dtype).itemsize
-    #     dst_itemsize: int = np.zeros(
-    #         1, dtype=self.dst[self.default_format].dtype
-    #     ).itemsize
-    #
-    #     return max(src_itemsize, dst_itemsize)
-
     @retry(
         retry_on_exception=retry_if_rasterio_io_error,
         stop_max_attempt_number=7,
@@ -467,30 +417,6 @@ class RasterSrcTile(Tile):
             array = array.data.astype(self.dst[self.default_format].dtype)
         return array
 
-    def _snap_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
-        """Snap a given coordinate to tile grid coordinates.
-
-        Always returns the closes coordinates to the top left of the
-        input coordinates
-        """
-
-        LOGGER.debug(f"Snap coordinates {lat}, {lng}")
-
-        # Get top left corner for 1x1 degree grid
-        top: float = math.ceil(lat)
-        left: float = math.floor(lng)
-
-        # get closes coordinate pair
-        while top - lat > self.grid.yres:
-            top -= self.grid.yres
-
-        while lng - left > self.grid.xres:
-            left += self.grid.xres
-
-        LOGGER.debug(f"Snapped coordinates {top}, {left}")
-
-        return top, left
-
     def _vrt_transform(
         self, west: float, south: float, east: float, north: float
     ) -> Tuple[rasterio.Affine, float, float]:
@@ -498,8 +424,8 @@ class RasterSrcTile(Tile):
         output CRS and pixel size."""
 
         LOGGER.debug(f"Output Bounds {west, south, east, north}")
-        north, west = self._snap_coordinates(north, west)
-        south, east = self._snap_coordinates(south, east)
+        north, west = self.grid.snap_coordinates(north, west)
+        south, east = self.grid.snap_coordinates(south, east)
 
         transform: rasterio.Affine = rasterio.transform.from_origin(
             west, north, self.grid.xres, self.grid.yres
@@ -527,7 +453,7 @@ class RasterSrcTile(Tile):
         self, array: np.ndarray, dst_window: Window, write_to_seperate_files: bool
     ) -> str:
         if write_to_seperate_files:
-            out_file: str = self._write_window_to_seperate_files(array, dst_window)
+            out_file: str = self._write_window_to_separate_file(array, dst_window)
         else:
             out_file = self._write_window_to_shared_file(array, dst_window)
         return out_file
@@ -547,17 +473,12 @@ class RasterSrcTile(Tile):
                 del array
         return self.local_dst[self.default_format].uri
 
-    def _write_window_to_seperate_files(
+    def _write_window_to_separate_file(
         self, array: np.ndarray, dst_window: Window
     ) -> str:
-        tmp_dir = os.path.join(
-            os.path.dirname(self.local_dst[self.default_format].uri), "tmp"
-        )
-        base_name = os.path.basename(self.local_dst[self.default_format].uri)
 
-        file_name = f"{base_name[:-4]}_{dst_window.col_off}_{dst_window.row_off}.tif"
-        Path(tmp_dir).mkdir(parents=True, exist_ok=True)
-        file_path = os.path.join(tmp_dir, file_name)
+        file_name = f"{self.tile_id}_{dst_window.col_off}_{dst_window.row_off}.tif"
+        file_path = os.path.join(self.tmp_dir, file_name)
 
         profile = deepcopy(self.dst[self.default_format].profile)
         transform = rasterio.windows.transform(dst_window, profile["transform"])
