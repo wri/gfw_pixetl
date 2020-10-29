@@ -23,6 +23,8 @@ class WebMercatorGrid(Grid):
     Max size of a tile within grid can not be larger than 65536x65526 pixel (256x256).
     """
 
+    is_snapped_grid = False
+
     def __repr__(self):
         return f"WebMercatorGrid(srs={self.crs.to_string()}, name={self.name})"
 

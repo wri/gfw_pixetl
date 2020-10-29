@@ -21,6 +21,8 @@ class LatLngGrid(Grid):
     10N_010E)
     """
 
+    is_snapped_grid = True
+
     def __repr__(self):
         return f"LatLngGrid(srs={self.crs.to_string()}, name={self.name})"
 

@@ -1,4 +1,5 @@
 import copy
+import errno
 import os
 import subprocess as sp
 from abc import ABC
@@ -89,6 +90,13 @@ class Tile(ABC):
                 bounds=self.bounds,
             ),
         }
+
+        self.tmp_dir = os.path.join(layer.prefix, "tmp")
+        try:
+            os.makedirs(self.tmp_dir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 
         self.default_format = "geotiff"
         self.status = "pending"

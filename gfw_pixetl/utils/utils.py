@@ -1,5 +1,6 @@
 import datetime
 import os
+from math import floor
 from typing import NamedTuple, Optional, Tuple
 
 from pyproj import CRS, Transformer
@@ -60,29 +61,6 @@ def get_bucket(env: Optional[str] = None) -> str:
     return bucket
 
 
-#
-# def set_workers(workers: int) -> int:
-#     """Set environment variable with number of workers Cannot exceed number of
-#     cores and must be at least one."""
-#     global WORKERS
-#     WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
-#     LOGGER.info(f"Set workers to {WORKERS}")
-#     return WORKERS
-#
-#
-# def get_workers() -> int:
-#     """Return number of workers for parallel jobs."""
-#     return WORKERS
-
-
-# def set_available_memory() -> int:
-#     global AVAILABLE_MEMORY
-#     if not AVAILABLE_MEMORY:
-#         AVAILABLE_MEMORY = psutil.virtual_memory()[1]
-#         LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
-#     return AVAILABLE_MEMORY  # type: ignore
-
-
 def available_memory_per_process_bytes() -> float:
     return available_memory_per_process_mb() * 1000000
 
@@ -92,6 +70,10 @@ def available_memory_per_process_mb() -> float:
     """Snapshot of currently available memory per core or process."""
     LOGGER.info(f"Available memory per worker set to {mem}")
     return mem
+
+
+def get_co_workers() -> int:
+    return floor(GLOBALS.cores / GLOBALS.workers)
 
 
 def snapped_window(window):

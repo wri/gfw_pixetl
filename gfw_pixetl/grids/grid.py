@@ -1,3 +1,4 @@
+import math
 from abc import ABC, abstractmethod
 from typing import Set, Tuple
 
@@ -66,6 +67,39 @@ class Grid(ABC):
             CRS.from_epsg(4326), self.crs, always_xy=True
         )
         return transformer.transform(x, y)
+
+    def snap_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
+        """Snap a given coordinate to tile grid coordinates.
+
+        Always returns the closes coordinates to the top left of the
+        input coordinates for "snapped grids"
+        """
+
+        if self.is_snapped_grid:
+            LOGGER.debug(f"Snap coordinates {lat}, {lng}")
+
+            # Get top left corner for 1x1 degree grid
+            top: float = math.ceil(lat)
+            left: float = math.floor(lng)
+
+            # get closes coordinate pair
+            while top - lat > self.yres:
+                top -= self.yres
+
+            while lng - left > self.xres:
+                left += self.xres
+
+            LOGGER.debug(f"Snapped coordinates {top}, {left}")
+
+        else:
+            top, left = lat, lng
+
+        return top, left
+
+    @property
+    @abstractmethod
+    def is_snapped_grid(self) -> bool:
+        ...
 
     @abstractmethod
     def get_tile_ids(self) -> Set[str]:
