@@ -2,7 +2,6 @@ from typing import List
 
 import psycopg2
 from psycopg2._psycopg import ProgrammingError
-from shapely.geometry import Point
 from sqlalchemy import Column, Table, select, table, text
 from sqlalchemy.sql.elements import TextClause, literal_column
 
@@ -18,8 +17,8 @@ logger = get_module_logger(__name__)
 
 
 class VectorSrcTile(Tile):
-    def __init__(self, origin: Point, grid: Grid, layer: VectorSrcLayer) -> None:
-        super().__init__(origin, grid, layer)
+    def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
+        super().__init__(tile_id, grid, layer)
         self.src: VectorSource = layer.src
 
     def intersect_filter(self) -> TextClause:

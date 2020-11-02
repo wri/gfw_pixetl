@@ -3,7 +3,7 @@ from typing import Set
 from unittest import mock
 
 from gfw_pixetl import layers
-from gfw_pixetl.grids import grid_factory
+from gfw_pixetl.grids import LatLngGrid, grid_factory
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.sources import Destination
@@ -165,7 +165,8 @@ def _get_subset_tiles() -> Set[RasterSrcTile]:
     tiles = set()
     for i in range(10, 12):
         for j in range(10, 12):
-            origin = pipe.grid.xy_grid_origin(j, i)
-            tiles.add(RasterSrcTile(origin=origin, grid=pipe.grid, layer=layer))
+            assert isinstance(pipe.grid, LatLngGrid)
+            tile_id = pipe.grid.xy_to_tile_id(j, i)
+            tiles.add(RasterSrcTile(tile_id=tile_id, grid=pipe.grid, layer=layer))
 
     return tiles

@@ -1,44 +1,101 @@
-import os
-from typing import Any, Dict, Optional
+import multiprocessing
+from typing import Optional
 
-from gfw_pixetl.utils.path import get_aws_s3_endpoint
-from gfw_pixetl.utils.secret import Secret
-from gfw_pixetl.utils.type_casting import to_bool
+import psutil
+import pydantic
+from pydantic import Field, PositiveInt
 
-DB_USERNAME: Optional[str] = os.environ.get("PGUSER", None)
-_password: Optional[str] = os.environ.get("PGPASSWORD", None)
-DB_PASSWORD: Optional[Secret] = Secret(_password) if _password else None
-DB_HOST: Optional[str] = os.environ.get("PGHOST", None)
-_port: Optional[str] = os.environ.get("PGPORT", None)
-DB_PORT: Optional[int] = int(_port) if _port else None
-DB_NAME: Optional[str] = os.environ.get("PGDATABASE", None)
+from gfw_pixetl import get_module_logger
+from gfw_pixetl.settings.models import EnvSettings
 
-AWS_REGION: str = os.environ.get("AWS_REGION", "us-east-1")
-JOB_ROLE_ARN: Optional[str] = os.environ.get("JOB_ROLE_ARN", None)
+LOGGER = get_module_logger(__name__)
 
-AWS_HTTPS: Optional[str] = os.environ.get("AWS_HTTPS", None)
-AWS_VIRTUAL_HOSTING: Optional[bool] = to_bool(
-    os.environ.get("AWS_VIRTUAL_HOSTING", None)
-)
-GDAL_DISABLE_READDIR_ON_OPEN: Optional[str] = os.environ.get(
-    "GDAL_DISABLE_READDIR_ON_OPEN", None
-)
 
-ENDPOINT_URL: Optional[str] = os.environ.get("ENDPOINT_URL", None)
-AWS_S3_ENDPOINT: Optional[str] = get_aws_s3_endpoint(ENDPOINT_URL)
-AWS_BATCH_JOB_ID: Optional[str] = os.environ.get("AWS_BATCH_JOB_ID", None)
-GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = os.environ.get(
-    "GOOGLE_APPLICATION_CREDENTIALS", None
-)
-GCS_KEY_SECRET_ARN: Optional[str] = os.environ.get("GCS_KEY_SECRET_ARN", None)
+class Secret:
+    """Holds a string value that should not be revealed in tracebacks etc.
 
-GDAL_ENV: Dict[str, Any] = dict()
-if AWS_HTTPS:
-    GDAL_ENV["AWS_HTTPS"] = AWS_HTTPS
-if AWS_VIRTUAL_HOSTING:
-    GDAL_ENV["AWS_VIRTUAL_HOSTING"] = AWS_VIRTUAL_HOSTING
-if GDAL_DISABLE_READDIR_ON_OPEN:
-    GDAL_ENV["GDAL_DISABLE_READDIR_ON_OPEN"] = GDAL_DISABLE_READDIR_ON_OPEN
-if AWS_S3_ENDPOINT:
-    GDAL_ENV["AWS_S3_ENDPOINT"] = AWS_S3_ENDPOINT
-    os.environ["AWS_S3_ENDPOINT"] = AWS_S3_ENDPOINT
+    You should cast the value to `str` at the point it is required.
+    """
+
+    def __init__(self, value: str):
+        self._value = value
+
+    def __repr__(self) -> str:
+        class_name = self.__class__.__name__
+        return f"{class_name}('**********')"
+
+    def __str__(self) -> str:
+        return self._value
+
+
+class Globals(EnvSettings):
+    #####################
+    # Resource management
+    ######################
+    cores: PositiveInt = Field(
+        multiprocessing.cpu_count(), description="Max number of cores to use"
+    )
+    max_mem: PositiveInt = Field(
+        psutil.virtual_memory()[1] / 1000000,
+        description="Max memory available to pixETL",
+    )
+    divisor: PositiveInt = Field(
+        4,
+        description="Fraction of memory per worker to use to compute maximum block size."
+        "(ie 4 => size =  25% of available memory)",
+    )
+    workers: PositiveInt = Field(
+        1, description="Number of workers to use to execute job."
+    )
+
+    ########################
+    # PostgreSQL authentication
+    ########################
+    db_username: Optional[str] = Field(
+        None, env="PGUSER", description="PostgreSQL user name"
+    )
+    db_password: Optional[Secret] = Field(
+        None, env="PGPASSWORD", description="PostgreSQL password"
+    )
+    db_host: Optional[str] = Field(None, env="PGHOST", description="PostgreSQL host")
+    db_port: Optional[int] = Field(None, env="PGPORT", description="PostgreSQL port")
+    db_name: Optional[str] = Field(
+        None, env="PGDATABASE", description="PostgreSQL database name"
+    )
+
+    #######################
+    # Google authentication
+    #######################
+    google_application_credentials: Optional[str] = Field(
+        None, description="Path to Google application credential file"
+    )
+
+    ######################
+    # AWS configuration
+    ######################
+    aws_region: str = Field("us-east-1", description="AWS region")
+    aws_batch_job_id: Optional[str] = Field(None, description="AWS Batch job ID")
+    aws_job_role_arn: Optional[str] = Field(
+        None,
+        description="ARN of the AWS IAM role which runs the batch job on docker host",
+    )
+    aws_gcs_key_secret_arn: Optional[str] = Field(
+        None, description="ARN of AWS Secret which holds GCS key"
+    )
+
+    aws_endpoint_url: Optional[str] = Field(
+        None, description="Endpoint URL for AWS S3 Server (required for Moto)"
+    )
+
+    @pydantic.validator("db_password", pre=True, always=True)
+    def hide_password(cls, v):
+        return Secret(v) or None
+
+    @pydantic.validator("workers", pre=True, always=True)
+    def set_workers(cls, v, *, values, **kwargs):
+        workers = max(min(values["cores"], v), 1)
+        LOGGER.info(f"Set workers to {workers}")
+        return workers
+
+
+GLOBALS = Globals()

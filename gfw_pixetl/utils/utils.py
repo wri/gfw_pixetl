@@ -1,13 +1,13 @@
 import datetime
-import multiprocessing
 import os
-from typing import Optional, Tuple
+from math import floor
+from typing import NamedTuple, Optional, Tuple
 
-import psutil
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.settings import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 
@@ -19,6 +19,32 @@ AVAILABLE_MEMORY: Optional[int] = None
 WORKERS: int = 1
 
 Bounds = Tuple[float, float, float, float]
+
+
+class AreaOfUse(NamedTuple):
+    """Area Of Use for projections.
+
+    Copied from pyproj.aoi.AreaOfUse version 3.0 PyProj Version 2.6 does
+    not expose this class.
+    """
+
+    #: West bound of area of use.
+    west: float
+    #: South bound of area of use.
+    south: float
+    #: East bound of area of use.
+    east: float
+    #: North bound of area of use.
+    north: float
+    #: Name of area of use.
+    name: Optional[str] = None
+
+    @property
+    def bounds(self):
+        return self.west, self.south, self.east, self.north
+
+    def __str__(self):
+        return f"- name: {self.name}\n" f"- bounds: {self.bounds}"
 
 
 def get_bucket(env: Optional[str] = None) -> str:
@@ -35,31 +61,18 @@ def get_bucket(env: Optional[str] = None) -> str:
     return bucket
 
 
-def set_workers(workers: int) -> int:
-    """Set environment variable with number of workers Cannot exceed number of
-    cores and must be at least one."""
-    global WORKERS
-    WORKERS = max(min(multiprocessing.cpu_count(), workers), 1)
-    LOGGER.info(f"Set workers to {WORKERS}")
-    return WORKERS
+def available_memory_per_process_bytes() -> float:
+    return available_memory_per_process_mb() * 1000000
 
 
-def get_workers() -> int:
-    """Return number of workers for parallel jobs."""
-    return WORKERS
+def available_memory_per_process_mb() -> float:
+    mem = GLOBALS.max_mem / GLOBALS.workers
+    LOGGER.info(f"Available memory per worker set to {mem}")
+    return mem
 
 
-def set_available_memory() -> int:
-    global AVAILABLE_MEMORY
-    if not AVAILABLE_MEMORY:
-        AVAILABLE_MEMORY = psutil.virtual_memory()[1]
-        LOGGER.info(f"Total available memory set to {AVAILABLE_MEMORY}")
-    return AVAILABLE_MEMORY  # type: ignore
-
-
-def available_memory_per_process() -> float:
-    """Snapshot of currently available memory per core or process."""
-    return set_available_memory() / get_workers()
+def get_co_workers() -> int:
+    return floor(GLOBALS.cores / GLOBALS.workers)
 
 
 def snapped_window(window):
