@@ -30,7 +30,7 @@ LAYER_DICT = {
 }
 LAYER = layers.layer_factory(LayerModel.parse_obj(LAYER_DICT))
 
-TILE = Tile(Point(10, 10), LAYER.grid, LAYER)
+TILE = Tile("10N_010E", LAYER.grid, LAYER)
 
 
 class Img(object):
@@ -120,7 +120,7 @@ def test_upload():
         "w+",
     ):
         pass
-    tile = Tile(Point(10, 20), LAYER.grid, LAYER)
+    tile = Tile("20N_010E", LAYER.grid, LAYER)
     with mock.patch("rasterio.open", return_value=EmptyImg()):
         tile.set_local_dst(TILE.default_format)
         tile.upload()

@@ -15,12 +15,13 @@ services:
       - ./tmp:/tmp
     environment:
       - ENV=dev
-      - DB_PASSWORD=postgres  # pragma: allowlist secret
-      - DB_HOST=test_database
-      - DB_USER=gfw
-      - DATABASE=_test
+      - PGPASSWORD=postgres  # pragma: allowlist secret
+      - PGHOST=test_database
+      - PGUSER=gfw
+      - PGDATABASE=_test
       - AWS_DEFAULT_PROFILE=gfw-dev
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
+      - DIVISOR=1
 #      - GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
 #      - AWS_ACCESS_KEY_ID=testing  # pragma: allowlist secret
 #      - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
@@ -31,7 +32,7 @@ services:
 #      - AWS_VIRTUAL_HOSTING=FALSE
 #      - GDAL_DISABLE_READDIR_ON_OPEN=YES
     working_dir: /tmp
-#    entrypoint: pixetl_prep
+    entrypoint: /bin/bash
     depends_on:
       - dev_database
 #      - motoserver

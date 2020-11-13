@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 
 import click
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
 from gfw_pixetl.models import LayerModel
@@ -93,7 +93,7 @@ def pixetl(
     cwd = set_cwd()
 
     # set available memory here before any major process is running
-    utils.set_available_memory()
+    # utils.set_available_memory()
 
     try:
         if subset:

@@ -54,16 +54,15 @@ class Layer(object):
         if not field:
             field = self.field
 
-        srs_authority = grid.srs.to_authority()[0].lower()
-        srs_code = grid.srs.to_authority()[1]
+        srs_authority = grid.crs.to_authority()[0].lower()
+        srs_code = grid.crs.to_authority()[1]
 
         return os.path.join(
             name,
             version,
             "raster",
             f"{srs_authority}-{srs_code}",
-            f"{grid.width}",
-            f"{grid.cols}",
+            f"{grid.name}",
             field,
         )
 
@@ -124,6 +123,7 @@ class RasterSrcLayer(Layer):
 
         features = json.loads(body.decode("utf-8"))["features"]
         for feature in features:
+            LOGGER.debug(f"{feature}")
             input_files.append(
                 (shape(feature["geometry"]), feature["properties"]["name"])
             )
@@ -137,12 +137,17 @@ class RasterSrcLayer(Layer):
 
 
 def layer_factory(layer_def: LayerModel) -> Layer:
+
+    layer_constructor = {"vector": VectorSrcLayer, "raster": RasterSrcLayer}
+
     source_type: str = layer_def.source_type
     grid: Grid = grid_factory(layer_def.grid)
 
-    if source_type == "vector":
-        layer: Layer = VectorSrcLayer(layer_def, grid)
-    elif source_type == "raster":
-        layer = RasterSrcLayer(layer_def, grid)
+    try:
+        layer = layer_constructor[source_type](layer_def, grid)
+    except KeyError:
+        raise NotImplementedError(
+            f"Cannot create layer. Source type {source_type} not implemented."
+        )
 
     return layer

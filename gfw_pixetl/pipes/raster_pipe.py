@@ -1,22 +1,20 @@
-import itertools
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 from multiprocessing.pool import Pool as PoolType
-from typing import Iterable, Iterator, List, Set, Tuple
+from typing import Iterator, List, Set, Tuple
 
 from parallelpipe import Stage, stage
-from shapely.geometry import Point
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.pipes import Pipe
+from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.tiles import RasterSrcTile, Tile
 
 LOGGER = get_module_logger(__name__)
-CORES = cpu_count()
 
 
 class RasterPipe(Pipe):
-    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[RasterSrcTile]:  # type: ignore
+    def get_grid_tiles(self) -> Set[RasterSrcTile]:  # type: ignore
         """Seed all available tiles within given grid.
 
         Use 1x1 degree tiles covering all land area as starting point.
@@ -24,24 +22,18 @@ class RasterPipe(Pipe):
         duplicated grid cells.
         """
 
-        x: Iterable[int] = range(min_x, max_x)
-        y: Iterable[int] = range(min_y + 1, max_y + 1)
-
-        x_y: List[Tuple[int, int]] = list(itertools.product(x, y))
-        pool: PoolType = Pool(processes=CORES)
-        tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, x_y))
+        tile_ids = self.grid.get_tile_ids()
+        pool: PoolType = Pool(processes=GLOBALS.cores)
+        tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
         LOGGER.info(f"Found {tile_count} tile inside grid")
 
         return tiles
 
-    def _get_grid_tile(self, x_y: Tuple[int, int]) -> RasterSrcTile:
+    def _get_grid_tile(self, tile_id: str) -> RasterSrcTile:
         assert isinstance(self.layer, RasterSrcLayer)
-        x: int = x_y[0]
-        y: int = x_y[1]
-        origin: Point = self.grid.xy_grid_origin(x, y)
-        return RasterSrcTile(origin=origin, grid=self.grid, layer=self.layer)
+        return RasterSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
     def create_tiles(
         self, overwrite: bool
@@ -52,11 +44,11 @@ class RasterPipe(Pipe):
 
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        workers = utils.set_workers(self.tiles_to_process)
+        GLOBALS.workers = self.tiles_to_process
 
         pipe = (
             tiles
-            | Stage(self.transform).setup(workers=workers)
+            | Stage(self.transform).setup(workers=GLOBALS.workers)
             | self.upload_file
             | self.delete_file
         )
@@ -67,7 +59,7 @@ class RasterPipe(Pipe):
         return tiles, skipped_tiles, failed_tiles
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=GLOBALS.cores)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """Only process tiles which intersect with source raster."""
         for tile in tiles:

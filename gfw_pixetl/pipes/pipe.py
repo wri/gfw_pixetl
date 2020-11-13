@@ -1,19 +1,18 @@
-import multiprocessing
+from abc import ABC, abstractmethod
 from typing import Iterator, List, Optional, Set, Tuple
 
 from parallelpipe import stage
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
 
 LOGGER = get_module_logger(__name__)
-WORKERS = utils.get_workers()
-CORES = multiprocessing.cpu_count()
 
 
-class Pipe(object):
+class Pipe(ABC):
     """Base Pipe including all the basic stages to seed, filter, delete and
     upload tiles.
 
@@ -49,32 +48,35 @@ class Pipe(object):
 
         return tiles
 
+    @abstractmethod
     def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
         """Override this method when implementing pipes."""
-        raise NotImplementedError()
+        ...
 
-    def get_grid_tiles(self, min_x=-180, min_y=-90, max_x=180, max_y=90) -> Set[Tile]:
+    @abstractmethod
+    def get_grid_tiles(self) -> Set[Tile]:
         """Seed all available tiles within given grid.
 
         Use 1x1 degree tiles covering all land area as starting point.
         Then see in which target grid cell it would fall. Remove
         duplicated grid cells.
         """
+        ...
 
-        raise NotImplementedError
-
-    def _get_grid_tile(self, x_y: Tuple[int, int]) -> Tile:
+    @abstractmethod
+    def _get_grid_tile(self, tile_id: str) -> Tile:
         """Override this method when implementing pipes."""
-        raise NotImplementedError
+        ...
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=GLOBALS.cores)
+    @abstractmethod
     def filter_src_tiles():
         """Override this method when implementing pipes."""
-        raise NotImplementedError()
+        ...
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=GLOBALS.cores)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """Apply filter in case user only want to process only a subset.
 
@@ -87,7 +89,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=GLOBALS.cores)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """Don't process tiles if they already exists in target location,
         unless overwrite is set to True."""
@@ -102,7 +104,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=GLOBALS.cores)
     def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Copy local file to geotiff format."""
         for tile in tiles:
@@ -111,7 +113,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=GLOBALS.cores)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Upload tile to target location."""
         for tile in tiles:
@@ -120,7 +122,7 @@ class Pipe(object):
             yield tile
 
     @staticmethod
-    @stage(workers=CORES)
+    @stage(workers=GLOBALS.cores)
     def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Delete local file."""
         for tile in tiles:
