@@ -1,4 +1,3 @@
-import multiprocessing
 import os
 from datetime import datetime
 from unittest import mock
@@ -6,9 +5,10 @@ from unittest import mock
 from dateutil.tz import tzutc
 from pyproj import CRS
 
+from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
-from gfw_pixetl.utils.gdal import _write_tile_list, create_vrt
+from gfw_pixetl.utils.gdal import _write_tile_list, create_vrt, run_gdal_subcommand
 from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.utils import (
     available_memory_per_process_bytes,
@@ -173,3 +173,14 @@ def test_get_aws_s3_endpoint():
     assert get_aws_s3_endpoint(None) is None
     assert get_aws_s3_endpoint("http://motoserver:5000") == "motoserver:5000"
     assert get_aws_s3_endpoint("motoserver:5000") == "motoserver:5000"
+
+
+def test__run_gdal_subcommand():
+    cmd = ["/bin/bash", "-c", "echo test"]
+    assert run_gdal_subcommand(cmd) == ("test\n", "")
+
+    try:
+        cmd = ["/bin/bash", "-c", "exit 1"]
+        run_gdal_subcommand(cmd)
+    except GDALNoneTypeError as e:
+        assert str(e) == ""

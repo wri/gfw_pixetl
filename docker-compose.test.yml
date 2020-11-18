@@ -4,8 +4,6 @@ services:
   pixetl_test:
     build:
       context: .
-      args:
-        - ENV=test
     container_name: pixetl_test
     volumes:
       - ./gfw_pixetl:/usr/local/app/gfw_pixetl:ro

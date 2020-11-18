@@ -1,3 +1,4 @@
+from abc import ABC
 from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -15,8 +16,10 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
+from gfw_pixetl.models import Stats
 from gfw_pixetl.settings import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, utils
+from gfw_pixetl.utils.gdal import compute_stats
 from gfw_pixetl.utils.type_casting import replace_inf_nan
 
 LOGGER = get_module_logger(__name__)
@@ -25,8 +28,8 @@ Windows = Tuple[Window, Window]
 Bounds = Tuple[float, float, float, float]
 
 
-class Source:
-    pass
+class Source(ABC):
+    ...
 
 
 class VectorSource(Source):
@@ -189,6 +192,9 @@ class RasterSource(Source):
             else:
                 LOGGER.exception(f"Cannot open file {self.url}")
                 raise
+
+    def stats(self) -> Dict[str, Any]:
+        return compute_stats(self.uri).dict()
 
 
 class Destination(RasterSource):

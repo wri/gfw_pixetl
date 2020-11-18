@@ -1,25 +1,20 @@
 import copy
 import errno
+import json
 import os
 import subprocess as sp
 from abc import ABC
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import rasterio
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
-from retrying import retry
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.errors import (
-    GDALAWSConfigError,
-    GDALError,
-    GDALNoneTypeError,
-    retry_if_none_type_error,
-)
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.models import Stats
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
 
@@ -100,6 +95,7 @@ class Tile(ABC):
 
         self.default_format = "geotiff"
         self.status = "pending"
+        self.stats: Dict[str, Dict] = dict()
 
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):
@@ -161,28 +157,13 @@ class Tile(ABC):
             LOGGER.info(f"Delete local file {self.local_dst[dst_format].uri}")
             os.remove(self.local_dst[dst_format].uri)
 
-    @staticmethod
-    @retry(
-        retry_on_exception=retry_if_none_type_error,
-        stop_max_attempt_number=7,
-        wait_fixed=2000,
-    )
-    def _run_gdal_subcommand(cmd: List[str]) -> Tuple[str, str]:
+    def postprocessing(self):
+        """Once we have the final geotiff, all postprocessing steps should be
+        the same no matter the source format and grid type."""
 
-        env = os.environ.copy()  # utils.set_aws_credentials()
-        LOGGER.debug(f"RUN subcommand, using env {env}")
-        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=env)
-        o, e = p.communicate()
+        # Add superior compression, which only works with GDAL drivers
+        self.create_gdal_geotiff()
 
-        if p.returncode != 0 and not e:
-            raise GDALNoneTypeError(e.decode("utf-8"))
-        elif (
-            p.returncode != 0
-            and e
-            == b"ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
-        ):
-            raise GDALAWSConfigError(e.decode("utf-8"))
-        elif p.returncode != 0:
-            raise GDALError(e.decode("utf-8"))
-
-        return o.decode("utf-8"), e.decode("utf-8")
+        # Compute stats and histogram
+        for dst_format in self.local_dst.keys():
+            self.stats[dst_format] = self.local_dst[dst_format].stats()

@@ -106,10 +106,12 @@ def _geoms_uris_per_dst_format(
         for dst_format in tile.dst.keys():
             if dst_format not in geoms.keys():
                 geoms[dst_format] = list()
+            properties = tile.stats.get(dst_format, dict())
+            properties["name"] = tile.dst[dst_format].url
             geoms[dst_format].append(
                 (
                     tile.dst[dst_format].geom,
-                    {"name": f"{tile.dst[dst_format].url}"},
+                    properties,
                 )
             )
 

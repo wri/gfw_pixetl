@@ -169,7 +169,7 @@ class Pipe(ABC):
         return tiles, skipped_tiles, failed_tiles
 
     def _upload_geometries(self, tiles) -> None:
-        """Computing VRT, extent GeoJSON and Tile GeoJSON and upload to S3."""
+        """Computing extent GeoJSON and Tile GeoJSON and upload to S3."""
         if len(tiles):
             # upload_geometries.upload_vrt(tiles, self.layer.prefix)
             upload_geometries.upload_geom(tiles, self.layer.prefix)

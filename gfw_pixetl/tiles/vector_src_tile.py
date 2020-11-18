@@ -6,12 +6,13 @@ from sqlalchemy import Column, Table, select, table, text
 from sqlalchemy.sql.elements import TextClause, literal_column
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.data_type import to_gdal_dt
+from gfw_pixetl.data_type import to_gdal_data_type
 from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.gdal import run_gdal_subcommand
 
 logger = get_module_logger(__name__)
 
@@ -164,7 +165,7 @@ class VectorSrcTile(Tile):
             "-a_srs",
             "EPSG:4326",
             "-ot",
-            to_gdal_dt(self.dst[self.default_format].dtype),
+            to_gdal_data_type(self.dst[self.default_format].dtype),
             "-co",
             f"COMPRESS={self.dst[self.default_format].profile['compress']}",  # TODO: make compress property
             "-co",
@@ -182,15 +183,15 @@ class VectorSrcTile(Tile):
         logger.info("Rasterize tile " + self.tile_id)
 
         try:
-            self._run_gdal_subcommand(cmd)
-        except GDALError as e:
+            run_gdal_subcommand(cmd)
+        except GDALError:
             logger.error(f"Could not rasterize tile {self.tile_id}")
-            logger.exception(e)
             raise
         else:
             self.set_local_dst(self.default_format)
 
-            # invoking gdal-geotiff here instead of in a separate stage to assure we don't run out of memory
+            # invoking gdal-geotiff and compute stats here
+            # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
-            self.create_gdal_geotiff()
+            self.postprocessing()

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field
 
@@ -38,3 +38,35 @@ class LayerModel(BaseModel):
     source_uri: Optional[str]
     calc: Optional[str]
     order: Optional[Order]
+
+
+class Histogram(BaseModel):
+    count: int
+    min: float
+    max: float
+    buckets: List[int]
+
+
+class BandStats(BaseModel):
+    data_type: DataTypeEnum
+    min: float
+    max: float
+    mean: float
+    std_dev: float
+    no_data: float
+    histogram: Histogram
+    nbits: Optional[int]
+    blockxsize: int
+    blockysize: int
+
+
+class Stats(BaseModel):
+    extent: Tuple[float, float, float, float]
+    width: int
+    height: int
+    pixelxsize: float
+    pixelysize: float
+    crs: str
+    driver: str
+    compression: str
+    bands: List[BandStats] = list()

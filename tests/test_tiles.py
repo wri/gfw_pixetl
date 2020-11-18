@@ -6,10 +6,9 @@ import numpy as np
 from rasterio import Affine
 from rasterio.crs import CRS
 from rasterio.windows import Window
-from shapely.geometry import Point, box
+from shapely.geometry import box
 
 from gfw_pixetl import layers
-from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
@@ -138,17 +137,6 @@ def test_rm_local_src(mocked_os):
         uri = TILE.local_dst[TILE.default_format].uri
         TILE.rm_local_src(TILE.default_format)
         mocked_os.remove.assert_called_with(uri)
-
-
-def test__run_gdal_subcommand():
-    cmd = ["/bin/bash", "-c", "echo test"]
-    assert TILE._run_gdal_subcommand(cmd) == ("test\n", "")
-
-    try:
-        cmd = ["/bin/bash", "-c", "exit 1"]
-        TILE._run_gdal_subcommand(cmd)
-    except GDALNoneTypeError as e:
-        assert str(e) == ""
 
 
 def test__dst_has_no_data():
