@@ -24,7 +24,9 @@ LOGGER = get_module_logger(__name__)
     retry_on_exception=retry_if_missing_gcs_key_error,
     stop_max_attempt_number=2,
 )
-def create_vrt(uris: List[str], vrt="all.vrt", tile_list="tiles.txt") -> str:
+def create_vrt(
+    uris: List[str], vrt: str = "all.vrt", tile_list: str = "tiles.txt"
+) -> str:
     """
     ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
     Create VRT file from input URI.
@@ -59,22 +61,31 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
 
     LOGGER.debug(f"RUN subcommand, using env {gdal_env}")
     p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=gdal_env)
-    o, e = p.communicate()
+
+    o_byte, e_byte = p.communicate()
+
+    # somehow return type when running `gdalbuildvrt` is str but otherwise bytes
+    try:
+        o = o_byte.decode("utf-8")
+        e = e_byte.decode("utf-8")
+    except AttributeError:
+        o = str(o_byte)
+        e = str(e_byte)
 
     if p.returncode != 0:
         if not e:
-            raise GDALNoneTypeError(e.decode("utf-8"))
+            raise GDALNoneTypeError(e)
         elif (
             e
             == b"ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
         ):
-            raise GDALAWSConfigError(e.decode("utf-8"))
-        elif "ERROR 3: Load json file" in str(e):
+            raise GDALAWSConfigError(e)
+        elif "ERROR 3: Load json file" in e:
             raise MissingGCSKeyError()
         else:
-            raise GDALError(e.decode("utf-8"))
+            raise GDALError(e)
 
-    return o.decode("utf-8"), e.decode("utf-8")
+    return o, e
 
 
 def compute_stats(uri: str) -> Stats:
@@ -93,7 +104,7 @@ def compute_stats(uri: str) -> Stats:
             meta["cornerCoordinates"]["lowerLeft"][0],
             meta["cornerCoordinates"]["lowerLeft"][1],
             meta["cornerCoordinates"]["upperRight"][0],
-            meta["cornerCoordinates"]["upperright"][1],
+            meta["cornerCoordinates"]["upperRight"][1],
         ),
         width=meta["size"][0],
         height=meta["size"][1],
@@ -111,9 +122,9 @@ def compute_stats(uri: str) -> Stats:
             mean=band["mean"],
             std_dev=band["stdDev"],
             histogram=band["histogram"],
-            no_data=band["noDataValue"],
+            no_data=band.get("noDataValue", None),
             data_type=from_gdal_data_type(band["type"]),
-            nbits=band["metadata"]["IMAGE_STRUCTURE"].get("NBITS", None),
+            nbits=band["metadata"].get("IMAGE_STRUCTURE", dict()).get("NBITS", None),
             blockxsize=band["block"][0],
             blockysize=band["block"][1],
         )

@@ -53,7 +53,7 @@ class BandStats(BaseModel):
     max: float
     mean: float
     std_dev: float
-    no_data: float
+    no_data: Optional[Union[int, float]]
     histogram: Histogram
     nbits: Optional[int]
     blockxsize: int

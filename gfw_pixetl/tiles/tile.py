@@ -14,7 +14,6 @@ from rasterio.shutil import copy as raster_copy
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.models import Stats
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
 
