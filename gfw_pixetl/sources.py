@@ -16,7 +16,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
-from gfw_pixetl.models import Stats
+from gfw_pixetl.models import Bounds
 from gfw_pixetl.settings import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, utils
 from gfw_pixetl.utils.gdal import compute_stats
@@ -25,7 +25,6 @@ from gfw_pixetl.utils.type_casting import replace_inf_nan
 LOGGER = get_module_logger(__name__)
 
 Windows = Tuple[Window, Window]
-Bounds = Tuple[float, float, float, float]
 
 
 class Source(ABC):

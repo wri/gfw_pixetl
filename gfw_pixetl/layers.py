@@ -13,7 +13,7 @@ from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.resampling import resampling_factory
 from gfw_pixetl.sources import VectorSource
 
-from .models import LayerModel
+from .models import ColorMap, LayerModel
 from .utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
@@ -37,6 +37,7 @@ class Layer(object):
         self.calc: Optional[str] = layer_def.calc
         self.rasterize_method: Optional[str] = layer_def.rasterize_method
         self.order: Optional[str] = layer_def.order
+        self.symbology: Optional[ColorMap] = layer_def.symbology
 
     def _get_prefix(
         self,

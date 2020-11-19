@@ -20,6 +20,7 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.models import Bounds
 from gfw_pixetl.settings import GDAL_ENV, GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
@@ -28,7 +29,6 @@ from gfw_pixetl.utils.gdal import create_vrt
 LOGGER = get_module_logger(__name__)
 
 Windows = Tuple[Window, Window]
-Bounds = Tuple[float, float, float, float]
 
 
 class RasterSrcTile(Tile):
@@ -161,6 +161,7 @@ class RasterSrcTile(Tile):
             vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
             create_vrt(
                 all_files,
+                extent=self.bounds,
                 vrt=vrt_name,
                 tile_list=os.path.join(self.tmp_dir, f"{self.tile_id}.txt"),
             )

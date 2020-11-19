@@ -12,13 +12,15 @@ from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.models import ColorMapType
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
+from gfw_pixetl.utils.gdal import run_gdal_subcommand
 
 LOGGER = get_module_logger(__name__)
-Bounds = Tuple[float, float, float, float]
 S3 = get_s3_client()
 
 
@@ -160,9 +162,51 @@ class Tile(ABC):
         """Once we have the final geotiff, all postprocessing steps should be
         the same no matter the source format and grid type."""
 
+        if self.layer.symbology:
+            self.add_symbology()
+
         # Add superior compression, which only works with GDAL drivers
         self.create_gdal_geotiff()
 
         # Compute stats and histogram
         for dst_format in self.local_dst.keys():
             self.stats[dst_format] = self.local_dst[dst_format].stats()
+
+    def add_symbology(self):
+        symbology_constructor = {
+            ColorMapType.discret: self._add_discrete_symbology,
+            ColorMapType.gradient: self._add_gradient_symbology,
+        }
+
+        symbology_constructor[self.layer.symbology.type]()
+
+    def _add_discrete_symbology(self):
+        _colormap = self.layer.symbology.colormap
+        colormap = dict()
+        for pixel_value in _colormap:
+            colormap[pixel_value] = tuple(_colormap[pixel_value].dict().values())
+
+        with rasterio.open(
+            self.local_dst[self.default_format].uri,
+            "r+",
+            **self.local_dst[self.default_format].profile,
+        ) as dst:
+            dst.write_colormap(colormap)
+
+    def _add_gradient_symbology(self):
+        colormap = os.path.join(self.tmp_dir, "colormap.txt")
+        with open(colormap, "w") as f:
+            for k, v in self.layer.symbology.colormap.items():
+                values = [k] + v.dict().values()
+                f.write(" ".join(values))
+                f.write("\n")
+        src = self.local_dst[self.default_format].uri
+        dst = os.path.join(self.tmp_dir, f"{self.tile_id}_colored.tif")
+        cmd = ["gdaldem", "color-relief", "-alpha", "-of", "PNG", src, colormap, dst]
+        try:
+            run_gdal_subcommand(cmd)
+        except GDALError:
+            LOGGER.error("Could not create Color Relief")
+            raise
+        # switch uri with new output file
+        self.local_dst[self.default_format].uri = dst

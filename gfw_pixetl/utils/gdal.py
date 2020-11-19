@@ -15,7 +15,7 @@ from gfw_pixetl.errors import (
     retry_if_missing_gcs_key_error,
     retry_if_none_type_error,
 )
-from gfw_pixetl.models import BandStats, Stats
+from gfw_pixetl.models import BandStats, Bounds, Stats
 
 LOGGER = get_module_logger(__name__)
 
@@ -25,7 +25,10 @@ LOGGER = get_module_logger(__name__)
     stop_max_attempt_number=2,
 )
 def create_vrt(
-    uris: List[str], vrt: str = "all.vrt", tile_list: str = "tiles.txt"
+    uris: List[str],
+    extent: Optional[Bounds] = None,
+    vrt: str = "all.vrt",
+    tile_list: str = "tiles.txt",
 ) -> str:
     """
     ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
@@ -34,7 +37,10 @@ def create_vrt(
 
     _write_tile_list(tile_list, uris)
 
-    cmd = ["gdalbuildvrt", "-input_file_list", tile_list, vrt]
+    cmd = ["gdalbuildvrt", "-input_file_list"]
+    if extent:
+        cmd += ["-te"] + [str(v) for v in extent]
+    cmd += [tile_list, vrt]
 
     try:
         run_gdal_subcommand(cmd)
