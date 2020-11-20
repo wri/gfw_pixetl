@@ -37,10 +37,10 @@ def create_vrt(
 
     _write_tile_list(tile_list, uris)
 
-    cmd = ["gdalbuildvrt", "-input_file_list"]
+    cmd = ["gdalbuildvrt"]
     if extent:
         cmd += ["-te"] + [str(v) for v in extent]
-    cmd += [tile_list, vrt]
+    cmd += ["-input_file_list", tile_list, vrt]
 
     try:
         run_gdal_subcommand(cmd)
