@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -38,22 +38,31 @@ class VectorSource(Source):
         self.table: str = version
 
 
-class RasterSource(Source):
-    def __init__(self, uri: str) -> None:
+class Raster(Source):
+    @property
+    @abstractmethod
+    def uri(self) -> str:
+        ...
 
-        self.profile: Dict[str, Any]
-        self.bounds: BoundingBox
+    @property
+    @abstractmethod
+    def url(self) -> str:
+        ...
 
-        self.uri: str = uri
-        self.url: str = uri
-        self.bounds, self.profile = self.fetch_meta()
+    @property
+    @abstractmethod
+    def profile(self) -> Dict[str, Any]:
+        ...
 
-    @lazy_property
+    @property
+    @abstractmethod
+    def bounds(self) -> BoundingBox:
+        ...
+
+    @property
+    @abstractmethod
     def geom(self) -> Polygon:
-        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
-        return Polygon(
-            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
-        )
+        ...
 
     @property
     def transform(self) -> rasterio.Affine:
@@ -119,6 +128,14 @@ class RasterSource(Source):
     def dtype(self, v: ndtype) -> None:
         self.profile["dtype"] = v
 
+    @property
+    def compress(self) -> str:
+        return self.profile["compress"]
+
+    @compress.setter
+    def compress(self, v: str) -> None:
+        self.profile["compress"] = v
+
     def has_no_data(self) -> bool:
         return self.nodata is not None
 
@@ -173,10 +190,9 @@ class RasterSource(Source):
         LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
-            with rasterio.Env(**GDAL_ENV):
-                with rasterio.open(self.url) as src:
-                    LOGGER.info(f"File {self.url} exists")
-                    return src.bounds, src.profile
+            with rasterio.Env(**GDAL_ENV), rasterio.open(self.url) as src:
+                LOGGER.info(f"File {self.url} exists")
+                return src.bounds, src.profile
 
         except Exception as e:
 
@@ -196,13 +212,61 @@ class RasterSource(Source):
         return compute_stats(self.uri).dict()
 
 
-class Destination(RasterSource):
-    def __init__(self, uri: str, profile: Dict[str, Any], bounds: BoundingBox):
-        # super().__init__(uri)  # we don't want to invoke __init__ from RasterSource here
+class RasterSource(Raster):
+    def __init__(self, uri: str) -> None:
+
         self.uri: str = uri
-        self.url: str = f"/vsis3/{self.bucket}/{uri}"
-        self.profile = profile
-        self.bounds = bounds
+
+    @lazy_property
+    def geom(self) -> Polygon:
+        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
+        return Polygon(
+            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
+        )
+
+    @property
+    def uri(self) -> str:
+        return self._uri
+
+    @uri.setter
+    def uri(self, v: str) -> None:
+        self._uri = v
+        self._bounds, self._profile = self.fetch_meta()
+
+    @property
+    def url(self) -> str:
+        return self.uri
+
+    @property
+    def bounds(self) -> BoundingBox:
+        return self._bounds
+
+    @property
+    def profile(self) -> Dict[str, Any]:
+        return self._profile
+
+
+class Destination(Raster):
+    def __init__(self, uri: str, profile: Dict[str, Any], bounds: BoundingBox):
+        self._uri: str = uri
+        self._profile = profile
+        self._bounds = bounds
+
+    @property
+    def uri(self) -> str:
+        return self._uri
+
+    @property
+    def url(self) -> str:
+        return f"/vsis3/{self.bucket}/{self.uri}"
+
+    @property
+    def bounds(self) -> BoundingBox:
+        return self._bounds
+
+    @property
+    def profile(self) -> Dict[str, Any]:
+        return self._profile
 
     @property
     def bucket(self):

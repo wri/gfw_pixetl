@@ -17,6 +17,9 @@ TILE_2_NAME = "10N_010W.tif"
 TILE_2_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_2_NAME)
 TILE_3_NAME = "world.tif"
 TILE_3_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_3_NAME)
+TILE_4_NAME = "01N_001E.tif"
+TILE_4_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_4_NAME)
+
 
 import numpy as np
 import rasterio
@@ -24,7 +27,7 @@ from affine import Affine
 from rasterio.crs import CRS
 
 ########### World.tif
-geotransform = (-180, 1, 0.0, 90, 0.0, -1)
+geotransform = (-180.0, 1.0, 0.0, 90.0, 0.0, -1.0)
 data = np.random.randint(20, size=(180, 360)).astype("uint8")
 profile = {
     "driver": "GTiff",
@@ -37,6 +40,22 @@ profile = {
 }
 
 with rasterio.open(TILE_3_PATH, "w", **profile) as dst:
+    dst.write(data, 1)
+
+############ 01N_001E.tif
+geotransform = (1.0, 0.00025, 0.0, 1.0, 0.0, -0.00025)
+data = np.random.randint(20, size=(4000, 4000)).astype("uint8")
+profile = {
+    "driver": "GTiff",
+    "height": 4000,
+    "width": 4000,
+    "count": 1,
+    "dtype": "uint8",
+    "crs": CRS.from_epsg(4326),
+    "transform": Affine.from_gdal(*geotransform),
+}
+
+with rasterio.open(TILE_4_PATH, "w", **profile) as dst:
     dst.write(data, 1)
 
 

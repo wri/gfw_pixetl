@@ -197,12 +197,27 @@ class Tile(ABC):
         colormap = os.path.join(self.tmp_dir, "colormap.txt")
         with open(colormap, "w") as f:
             for k, v in self.layer.symbology.colormap.items():
-                values = [k] + v.dict().values()
-                f.write(" ".join(values))
+                values = [k, *v.dict().values()]
+                f.write(" ".join(str(values)))
                 f.write("\n")
         src = self.local_dst[self.default_format].uri
         dst = os.path.join(self.tmp_dir, f"{self.tile_id}_colored.tif")
-        cmd = ["gdaldem", "color-relief", "-alpha", "-of", "PNG", src, colormap, dst]
+        cmd = [
+            "gdaldem",
+            "color-relief",
+            "-alpha",
+            "-co",
+            f"COMPRESS={self.dst[self.default_format].compress}",
+            "-co",
+            "TILED=YES",
+            "-co",
+            f"BLOCKXSIZE={self.grid.blockxsize}",
+            "-co",
+            f"BLOCKYSIZE={self.grid.blockxsize}",
+            src,
+            colormap,
+            dst,
+        ]
         try:
             run_gdal_subcommand(cmd)
         except GDALError:
