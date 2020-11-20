@@ -174,7 +174,7 @@ class Tile(ABC):
 
     def add_symbology(self):
         symbology_constructor = {
-            ColorMapType.discret: self._add_discrete_symbology,
+            ColorMapType.discrete: self._add_discrete_symbology,
             ColorMapType.gradient: self._add_gradient_symbology,
         }
 

@@ -52,11 +52,7 @@ class RasterSrcTile(Tile):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
-        return RasterSource(
-            create_vrt(
-                files, vrt=self.tile_id + ".vrt", tile_list=self.tile_id + ".txt"
-            )
-        )
+        return RasterSource(create_vrt(files, vrt=self.tile_id + ".vrt"))
 
     @lazy_property
     def intersecting_window(self) -> Window:
@@ -161,12 +157,7 @@ class RasterSrcTile(Tile):
         if all_files:
             # merge all data into one VRT and copy to target file
             vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
-            create_vrt(
-                all_files,
-                extent=self.bounds,
-                vrt=vrt_name,
-                tile_list=os.path.join(self.tmp_dir, f"{self.tile_id}.txt"),
-            )
+            create_vrt(all_files, extent=self.bounds, vrt=vrt_name)
             raster_copy(
                 vrt_name,
                 self.local_dst[self.default_format].uri,

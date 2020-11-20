@@ -25,30 +25,23 @@ LOGGER = get_module_logger(__name__)
     stop_max_attempt_number=2,
 )
 def create_vrt(
-    uris: List[str],
-    extent: Optional[Bounds] = None,
-    vrt: str = "all.vrt",
-    tile_list: str = "tiles.txt",
+    uris: List[str], extent: Optional[Bounds] = None, vrt: str = "all.vrt"
 ) -> str:
     """
     ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
     Create VRT file from input URI.
     """
 
-    _write_tile_list(tile_list, uris)
-
     cmd = ["gdalbuildvrt"]
     if extent:
         cmd += ["-te"] + [str(v) for v in extent]
-    cmd += ["-input_file_list", tile_list, vrt]
+    cmd += [vrt, *uris]
 
     try:
         run_gdal_subcommand(cmd)
     except GDALError:
         LOGGER.error("Could not create VRT file")
         raise
-    finally:
-        os.remove(tile_list)
 
     return vrt
 
@@ -138,10 +131,3 @@ def compute_stats(uri: str) -> Stats:
         stats.bands.append(band_stats)
 
     return stats
-
-
-def _write_tile_list(tile_list: str, uris: List[str]) -> None:
-    with open(tile_list, "w") as input_tiles:
-        for uri in uris:
-            LOGGER.debug(f"Add {uri} to tile list")
-            input_tiles.write(f"{uri}\n")
