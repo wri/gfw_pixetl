@@ -65,7 +65,7 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
     if env:
         gdal_env.update(**env)
 
-    LOGGER.debug(f"RUN subcommand, using env {gdal_env}")
+    LOGGER.debug(f"RUN subcommand {cmd}, using env {gdal_env}")
     p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=gdal_env)
 
     o_byte, e_byte = p.communicate()

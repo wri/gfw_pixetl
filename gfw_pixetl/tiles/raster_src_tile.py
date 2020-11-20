@@ -53,7 +53,9 @@ class RasterSrcTile(Tile):
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
         return RasterSource(
-            create_vrt(files, self.tile_id + ".vrt", self.tile_id + ".txt")
+            create_vrt(
+                files, vrt=self.tile_id + ".vrt", tile_list=self.tile_id + ".txt"
+            )
         )
 
     @lazy_property
