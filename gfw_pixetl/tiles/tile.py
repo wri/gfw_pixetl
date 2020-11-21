@@ -191,7 +191,7 @@ class Tile(ABC):
             "r+",
             **self.local_dst[self.default_format].profile,
         ) as dst:
-            dst.write_colormap(colormap)
+            dst.write_colormap(1, colormap)
 
     def _add_gradient_symbology(self):
         colormap = os.path.join(self.tmp_dir, "colormap.txt")

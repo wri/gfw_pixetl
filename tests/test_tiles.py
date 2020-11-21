@@ -162,7 +162,7 @@ def test_gradient_symbology():
         "symbology": {
             "type": "gradient",
             "colormap": {"1": {"red": 255, "green": 0, "blue": 0}},
-            "19": {"red": 0, "green": 0, "blue": 255},
+            "5": {"red": 0, "green": 0, "blue": 255},
         },
     }
 
@@ -195,3 +195,59 @@ def test_gradient_symbology():
         tile.local_dst[tile.default_format].blockysize
         == layer.dst_profile["blockysize"]
     )
+
+
+def test_discrete_symbology():
+    layer_dict = {
+        "dataset": "whrc_aboveground_biomass_stock_2000",
+        "version": "v4",
+        "pixel_meaning": "Mg_ha-1",
+        "data_type": "uint16",
+        "grid": "1/4000",
+        "source_type": "raster",
+        "no_data": 0,
+        "symbology": {
+            "type": "discrete",
+            "colormap": {
+                "1": {"red": 255, "green": 0, "blue": 0},
+                "2": {"red": 255, "green": 255, "blue": 0},
+                "3": {"red": 0, "green": 255, "blue": 0},
+                "4": {"red": 0, "green": 255, "blue": 255},
+                "5": {"red": 0, "green": 0, "blue": 255},
+            },
+        },
+    }
+
+    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+
+    tile = Tile("01N_001E", layer.grid, layer)
+
+    test_file = os.path.join(TILE.tmp_dir, "test_discrete_color.tif")
+    shutil.copyfile(TILE_4_PATH, test_file)
+
+    # monkey patch method to point to test file
+    # then initialize local destination
+    tile.get_local_dst_uri = lambda x: test_file
+    tile.set_local_dst(tile.default_format)
+
+    assert tile.local_dst[tile.default_format].profile["count"] == 1
+    with rasterio.open(tile.local_dst[tile.default_format].uri) as src, pytest.raises(
+        ValueError
+    ):
+        src.colormap(1)
+
+    tile.add_symbology()
+
+    assert tile.local_dst[tile.default_format].uri == test_file
+    assert tile.local_dst[tile.default_format].profile["count"] == 1
+
+    _colormap = layer.symbology.colormap
+    colormap = {0: (0, 0, 0, 255)}
+    for pixel_value in _colormap:
+        colormap[int(pixel_value)] = tuple(_colormap[pixel_value].dict().values())
+
+    for i in range(6, 256):
+        colormap[i] = (0, 0, 0, 255)
+
+    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
+        assert src.colormap(1) == colormap

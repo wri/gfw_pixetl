@@ -44,7 +44,7 @@ with rasterio.open(TILE_3_PATH, "w", **profile) as dst:
 
 ############ 01N_001E.tif
 geotransform = (1.0, 0.00025, 0.0, 1.0, 0.0, -0.00025)
-data = np.random.randint(20, size=(4000, 4000)).astype("uint8")
+data = np.random.randint(5, size=(4000, 4000)).astype("uint8")
 profile = {
     "driver": "GTiff",
     "height": 4000,
