@@ -244,7 +244,7 @@ def test_discrete_symbology():
     assert tile.local_dst[tile.default_format].profile["count"] == 1
 
     _colormap = layer.symbology.colormap
-    colormap = {0: (0, 0, 0, 255)}
+    colormap = {0: (0, 0, 0, 0)}
     for pixel_value in _colormap:
         colormap[int(pixel_value)] = tuple(_colormap[pixel_value].dict().values())
 
