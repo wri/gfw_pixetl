@@ -186,6 +186,9 @@ class Tile(ABC):
         for pixel_value in _colormap:
             colormap[pixel_value] = tuple(_colormap[pixel_value].dict().values())
 
+        if self.local_dst[self.default_format].nodata:
+            colormap[self.local_dst[self.default_format].nodata] = (0, 0, 0, 0)
+
         with rasterio.open(
             self.local_dst[self.default_format].uri,
             "r+",
