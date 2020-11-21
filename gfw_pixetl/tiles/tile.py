@@ -197,8 +197,8 @@ class Tile(ABC):
         colormap = os.path.join(self.tmp_dir, "colormap.txt")
         with open(colormap, "w") as f:
             for k, v in self.layer.symbology.colormap.items():
-                values = [k, *v.dict().values()]
-                f.write(" ".join(str(values)))
+                values = [str(k)] + [str(i) for i in v.dict().values()]
+                f.write(" ".join(values))
                 f.write("\n")
         src = self.local_dst[self.default_format].uri
         dst = os.path.join(self.tmp_dir, f"{self.tile_id}_colored.tif")

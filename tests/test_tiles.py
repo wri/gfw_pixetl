@@ -161,8 +161,10 @@ def test_gradient_symbology():
         "no_data": 0,
         "symbology": {
             "type": "gradient",
-            "colormap": {"1": {"red": 255, "green": 0, "blue": 0}},
-            "5": {"red": 0, "green": 0, "blue": 255},
+            "colormap": {
+                "1": {"red": 255, "green": 0, "blue": 0},
+                "5": {"red": 0, "green": 0, "blue": 255},
+            },
         },
     }
 
@@ -181,7 +183,7 @@ def test_gradient_symbology():
     assert tile.local_dst[tile.default_format].profile["count"] == 1
 
     tile.add_symbology()
-
+    sleep(60)
     assert (
         os.path.basename(tile.local_dst[tile.default_format].uri)
         == f"{tile.tile_id}_colored.tif"
