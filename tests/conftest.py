@@ -53,6 +53,7 @@ profile = {
     "dtype": "uint8",
     "crs": CRS.from_epsg(4326),
     "transform": Affine.from_gdal(*geotransform),
+    "nodata": 0,
 }
 
 with rasterio.open(TILE_4_PATH, "w", **profile) as dst:
