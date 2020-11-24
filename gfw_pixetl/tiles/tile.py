@@ -187,6 +187,8 @@ class Tile(ABC):
 
     def _add_discrete_symbology(self):
         """Add colormap to existing raster."""
+
+        LOGGER.info(f"Add colormap to tile {self.tile_id}")
         colormap: OrderedColorMap = self._sort_colormap()
 
         with rasterio.open(
@@ -202,6 +204,8 @@ class Tile(ABC):
         Use the RGBA quadruplet corresponding to the closest entry in
         the color configuration file.
         """
+
+        LOGGER.info(f"Create RGBA raster for tile {self.tile_id}")
 
         ordered_colormap: OrderedColorMap = self._sort_colormap()
         colormap_file = os.path.join(self.tmp_dir, "colormap.txt")

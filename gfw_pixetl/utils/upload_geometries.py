@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Any, Dict, List, Tuple, Union
 
@@ -92,7 +93,7 @@ def _merge_feature_collections(
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
     else:
-        old_fc = obj["Body"]
+        old_fc = json.loads(obj["Body"].read())
         for feature in old_fc["features"]:
             if feature["properties"]["name"] not in names:
                 fc["features"].append(feature)
