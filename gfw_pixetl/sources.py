@@ -19,7 +19,7 @@ from gfw_pixetl.errors import retry_if_rasterio_error
 from gfw_pixetl.models import Bounds
 from gfw_pixetl.settings import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, utils
-from gfw_pixetl.utils.gdal import compute_stats
+from gfw_pixetl.utils.gdal import get_metadata
 from gfw_pixetl.utils.type_casting import replace_inf_nan
 
 LOGGER = get_module_logger(__name__)
@@ -208,8 +208,8 @@ class Raster(Source):
                 LOGGER.exception(f"Cannot open file {self.url}")
                 raise
 
-    def stats(self) -> Dict[str, Any]:
-        return compute_stats(self.uri).dict()
+    def metadata(self, compute_stats: bool, compute_histogram: bool) -> Dict[str, Any]:
+        return get_metadata(self.uri, compute_stats, compute_histogram).dict()
 
 
 class RasterSource(Raster):

@@ -38,6 +38,8 @@ class Layer(object):
         self.rasterize_method: Optional[str] = layer_def.rasterize_method
         self.order: Optional[str] = layer_def.order
         self.symbology: Optional[Symbology] = layer_def.symbology
+        self.compute_stats: bool = layer_def.compute_stats
+        self.compute_histogram: bool = layer_def.compute_histogram
 
     def _get_prefix(
         self,

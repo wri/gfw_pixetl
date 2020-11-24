@@ -15,7 +15,7 @@ from gfw_pixetl.errors import (
     retry_if_missing_gcs_key_error,
     retry_if_none_type_error,
 )
-from gfw_pixetl.models import BandStats, Bounds, Stats
+from gfw_pixetl.models import Band, BandStats, Bounds, Histogram, Metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -87,18 +87,28 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
     return o, e
 
 
-def compute_stats(uri: str) -> Stats:
+def get_metadata(
+    uri: str, compute_stats: bool = False, compute_histogram: bool = False
+) -> Metadata:
     """Compute statistics and histogram using gdalinfo.
 
     Parse statistics as Stats object
     """
 
-    cmd: List[str] = ["gdalinfo", "-stats", "-mm", "-hist", "-json", uri]
+    cmd: List[str] = ["gdalinfo", "-json"]
+
+    if compute_stats:
+        cmd += ["-stats", "-mm"]
+
+    if compute_histogram:
+        cmd += ["-hist"]
+
+    cmd += [uri]
 
     o, _ = run_gdal_subcommand(cmd)
 
     meta: Dict[str, Any] = json.loads(o)
-    stats = Stats(
+    metadata = Metadata(
         extent=(
             meta["cornerCoordinates"]["lowerLeft"][0],
             meta["cornerCoordinates"]["lowerLeft"][1],
@@ -115,12 +125,8 @@ def compute_stats(uri: str) -> Stats:
     )
 
     for band in meta["bands"]:
-        band_stats = BandStats(
-            min=band["minimum"],
-            max=band["maximum"],
-            mean=band["mean"],
-            std_dev=band["stdDev"],
-            histogram=band["histogram"],
+
+        band_metadata = Band(
             no_data=band.get("noDataValue", None),
             data_type=from_gdal_data_type(band["type"]),
             nbits=band["metadata"].get("IMAGE_STRUCTURE", dict()).get("NBITS", None),
@@ -128,6 +134,16 @@ def compute_stats(uri: str) -> Stats:
             blockysize=band["block"][1],
         )
 
-        stats.bands.append(band_stats)
+        if compute_stats:
+            band_metadata.stats = BandStats(
+                min=band["minimum"],
+                max=band["maximum"],
+                mean=band["mean"],
+                std_dev=band["stdDev"],
+            )
+        if compute_histogram:
+            band_metadata.histogram = Histogram(**band["histogram"])
 
-    return stats
+        metadata.bands.append(band_metadata)
+
+    return metadata

@@ -94,7 +94,7 @@ class Tile(ABC):
 
         self.default_format = "geotiff"
         self.status = "pending"
-        self.stats: Dict[str, Dict] = dict()
+        self.metadata: Dict[str, Dict] = dict()
 
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):
@@ -168,7 +168,9 @@ class Tile(ABC):
 
         # Compute stats and histogram
         for dst_format in self.local_dst.keys():
-            self.stats[dst_format] = self.local_dst[dst_format].stats()
+            self.metadata[dst_format] = self.local_dst[dst_format].metadata(
+                self.layer.compute_stats, self.layer.compute_histogram
+            )
 
     def add_symbology(self):
         """Add symbology to output raster.

@@ -62,6 +62,8 @@ class LayerModel(BaseModel):
     calc: Optional[str]
     order: Optional[Order]
     symbology: Optional[Symbology]
+    compute_stats: bool = False
+    compute_histogram: bool = False
 
 
 class Histogram(BaseModel):
@@ -72,19 +74,23 @@ class Histogram(BaseModel):
 
 
 class BandStats(BaseModel):
-    data_type: DataTypeEnum
     min: float
     max: float
     mean: float
     std_dev: float
+
+
+class Band(BaseModel):
+    data_type: DataTypeEnum
     no_data: Optional[Union[int, float]]
-    histogram: Histogram
     nbits: Optional[int]
     blockxsize: int
     blockysize: int
+    stats: Optional[BandStats] = None
+    histogram: Optional[Histogram] = None
 
 
-class Stats(BaseModel):
+class Metadata(BaseModel):
     extent: Tuple[float, float, float, float]
     width: int
     height: int
@@ -93,4 +99,4 @@ class Stats(BaseModel):
     crs: str
     driver: str
     compression: str
-    bands: List[BandStats] = list()
+    bands: List[Band] = list()
