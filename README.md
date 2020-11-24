@@ -59,17 +59,20 @@ Supported Options:
 
 ### Raster Sources:
 
-| Option        | Mandatory | Description |
-|---------------|-----------|-------------|
-| source_type   | yes       | Always "raster" |
-| pixel_meaning | yes       | A string indicating the value represented by pixel. This can either be a field name or a unit. Always use lower caps, unless when specifying a unit that uses capital letters |
-| data_type     | yes       | Data type of output file (boolean, uint8, int8, uint16, int16, uint32, int32, float32, float64) |
-| grid          | yes       | Grid size of output dataset
-| no_data       | no        | Integer value, for float datatype use `NAN`. If left out or set to `null` output dataset will have no `no_data` value |
-| nbits         | no        | Max number of bits used for given datatype |
-| source_uri    | yes       | URI of source file |
-| resampling    | no        | Resampling method (nearest, mod, avg, etc), default `nearest |
-| calc          | no        | Numpy calculation to be performed on the tile. Use same syntax as for [gdal_calc](https://gdal.org/programs/gdal_calc.html) . Refer to tile as `A` |
+| Option            | Mandatory | Description |
+|-------------------|-----------|-------------|
+| source_type       | yes       | Always "raster" |
+| pixel_meaning     | yes       | A string indicating the value represented by pixel. This can either be a field name or a unit. Always use lower caps, unless when specifying a unit that uses capital letters |
+| data_type         | yes       | Data type of output file (boolean, uint8, int8, uint16, int16, uint32, int32, float32, float64) |
+| grid              | yes       | Grid size of output dataset
+| no_data           | no        | Integer value, for float datatype use `NAN`. If left out or set to `null` output dataset will have no `no_data` value |
+| nbits             | no        | Max number of bits used for given datatype |
+| source_uri        | yes       | URI of source file |
+| resampling        | no        | Resampling method (nearest, mod, avg, etc), default `nearest |
+| calc              | no        | Numpy calculation to be performed on the tile. Use same syntax as for [gdal_calc](https://gdal.org/programs/gdal_calc.html) . Refer to tile as `A` |
+| symbology         | no        | Add optional symbology to the output raster |
+| compute_stats     | no        | Compute band statistics and add to tiles.geojson |
+| compute_histogram | no        | Compute band histograms and add to tile.geojson |
 
 _NOTE:_
 
@@ -103,17 +106,20 @@ by the command that one would issue to process it:
 
 ### Vector Sources
 
-| Option           | Mandatory | Description |
-|------------------|-----------|-------------|
-| source_type      | yes       | Always "vector" |
-| pixel_meaning    | yes       | Field in source table used for pixel value |
-| data_type        | yes       | Data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
-| grid             | yes       | Grid size of output dataset
-| no_data          | no        | Integer value to use for no data value. |
-| nbits            | no        | Max number of bits used for given datatype |
-| order            | no        | How to order field values of source table (asc, desc) |
-| rasterize_method | no        | How to rasterize tile (value or count). `value` uses value from table, `count` counts number of features intersecting with pixel |
-| calc             | no        | PostgreSQL expression (ie `CASE` to use to reformat input values |
+| Option            | Mandatory | Description |
+|-------------------|-----------|-------------|
+| source_type       | yes       | Always "vector" |
+| pixel_meaning     | yes       | Field in source table used for pixel value |
+| data_type         | yes       | Data type of output file (boolean, uint, int, uint16, int16, uint32, int32, float32, float64) |
+| grid              | yes       | Grid size of output dataset
+| no_data           | no        | Integer value to use for no data value. |
+| nbits             | no        | Max number of bits used for given datatype |
+| order             | no        | How to order field values of source table (asc, desc) |
+| rasterize_method  | no        | How to rasterize tile (value or count). `value` uses value from table, `count` counts number of features intersecting with pixel |
+| calc              | no        | PostgreSQL expression (ie `CASE` to use to reformat input values |
+| symbology         | no        | Add optional symbology to the output raster |
+| compute_stats     | no        | Compute band statistics and add to tiles.geojson |
+| compute_histogram | no        | Compute band histograms and add to tile.geojson |
 
 _NOTE_:
 

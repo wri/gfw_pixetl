@@ -121,7 +121,7 @@ def get_metadata(
         pixelysize=abs(meta["geoTransform"][5]),
         crs=meta["coordinateSystem"]["wkt"],
         driver=meta["driverShortName"],
-        compression=meta["metadata"]["IMAGE_STRUCTURE"]["COMPRESSION"],
+        compression=meta["metadata"]["IMAGE_STRUCTURE"].get("COMPRESSION", None),
     )
 
     for band in meta["bands"]:

@@ -98,5 +98,5 @@ class Metadata(BaseModel):
     pixelysize: float
     crs: str
     driver: str
-    compression: str
+    compression: Optional[str]
     bands: List[Band] = list()
