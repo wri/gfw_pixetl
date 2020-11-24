@@ -1,5 +1,3 @@
-from geojson import FeatureCollection
-
 from gfw_pixetl.utils.upload_geometries import _merge_feature_collections
 from tests.conftest import BUCKET, GEOJSON_NAME
 
