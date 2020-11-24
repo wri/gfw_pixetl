@@ -1,7 +1,8 @@
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from pydantic import BaseModel, Field
+from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.resampling import ResamplingMethodEnum
@@ -10,6 +11,7 @@ VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
 
 Bounds = Tuple[float, float, float, float]
 OrderedColorMap = Dict[Union[int, float], Tuple[int, int, int, int]]
+FeatureTuple = Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
 
 
 class Order(str, Enum):

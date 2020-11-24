@@ -1,11 +1,13 @@
 import os
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
+from botocore.exceptions import ClientError
 from geojson import Feature, FeatureCollection, dumps
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.models import FeatureTuple
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.gdal import create_vrt
@@ -31,12 +33,11 @@ def upload_geom(
 ) -> List[Dict[str, Any]]:
     """Create geojson file for tile extent and upload to S3."""
 
-    fc: FeatureCollection
     response: List[Dict[str, Any]] = list()
 
     extent: Dict[str, Union[Polygon, MultiPolygon]] = _union_tile_geoms(tiles)
     for dst_format in extent.keys():
-        fc = _to_feature_collection([(extent[dst_format], None)])
+        fc: FeatureCollection = _to_feature_collection([(extent[dst_format], None)])
 
         if os.path.basename(prefix) == "extent.geojson":
             key = prefix
@@ -52,22 +53,50 @@ def upload_tile_geoms(
 ) -> List[Dict[str, Any]]:
     """Create geojson listing all tiles and upload to S3."""
 
-    fc: FeatureCollection
     response: List[Dict[str, Any]] = list()
 
     geoms: Dict[str, List[Tuple[Polygon, Dict[str, Any]]]] = _geoms_uris_per_dst_format(
         tiles
     )
     for dst_format in geoms.keys():
-        fc = _to_feature_collection(geoms[dst_format])
+        fc: FeatureCollection = _to_feature_collection(geoms[dst_format])
 
         if os.path.basename(prefix) == "tiles.geojson":
             key = prefix
         else:
             key = os.path.join(prefix, dst_format, "tiles.geojson")
 
+        fc = _merge_feature_collections(fc, bucket, key)
+
         response.append(_upload_geom(fc, bucket, key))
     return response
+
+
+def _merge_feature_collections(
+    fc: FeatureCollection, bucket: str, key: str
+) -> FeatureCollection:
+    """Add existing tiles to from S3 to Feature Collection.
+
+    This will allow us to skip computing stats and histogram for already
+    processed tiles. We assume here that tiles.json represents all
+    existing files in give data lake folder and that stats and histogram
+    were already computed.
+    """
+
+    names = [feature["properties"]["name"] for feature in fc["features"]]
+    client = get_s3_client()
+
+    try:
+        obj = client.get_object(Bucket=bucket, Key=key)
+    except ClientError as ex:
+        if ex.response["Error"]["Code"] != "NoSuchKey":
+            raise
+    else:
+        old_fc = obj["Body"]
+        for feature in old_fc["features"]:
+            if feature["properties"]["name"] not in names:
+                fc["features"].append(feature)
+    return fc
 
 
 def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
@@ -132,9 +161,7 @@ def _union_tile_geoms(tiles: List[Tile]) -> Dict[str, Union[Polygon, MultiPolygo
     return geoms
 
 
-def _to_feature_collection(
-    geoms: Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
-) -> FeatureCollection:
+def _to_feature_collection(geoms: FeatureTuple) -> FeatureCollection:
     """Convert list of features to feature collection."""
 
     features: List[Feature] = [
