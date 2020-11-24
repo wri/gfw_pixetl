@@ -1,5 +1,6 @@
 import json
 import os
+from copy import deepcopy
 from typing import Any, Dict, List, Tuple, Union
 
 from botocore.exceptions import ClientError
@@ -86,7 +87,7 @@ def _merge_feature_collections(
 
     names = [feature["properties"]["name"] for feature in fc["features"]]
     client = get_s3_client()
-
+    new_fc = deepcopy(fc)
     try:
         obj = client.get_object(Bucket=bucket, Key=key)
     except ClientError as ex:
@@ -96,8 +97,8 @@ def _merge_feature_collections(
         old_fc = json.loads(obj["Body"].read())
         for feature in old_fc["features"]:
             if feature["properties"]["name"] not in names:
-                fc["features"].append(feature)
-    return fc
+                new_fc["features"].append(feature)
+    return new_fc
 
 
 def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
