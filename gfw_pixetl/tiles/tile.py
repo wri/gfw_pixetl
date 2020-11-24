@@ -1,10 +1,8 @@
 import copy
 import errno
-import json
 import os
-import subprocess as sp
 from abc import ABC
-from typing import Any, Dict, List, Tuple
+from typing import Dict, Union
 
 import rasterio
 from rasterio.coords import BoundingBox
@@ -15,7 +13,7 @@ from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.models import ColorMapType
+from gfw_pixetl.models import RGBA, ColorMapType, OrderedColorMap
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.gdal import run_gdal_subcommand
@@ -173,6 +171,11 @@ class Tile(ABC):
             self.stats[dst_format] = self.local_dst[dst_format].stats()
 
     def add_symbology(self):
+        """Add symbology to output raster.
+
+        Either assign distinct colors to pixel values, or create new
+        file for gradient colors in RGB
+        """
         symbology_constructor = {
             ColorMapType.discrete: self._add_discrete_symbology,
             ColorMapType.gradient: self._add_gradient_symbology,
@@ -181,13 +184,8 @@ class Tile(ABC):
         symbology_constructor[self.layer.symbology.type]()
 
     def _add_discrete_symbology(self):
-        _colormap = self.layer.symbology.colormap
-        colormap = dict()
-        for pixel_value in _colormap:
-            colormap[pixel_value] = tuple(_colormap[pixel_value].dict().values())
-
-        if self.local_dst[self.default_format].nodata:
-            colormap[self.local_dst[self.default_format].nodata] = (0, 0, 0, 0)
+        """Add colormap to existing raster."""
+        colormap: OrderedColorMap = self._sort_colormap()
 
         with rasterio.open(
             self.local_dst[self.default_format].uri,
@@ -197,12 +195,25 @@ class Tile(ABC):
             dst.write_colormap(1, colormap)
 
     def _add_gradient_symbology(self):
-        colormap = os.path.join(self.tmp_dir, "colormap.txt")
-        with open(colormap, "w") as f:
-            for k, v in self.layer.symbology.colormap.items():
-                values = [str(k)] + [str(i) for i in v.dict().values()]
-                f.write(" ".join(values))
+        """Create new RGBA raster (gradient) based on colormap.
+
+        Use the RGBA quadruplet corresponding to the closest entry in
+        the color configuration file.
+        """
+
+        ordered_colormap: OrderedColorMap = self._sort_colormap()
+        colormap_file = os.path.join(self.tmp_dir, "colormap.txt")
+
+        # write to file
+        with open(colormap_file, "w") as f:
+            for pixel_value in ordered_colormap:
+                values = [str(pixel_value)] + [
+                    str(i) for i in ordered_colormap[pixel_value]
+                ]
+                row = " ".join(values)
+                f.write(row)
                 f.write("\n")
+
         src = self.local_dst[self.default_format].uri
         dst = os.path.join(self.tmp_dir, f"{self.tile_id}_colored.tif")
         cmd = [
@@ -218,7 +229,7 @@ class Tile(ABC):
             "-co",
             f"BLOCKYSIZE={self.grid.blockxsize}",
             src,
-            colormap,
+            colormap_file,
             dst,
         ]
         try:
@@ -228,3 +239,27 @@ class Tile(ABC):
             raise
         # switch uri with new output file
         self.local_dst[self.default_format].uri = dst
+
+    def _sort_colormap(self) -> OrderedColorMap:
+        """
+        Create value - quadruplet colormap (GDAL format) including no data value.
+
+        """
+        assert self.layer.symbology, "No colormap specified."
+        colormap: Dict[Union[int, float], RGBA] = copy.deepcopy(
+            self.layer.symbology.colormap
+        )
+
+        ordered_gdal_colormap: OrderedColorMap = dict()
+
+        # add no data value to colormap, if exists
+        # (not sure why mypy throws an error here, hence type: ignore)
+        if self.dst[self.default_format].nodata is not None:
+            colormap[self.dst[self.default_format].nodata] = RGBA(red=0, green=0, blue=0, alpha=0)  # type: ignore
+
+        # make sure values are correctly sorted and convert to value-quadruplet string
+        for pixel_value in sorted(colormap.keys()):
+
+            ordered_gdal_colormap[pixel_value] = colormap[pixel_value].tuple()
+
+        return ordered_gdal_colormap

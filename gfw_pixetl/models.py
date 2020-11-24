@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field, conint
+from pydantic import BaseModel, Field
 
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.resampling import ResamplingMethodEnum
@@ -9,6 +9,7 @@ from gfw_pixetl.resampling import ResamplingMethodEnum
 VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
 
 Bounds = Tuple[float, float, float, float]
+OrderedColorMap = Dict[Union[int, float], Tuple[int, int, int, int]]
 
 
 class Order(str, Enum):
@@ -37,8 +38,11 @@ class RGBA(BaseModel):
     blue: int = Field(..., ge=0, le=255)
     alpha: int = Field(255, ge=0, le=255)
 
+    def tuple(self) -> Tuple[int, int, int, int]:
+        return self.red, self.green, self.blue, self.alpha
 
-class ColorMap(BaseModel):
+
+class Symbology(BaseModel):
     type: ColorMapType
     colormap: Dict[Union[int, float], RGBA]
 
@@ -57,7 +61,7 @@ class LayerModel(BaseModel):
     source_uri: Optional[str]
     calc: Optional[str]
     order: Optional[Order]
-    symbology: Optional[ColorMap]
+    symbology: Optional[Symbology]
 
 
 class Histogram(BaseModel):

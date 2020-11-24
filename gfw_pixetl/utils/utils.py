@@ -1,7 +1,7 @@
 import datetime
 import os
 from math import floor
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional
 
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
