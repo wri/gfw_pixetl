@@ -1,14 +1,14 @@
-import multiprocessing
 import os
 from datetime import datetime
-from unittest import mock
 
+import rasterio
 from dateutil.tz import tzutc
 from pyproj import CRS
 
+from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
-from gfw_pixetl.utils.gdal import _write_tile_list, create_vrt
+from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
 from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.utils import (
     available_memory_per_process_bytes,
@@ -16,13 +16,10 @@ from gfw_pixetl.utils.utils import (
     get_bucket,
     world_bounds,
 )
+from tests.conftest import BUCKET, TILE_1_NAME, TILE_2_NAME
 
 os.environ["ENV"] = "test"
-URIS = [
-    f"/vsis3/{get_bucket()}/test/uri1",
-    f"/vsis3/{get_bucket()}/test/uri2",
-    f"/vsis3/{get_bucket()}/test/uri3",
-]
+URIS = [f"/vsis3/{BUCKET}/{TILE_1_NAME}", f"/vsis3/{BUCKET}/{TILE_2_NAME}"]
 
 
 class Client(object):
@@ -59,34 +56,6 @@ def test_get_bucket():
     assert bucket == "gfw-data-lake-test"
 
 
-#
-# def test_set_aws_credentials():
-#     env = os.environ.copy()
-#     result = set_aws_credentials()
-#
-#     assert env == result
-#     # Only checking for session token, since key and secret might be available on github
-#     # assert "AWS_ACCESS_KEY_ID" not in result.keys()
-#     # assert "AWS_SECRET_ACCESS_KEY" not in result.keys()
-#     assert "AWS_SESSION_TOKEN" not in result.keys()
-#
-#     os.environ["AWS_BATCH_JOB_ID"] = "test"
-#     os.environ["JOB_ROLE_ARN"] = "test"
-#     env = os.environ.copy()
-#
-#     with mock.patch("boto3.client", return_value=Client):
-#         result = set_aws_credentials()
-#
-#     assert env != result
-#     # Only checking for session token, since key and secret might be available on github
-#     # assert "AWS_ACCESS_KEY_ID" in result.keys()
-#     # assert "AWS_SECRET_ACCESS_KEY" in result.keys()
-#     assert "AWS_SESSION_TOKEN" in result.keys()
-#
-#     del os.environ["AWS_BATCH_JOB_ID"]
-#     del os.environ["JOB_ROLE_ARN"]
-
-
 def test_set_cwd():
     cwd = os.getcwd()
     new_dir = set_cwd()
@@ -94,12 +63,6 @@ def test_set_cwd():
     assert os.path.join(cwd, new_dir) == os.getcwd()
     os.chdir(cwd)
     os.rmdir(new_dir)
-
-
-# def test_set_available_memory():
-#     mem = set_available_memory()
-#     assert isinstance(mem, int)
-#     assert mem == set_available_memory()
 
 
 def test_set_workers():
@@ -127,27 +90,16 @@ def test_available_memory_per_process():
     assert available_memory_per_process_mb() == GLOBALS.max_mem / 2
 
 
-def test__write_tile_list():
-
-    tile_list = "test_tile_list.txt"
-    _write_tile_list(tile_list, URIS)
-    with open(tile_list, "r") as src:
-        lines = src.readlines()
-    assert lines == [
-        f"/vsis3/{get_bucket()}/test/uri1\n",
-        f"/vsis3/{get_bucket()}/test/uri2\n",
-        f"/vsis3/{get_bucket()}/test/uri3\n",
-    ]
-    os.remove(tile_list)
-
-
 def test__create_vrt():
+    vrt = create_vrt(URIS)
+    assert vrt == "all.vrt"
+    with rasterio.open(vrt, "r") as src:
+        assert src.bounds == (-10, 0, 20, 10)
 
-    with mock.patch("subprocess.Popen", autospec=True) as MockPopen:
-        MockPopen.return_value.communicate.return_value = ("", "")
-        MockPopen.return_value.returncode = 0
-        vrt = create_vrt(URIS)
-        assert vrt == "all.vrt"
+    vrt = create_vrt(URIS, vrt="new_name.vrt", extent=(-20, -10, 30, 20))
+    assert vrt == "new_name.vrt"
+    with rasterio.open(vrt, "r") as src:
+        assert src.bounds == (-20, -10, 30, 20)
 
 
 def test_world_bounds():
@@ -173,3 +125,14 @@ def test_get_aws_s3_endpoint():
     assert get_aws_s3_endpoint(None) is None
     assert get_aws_s3_endpoint("http://motoserver:5000") == "motoserver:5000"
     assert get_aws_s3_endpoint("motoserver:5000") == "motoserver:5000"
+
+
+def test__run_gdal_subcommand():
+    cmd = ["/bin/bash", "-c", "echo test"]
+    assert run_gdal_subcommand(cmd) == ("test\n", "")
+
+    try:
+        cmd = ["/bin/bash", "-c", "exit 1"]
+        run_gdal_subcommand(cmd)
+    except GDALNoneTypeError as e:
+        assert str(e) == ""

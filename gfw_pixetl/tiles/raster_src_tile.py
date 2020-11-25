@@ -20,6 +20,7 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.models import Bounds
 from gfw_pixetl.settings import GDAL_ENV, GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
@@ -28,7 +29,6 @@ from gfw_pixetl.utils.gdal import create_vrt
 LOGGER = get_module_logger(__name__)
 
 Windows = Tuple[Window, Window]
-Bounds = Tuple[float, float, float, float]
 
 
 class RasterSrcTile(Tile):
@@ -52,9 +52,7 @@ class RasterSrcTile(Tile):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
-        return RasterSource(
-            create_vrt(files, self.tile_id + ".vrt", self.tile_id + ".txt")
-        )
+        return RasterSource(create_vrt(files, vrt=self.tile_id + ".vrt"))
 
     @lazy_property
     def intersecting_window(self) -> Window:
@@ -94,10 +92,11 @@ class RasterSrcTile(Tile):
             has_data = True
 
         else:
-            # invoking gdal-geotiff here instead of in a separate stage to assure we don't run out of memory
+            # invoking gdal-geotiff and compute stats here
+            # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
-            self.create_gdal_geotiff()
+            self.postprocessing()
 
         return has_data
 
@@ -158,11 +157,7 @@ class RasterSrcTile(Tile):
         if all_files:
             # merge all data into one VRT and copy to target file
             vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
-            create_vrt(
-                all_files,
-                vrt=vrt_name,
-                tile_list=os.path.join(self.tmp_dir, f"{self.tile_id}.txt"),
-            )
+            create_vrt(all_files, extent=self.bounds, vrt=vrt_name)
             raster_copy(
                 vrt_name,
                 self.local_dst[self.default_format].uri,

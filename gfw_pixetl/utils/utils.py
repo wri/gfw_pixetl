@@ -1,12 +1,13 @@
 import datetime
 import os
 from math import floor
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional
 
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.models import Bounds
 from gfw_pixetl.settings import GLOBALS
 
 LOGGER = get_module_logger(__name__)
@@ -17,8 +18,6 @@ AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
 AVAILABLE_MEMORY: Optional[int] = None
 WORKERS: int = 1
-
-Bounds = Tuple[float, float, float, float]
 
 
 class AreaOfUse(NamedTuple):

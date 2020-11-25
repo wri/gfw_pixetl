@@ -137,39 +137,28 @@ class Pipe(ABC):
         Check and sort by status.
         """
 
-        tiles: List[Tile] = list()
+        processed_tiles: List[Tile] = list()
         skipped_tiles: List[Tile] = list()
         failed_tiles: List[Tile] = list()
-        existing_tiles: List[Tile] = list()
+        # existing_tiles: List[Tile] = list()
 
         for tile in pipe.results():
-
-            # Checking again which tiles are already in the final output folder.
-            # We need this to build the final geojson file which includes all the tiles.
-            # There might be already files which have been processed in a previous run
-            # So we cannot rely on the tile status alone.
-            # S3 is eventually consistent and it might take up to 15min for a file to become available after upload
-            # We hence don't check if remote files exists for processed files,
-            # just for those which were skipped or failed during the current run
-
-            if tile.status == "pending" or tile.dst[tile.default_format].exists():
-                existing_tiles.append(tile)
 
             # Sorting tiles based on their status final reporting
             if tile.status == "pending":
                 tile.status = "processed"
-                tiles.append(tile)
+                processed_tiles.append(tile)
             elif tile.status == "failed":
                 failed_tiles.append(tile)
             else:
                 skipped_tiles.append(tile)
 
-        self._upload_geometries(existing_tiles)
+        self._upload_geometries(processed_tiles)
 
-        return tiles, skipped_tiles, failed_tiles
+        return processed_tiles, skipped_tiles, failed_tiles
 
     def _upload_geometries(self, tiles) -> None:
-        """Computing VRT, extent GeoJSON and Tile GeoJSON and upload to S3."""
+        """Computing extent GeoJSON and Tile GeoJSON and upload to S3."""
         if len(tiles):
             # upload_geometries.upload_vrt(tiles, self.layer.prefix)
             upload_geometries.upload_geom(tiles, self.layer.prefix)
