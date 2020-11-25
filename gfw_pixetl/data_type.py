@@ -119,7 +119,7 @@ def data_type_factory(
     return dt
 
 
-def to_gdal_dt(data_type):
+def to_gdal_data_type(data_type: str) -> str:
     if data_type == "bool_" or data_type == "uint8" or data_type == "int8":
         return "Byte"
     elif data_type == "float16":
@@ -128,3 +128,10 @@ def to_gdal_dt(data_type):
         return "U" + data_type[1:].capitalize()
     else:
         return data_type.capitalize()
+
+
+def from_gdal_data_type(data_type: str) -> str:
+    if data_type == "Byte":
+        return "uint8"
+    else:
+        return data_type.lower()

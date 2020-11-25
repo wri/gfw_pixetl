@@ -3,7 +3,12 @@ import os
 
 import pytest
 
-from gfw_pixetl.data_type import DataType, DataTypeEnum, data_type_factory, to_gdal_dt
+from gfw_pixetl.data_type import (
+    DataType,
+    DataTypeEnum,
+    data_type_factory,
+    to_gdal_data_type,
+)
 
 os.environ["ENV"] = "test"
 

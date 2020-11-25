@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -15,18 +16,19 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
+from gfw_pixetl.models import Bounds
 from gfw_pixetl.settings import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, utils
+from gfw_pixetl.utils.gdal import get_metadata
 from gfw_pixetl.utils.type_casting import replace_inf_nan
 
 LOGGER = get_module_logger(__name__)
 
 Windows = Tuple[Window, Window]
-Bounds = Tuple[float, float, float, float]
 
 
-class Source:
-    pass
+class Source(ABC):
+    ...
 
 
 class VectorSource(Source):
@@ -36,22 +38,31 @@ class VectorSource(Source):
         self.table: str = version
 
 
-class RasterSource(Source):
-    def __init__(self, uri: str) -> None:
+class Raster(Source):
+    @property
+    @abstractmethod
+    def uri(self) -> str:
+        ...
 
-        self.profile: Dict[str, Any]
-        self.bounds: BoundingBox
+    @property
+    @abstractmethod
+    def url(self) -> str:
+        ...
 
-        self.uri: str = uri
-        self.url: str = uri
-        self.bounds, self.profile = self.fetch_meta()
+    @property
+    @abstractmethod
+    def profile(self) -> Dict[str, Any]:
+        ...
 
-    @lazy_property
+    @property
+    @abstractmethod
+    def bounds(self) -> BoundingBox:
+        ...
+
+    @property
+    @abstractmethod
     def geom(self) -> Polygon:
-        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
-        return Polygon(
-            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
-        )
+        ...
 
     @property
     def transform(self) -> rasterio.Affine:
@@ -117,6 +128,14 @@ class RasterSource(Source):
     def dtype(self, v: ndtype) -> None:
         self.profile["dtype"] = v
 
+    @property
+    def compress(self) -> str:
+        return self.profile["compress"]
+
+    @compress.setter
+    def compress(self, v: str) -> None:
+        self.profile["compress"] = v
+
     def has_no_data(self) -> bool:
         return self.nodata is not None
 
@@ -171,10 +190,9 @@ class RasterSource(Source):
         LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
-            with rasterio.Env(**GDAL_ENV):
-                with rasterio.open(self.url) as src:
-                    LOGGER.info(f"File {self.url} exists")
-                    return src.bounds, src.profile
+            with rasterio.Env(**GDAL_ENV), rasterio.open(self.url) as src:
+                LOGGER.info(f"File {self.url} exists")
+                return src.bounds, src.profile
 
         except Exception as e:
 
@@ -190,14 +208,65 @@ class RasterSource(Source):
                 LOGGER.exception(f"Cannot open file {self.url}")
                 raise
 
+    def metadata(self, compute_stats: bool, compute_histogram: bool) -> Dict[str, Any]:
+        return get_metadata(self.uri, compute_stats, compute_histogram).dict()
 
-class Destination(RasterSource):
-    def __init__(self, uri: str, profile: Dict[str, Any], bounds: BoundingBox):
-        # super().__init__(uri)  # we don't want to invoke __init__ from RasterSource here
+
+class RasterSource(Raster):
+    def __init__(self, uri: str) -> None:
+
         self.uri: str = uri
-        self.url: str = f"/vsis3/{self.bucket}/{uri}"
-        self.profile = profile
-        self.bounds = bounds
+
+    @lazy_property
+    def geom(self) -> Polygon:
+        left, bottom, right, top = self.reproject_bounds(CRS.from_epsg(4326))
+        return Polygon(
+            [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]]
+        )
+
+    @property
+    def uri(self) -> str:
+        return self._uri
+
+    @uri.setter
+    def uri(self, v: str) -> None:
+        self._uri = v
+        self._bounds, self._profile = self.fetch_meta()
+
+    @property
+    def url(self) -> str:
+        return self.uri
+
+    @property
+    def bounds(self) -> BoundingBox:
+        return self._bounds
+
+    @property
+    def profile(self) -> Dict[str, Any]:
+        return self._profile
+
+
+class Destination(Raster):
+    def __init__(self, uri: str, profile: Dict[str, Any], bounds: BoundingBox):
+        self._uri: str = uri
+        self._profile = profile
+        self._bounds = bounds
+
+    @property
+    def uri(self) -> str:
+        return self._uri
+
+    @property
+    def url(self) -> str:
+        return f"/vsis3/{self.bucket}/{self.uri}"
+
+    @property
+    def bounds(self) -> BoundingBox:
+        return self._bounds
+
+    @property
+    def profile(self) -> Dict[str, Any]:
+        return self._profile
 
     @property
     def bucket(self):
