@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 from botocore.exceptions import ClientError
 from geojson import Feature, FeatureCollection, dumps
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
@@ -30,28 +30,11 @@ def upload_vrt(tiles: List[Tile], prefix) -> List[Dict[str, Any]]:
     return response
 
 
-def upload_geom(
-    tiles: List[Tile], prefix: str, bucket: str = utils.get_bucket()
-) -> List[Dict[str, Any]]:
-    """Create geojson file for tile extent and upload to S3."""
-
-    response: List[Dict[str, Any]] = list()
-
-    extent: Dict[str, Union[Polygon, MultiPolygon]] = _union_tile_geoms(tiles)
-    for dst_format in extent.keys():
-        fc: FeatureCollection = _to_feature_collection([(extent[dst_format], None)])
-
-        if os.path.basename(prefix) == "extent.geojson":
-            key = prefix
-        else:
-            key = os.path.join(prefix, dst_format, "extent.geojson")
-
-        response.append(_upload_geom(fc, bucket, key))
-    return response
-
-
-def upload_tile_geoms(
-    tiles: List[Tile], prefix: str, bucket: str = utils.get_bucket()
+def upload_geojsons(
+    tiles: List[Tile],
+    prefix: str,
+    bucket: str = utils.get_bucket(),
+    ignore_existing_tiles=False,
 ) -> List[Dict[str, Any]]:
     """Create geojson listing all tiles and upload to S3."""
 
@@ -63,14 +46,13 @@ def upload_tile_geoms(
     for dst_format in geoms.keys():
         fc: FeatureCollection = _to_feature_collection(geoms[dst_format])
 
-        if os.path.basename(prefix) == "tiles.geojson":
-            key = prefix
-        else:
-            key = os.path.join(prefix, dst_format, "tiles.geojson")
+        key = os.path.join(prefix, dst_format, "tiles.geojson")
 
-        fc = _merge_feature_collections(fc, bucket, key)
+        if not ignore_existing_tiles:
+            fc = _merge_feature_collections(fc, bucket, key)
 
-        response.append(_upload_geom(fc, bucket, key))
+        response.append(_upload_geojson(fc, bucket, key))
+        response.append(_upload_extent(fc, prefix=prefix, dst_format=dst_format))
     return response
 
 
@@ -114,17 +96,6 @@ def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
     return uris
 
 
-def _geoms_per_dst_format(tiles) -> Dict[str, List[Polygon]]:
-
-    geoms: Dict[str, List[Polygon]] = dict()
-    for tile in tiles:
-        for dst_format in tile.dst.keys():
-            if dst_format not in geoms.keys():
-                geoms[dst_format] = list()
-            geoms[dst_format].append(tile.dst[dst_format].geom)
-    return geoms
-
-
 def _geoms_uris_per_dst_format(
     tiles: List[Tile],
 ) -> Dict[str, List[Tuple[Polygon, Dict[str, Any]]]]:
@@ -149,18 +120,14 @@ def _geoms_uris_per_dst_format(
     return geoms
 
 
-def _union_tile_geoms(tiles: List[Tile]) -> Dict[str, Union[Polygon, MultiPolygon]]:
+def _union_tile_geoms(fc: FeatureCollection) -> FeatureCollection:
     """Union tiles bounds into a single geometry."""
 
     LOGGER.debug("Create Polygon from tile bounds")
 
-    geoms: Dict[str, Union[Polygon, MultiPolygon]] = dict()
-    polygons: Dict[str, List[Polygon]] = _geoms_per_dst_format(tiles)
-
-    for dst_format in polygons.keys():
-        geoms[dst_format] = unary_union(polygons[dst_format])
-
-    return geoms
+    polygons: List[Polygon] = [shape(feature["geometry"]) for feature in fc["features"]]
+    extent: Union[Polygon, MultiPolygon] = unary_union(polygons)
+    return _to_feature_collection([(extent, None)])
 
 
 def _to_feature_collection(geoms: FeatureTuple) -> FeatureCollection:
@@ -172,7 +139,7 @@ def _to_feature_collection(geoms: FeatureTuple) -> FeatureCollection:
     return FeatureCollection(features)
 
 
-def _upload_geom(fc: FeatureCollection, bucket: str, key: str) -> Dict[str, Any]:
+def _upload_geojson(fc: FeatureCollection, bucket: str, key: str) -> Dict[str, Any]:
 
     LOGGER.info(f"Upload geometry to {bucket} {key}")
     return S3.put_object(
@@ -180,6 +147,20 @@ def _upload_geom(fc: FeatureCollection, bucket: str, key: str) -> Dict[str, Any]
         Bucket=bucket,
         Key=key,
     )
+
+
+def _upload_extent(
+    fc: FeatureCollection,
+    prefix: str,
+    dst_format: str,
+    bucket: str = utils.get_bucket(),
+) -> Dict[str, Any]:
+    """Create geojson file for tileset extent and upload to S3."""
+
+    extent_fc = _union_tile_geoms(fc)
+    key = os.path.join(prefix, dst_format, "extent.geojson")
+
+    return _upload_geojson(extent_fc, bucket, key)
 
 
 def _upload_vrt(key: str, vrt: str, prefix: str) -> Dict[str, Any]:
