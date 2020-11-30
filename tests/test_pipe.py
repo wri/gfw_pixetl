@@ -2,15 +2,12 @@ import os
 from typing import Set
 from unittest import mock
 
-from shapely.geometry import Polygon
-
 from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid
 from gfw_pixetl.models import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl.utils import upload_geometries
 from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
@@ -32,13 +29,6 @@ PIPE = RasterPipe(LAYER, SUBSET)
 
 def test_pipe():
     assert isinstance(PIPE, Pipe)
-
-
-# def test_create_tiles():
-#     try:
-#         PIPE.create_tiles(overwrite=False)
-#     except NotImplementedError as e:
-#         assert isinstance(e, NotImplementedError)
 
 
 def test_get_grid_tiles():
@@ -132,14 +122,6 @@ def test_delete_file():
                 i += 1
                 assert isinstance(tile, Tile)
         assert i == 4
-
-
-def test__to_polygon():
-    tiles = list(_get_subset_tiles())
-    extent = upload_geometries._union_tile_geoms(tiles)
-    for dst_format in extent.keys():
-        assert isinstance(extent[dst_format], Polygon)
-        assert extent[dst_format].bounds == (10, 9, 12, 11)
 
 
 def _get_subset_tiles() -> Set[Tile]:

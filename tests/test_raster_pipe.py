@@ -46,14 +46,7 @@ def test_create_tiles_subset():
         ), mock.patch.object(
             RasterSrcTile, "rm_local_src", return_value=None
         ), mock.patch(
-            "gfw_pixetl.utils.upload_geometries.upload_vrt",
-            return_value=None,
-        ), mock.patch(
-            "gfw_pixetl.utils.upload_geometries.upload_geom",
-            return_value=None,
-        ), mock.patch(
-            "gfw_pixetl.utils.upload_geometries.upload_tile_geoms",
-            return_value=None,
+            "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
         ):
             (
                 tiles,
@@ -80,11 +73,7 @@ def test_create_tiles_all():
     ), mock.patch.object(
         RasterSrcTile, "rm_local_src", return_value=None
     ), mock.patch(
-        "gfw_pixetl.utils.upload_geometries.upload_vrt", return_value=None
-    ), mock.patch(
-        "gfw_pixetl.utils.upload_geometries.upload_geom", return_value=None
-    ), mock.patch(
-        "gfw_pixetl.utils.upload_geometries.upload_tile_geoms", return_value=None
+        "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
     ):
         (
             tiles,

@@ -46,7 +46,7 @@ def get_key_from_vsi(vsi_path):
     return "/".join(key)
 
 
-def get_extent(bucket, prefix, provider, dataset, version):
+def get_extent(bucket, prefix, provider, dataset, version, ignore_existing_tiles):
 
     get_files = {"aws": get_aws_files, "gs": get_gs_files}
     files = get_files[provider](bucket, prefix)
@@ -62,8 +62,12 @@ def get_extent(bucket, prefix, provider, dataset, version):
         tiles.append(DummyTile(src))
 
     data_lake_bucket = get_bucket()
-    upload_geometries.upload_tile_geoms(tiles, bucket=data_lake_bucket, prefix=f"{dataset}/{version}/raw/tiles.geojson")  # type: ignore
-    upload_geometries.upload_geom(tiles, bucket=data_lake_bucket, prefix=f"{dataset}/{version}/raw/extent.geojson")  # type: ignore
+    upload_geometries.upload_geojsons(
+        tiles,  # type: ignore
+        bucket=data_lake_bucket,
+        prefix=f"{dataset}/{version}/raw/",
+        ignore_existing_tiles=ignore_existing_tiles,
+    )
 
 
 @click.command()
@@ -72,11 +76,12 @@ def get_extent(bucket, prefix, provider, dataset, version):
 @click.option("--provider", type=str, default="aws")
 @click.option("--dataset", type=str, required=True)
 @click.option("--version", type=str, required=True)
-def cli(bucket, prefix, provider, dataset, version):
+@click.option("--ignore_existing_tiles", type=bool, default=True)
+def cli(bucket, prefix, provider, dataset, version, ignore_existing_tiles):
 
     if not dataset:
         dataset = bucket
     if not version:
         dataset = prefix
 
-    get_extent(bucket, prefix, provider, dataset, version)
+    get_extent(bucket, prefix, provider, dataset, version, ignore_existing_tiles)
