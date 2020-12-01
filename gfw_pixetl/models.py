@@ -34,6 +34,11 @@ class ColorMapType(str, Enum):
     gradient = "gradient"
 
 
+class DstFormat(str, Enum):
+    geotiff = "geotiff"
+    gdal_geotiff = "gdal-geotiff"
+
+
 class RGBA(BaseModel):
     red: int = Field(..., ge=0, le=255)
     green: int = Field(..., ge=0, le=255)

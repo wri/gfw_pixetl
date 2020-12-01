@@ -10,6 +10,7 @@ from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.models import FeatureTuple
+from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.gdal import create_vrt
@@ -102,7 +103,9 @@ def _geoms_uris_per_dst_format(
 
     LOGGER.debug("Collect Polygon from tile bounds")
 
-    geoms: Dict[str, List[Tuple[Polygon, Dict[str, Any]]]] = dict()
+    geoms: Dict[str, List[Tuple[Polygon, Dict[str, Any]]]] = {
+        GLOBALS.default_dst_format: list()
+    }
 
     for tile in tiles:
         for dst_format in tile.dst.keys():
