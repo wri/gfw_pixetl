@@ -13,7 +13,8 @@ from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.models import RGBA, ColorMapType, OrderedColorMap
+from gfw_pixetl.models import RGBA, ColorMapType, DstFormat, OrderedColorMap
+from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.gdal import run_gdal_subcommand
@@ -73,13 +74,17 @@ class Tile(ABC):
         geotiff_profile["compress"] = "DEFLATE"
 
         self.dst: Dict[str, Destination] = {
-            "gdal-geotiff": Destination(
-                uri=os.path.join(layer.prefix, "gdal-geotiff", f"{self.tile_id}.tif"),
+            DstFormat.gdal_geotiff: Destination(
+                uri=os.path.join(
+                    layer.prefix, DstFormat.gdal_geotiff, f"{self.tile_id}.tif"
+                ),
                 profile=gdal_profile,
                 bounds=self.bounds,
             ),
-            "geotiff": Destination(
-                uri=os.path.join(layer.prefix, "geotiff", f"{self.tile_id}.tif"),
+            DstFormat.geotiff: Destination(
+                uri=os.path.join(
+                    layer.prefix, DstFormat.geotiff, f"{self.tile_id}.tif"
+                ),
                 profile=geotiff_profile,
                 bounds=self.bounds,
             ),
@@ -92,7 +97,7 @@ class Tile(ABC):
             if e.errno != errno.EEXIST:
                 raise
 
-        self.default_format = "geotiff"
+        self.default_format = GLOBALS.default_dst_format
         self.status = "pending"
         self.metadata: Dict[str, Dict] = dict()
 
@@ -116,7 +121,7 @@ class Tile(ABC):
         return uri
 
     def create_gdal_geotiff(self) -> None:
-        dst_format = "gdal-geotiff"
+        dst_format = DstFormat.gdal_geotiff
         if self.default_format != dst_format:
             LOGGER.info(
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
