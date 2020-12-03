@@ -54,6 +54,7 @@ def test_src_tile_intersects_wm():
 def test_transform_final():
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    assert tile.dst[tile.default_format].crs.is_valid
 
     with rasterio.open(tile.src.uri) as tile_src:
         window = rasterio.windows.from_bounds(
@@ -78,6 +79,7 @@ def test_transform_final():
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
     assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
     assert src_profile["height"] == LAYER.grid.cols
@@ -102,6 +104,7 @@ def test_transform_final_wm():
     assert isinstance(layer_wm, layers.RasterSrcLayer)
     tile = RasterSrcTile("000R_000C", layer_wm.grid, layer_wm)
 
+    assert tile.dst[tile.default_format].crs.is_valid
     tile.transform()
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
@@ -118,6 +121,7 @@ def test_transform_final_wm():
     assert src_profile["compress"].lower() == layer_wm.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
     assert src_profile["crs"] == {"init": layer_wm.grid.crs.srs}
+    assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == layer_wm.dst_profile["dtype"]
     assert src_profile["height"] == layer_wm.grid.cols
@@ -128,7 +132,6 @@ def test_transform_final_wm():
     # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
 
     assert not hasattr(src_profile, "compress")
-
     os.remove(tile.local_dst[tile.default_format].uri)
 
 

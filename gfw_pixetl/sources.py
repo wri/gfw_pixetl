@@ -160,7 +160,7 @@ class Raster(Source):
 
         min_lng, min_lat, max_lng, max_lat = utils.world_bounds(crs)
 
-        proj = Transformer.from_crs(self.crs, crs, always_xy=True)
+        proj = Transformer.from_crs(CRS.from_user_input(self.crs), crs, always_xy=True)
 
         reproject_top = replace_inf_nan(round(proj.transform(0, top)[1], 8), max_lat)
         reproject_left = replace_inf_nan(round(proj.transform(left, 0)[0], 8), min_lng)
