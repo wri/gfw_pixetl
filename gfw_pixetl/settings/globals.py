@@ -74,8 +74,9 @@ class Globals(EnvSettings):
     #######################
     # Google authentication
     #######################
-    google_application_credentials: Optional[str] = Field(
-        None, description="Path to Google application credential file"
+    google_application_credentials: str = Field(
+        "/root/.gcs/private_key.json",
+        description="Path to Google application credential file",
     )
 
     ######################
