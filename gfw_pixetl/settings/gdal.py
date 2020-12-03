@@ -21,7 +21,7 @@ def set_aws_s3_endpoint():
 
 
 class GdalEnv(EnvSettings):
-    gdal_tiff_intneral_mask = True
+    gdal_tiff_internal_mask = True
     aws_https: Optional[str] = None
     aws_virtual_hosting: Optional[str] = None
     gdal_disable_readdir_on_open: Optional[str] = None

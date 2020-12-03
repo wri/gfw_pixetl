@@ -12,6 +12,7 @@ from gfw_pixetl.utils.aws import get_s3_client
 class DummyTile(object):
     def __init__(self, dst):
         self.dst = {"geotiff": dst}
+        self.metadata = {}
 
 
 def get_aws_files(bucket: str, prefix: str) -> List[str]:
@@ -46,7 +47,9 @@ def get_key_from_vsi(vsi_path):
     return "/".join(key)
 
 
-def get_extent(bucket, prefix, provider, dataset, version, ignore_existing_tiles):
+def get_extent(
+    bucket, prefix, provider, dataset, version, identifier, ignore_existing_tiles
+):
 
     get_files = {"aws": get_aws_files, "gs": get_gs_files}
     files = get_files[provider](bucket, prefix)
@@ -57,7 +60,7 @@ def get_extent(bucket, prefix, provider, dataset, version, ignore_existing_tiles
         # first we need the full URI to fetch metadata and calculate extent
         src = RasterSource(uri)
         # We will then append the src as dst to our dummy file. Here we don't want protocol and bucket in the URI
-        src.uri = key
+        src._uri = key
 
         tiles.append(DummyTile(src))
 
@@ -65,7 +68,7 @@ def get_extent(bucket, prefix, provider, dataset, version, ignore_existing_tiles
     upload_geometries.upload_geojsons(
         tiles,  # type: ignore
         bucket=data_lake_bucket,
-        prefix=f"{dataset}/{version}/raw/",
+        prefix=f"{dataset}/{version}/{identifier.strip('/')}/",
         ignore_existing_tiles=ignore_existing_tiles,
     )
 
@@ -76,12 +79,15 @@ def get_extent(bucket, prefix, provider, dataset, version, ignore_existing_tiles
 @click.option("--provider", type=str, default="aws")
 @click.option("--dataset", type=str, required=True)
 @click.option("--version", type=str, required=True)
+@click.option("--identifier", type=str, default="raw")
 @click.option("--ignore_existing_tiles", type=bool, default=True)
-def cli(bucket, prefix, provider, dataset, version, ignore_existing_tiles):
+def cli(bucket, prefix, provider, dataset, version, identifier, ignore_existing_tiles):
 
     if not dataset:
         dataset = bucket
     if not version:
         dataset = prefix
 
-    get_extent(bucket, prefix, provider, dataset, version, ignore_existing_tiles)
+    get_extent(
+        bucket, prefix, provider, dataset, version, identifier, ignore_existing_tiles
+    )
