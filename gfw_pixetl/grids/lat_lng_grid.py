@@ -71,9 +71,6 @@ class LatLngGrid(Grid):
         lat: int = math.ceil(y / self.height) * self.height
         lat = self._apply_lat_offset(lat, y)
 
-        print("LAT", lat)
-        print("LNG", lng)
-
         # Make sure we are are still on earth
         assert 180 - self.width >= lng >= -180, "Origin's Longitude is out of bounds"
         assert 90 >= lat >= -90 + self.height, "Origin's Latitude is out of bounds"
