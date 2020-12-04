@@ -103,7 +103,6 @@ def submit_job(job, depends_on=None):
         timeout={"attemptDurationSeconds": attempt_duration_seconds},
     )
 
-    print(response)
     return response["jobId"]
 
 

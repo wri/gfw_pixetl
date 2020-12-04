@@ -141,7 +141,7 @@ class VectorSrcTile(Tile):
             .order_by(self.order_column(val_column))
         )
 
-        print(str(sql))
+        logger.debug(str(sql))
 
         if self.layer.rasterize_method == "count":
             cmd += ["-burn", "1", "-add"]

@@ -74,7 +74,7 @@ def retry_if_missing_gcs_key_error(exception) -> bool:
         and GLOBALS.google_application_credentials
         and GLOBALS.aws_gcs_key_secret_arn
     ):
-        LOGGER.debug("GCS key is missing. Try to fetch key from secret manager")
+        LOGGER.info("GCS key is missing. Try to fetch key from secret manager")
 
         client = get_secret_client()
         response = client.get_secret_value(SecretId=GLOBALS.aws_gcs_key_secret_arn)
@@ -82,7 +82,7 @@ def retry_if_missing_gcs_key_error(exception) -> bool:
             os.path.dirname(GLOBALS.google_application_credentials), exist_ok=True
         )
 
-        LOGGER.debug("Write GCS key to file")
+        LOGGER.info("Write GCS key to file")
         with open(GLOBALS.google_application_credentials, "w") as f:
             f.write(response["SecretString"])
 

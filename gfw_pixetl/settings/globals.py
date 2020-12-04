@@ -1,4 +1,5 @@
 import multiprocessing
+import os
 from typing import Optional
 
 import psutil
@@ -108,3 +109,6 @@ class Globals(EnvSettings):
 
 
 GLOBALS = Globals()
+
+# Make sure that all globals are also set as ENV VAR
+os.environ.update(**GLOBALS.env_dict())
