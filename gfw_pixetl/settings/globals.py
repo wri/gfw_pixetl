@@ -72,14 +72,6 @@ class Globals(EnvSettings):
         None, env="PGDATABASE", description="PostgreSQL database name"
     )
 
-    #######################
-    # Google authentication
-    #######################
-    google_application_credentials: str = Field(
-        "/root/.gcs/private_key.json",
-        description="Path to Google application credential file",
-    )
-
     ######################
     # AWS configuration
     ######################
@@ -109,6 +101,3 @@ class Globals(EnvSettings):
 
 
 GLOBALS = Globals()
-
-# Make sure that all globals are also set as ENV VAR
-os.environ.update(**GLOBALS.env_dict())

@@ -3,8 +3,11 @@ from typing import Dict, List
 from urllib.parse import urlparse
 
 import click
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import storage
+from retrying import retry
 
+from gfw_pixetl.errors import MissingGCSKeyError, retry_if_missing_gcs_key_error
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.utils import get_bucket, upload_geometries
 from gfw_pixetl.utils.aws import get_s3_client
@@ -33,9 +36,18 @@ def get_aws_files(bucket: str, prefix: str) -> List[str]:
     return files
 
 
+@retry(
+    retry_on_exception=retry_if_missing_gcs_key_error,
+    stop_max_attempt_number=2,
+)
 def get_gs_files(bucket: str, prefix: str) -> List[str]:
     """Get all geotiffs in GCS."""
-    storage_client = storage.Client()
+
+    try:
+        storage_client = storage.Client()
+    except DefaultCredentialsError:
+        raise MissingGCSKeyError()
+
     blobs = storage_client.list_blobs(bucket, prefix=prefix)
     files = [
         f"/vsigs/{bucket}/{blob.name}"

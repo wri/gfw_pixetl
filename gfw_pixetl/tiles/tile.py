@@ -14,7 +14,7 @@ from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.models import RGBA, ColorMapType, DstFormat, OrderedColorMap
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings import GDAL_ENV, GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.gdal import run_gdal_subcommand
@@ -196,7 +196,7 @@ class Tile(ABC):
         LOGGER.info(f"Add colormap to tile {self.tile_id}")
         colormap: OrderedColorMap = self._sort_colormap()
 
-        with rasterio.open(
+        with rasterio.Env(**GDAL_ENV), rasterio.open(
             self.local_dst[self.default_format].uri,
             "r+",
             **self.local_dst[self.default_format].profile,
