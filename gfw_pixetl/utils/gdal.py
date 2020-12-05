@@ -16,6 +16,7 @@ from gfw_pixetl.errors import (
     retry_if_none_type_error,
 )
 from gfw_pixetl.models import Band, BandStats, Bounds, Histogram, Metadata
+from gfw_pixetl.settings import GDAL_ENV
 
 LOGGER = get_module_logger(__name__)
 
@@ -51,10 +52,12 @@ def create_vrt(
     stop_max_attempt_number=7,
     wait_fixed=2000,
 )
-def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str, str]:
+def run_gdal_subcommand(
+    cmd: List[str], env: Optional[Dict] = GDAL_ENV
+) -> Tuple[str, str]:
     """Run GDAL as sub command and catch common errors."""
 
-    gdal_env = os.environ.copy()  # utils.set_aws_credentials()
+    gdal_env = os.environ.copy()
     if env:
         gdal_env.update(**env)
 
@@ -79,8 +82,8 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
             == b"ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
         ):
             raise GDALAWSConfigError(e)
-        elif "ERROR 3: Load json file" in e:
-            raise MissingGCSKeyError()
+        elif "ERROR 3: Load json file" in e or "GOOGLE_APPLICATION_CREDENTIALS" in e:
+            raise MissingGCSKeyError(e)
         else:
             raise GDALError(e)
 
