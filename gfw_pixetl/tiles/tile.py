@@ -180,34 +180,11 @@ class Tile(ABC):
     def add_symbology(self):
         """Add symbology to output raster.
 
-        Either assign distinct colors to pixel values, or create new
-        file for gradient colors in RGB
-        """
-        symbology_constructor = {
-            ColorMapType.discrete: self._add_discrete_symbology,
-            ColorMapType.gradient: self._add_gradient_symbology,
-        }
-
-        symbology_constructor[self.layer.symbology.type]()
-
-    def _add_discrete_symbology(self):
-        """Add colormap to existing raster."""
-
-        LOGGER.info(f"Add colormap to tile {self.tile_id}")
-        colormap: OrderedColorMap = self._sort_colormap()
-
-        with rasterio.Env(**GDAL_ENV), rasterio.open(
-            self.local_dst[self.default_format].uri,
-            "r+",
-            **self.local_dst[self.default_format].profile,
-        ) as dst:
-            dst.write_colormap(1, colormap)
-
-    def _add_gradient_symbology(self):
-        """Create new RGBA raster (gradient) based on colormap.
-
-        Use the RGBA quadruplet corresponding to the closest entry in
-        the color configuration file.
+        Gradient colormap: Use linear interpolation based on provided
+        colormap to compute RGBA quadruplet for any given pixel value.
+        Discrete colormap: Use strict matching when searching in the
+        color configuration file. If none matching color entry is found,
+        the “0,0,0,0” RGBA quadruplet will be used.
         """
 
         LOGGER.info(f"Create RGBA raster for tile {self.tile_id}")
@@ -239,10 +216,17 @@ class Tile(ABC):
             f"BLOCKXSIZE={self.grid.blockxsize}",
             "-co",
             f"BLOCKYSIZE={self.grid.blockxsize}",
-            src,
-            colormap_file,
-            dst,
+            "-co",
+            "SPARSE_OK=TRUE",
+            "-co",
+            "INTERLEAVE=BAND",
         ]
+
+        if self.layer.symbology.type == ColorMapType.discrete:
+            cmd += ["-exact_color_entry"]
+
+        cmd += [src, colormap_file, dst]
+
         try:
             run_gdal_subcommand(cmd)
         except GDALError:
