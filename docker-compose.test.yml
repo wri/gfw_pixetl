@@ -1,9 +1,10 @@
 version: "3"
 
 services:
-  pixetl_test:
+  sut:
     build:
       context: .
+    image: pixetl_test
     container_name: pixetl_test
     volumes:
       - ./gfw_pixetl:/usr/local/app/gfw_pixetl:ro
@@ -27,7 +28,7 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
       - AWS_GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
     working_dir: /tmp
-    entrypoint: /usr/local/app/wait_for_postgres.sh pytest -vv --cov-report term --cov-report xml:/usr/local/app/tests/cobertura.xml --cov=gfw_pixetl
+    entrypoint: /usr/local/app/wait_for_postgres.sh pytest -vv --cov-report term --cov-report xml:/usr/local/app/tests/cobertura.xml --cov=gfw_pixetl /usr/local/app/tests/
     depends_on:
       - test_database
       - motoserver
