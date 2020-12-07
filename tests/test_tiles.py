@@ -183,7 +183,7 @@ def test_gradient_symbology():
     assert tile.local_dst[tile.default_format].profile["count"] == 1
 
     tile.add_symbology()
-    sleep(60)
+    # sleep(60)
     assert (
         os.path.basename(tile.local_dst[tile.default_format].uri)
         == f"{tile.tile_id}_colored.tif"
@@ -224,7 +224,7 @@ def test_discrete_symbology():
 
     tile = Tile("01N_001E", layer.grid, layer)
 
-    test_file = os.path.join(TILE.tmp_dir, "test_discrete_color.tif")
+    test_file = os.path.join(TILE.tmp_dir, "test_gradient_color.tif")
     shutil.copyfile(TILE_4_PATH, test_file)
 
     # monkey patch method to point to test file
@@ -233,23 +233,19 @@ def test_discrete_symbology():
     tile.set_local_dst(tile.default_format)
 
     assert tile.local_dst[tile.default_format].profile["count"] == 1
-    with rasterio.open(tile.local_dst[tile.default_format].uri) as src, pytest.raises(
-        ValueError
-    ):
-        src.colormap(1)
 
     tile.add_symbology()
-
-    assert tile.local_dst[tile.default_format].uri == test_file
-    assert tile.local_dst[tile.default_format].profile["count"] == 1
-
-    _colormap = layer.symbology.colormap
-    colormap = {0: (0, 0, 0, 0)}
-    for pixel_value in _colormap:
-        colormap[int(pixel_value)] = tuple(_colormap[pixel_value].dict().values())
-
-    for i in range(6, 256):
-        colormap[i] = (0, 0, 0, 255)
-
-    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
-        assert src.colormap(1) == colormap
+    # sleep(60)
+    assert (
+        os.path.basename(tile.local_dst[tile.default_format].uri)
+        == f"{tile.tile_id}_colored.tif"
+    )
+    assert tile.local_dst[tile.default_format].profile["count"] == 4
+    assert (
+        tile.local_dst[tile.default_format].blockxsize
+        == layer.dst_profile["blockxsize"]
+    )
+    assert (
+        tile.local_dst[tile.default_format].blockysize
+        == layer.dst_profile["blockysize"]
+    )
