@@ -137,16 +137,24 @@ def get_metadata(
             blockysize=band["block"][1],
         )
 
-        if compute_stats:
-            band_metadata.stats = BandStats(
-                min=band["minimum"],
-                max=band["maximum"],
-                mean=band["mean"],
-                std_dev=band["stdDev"],
-            )
-        if compute_histogram:
-            band_metadata.histogram = Histogram(**band["histogram"])
+        try:
+            if compute_stats:
+                band_metadata.stats = BandStats(
+                    min=band["minimum"],
+                    max=band["maximum"],
+                    mean=band["mean"],
+                    std_dev=band["stdDev"],
+                )
+            if compute_histogram:
+                band_metadata.histogram = Histogram(**band["histogram"])
 
-        metadata.bands.append(band_metadata)
+            metadata.bands.append(band_metadata)
+        except Exception:
+            msg = (
+                "Caught exception. Complete output for command "
+                f"[ {cmd} ]: {json.dumps(meta, indent=2)}"
+            )
+            LOGGER.exception(msg)
+            raise Exception(msg)
 
     return metadata
