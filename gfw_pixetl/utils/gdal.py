@@ -149,12 +149,12 @@ def get_metadata(
                 band_metadata.histogram = Histogram(**band["histogram"])
 
             metadata.bands.append(band_metadata)
-        except KeyError:
+        except Exception:
             msg = (
-                "Caught KeyError exception. Complete output for command "
+                "Caught exception. Complete output for command "
                 f"[ {cmd} ]: {json.dumps(meta, indent=2)}"
             )
-            LOGGER.error(msg)
+            LOGGER.exception(msg)
             raise Exception(msg)
 
     return metadata
