@@ -108,7 +108,7 @@ def get_metadata(
 
     cmd += [uri]
 
-    o, _ = run_gdal_subcommand(cmd)
+    o, e = run_gdal_subcommand(cmd)
 
     meta: Dict[str, Any] = json.loads(o)
     metadata = Metadata(
@@ -137,16 +137,25 @@ def get_metadata(
             blockysize=band["block"][1],
         )
 
-        if compute_stats:
-            band_metadata.stats = BandStats(
-                min=band["minimum"],
-                max=band["maximum"],
-                mean=band["mean"],
-                std_dev=band["stdDev"],
-            )
-        if compute_histogram:
-            band_metadata.histogram = Histogram(**band["histogram"])
+        try:
+            if compute_stats:
+                band_metadata.stats = BandStats(
+                    min=band["minimum"],
+                    max=band["maximum"],
+                    mean=band["mean"],
+                    std_dev=band["stdDev"],
+                )
+            if compute_histogram:
+                band_metadata.histogram = Histogram(**band["histogram"])
 
-        metadata.bands.append(band_metadata)
+            metadata.bands.append(band_metadata)
+        except Exception as ex:
+            # Don't bother logging because this happens in a sub-process and
+            # won't be seen. But the msg of an exception DOES make it back,
+            # so put something informative in there.
+            msg = (
+                f"Caught exception running {cmd} stdout: {o} stderr: {e} exception:{ex}"
+            )
+            raise Exception(msg)
 
     return metadata

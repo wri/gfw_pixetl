@@ -26,7 +26,7 @@ def get_aws_files(bucket: str, prefix: str) -> List[str]:
     s3_client = get_s3_client()
     response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
 
-    objs = response["Contents"]
+    objs = response.get("Contents", [])
     files = [
         f"/vsis3/{bucket}/{obj['Key']}"
         for obj in objs

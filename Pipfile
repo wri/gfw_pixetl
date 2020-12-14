@@ -24,6 +24,7 @@ SQLAlchemy = "*"
 rasterio = "*"
 aenum = "*"
 google-cloud-storage = "*"
+pre-commit = "*"
 
 [requires]
 python_version = "3.8"
