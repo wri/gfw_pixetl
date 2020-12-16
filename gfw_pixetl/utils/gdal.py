@@ -137,25 +137,16 @@ def get_metadata(
             blockysize=band["block"][1],
         )
 
-        try:
-            if compute_stats:
-                band_metadata.stats = BandStats(
-                    min=band["minimum"],
-                    max=band["maximum"],
-                    mean=band["mean"],
-                    std_dev=band["stdDev"],
-                )
-            if compute_histogram:
-                band_metadata.histogram = Histogram(**band["histogram"])
-
-            metadata.bands.append(band_metadata)
-        except Exception as ex:
-            # Don't bother logging because this happens in a sub-process and
-            # won't be seen. But the msg of an exception DOES make it back,
-            # so put something informative in there.
-            msg = (
-                f"Caught exception running {cmd} stdout: {o} stderr: {e} exception:{ex}"
+        if compute_stats:
+            band_metadata.stats = BandStats(
+                min=band.get("minimum"),
+                max=band.get("maximum"),
+                mean=band.get("mean"),
+                std_dev=band.get("stdDev"),
             )
-            raise Exception(msg)
+        if compute_histogram:
+            band_metadata.histogram = Histogram(**band.get("histogram", dict()))
+
+        metadata.bands.append(band_metadata)
 
     return metadata
