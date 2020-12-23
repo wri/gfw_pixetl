@@ -54,8 +54,10 @@ class DataType(object):
         if "int" in dtype and (no_data is not None and not isinstance(no_data, int)):
             message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
             raise ValueError(message)
-        elif ("float" in dtype or dtype in ["half", "single", "double"]) and (
-            no_data is not None and not math.isnan(no_data)
+        elif (
+            ("float" in dtype or dtype in ["half", "single", "double"])
+            and (no_data is not None)
+            and (type(no_data) != float)
         ):
             message = f"No data value {no_data} must be of type `float` or None for data type {data_type}"
             raise ValueError(message)
