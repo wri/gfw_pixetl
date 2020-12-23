@@ -74,17 +74,17 @@ class LayerModel(BaseModel):
 
 
 class Histogram(BaseModel):
-    count: Optional[int]
-    min: Optional[float]
-    max: Optional[float]
-    buckets: Optional[List[int]]
+    count: int
+    min: float
+    max: float
+    buckets: List[int]
 
 
 class BandStats(BaseModel):
-    min: Optional[float]
-    max: Optional[float]
-    mean: Optional[float]
-    std_dev: Optional[float]
+    min: float
+    max: float
+    mean: float
+    std_dev: float
 
 
 class Band(BaseModel):

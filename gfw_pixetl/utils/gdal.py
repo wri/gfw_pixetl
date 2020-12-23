@@ -138,14 +138,23 @@ def get_metadata(
         )
 
         if compute_stats:
-            band_metadata.stats = BandStats(
-                min=band.get("minimum"),
-                max=band.get("maximum"),
-                mean=band.get("mean"),
-                std_dev=band.get("stdDev"),
-            )
+            # For some empty tiles generating stats fails
+            try:
+                band_metadata.stats = BandStats(
+                    min=band["minimum"],
+                    max=band["maximum"],
+                    mean=band["mean"],
+                    std_dev=band["stdDev"],
+                )
+            except KeyError:
+                pass
+
         if compute_histogram:
-            band_metadata.histogram = Histogram(**band.get("histogram", dict()))
+            # For some empty tiles generating histogram fails
+            try:
+                band_metadata.histogram = Histogram(**band["histogram"])
+            except KeyError:
+                pass
 
         metadata.bands.append(band_metadata)
 
