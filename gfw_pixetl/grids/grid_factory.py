@@ -3,11 +3,10 @@ from typing import Dict
 from gfw_pixetl import get_module_logger
 
 from . import Grid
-
-LOGGER = get_module_logger(__name__)
-
 from .lat_lng_grid import LatLngGrid
 from .wm_grid import WebMercatorGrid
+
+LOGGER = get_module_logger(__name__)
 
 
 def grid_factory(grid_name) -> Grid:
@@ -15,7 +14,7 @@ def grid_factory(grid_name) -> Grid:
 
     grids: Dict[str, Grid] = {
         "1/4000": LatLngGrid(1, 4000),  # TEST grid
-        "3/33600": LatLngGrid(3, 33600),  # RAAD alerts, ~10m pixel
+        "3/33600": LatLngGrid(3, 33600),  # RADD alerts, ~10m pixel
         "10/40000": LatLngGrid(10, 40000),  # UMD alerts, ~30m pixel
         "8/32000": LatLngGrid(
             8, 32000
