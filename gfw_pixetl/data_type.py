@@ -57,7 +57,7 @@ class DataType(object):
         elif (
             ("float" in dtype or dtype in ["half", "single", "double"])
             and (no_data is not None)
-            and (type(no_data) != float)
+            and (not isinstance(no_data, float))
         ):
             message = f"No data value {no_data} must be of type `float` or None for data type {data_type}"
             raise ValueError(message)
