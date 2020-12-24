@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-from pydantic import BaseModel, Field, StrictFloat, StrictInt
+from pydantic import BaseModel, Field, StrictInt
 from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl.data_type import DataTypeEnum
@@ -10,7 +10,7 @@ from gfw_pixetl.resampling import ResamplingMethodEnum
 VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
 
 Bounds = Tuple[float, float, float, float]
-OrderedColorMap = Dict[Union[StrictInt, StrictFloat], Tuple[int, int, int, int]]
+OrderedColorMap = Dict[Union[StrictInt, float], Tuple[int, int, int, int]]
 FeatureTuple = Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
 
 
@@ -51,7 +51,7 @@ class RGBA(BaseModel):
 
 class Symbology(BaseModel):
     type: ColorMapType
-    colormap: Dict[Union[StrictInt, StrictFloat], RGBA]
+    colormap: Dict[Union[StrictInt, float], RGBA]
 
 
 class LayerModel(BaseModel):
@@ -61,7 +61,7 @@ class LayerModel(BaseModel):
     pixel_meaning: str
     data_type: DataTypeEnum
     nbits: Optional[int]
-    no_data: Optional[Union[StrictInt, StrictFloat]]
+    no_data: Optional[Union[StrictInt, float]]
     grid: str  # Make an enum?
     rasterize_method: Optional[RasterizeMethod]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
@@ -89,7 +89,7 @@ class BandStats(BaseModel):
 
 class Band(BaseModel):
     data_type: DataTypeEnum
-    no_data: Optional[Union[StrictInt, StrictFloat]]
+    no_data: Optional[Union[StrictInt, float]]
     nbits: Optional[int]
     blockxsize: int
     blockysize: int

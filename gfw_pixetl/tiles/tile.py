@@ -5,7 +5,7 @@ from abc import ABC
 from typing import Dict, Union
 
 import rasterio
-from pydantic.types import StrictFloat, StrictInt
+from pydantic.types import StrictInt
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
@@ -242,7 +242,7 @@ class Tile(ABC):
 
         """
         assert self.layer.symbology, "No colormap specified."
-        colormap: Dict[Union[StrictInt, StrictFloat], RGBA] = copy.deepcopy(
+        colormap: Dict[Union[StrictInt, float], RGBA] = copy.deepcopy(
             self.layer.symbology.colormap
         )
 

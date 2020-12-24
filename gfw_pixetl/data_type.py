@@ -2,7 +2,7 @@ import math
 from enum import Enum
 from typing import Callable, Dict, Optional, Union
 
-from pydantic.types import StrictFloat, StrictInt
+from pydantic.types import StrictInt
 
 from gfw_pixetl import get_module_logger
 
@@ -29,13 +29,13 @@ class DataType(object):
     def __init__(
         self,
         data_type: str,
-        no_data: Optional[Union[StrictInt, StrictFloat]],
+        no_data: Optional[Union[StrictInt, float]],
         nbits: Optional[StrictInt] = None,
         compression: str = "DEFLATE",
     ) -> None:
         self._validate_no_data(data_type, no_data, nbits)
         self.data_type: str = data_type
-        self.no_data: Optional[Union[StrictInt, StrictFloat]] = no_data
+        self.no_data: Optional[Union[StrictInt, float]] = no_data
         self.nbits: Optional[StrictInt] = nbits
         self.compression: str = compression
 
@@ -50,7 +50,7 @@ class DataType(object):
     @staticmethod
     def _validate_no_data(
         data_type: str,
-        no_data: Optional[Union[StrictInt, StrictFloat]],
+        no_data: Optional[Union[StrictInt, float]],
         nbits: Optional[StrictInt],
     ):
         dtype = data_type.lower()
@@ -88,7 +88,7 @@ def data_type_constructor(
 def data_type_factory(
     data_type: str,
     nbits: Optional[int] = None,
-    no_data: Optional[Union[StrictInt, StrictFloat]] = None,
+    no_data: Optional[Union[StrictInt, float]] = None,
 ) -> DataType:
     _8bits: Optional[int] = None if not nbits or nbits not in range(1, 8) else nbits
     _16bits: Optional[int] = None if not nbits or nbits not in range(9, 16) else nbits
