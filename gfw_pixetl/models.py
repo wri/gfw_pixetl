@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictFloat, StrictInt
 from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl.data_type import DataTypeEnum
@@ -51,7 +51,7 @@ class RGBA(BaseModel):
 
 class Symbology(BaseModel):
     type: ColorMapType
-    colormap: Dict[Union[int, float], RGBA]
+    colormap: Dict[Union[StrictInt, StrictFloat], RGBA]
 
 
 class LayerModel(BaseModel):
@@ -61,7 +61,7 @@ class LayerModel(BaseModel):
     pixel_meaning: str
     data_type: DataTypeEnum
     nbits: Optional[int]
-    no_data: Optional[Union[int, float]]
+    no_data: Optional[Union[StrictInt, StrictFloat]]
     grid: str  # Make an enum?
     rasterize_method: Optional[RasterizeMethod]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
