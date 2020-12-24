@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import rasterio
 from numpy import dtype as ndtype
+from pydantic.types import StrictFloat, StrictInt
 from pyproj import CRS, Transformer
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS as rCRS
@@ -97,11 +98,11 @@ class Raster(Source):
         self.profile["width"] = v
 
     @property
-    def nodata(self) -> Optional[Union[int, float]]:
+    def nodata(self) -> Optional[Union[StrictInt, StrictFloat]]:
         return self.profile["nodata"] if "nodata" in self.profile.keys() else None
 
     @nodata.setter
-    def nodata(self, v: Union[int, float]) -> None:
+    def nodata(self, v: Union[StrictInt, StrictFloat]) -> None:
         self.profile["nodata"] = v
 
     @property

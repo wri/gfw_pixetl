@@ -10,7 +10,7 @@ from gfw_pixetl.resampling import ResamplingMethodEnum
 VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
 
 Bounds = Tuple[float, float, float, float]
-OrderedColorMap = Dict[Union[int, float], Tuple[int, int, int, int]]
+OrderedColorMap = Dict[Union[StrictInt, StrictFloat], Tuple[int, int, int, int]]
 FeatureTuple = Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
 
 
@@ -89,7 +89,7 @@ class BandStats(BaseModel):
 
 class Band(BaseModel):
     data_type: DataTypeEnum
-    no_data: Optional[Union[int, float]]
+    no_data: Optional[Union[StrictInt, StrictFloat]]
     nbits: Optional[int]
     blockxsize: int
     blockysize: int
