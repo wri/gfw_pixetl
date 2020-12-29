@@ -2,6 +2,7 @@ import math
 from enum import Enum
 from typing import Callable, Dict, Optional, Union
 
+import numpy as np
 from pydantic.types import StrictInt
 
 from gfw_pixetl import get_module_logger
@@ -59,7 +60,8 @@ class DataType(object):
             message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
             raise ValueError(message)
         elif (
-            ("float" in dtype or dtype in ["half", "single", "double"])
+            getattr(DataTypeEnum, dtype, None) is not None
+            and np.issubdtype(np.dtype(dtype), np.floating)
             and (no_data is not None)
             and (not isinstance(no_data, float))
         ):

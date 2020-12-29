@@ -68,9 +68,12 @@ def test_no_data():
     data_type = data_type_factory("float32", no_data=0.0)
     assert data_type.no_data == 0.0
 
-    # FIXME: Surely this test is wrong?
+    # Note: Surely this test is wrong? Ask Thomas.
     # with pytest.raises(ValueError):
     #     data_type_factory("float32", no_data=1.1)
+    # Surely this should be the correct behavior
+    data_type = data_type_factory("float32", no_data=1.1)
+    assert data_type.no_data == 1.1
 
     with pytest.raises(ValueError):
         data_type_factory("float32", no_data=1)
