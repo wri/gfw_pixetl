@@ -2,10 +2,10 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from pydantic import BaseModel, Field
+from rasterio.enums import Resampling
 from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl.data_type import DataTypeEnum
-from gfw_pixetl.resampling import ResamplingMethodEnum
 
 VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
 
@@ -64,7 +64,7 @@ class LayerModel(BaseModel):
     no_data: Optional[Union[int, float]]
     grid: str  # Make an enum?
     rasterize_method: Optional[RasterizeMethod]
-    resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
+    resampling: str = "nearest"
     source_uri: Optional[str]
     calc: Optional[str]
     order: Optional[Order]
