@@ -6,7 +6,7 @@ import pydantic
 from pydantic import Field, PositiveInt
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.models import DstFormat
+from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.models import EnvSettings
 
 LOGGER = get_module_logger(__name__)

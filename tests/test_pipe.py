@@ -4,7 +4,7 @@ from unittest import mock
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import Tile

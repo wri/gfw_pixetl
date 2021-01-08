@@ -3,7 +3,7 @@ import os
 from rasterio.warp import Resampling
 
 from gfw_pixetl import layers
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"

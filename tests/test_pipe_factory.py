@@ -1,7 +1,7 @@
 import os
 
 from gfw_pixetl import layers
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import RasterPipe, pipe_factory
 from tests import minimal_layer_dict
 

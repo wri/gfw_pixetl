@@ -1,7 +1,7 @@
 import os
 from unittest import mock
 
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.pixetl import pixetl
 from tests import minimal_layer_dict

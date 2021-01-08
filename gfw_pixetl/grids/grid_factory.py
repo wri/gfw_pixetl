@@ -20,6 +20,9 @@ grids: Dict[str, Grid] = {
     "90/9984": LatLngGrid(90, 9984),  # MODIS Fire alerts, ~1000m pixel
 }
 
+for zoom in range(0, 23):
+    grids[f"zoom_{zoom}"] = WebMercatorGrid(zoom)
+
 
 class GridEnum(str, Enum):
     pass
@@ -32,9 +35,6 @@ for key in grids.keys():
 
 def grid_factory(grid_name) -> Grid:
     """Different Grid layout used for this project."""
-
-    for zoom in range(0, 23):
-        grids[f"zoom_{zoom}"] = WebMercatorGrid(zoom)
 
     try:
         grid = grids[grid_name]

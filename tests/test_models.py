@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from rasterio.enums import Resampling
 
 from gfw_pixetl.data_type import DataTypeEnum
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.resampling import resampling_factory
 from tests import minimal_layer_dict
 
@@ -67,6 +67,20 @@ class TestValidation(unittest.TestCase):
 
 
 def test_layer_model():
+    with pytest.raises(ValidationError):
+        layer_def = LayerModel(
+            dataset="test",
+            version="v1.1.1",
+            source_type="raster",
+            pixel_meaning="test",
+            data_type=DataTypeEnum.uint8,
+            nbits=6,
+            no_data=0,
+            grid="10/40000",
+            resampling="wrong",
+            source_uri="s3://test/tiles.geojson",
+        )
+
     layer_def = LayerModel(
         dataset="test",
         version="v1.1.1",
@@ -76,7 +90,7 @@ def test_layer_model():
         nbits=6,
         no_data=0,
         grid="10/40000",
-        resampling="wrong",
+        resampling="bilinear",
         source_uri="s3://test/tiles.geojson",
     )
 
