@@ -26,7 +26,7 @@ class GridEnum(str, Enum):
 
 
 # Dynamically create string enum for grid keys
-for key in grids:
+for key in grids.keys():
     extend_enum(GridEnum, key, key)
 
 
