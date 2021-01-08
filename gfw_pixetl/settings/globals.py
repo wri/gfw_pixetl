@@ -92,6 +92,18 @@ class Globals(EnvSettings):
     def hide_password(cls, v):
         return Secret(v) or None
 
+    @pydantic.validator("cores", pre=True, always=True)
+    def set_cores(cls, v, *, values, **kwargs):
+        cores = max(min(multiprocessing.cpu_count(), v), 1)
+        LOGGER.info(f"Set cores to {cores}")
+        return cores
+
+    @pydantic.validator("max_mem", pre=True, always=True)
+    def set_max_mem(cls, v, *, values, **kwargs):
+        max_mem = max(min(psutil.virtual_memory()[1] / 1000000, v), 1)
+        LOGGER.info(f"Set maximum memory to {max_mem}")
+        return max_mem
+
     @pydantic.validator("workers", pre=True, always=True)
     def set_workers(cls, v, *, values, **kwargs):
         workers = max(min(values["cores"], v), 1)
