@@ -83,7 +83,7 @@ class Layer(object):
             "blockxsize": grid.blockxsize,
             "blockysize": grid.blockysize,
             "pixeltype": "SIGNEDBYTE" if data_type.signed_byte else "DEFAULT",
-            "nodata": int(data_type.no_data) if data_type.no_data is not None else None,
+            "nodata": data_type.no_data,
         }
 
         if data_type.nbits:

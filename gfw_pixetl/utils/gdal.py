@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.data_type import from_gdal_data_type
+from gfw_pixetl.data_type import DataTypeEnum, from_gdal_data_type
 from gfw_pixetl.errors import (
     GDALAWSConfigError,
     GDALError,
@@ -131,7 +131,7 @@ def get_metadata(
 
         band_metadata = Band(
             no_data=band.get("noDataValue", None),
-            data_type=from_gdal_data_type(band["type"]),
+            data_type=DataTypeEnum(from_gdal_data_type(band["type"])),
             nbits=band["metadata"].get("IMAGE_STRUCTURE", dict()).get("NBITS", None),
             blockxsize=band["block"][0],
             blockysize=band["block"][1],
