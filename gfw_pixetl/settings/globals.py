@@ -1,4 +1,4 @@
-import multiprocessing
+from os import cpu_count
 from typing import Optional
 
 import psutil
@@ -40,9 +40,7 @@ class Globals(EnvSettings):
     #####################
     # Resource management
     ######################
-    cores: PositiveInt = Field(
-        multiprocessing.cpu_count(), description="Max number of cores to use"
-    )
+    cores: PositiveInt = Field(cpu_count(), description="Max number of cores to use")
     max_mem: PositiveInt = Field(
         psutil.virtual_memory()[1] / 1000000,
         description="Max memory available to pixETL",
@@ -92,23 +90,25 @@ class Globals(EnvSettings):
     def hide_password(cls, v):
         return Secret(v) or None
 
-    @pydantic.validator("cores", pre=True, always=True)
-    def set_cores(cls, v, *, values, **kwargs):
-        cores = max(min(multiprocessing.cpu_count(), v), 1)
+    @pydantic.root_validator()
+    def set_cores_workers(cls, values):
+
+        cores = max(min(cpu_count(), values.get("cores", cpu_count())), 1)
+        workers = max(min(cores, values.get("workers", cores)), 1)
+
+        values["cores"] = cores
+        values["workers"] = workers
+
         LOGGER.info(f"Set cores to {cores}")
-        return cores
+        LOGGER.info(f"Set workers to {workers}")
+
+        return values
 
     @pydantic.validator("max_mem", pre=True, always=True)
     def set_max_mem(cls, v, *, values, **kwargs):
-        max_mem = max(min(psutil.virtual_memory()[1] / 1000000, v), 1)
+        max_mem = max(min(psutil.virtual_memory()[1] / 1000000, float(v)), 1)
         LOGGER.info(f"Set maximum memory to {max_mem}")
         return max_mem
-
-    @pydantic.validator("workers", pre=True, always=True)
-    def set_workers(cls, v, *, values, **kwargs):
-        workers = max(min(values["cores"], v), 1)
-        LOGGER.info(f"Set workers to {workers}")
-        return workers
 
 
 GLOBALS = Globals()
