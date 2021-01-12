@@ -97,3 +97,36 @@ def test_layer_model():
     resampling = resampling_factory(layer_def.resampling)
 
     assert resampling == Resampling.bilinear
+
+
+def test_layer_model_floats():
+    layer_def = LayerModel(
+        dataset="test",
+        version="v1.1.1",
+        source_type="raster",
+        pixel_meaning="test",
+        data_type=DataTypeEnum.float32,
+        nbits=6,
+        grid="10/40000",
+        resampling="bilinear",
+        source_uri="s3://test/tiles.geojson",
+        no_data="nan",
+    )
+
+    assert isinstance(layer_def.no_data, float)
+    assert math.isnan(layer_def.no_data)
+
+    layer_def = LayerModel(
+        dataset="test",
+        version="v1.1.1",
+        source_type="raster",
+        pixel_meaning="test",
+        data_type=DataTypeEnum.float32,
+        nbits=6,
+        grid="10/40000",
+        resampling="bilinear",
+        source_uri="s3://test/tiles.geojson",
+        no_data="2.2",
+    )
+
+    assert isinstance(layer_def.no_data, float)
