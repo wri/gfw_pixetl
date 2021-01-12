@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.grids.grid_factory import GridEnum
@@ -22,7 +22,7 @@ class RGBA(BaseModel):
 
 class Symbology(BaseModel):
     type: ColorMapType
-    colormap: Dict[Union[int, float], RGBA]
+    colormap: Dict[Union[StrictInt, float], RGBA]
 
 
 class LayerModel(BaseModel):
@@ -32,7 +32,7 @@ class LayerModel(BaseModel):
     pixel_meaning: str
     data_type: DataTypeEnum
     nbits: Optional[int]
-    no_data: Optional[Union[int, float]]
+    no_data: Optional[Union[StrictInt, float]]
     grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
@@ -60,7 +60,7 @@ class BandStats(BaseModel):
 
 class Band(BaseModel):
     data_type: DataTypeEnum
-    no_data: Optional[Union[int, float]]
+    no_data: Optional[Union[StrictInt, float]]
     nbits: Optional[int]
     blockxsize: int
     blockysize: int

@@ -13,7 +13,7 @@ LOGGER = get_module_logger(__name__)
 
 grids: Dict[str, Grid] = {
     "1/4000": LatLngGrid(1, 4000),  # TEST grid
-    "3/33600": LatLngGrid(3, 33600),  # RAAD alerts, ~10m pixel
+    "3/33600": LatLngGrid(3, 33600),  # RADD alerts, ~10m pixel
     "10/40000": LatLngGrid(10, 40000),  # UMD alerts, ~30m pixel
     "8/32000": LatLngGrid(8, 32000),  # UMD alerts, ~30m pixel, data cube optimized Grid
     "90/27008": LatLngGrid(90, 27008),  # VIIRS Fire alerts, ~375m pixel
@@ -31,6 +31,8 @@ class GridEnum(str, Enum):
 # Dynamically create string enum for grid keys
 for key in grids.keys():
     extend_enum(GridEnum, key, key)
+
+LOGGER = get_module_logger(__name__)
 
 
 def grid_factory(grid_name) -> Grid:

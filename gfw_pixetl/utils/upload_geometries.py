@@ -1,7 +1,8 @@
 import json
+import math
 import os
 from copy import deepcopy
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from botocore.exceptions import ClientError
 from geojson import Feature, FeatureCollection, dumps
@@ -60,7 +61,7 @@ def upload_geojsons(
 def _merge_feature_collections(
     fc: FeatureCollection, bucket: str, key: str
 ) -> FeatureCollection:
-    """Add existing tiles to from S3 to Feature Collection.
+    """Add existing tiles from S3 to Feature Collection.
 
     This will allow us to skip computing stats and histogram for already
     processed tiles. We assume here that tiles.json represents all
@@ -133,11 +134,22 @@ def _union_tile_geoms(fc: FeatureCollection) -> FeatureCollection:
     return _to_feature_collection([(extent, None)])
 
 
+def _sanitize_props(props: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    # Non-numeric float values (like NaN) are not JSON-legal
+    if props is None:
+        return None
+    for band in props.get("bands", dict()):
+        no_data = band.get("no_data")
+        if no_data is not None and math.isnan(no_data):
+            band["no_data"] = "nan"
+    return props
+
+
 def _to_feature_collection(geoms: FeatureTuple) -> FeatureCollection:
     """Convert list of features to feature collection."""
 
     features: List[Feature] = [
-        Feature(geometry=item[0], properties=item[1]) for item in geoms
+        Feature(geometry=item[0], properties=_sanitize_props(item[1])) for item in geoms
     ]
     return FeatureCollection(features)
 
