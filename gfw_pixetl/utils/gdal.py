@@ -15,7 +15,8 @@ from gfw_pixetl.errors import (
     retry_if_missing_gcs_key_error,
     retry_if_none_type_error,
 )
-from gfw_pixetl.models import Band, BandStats, Bounds, Histogram, Metadata
+from gfw_pixetl.models.pydantic import Band, BandStats, Histogram, Metadata
+from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings import GDAL_ENV
 
 LOGGER = get_module_logger(__name__)

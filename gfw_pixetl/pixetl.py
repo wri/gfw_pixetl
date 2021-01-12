@@ -10,7 +10,7 @@ import click
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd

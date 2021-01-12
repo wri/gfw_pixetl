@@ -10,7 +10,7 @@ from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.models import FeatureTuple
+from gfw_pixetl.models.types import FeatureTuple
 from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client

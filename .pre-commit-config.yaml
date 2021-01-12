@@ -6,11 +6,11 @@ repos:
     hooks:
     - id: seed-isort-config
 -   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.6.4
+    rev: v5.7.0
     hooks:
     - id: isort
 -   repo: https://github.com/myint/docformatter
-    rev: v1.3.1
+    rev: v1.4
     hooks:
     - id: docformatter
       args: [--in-place]
@@ -20,7 +20,7 @@ repos:
     - id: black
       language_version: python3.8
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.3.0
+    rev: v3.4.0
     hooks:
     - id: detect-aws-credentials
     - id: detect-private-key

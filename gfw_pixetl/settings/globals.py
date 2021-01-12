@@ -6,7 +6,7 @@ import pydantic
 from pydantic import Field, PositiveInt
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.models import DstFormat
+from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.models import EnvSettings
 
 LOGGER = get_module_logger(__name__)
@@ -91,6 +91,18 @@ class Globals(EnvSettings):
     @pydantic.validator("db_password", pre=True, always=True)
     def hide_password(cls, v):
         return Secret(v) or None
+
+    @pydantic.validator("cores", pre=True, always=True)
+    def set_cores(cls, v, *, values, **kwargs):
+        cores = max(min(multiprocessing.cpu_count(), v), 1)
+        LOGGER.info(f"Set cores to {cores}")
+        return cores
+
+    @pydantic.validator("max_mem", pre=True, always=True)
+    def set_max_mem(cls, v, *, values, **kwargs):
+        max_mem = max(min(psutil.virtual_memory()[1] / 1000000, v), 1)
+        LOGGER.info(f"Set maximum memory to {max_mem}")
+        return max_mem
 
     @pydantic.validator("workers", pre=True, always=True)
     def set_workers(cls, v, *, values, **kwargs):

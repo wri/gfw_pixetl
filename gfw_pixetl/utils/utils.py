@@ -1,13 +1,13 @@
 import datetime
 import os
 from math import floor
-from typing import NamedTuple, Optional
+from typing import Optional
 
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.models import Bounds
+from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings import GLOBALS
 
 LOGGER = get_module_logger(__name__)
@@ -18,32 +18,6 @@ AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
 AVAILABLE_MEMORY: Optional[int] = None
 WORKERS: int = 1
-
-
-class AreaOfUse(NamedTuple):
-    """Area Of Use for projections.
-
-    Copied from pyproj.aoi.AreaOfUse version 3.0 PyProj Version 2.6 does
-    not expose this class.
-    """
-
-    #: West bound of area of use.
-    west: float
-    #: South bound of area of use.
-    south: float
-    #: East bound of area of use.
-    east: float
-    #: North bound of area of use.
-    north: float
-    #: Name of area of use.
-    name: Optional[str] = None
-
-    @property
-    def bounds(self):
-        return self.west, self.south, self.east, self.north
-
-    def __str__(self):
-        return f"- name: {self.name}\n" f"- bounds: {self.bounds}"
 
 
 def get_bucket(env: Optional[str] = None) -> str:

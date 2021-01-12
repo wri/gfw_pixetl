@@ -10,7 +10,7 @@ from rasterio.windows import Window
 from shapely.geometry import box
 
 from gfw_pixetl import get_module_logger, layers
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
