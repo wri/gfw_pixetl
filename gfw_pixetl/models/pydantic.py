@@ -1,42 +1,13 @@
-from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field
-from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl.data_type import DataTypeEnum
+from gfw_pixetl.grids.grid_factory import GridEnum
+from gfw_pixetl.models.enums import ColorMapType, Order, RasterizeMethod, SourceType
 from gfw_pixetl.resampling import ResamplingMethodEnum
 
 VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
-
-Bounds = Tuple[float, float, float, float]
-OrderedColorMap = Dict[Union[int, float], Tuple[int, int, int, int]]
-FeatureTuple = Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
-
-
-class Order(str, Enum):
-    asc = "asc"
-    desc = "desc"
-
-
-class RasterizeMethod(str, Enum):
-    _count = "count"
-    value = "value"
-
-
-class SourceType(str, Enum):
-    raster = "raster"
-    vector = "vector"
-
-
-class ColorMapType(str, Enum):
-    discrete = "discrete"
-    gradient = "gradient"
-
-
-class DstFormat(str, Enum):
-    geotiff = "geotiff"
-    gdal_geotiff = "gdal-geotiff"
 
 
 class RGBA(BaseModel):
@@ -62,7 +33,7 @@ class LayerModel(BaseModel):
     data_type: DataTypeEnum
     nbits: Optional[int]
     no_data: Optional[Union[int, float]]
-    grid: str  # Make an enum?
+    grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
     source_uri: Optional[str]

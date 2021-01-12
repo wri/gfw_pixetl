@@ -20,7 +20,7 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
-from gfw_pixetl.models import Bounds
+from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings import GDAL_ENV, GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile

@@ -7,7 +7,7 @@ import rasterio
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger, layers
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.tiles import RasterSrcTile
 from tests import minimal_layer_dict
 from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME

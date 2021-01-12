@@ -1,27 +1,21 @@
 import os
 import shutil
-from copy import deepcopy
-from time import sleep
 from typing import Any, Dict, Optional
 from unittest import mock
-from unittest.mock import patch
 
 import numpy as np
-import pytest
-import rasterio
 from rasterio import Affine
 from rasterio.crs import CRS
-from rasterio.enums import ColorInterp
 from rasterio.windows import Window
 from shapely.geometry import box
 
 from gfw_pixetl import get_module_logger, layers
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from tests import minimal_layer_dict
-from tests.conftest import BUCKET, TILE_1_PATH, TILE_4_PATH
+from tests.conftest import BUCKET, TILE_4_PATH
 
 os.environ["ENV"] = "test"
 
