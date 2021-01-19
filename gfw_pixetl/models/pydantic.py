@@ -42,6 +42,7 @@ class LayerModel(BaseModel):
     symbology: Optional[Symbology]
     compute_stats: bool = False
     compute_histogram: bool = False
+    process_locally: bool = False
 
 
 class Histogram(BaseModel):

@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from unittest import mock
 
 import numpy as np
+import pytest
 from rasterio import Affine
 from rasterio.crs import CRS
 from rasterio.windows import Window
@@ -75,13 +76,9 @@ def test_dst_exists():
 
 
 def test_set_local_src():
-    try:
+
+    with pytest.raises(FileNotFoundError):
         TILE.set_local_dst(TILE.default_format)
-    except FileNotFoundError as e:
-        assert (
-            str(e)
-            == f"File does not exist: whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/{TILE.default_format}/10N_010E.tif"
-        )
 
     with mock.patch("os.remove", return_value=None):
         with mock.patch("rasterio.open", return_value=Img()):
@@ -89,18 +86,18 @@ def test_set_local_src():
             assert isinstance(TILE.local_dst[TILE.default_format], RasterSource)
             assert (
                 TILE.local_dst[TILE.default_format].uri
-                == f"whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/{TILE.default_format}/10N_010E.tif"
+                == f"/tmp/10N_010E/{TILE.default_format}/10N_010E.tif"
             )
 
 
 def test_get_local_dst_uri():
     assert (
         TILE.get_local_dst_uri(TILE.default_format)
-        == f"whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/{TILE.default_format}/10N_010E.tif"
+        == f"/tmp/10N_010E/{TILE.default_format}/10N_010E.tif"
     )
     assert (
         TILE.get_local_dst_uri("gdal-geotiff")
-        == "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/gdal-geotiff/10N_010E.tif"
+        == "/tmp/10N_010E/gdal-geotiff/10N_010E.tif"
     )
 
 
@@ -111,11 +108,11 @@ def test_upload():
     )
     assert resp["KeyCount"] == 1
     os.makedirs(
-        "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/geotiff/",  # pragma: allowlist secret
+        "/tmp/20N_010E/geotiff/",  # pragma: allowlist secret
         exist_ok=True,
     )
     with open(
-        "whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/geotiff/20N_010E.tif",
+        "/tmp/20N_010E/geotiff/20N_010E.tif",
         "w+",
     ):
         pass

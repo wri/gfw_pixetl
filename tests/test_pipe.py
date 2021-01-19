@@ -112,16 +112,16 @@ def test_upload_file():
         assert i == 4
 
 
-def test_delete_file():
+def test_delete_work_dir():
     tiles = _get_subset_tiles()
-    with mock.patch.object(Tile, "rm_local_src", return_value=None):
-        pipe = tiles | PIPE.delete_file()
-        i = 0
-        for tile in pipe.results():
-            if tile.status == "pending":
-                i += 1
-                assert isinstance(tile, Tile)
-        assert i == 4
+
+    for tile in tiles:
+        assert os.path.isdir(tile.work_dir)
+
+    pipe = tiles | PIPE.delete_work_dir()
+
+    for tile in pipe.results():
+        assert not os.path.isdir(tile.work_dir)
 
 
 def _get_subset_tiles() -> Set[Tile]:

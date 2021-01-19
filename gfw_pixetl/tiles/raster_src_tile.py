@@ -4,9 +4,11 @@ from math import floor, sqrt
 from multiprocessing import Pool
 from multiprocessing.pool import Pool as PoolType
 from typing import Iterator, List, Optional, Tuple
+from urllib.parse import urlparse
 
 import numpy as np
 import rasterio
+from google.cloud import storage
 from numpy.ma import MaskedArray
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.shutil import copy as raster_copy
@@ -24,7 +26,10 @@ from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings import GDAL_ENV, GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_vrt
+from gfw_pixetl.utils.google import download_gcs
+from gfw_pixetl.utils.path import create_dir, from_vsi
 
 LOGGER = get_module_logger(__name__)
 
@@ -40,19 +45,46 @@ class RasterSrcTile(Tile):
     @lazy_property
     def src(self) -> RasterSource:
         LOGGER.debug(f"Find input files for {self.tile_id}")
-        files = list()
+        input_files = list()
         for f in self.layer.input_files:
             if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
                 self.default_format
             ].geom.touches(f[0]):
-                LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}.vrt")
-                files.append(f[1])
+                LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}")
 
-        if not len(files):
+                if self.layer.process_locally:
+                    input_file = self._download_source_file(f[1])
+                else:
+                    input_file = f[1]
+
+                input_files.append(input_file)
+
+        if not len(input_files):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
-        return RasterSource(create_vrt(files, vrt=self.tile_id + ".vrt"))
+
+        return RasterSource(create_vrt(input_files, vrt=self.tile_id + ".vrt"))
+
+    def _download_source_file(self, remote_file: str) -> str:
+        """Download remote files."""
+
+        download_constructor = {"gs": download_gcs, "s3": download_s3}
+
+        path = from_vsi(remote_file)
+        parts = urlparse(path)
+
+        local_file = os.path.join(self.work_dir, "input", parts.netloc, parts.path[1:])
+        create_dir(os.path.dirname(local_file))
+
+        LOGGER.debug(
+            f"Download remote file {remote_file} to {local_file} using {parts.scheme}"
+        )
+        download_constructor[parts.scheme](
+            bucket=parts.netloc, key=parts.path[1:], dst=local_file
+        )
+
+        return local_file
 
     @lazy_property
     def intersecting_window(self) -> Window:
