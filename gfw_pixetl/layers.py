@@ -10,10 +10,10 @@ from shapely.ops import unary_union
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
+from gfw_pixetl.models.pydantic import LayerModel, Symbology
 from gfw_pixetl.resampling import resampling_factory
 from gfw_pixetl.sources import VectorSource
 
-from .models import LayerModel, Symbology
 from .utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
@@ -83,7 +83,7 @@ class Layer(object):
             "blockxsize": grid.blockxsize,
             "blockysize": grid.blockysize,
             "pixeltype": "SIGNEDBYTE" if data_type.signed_byte else "DEFAULT",
-            "nodata": int(data_type.no_data) if data_type.no_data is not None else None,
+            "nodata": data_type.no_data,
         }
 
         if data_type.nbits:

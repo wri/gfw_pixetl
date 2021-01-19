@@ -5,8 +5,11 @@ import unittest
 
 import pytest
 from pydantic import ValidationError
+from rasterio.enums import Resampling
 
-from gfw_pixetl.models import LayerModel
+from gfw_pixetl.data_type import DataTypeEnum
+from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.resampling import resampling_factory
 from tests import minimal_layer_dict
 
 os.environ["ENV"] = "test"
@@ -61,3 +64,69 @@ class TestValidation(unittest.TestCase):
             bad_layer_dict.update(version=v)
             with pytest.raises(ValidationError):
                 LayerModel(**bad_layer_dict)
+
+
+def test_layer_model():
+    with pytest.raises(ValidationError):
+        layer_def = LayerModel(
+            dataset="test",
+            version="v1.1.1",
+            source_type="raster",
+            pixel_meaning="test",
+            data_type=DataTypeEnum.uint8,
+            nbits=6,
+            no_data=0,
+            grid="10/40000",
+            resampling="wrong",
+            source_uri="s3://test/tiles.geojson",
+        )
+
+    layer_def = LayerModel(
+        dataset="test",
+        version="v1.1.1",
+        source_type="raster",
+        pixel_meaning="test",
+        data_type=DataTypeEnum.uint8,
+        nbits=6,
+        no_data=0,
+        grid="10/40000",
+        resampling="bilinear",
+        source_uri="s3://test/tiles.geojson",
+    )
+
+    resampling = resampling_factory(layer_def.resampling)
+
+    assert resampling == Resampling.bilinear
+
+
+def test_layer_model_floats():
+    layer_def = LayerModel(
+        dataset="test",
+        version="v1.1.1",
+        source_type="raster",
+        pixel_meaning="test",
+        data_type=DataTypeEnum.float32,
+        nbits=6,
+        grid="10/40000",
+        resampling="bilinear",
+        source_uri="s3://test/tiles.geojson",
+        no_data="nan",
+    )
+
+    assert isinstance(layer_def.no_data, float)
+    assert math.isnan(layer_def.no_data)
+
+    layer_def = LayerModel(
+        dataset="test",
+        version="v1.1.1",
+        source_type="raster",
+        pixel_meaning="test",
+        data_type=DataTypeEnum.float32,
+        nbits=6,
+        grid="10/40000",
+        resampling="bilinear",
+        source_uri="s3://test/tiles.geojson",
+        no_data="2.2",
+    )
+
+    assert isinstance(layer_def.no_data, float)

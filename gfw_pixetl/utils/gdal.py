@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.data_type import from_gdal_data_type
+from gfw_pixetl.data_type import DataTypeEnum, from_gdal_data_type
 from gfw_pixetl.errors import (
     GDALAWSConfigError,
     GDALError,
@@ -15,7 +15,8 @@ from gfw_pixetl.errors import (
     retry_if_missing_gcs_key_error,
     retry_if_none_type_error,
 )
-from gfw_pixetl.models import Band, BandStats, Bounds, Histogram, Metadata
+from gfw_pixetl.models.pydantic import Band, BandStats, Histogram, Metadata
+from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings import GDAL_ENV
 
 LOGGER = get_module_logger(__name__)
@@ -131,31 +132,31 @@ def get_metadata(
 
         band_metadata = Band(
             no_data=band.get("noDataValue", None),
-            data_type=from_gdal_data_type(band["type"]),
+            data_type=DataTypeEnum(from_gdal_data_type(band["type"])),
             nbits=band["metadata"].get("IMAGE_STRUCTURE", dict()).get("NBITS", None),
             blockxsize=band["block"][0],
             blockysize=band["block"][1],
         )
 
-        try:
-            if compute_stats:
+        if compute_stats:
+            # For some empty tiles generating stats fails
+            try:
                 band_metadata.stats = BandStats(
                     min=band["minimum"],
                     max=band["maximum"],
                     mean=band["mean"],
                     std_dev=band["stdDev"],
                 )
-            if compute_histogram:
-                band_metadata.histogram = Histogram(**band["histogram"])
+            except KeyError:
+                pass
 
-            metadata.bands.append(band_metadata)
-        except Exception as ex:
-            # Don't bother logging because this happens in a sub-process and
-            # won't be seen. But the msg of an exception DOES make it back,
-            # so put something informative in there.
-            msg = (
-                f"Caught exception running {cmd} stdout: {o} stderr: {e} exception:{ex}"
-            )
-            raise Exception(msg)
+        if compute_histogram:
+            # For some empty tiles generating histogram fails
+            try:
+                band_metadata.histogram = Histogram(**band["histogram"])
+            except KeyError:
+                pass
+
+        metadata.bands.append(band_metadata)
 
     return metadata

@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import rasterio
 from numpy import dtype as ndtype
+from pydantic.types import StrictInt
 from pyproj import CRS, Transformer
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS as rCRS
@@ -16,7 +17,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
-from gfw_pixetl.models import Bounds
+from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, utils
 from gfw_pixetl.utils.gdal import get_metadata
@@ -97,11 +98,11 @@ class Raster(Source):
         self.profile["width"] = v
 
     @property
-    def nodata(self) -> Optional[Union[int, float]]:
+    def nodata(self) -> Optional[Union[StrictInt, float]]:
         return self.profile["nodata"] if "nodata" in self.profile.keys() else None
 
     @nodata.setter
-    def nodata(self, v: Union[int, float]) -> None:
+    def nodata(self, v: Union[StrictInt, float]) -> None:
         self.profile["nodata"] = v
 
     @property

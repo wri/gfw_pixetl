@@ -1,35 +1,25 @@
 from aenum import Enum, extend_enum
-from rasterio.warp import Resampling
+from rasterio.enums import Resampling
+
+from gfw_pixetl import get_module_logger
+
+LOGGER = get_module_logger(__name__)
 
 
 class ResamplingMethodEnum(str, Enum):
     pass
 
 
-methods = {
-    "nearest": Resampling.nearest,
-    "bilinear": Resampling.bilinear,
-    "cubic": Resampling.cubic,
-    "cubic_spline": Resampling.cubic_spline,
-    "lanczos": Resampling.lanczos,
-    "average": Resampling.average,
-    "mode": Resampling.mode,
-    "max": Resampling.max,
-    "min": Resampling.min,
-    "med": Resampling.med,
-    "q1": Resampling.q1,
-    "q3": Resampling.q3,
-}
-
-
-for key in methods.keys():
-    extend_enum(ResamplingMethodEnum, key, key)
+# Dynamically create string enum for RasterIO Resampling methods
+for item in Resampling:
+    extend_enum(ResamplingMethodEnum, item.name, item.name)
 
 
 def resampling_factory(method: str) -> Resampling:
     try:
-        resampling: Resampling = methods[method]
+        LOGGER.debug(f"Set resampling method to `{method}`.")
+        resampling: Resampling = Resampling[method]
     except KeyError:
-        raise ValueError(f"Method `{method}` is not supported")
+        raise ValueError(f"Resampling method `{method}` is not supported.")
 
     return resampling

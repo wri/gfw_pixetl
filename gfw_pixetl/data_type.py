@@ -2,6 +2,9 @@ import math
 from enum import Enum
 from typing import Callable, Dict, Optional, Union
 
+import numpy as np
+from pydantic.types import StrictInt
+
 from gfw_pixetl import get_module_logger
 
 LOGGER = get_module_logger(__name__)
@@ -27,14 +30,14 @@ class DataType(object):
     def __init__(
         self,
         data_type: str,
-        no_data: Optional[Union[int, float]],
-        nbits: Optional[int] = None,
+        no_data: Optional[Union[StrictInt, float]],
+        nbits: Optional[StrictInt] = None,
         compression: str = "DEFLATE",
     ) -> None:
         self._validate_no_data(data_type, no_data, nbits)
         self.data_type: str = data_type
-        self.no_data: Optional[Union[int, float]] = no_data
-        self.nbits: Optional[int] = nbits
+        self.no_data: Optional[Union[StrictInt, float]] = no_data
+        self.nbits: Optional[StrictInt] = nbits
         self.compression: str = compression
 
         if data_type == "int8":
@@ -47,15 +50,20 @@ class DataType(object):
 
     @staticmethod
     def _validate_no_data(
-        data_type: str, no_data: Optional[Union[int, float]], nbits: Optional[int]
+        data_type: str,
+        no_data: Optional[Union[StrictInt, float]],
+        nbits: Optional[StrictInt],
     ):
         dtype = data_type.lower()
 
         if "int" in dtype and (no_data is not None and not isinstance(no_data, int)):
             message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
             raise ValueError(message)
-        elif ("float" in dtype or dtype in ["half", "single", "double"]) and (
-            no_data is not None and not math.isnan(no_data)
+        elif (
+            getattr(DataTypeEnum, dtype, None) is not None
+            and np.issubdtype(np.dtype(dtype), np.floating)
+            and (no_data is not None)
+            and (not isinstance(no_data, float))
         ):
             message = f"No data value {no_data} must be of type `float` or None for data type {data_type}"
             raise ValueError(message)
@@ -82,7 +90,7 @@ def data_type_constructor(
 def data_type_factory(
     data_type: str,
     nbits: Optional[int] = None,
-    no_data: Optional[Union[int, float]] = None,
+    no_data: Optional[Union[StrictInt, float]] = None,
 ) -> DataType:
     _8bits: Optional[int] = None if not nbits or nbits not in range(1, 8) else nbits
     _16bits: Optional[int] = None if not nbits or nbits not in range(9, 16) else nbits
