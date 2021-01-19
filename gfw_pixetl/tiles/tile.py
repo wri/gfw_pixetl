@@ -1,5 +1,4 @@
 import copy
-import errno
 import os
 import shutil
 from abc import ABC

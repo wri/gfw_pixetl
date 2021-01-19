@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 
 import numpy as np
 import rasterio
-from google.cloud import storage
 from numpy.ma import MaskedArray
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.shutil import copy as raster_copy
