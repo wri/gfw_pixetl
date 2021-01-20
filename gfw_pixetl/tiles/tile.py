@@ -102,6 +102,7 @@ class Tile(ABC):
         self.metadata: Dict[str, Dict] = dict()
 
     def remove_work_dir(self):
+        LOGGER.debug(f"Delete working directory for tile {self.tile_id}")
         shutil.rmtree(self.work_dir)
 
     def set_local_dst(self, dst_format) -> None:
