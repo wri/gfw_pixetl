@@ -26,7 +26,7 @@ class VectorPipe(Pipe):
             | self.filter_target_tiles(overwrite=overwrite)
             | self.rasterize
             | self.upload_file
-            | self.delete_file
+            | self.delete_work_dir
         )
 
         return self._process_pipe(pipe)

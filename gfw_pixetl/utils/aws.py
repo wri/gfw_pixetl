@@ -26,3 +26,8 @@ get_s3_client = client_constructor("s3", endpoint_url=GLOBALS.aws_endpoint_url)
 get_batch_client = client_constructor("batch")
 get_sts_client = client_constructor("sts")
 get_secret_client = client_constructor("secretsmanager")
+
+
+def download_s3(bucket: str, key: str, dst: str) -> None:
+    s3_client = get_s3_client()
+    s3_client.download_file(bucket, key, dst)

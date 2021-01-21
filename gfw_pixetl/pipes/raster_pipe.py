@@ -50,7 +50,7 @@ class RasterPipe(Pipe):
             tiles
             | Stage(self.transform).setup(workers=GLOBALS.workers)
             | self.upload_file
-            | self.delete_file
+            | self.delete_work_dir
         )
 
         tiles, skipped_tiles, failed_tiles = self._process_pipe(pipe)

@@ -199,3 +199,14 @@ def test__vrt_transform():
     assert transform.almost_equals(rasterio.Affine(0.00025, 0, 9.1, 0, -0.00025, 9.2))
     assert isclose(width, 400)
     assert isclose(height, 400)
+
+
+def test_download_files():
+    layer = deepcopy(LAYER)
+    layer.process_locally = True
+    tile = RasterSrcTile("10N_010E", layer.grid, layer)
+    _ = tile.src  # trigger download
+
+    assert os.path.isfile(
+        os.path.join(tile.work_dir, "input/gfw-data-lake-test/10N_010E.tif")
+    )

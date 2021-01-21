@@ -1,6 +1,6 @@
 import copy
-import errno
 import os
+import shutil
 from abc import ABC
 from typing import Dict, Union
 
@@ -21,6 +21,7 @@ from gfw_pixetl.settings import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.gdal import run_gdal_subcommand
+from gfw_pixetl.utils.path import create_dir
 
 LOGGER = get_module_logger(__name__)
 S3 = get_s3_client()
@@ -93,16 +94,16 @@ class Tile(ABC):
             ),
         }
 
-        self.tmp_dir = os.path.join(layer.prefix, "tmp")
-        try:
-            os.makedirs(self.tmp_dir)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        self.work_dir = create_dir(os.path.join(os.getcwd(), tile_id))
+        self.tmp_dir = create_dir(os.path.join(self.work_dir, "tmp"))
 
         self.default_format = GLOBALS.default_dst_format
         self.status = "pending"
         self.metadata: Dict[str, Dict] = dict()
+
+    def remove_work_dir(self):
+        LOGGER.debug(f"Delete working directory for tile {self.tile_id}")
+        shutil.rmtree(self.work_dir)
 
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):
@@ -114,7 +115,7 @@ class Tile(ABC):
 
     def get_local_dst_uri(self, dst_format) -> str:
 
-        prefix = f"{self.layer.prefix}/{dst_format}"
+        prefix = f"{self.work_dir}/{dst_format}"
         LOGGER.debug(f"Attempt to create local folder {prefix} if not already exists")
         os.makedirs(f"{prefix}", exist_ok=True)
 
