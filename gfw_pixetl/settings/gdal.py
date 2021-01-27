@@ -42,6 +42,8 @@ class GdalEnv(EnvSettings):
         "/root/.gcs/private_key.json",
         description="Path to Google application credential file",
     )
+    cpl_debug: Optional[int] = None
+    cpl_curl_verbose: Optional[str] = None
 
     @pydantic.validator(
         "google_application_credentials", pre=True, always=True, allow_reuse=True

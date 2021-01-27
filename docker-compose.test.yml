@@ -29,6 +29,8 @@ services:
       - GDAL_DISABLE_READDIR_ON_OPEN=YES
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
       - AWS_GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
+      - CPL_DEBUG=1
+      - CPL_CURL_VERBOSE=ON
     working_dir: /tmp
     entrypoint: /usr/local/app/tests/run_tests.sh
     depends_on:
