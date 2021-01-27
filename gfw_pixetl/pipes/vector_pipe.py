@@ -4,7 +4,7 @@ from typing import Iterator, List, Set, Tuple
 
 from parallelpipe import stage
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.settings import GLOBALS
