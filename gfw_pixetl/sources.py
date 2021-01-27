@@ -18,7 +18,7 @@ from gfw_pixetl.connection import PgConn
 from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
 from gfw_pixetl.models.types import Bounds
-from gfw_pixetl.settings import GDAL_ENV
+from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.utils import get_bucket, utils
 from gfw_pixetl.utils.gdal import get_metadata
 from gfw_pixetl.utils.type_casting import replace_inf_nan

@@ -17,7 +17,7 @@ from gfw_pixetl.layers import Layer
 from gfw_pixetl.models.enums import ColorMapType, DstFormat
 from gfw_pixetl.models.pydantic import RGBA
 from gfw_pixetl.models.types import OrderedColorMap
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.gdal import run_gdal_subcommand

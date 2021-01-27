@@ -4,6 +4,8 @@ services:
   sut:
     build:
       context: .
+      args:
+        - ENV=test
     image: pixetl_test
     container_name: pixetl_test
     volumes:
@@ -21,17 +23,17 @@ services:
       - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
       - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret
       - AWS_SESSION_TOKEN=testing  # pragma: allowlist secret
-      - AWS_ENDPOINT_URL=http://motoserver:5000
+      - AWS_ENDPOINT_URL=http://localstack:4566
       - AWS_HTTPS=NO
       - AWS_VIRTUAL_HOSTING=FALSE
       - GDAL_DISABLE_READDIR_ON_OPEN=YES
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
       - AWS_GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
     working_dir: /tmp
-    entrypoint: /usr/local/app/wait_for_postgres.sh pytest -vv --cov-report term --cov-report xml:/usr/local/app/tests/cobertura.xml --cov=gfw_pixetl /usr/local/app/tests/
+    entrypoint: /usr/local/app/tests/run_tests.sh
     depends_on:
       - test_database
-      - motoserver
+      - localstack
 
   test_database:
     container_name: pixetl-test-database
@@ -47,13 +49,26 @@ services:
       - test_database_data:/var/lib/postgresql/data
     restart: on-failure
 
-  motoserver:
-    container_name: motoserver
-    image: motoserver/moto:latest
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
     ports:
-      - 5000:5000
-    entrypoint: moto_server s3 -H 0.0.0.0
-    restart: on-failure
+#      - '53:53'
+      - '443:443'
+      - '4563-4584:4563-4584'
+      - '8055:8080'
+      - '${PORT_WEB_UI-8080}:${PORT_WEB_UI-8080}'
+    environment:
+      - SERVICES=s3,secretsmanager,iam
+      - DEBUG=1
+      - DISABLE_EVENTS=1
+      - LAMBDA_DOCKER_NETWORK=gfw-pixetl_test_default
+      - LOCALSTACK_API_KEY=${LOCALSTACK_API_KEY}
+      - DNS_ADDRESS=22.22.22.22
+      - LAMBDA_REMOTE_DOCKER=1
+    volumes:
+      - "${TMPDIR:-./localstack}:/tmp/localstack"
+      - '/var/run/docker.sock:/var/run/docker.sock'
 
 volumes:
   test_database_data:

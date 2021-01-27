@@ -1,4 +1,4 @@
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 
 
 class PgConn(object):

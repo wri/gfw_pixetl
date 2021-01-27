@@ -6,7 +6,7 @@ import pydantic
 from pydantic import Field
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.settings.models import EnvSettings
 from gfw_pixetl.utils.aws import get_secret_client
 
@@ -43,25 +43,26 @@ class GdalEnv(EnvSettings):
         description="Path to Google application credential file",
     )
 
-    @pydantic.validator("google_application_credentials", pre=True, always=True)
+    @pydantic.validator(
+        "google_application_credentials", pre=True, always=True, allow_reuse=True
+    )
     def set_google_application_credentials(cls, v):
         if not os.path.isfile(v):
             LOGGER.info("GCS key is missing. Try to fetch key from secret manager")
 
             client = get_secret_client()
             response = client.get_secret_value(SecretId=GLOBALS.aws_gcs_key_secret_arn)
+            print("SECRET: ", response)
             os.makedirs(
-                os.path.dirname(GDAL_ENV["GOOGLE_APPLICATION_CREDENTIALS"]),
+                os.path.dirname(v),
                 exist_ok=True,
             )
 
             LOGGER.info("Write GCS key to file")
-            with open(GDAL_ENV["GOOGLE_APPLICATION_CREDENTIALS"], "w") as f:
+            with open(v, "w") as f:
                 f.write(response["SecretString"])
 
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GDAL_ENV[
-                "GOOGLE_APPLICATION_CREDENTIALS"
-            ]
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = v
         return v
 
 

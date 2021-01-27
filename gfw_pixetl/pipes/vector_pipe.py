@@ -7,7 +7,7 @@ from parallelpipe import stage
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.pipes import Pipe
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile, VectorSrcTile
 
 LOGGER = get_module_logger(__name__)

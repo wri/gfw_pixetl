@@ -2,7 +2,7 @@ from typing import Optional
 
 import boto3
 
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 
 
 def client_constructor(service: str, endpoint_url: Optional[str] = None):
@@ -25,7 +25,9 @@ def client_constructor(service: str, endpoint_url: Optional[str] = None):
 get_s3_client = client_constructor("s3", endpoint_url=GLOBALS.aws_endpoint_url)
 get_batch_client = client_constructor("batch")
 get_sts_client = client_constructor("sts")
-get_secret_client = client_constructor("secretsmanager")
+get_secret_client = client_constructor(
+    "secretsmanager", endpoint_url=GLOBALS.aws_endpoint_url
+)
 
 
 def download_s3(bucket: str, key: str, dst: str) -> None:

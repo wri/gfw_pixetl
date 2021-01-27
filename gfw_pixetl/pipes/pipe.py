@@ -5,7 +5,7 @@ from parallelpipe import stage
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
 

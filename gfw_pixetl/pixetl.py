@@ -12,8 +12,10 @@ from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
-from gfw_pixetl.settings import (  # noqa: F401, import vars to assure they are initialize right in the beginning
+from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
+)
+from gfw_pixetl.settings.globals import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GLOBALS,
 )
 from gfw_pixetl.tiles import Tile

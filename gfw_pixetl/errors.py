@@ -3,7 +3,8 @@ import os
 from rasterio import RasterioIOError
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.settings import GDAL_ENV, GLOBALS
+from gfw_pixetl.settings.gdal import GDAL_ENV
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.aws import get_secret_client
 
 LOGGER = get_module_logger(__name__)

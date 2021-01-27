@@ -4,7 +4,7 @@ import shutil
 import boto3
 import pytest
 
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 
 BUCKET = "gfw-data-lake-test"
 GEOJSON_NAME = "tiles.geojson"

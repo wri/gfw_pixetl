@@ -9,7 +9,7 @@ from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.grids import Grid
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 
