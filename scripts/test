@@ -30,8 +30,7 @@ if [ "${BUILD}" = true ]; then
 fi
 
 set +e
-docker-compose -f docker-compose.test.yml --project-name gfw-pixetl_test run --rm --name pixetl_test sut "$*"
+docker-compose -f docker-compose.test.yml --project-name gfw-pixetl_test run --rm --name pixetl_test sut /usr/local/app/tests/"$*"
 exit_code=$?
 docker-compose -f docker-compose.test.yml --project-name gfw-pixetl_test down --remove-orphans
-rm tests/terraform/terraform.tfstate*
 exit $exit_code

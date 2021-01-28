@@ -20,6 +20,7 @@ from gfw_pixetl.settings.globals import (  # noqa: F401, import vars to assure t
 )
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
+from gfw_pixetl.utils.secrets import set_google_application_credentials
 
 LOGGER = get_module_logger(__name__)
 
@@ -97,6 +98,9 @@ def pixetl(
 
     old_cwd = os.getcwd()
     cwd = set_cwd()
+
+    # Make sure google application credentials are correctly set
+    set_google_application_credentials()
 
     # set available memory here before any major process is running
     # utils.set_available_memory()

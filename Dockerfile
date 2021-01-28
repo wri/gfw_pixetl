@@ -18,17 +18,16 @@ WORKDIR ${DIR}
 COPY . .
 
 RUN pip3 install pipenv==2020.8.13
-RUN pipenv install --system --deploy --ignore-pipfile --dev
-RUN pip3 install -e .
 
-
-RUN if [ "$ENV" = "test" ]; then \
+RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 	     echo "Install all dependencies" && \
-         apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common git && \
-         curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - && \
-         apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main" && \
-         apt-get update -y && apt-get install -y terraform; \
+	     pipenv install --system --deploy --ignore-pipfile --dev;  \
+	else \
+	     echo "Install production dependencies only" && \
+	     pipenv install --system --deploy; \
 	fi
+
+RUN pip3 install -e .
 
 # Set current work directory to /tmp. This is important when running as AWS Batch job
 # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage

@@ -20,7 +20,6 @@ TILE_3_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_3_NAME)
 TILE_4_NAME = "01N_001E.tif"
 TILE_4_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_4_NAME)
 
-
 import numpy as np
 import rasterio
 from affine import Affine
