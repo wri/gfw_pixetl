@@ -4,7 +4,10 @@ from urllib.parse import urlparse
 
 from pydantic import Field
 
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.settings.models import EnvSettings
+
+LOGGER = get_module_logger(__name__)
 
 
 def set_aws_s3_endpoint():
@@ -36,6 +39,30 @@ class GdalEnv(EnvSettings):
         "/root/.gcs/private_key.json",
         description="Path to Google application credential file",
     )
+    cpl_debug: Optional[int] = None
+    cpl_curl_verbose: Optional[str] = None
+    #
+    # @pydantic.validator(
+    #     "google_application_credentials", pre=True, always=True, allow_reuse=True
+    # )
+    # def set_google_application_credentials(cls, v):
+    #     if not os.path.isfile(v):
+    #         LOGGER.info("GCS key is missing. Try to fetch key from secret manager")
+    #
+    #         client = get_secret_client()
+    #         response = client.get_secret_value(SecretId=GLOBALS.aws_gcs_key_secret_arn)
+    #         print("SECRET: ", response)
+    #         os.makedirs(
+    #             os.path.dirname(v),
+    #             exist_ok=True,
+    #         )
+    #
+    #         LOGGER.info("Write GCS key to file")
+    #         with open(v, "w") as f:
+    #             f.write(response["SecretString"])
+    #
+    #         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = v
+    #     return v
 
 
 GDAL_ENV = GdalEnv().env_dict()

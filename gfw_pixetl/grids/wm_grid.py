@@ -9,7 +9,7 @@ from rasterio.coords import BoundingBox
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.grids.grid import Grid
 from gfw_pixetl.models.named_tuples import AreaOfUse
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 

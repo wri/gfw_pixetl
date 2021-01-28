@@ -6,7 +6,7 @@ from dateutil.tz import tzutc
 from pyproj import CRS
 
 from gfw_pixetl.errors import GDALNoneTypeError
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
 from gfw_pixetl.utils.path import get_aws_s3_endpoint

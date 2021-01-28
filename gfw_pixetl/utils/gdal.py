@@ -17,7 +17,7 @@ from gfw_pixetl.errors import (
 )
 from gfw_pixetl.models.pydantic import Band, BandStats, Histogram, Metadata
 from gfw_pixetl.models.types import Bounds
-from gfw_pixetl.settings import GDAL_ENV
+from gfw_pixetl.settings.gdal import GDAL_ENV
 
 LOGGER = get_module_logger(__name__)
 

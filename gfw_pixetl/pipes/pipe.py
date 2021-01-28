@@ -5,7 +5,7 @@ from parallelpipe import stage
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
 
@@ -123,12 +123,10 @@ class Pipe(ABC):
 
     @staticmethod
     @stage(workers=GLOBALS.cores)
-    def delete_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
-        """Delete local file."""
+    def delete_work_dir(tiles: Iterator[Tile]) -> Iterator[Tile]:
+        """Delete local files."""
         for tile in tiles:
-            if tile.status == "pending":
-                for dst_format in tile.local_dst.keys():
-                    tile.rm_local_src(dst_format)
+            tile.remove_work_dir()
             yield tile
 
     def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile], List[Tile]]:

@@ -7,7 +7,7 @@ from parallelpipe import Stage, stage
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.pipes import Pipe
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import RasterSrcTile, Tile
 
 LOGGER = get_module_logger(__name__)
@@ -50,7 +50,7 @@ class RasterPipe(Pipe):
             tiles
             | Stage(self.transform).setup(workers=GLOBALS.workers)
             | self.upload_file
-            | self.delete_file
+            | self.delete_work_dir
         )
 
         tiles, skipped_tiles, failed_tiles = self._process_pipe(pipe)

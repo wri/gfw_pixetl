@@ -4,7 +4,7 @@ import shutil
 import boto3
 import pytest
 
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 
 BUCKET = "gfw-data-lake-test"
 GEOJSON_NAME = "tiles.geojson"
@@ -19,7 +19,6 @@ TILE_3_NAME = "world.tif"
 TILE_3_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_3_NAME)
 TILE_4_NAME = "01N_001E.tif"
 TILE_4_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_4_NAME)
-
 
 import numpy as np
 import rasterio

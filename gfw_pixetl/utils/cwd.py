@@ -6,7 +6,7 @@ from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import VolumeNotReadyError, retry_if_volume_not_ready
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 

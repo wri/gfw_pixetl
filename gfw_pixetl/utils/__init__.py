@@ -1,4 +1,4 @@
-from gfw_pixetl.utils.utils import (
+from gfw_pixetl.utils.utils import (  # noqa: F401
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
     get_bucket,

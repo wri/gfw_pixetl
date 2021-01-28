@@ -40,6 +40,7 @@ class Layer(object):
         self.symbology: Optional[Symbology] = layer_def.symbology
         self.compute_stats: bool = layer_def.compute_stats
         self.compute_histogram: bool = layer_def.compute_histogram
+        self.process_locally: bool = layer_def.process_locally
 
     def _get_prefix(
         self,

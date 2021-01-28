@@ -73,6 +73,7 @@ Supported Options:
 | symbology         | no        | Add optional symbology to the output raster |
 | compute_stats     | no        | Compute band statistics and add to tiles.geojson |
 | compute_histogram | no        | Compute band histograms and add to tile.geojson |
+| process_locally   | no        | When set to True, forces PixETL to download all source files prior to processing. Default `False` |
 
 _NOTE:_
 

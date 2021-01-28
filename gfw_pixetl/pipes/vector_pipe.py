@@ -4,10 +4,10 @@ from typing import Iterator, List, Set, Tuple
 
 from parallelpipe import stage
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.pipes import Pipe
-from gfw_pixetl.settings import GLOBALS
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile, VectorSrcTile
 
 LOGGER = get_module_logger(__name__)
@@ -26,7 +26,7 @@ class VectorPipe(Pipe):
             | self.filter_target_tiles(overwrite=overwrite)
             | self.rasterize
             | self.upload_file
-            | self.delete_file
+            | self.delete_work_dir
         )
 
         return self._process_pipe(pipe)

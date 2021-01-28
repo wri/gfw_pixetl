@@ -8,6 +8,7 @@ from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger, layers
 from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
 from tests import minimal_layer_dict
 from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME
@@ -56,7 +57,7 @@ def test_transform_final():
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile.dst[tile.default_format].crs.is_valid
 
-    with rasterio.open(tile.src.uri) as tile_src:
+    with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
         window = rasterio.windows.from_bounds(
             10, 9, 11, 10, transform=tile_src.transform
         )
@@ -65,7 +66,9 @@ def test_transform_final():
     tile.transform()
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
-    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
+    with rasterio.Env(**GDAL_ENV), rasterio.open(
+        tile.local_dst[tile.default_format].uri
+    ) as src:
         src_profile = src.profile
         output = src.read(1)
 
@@ -108,7 +111,9 @@ def test_transform_final_wm():
     tile.transform()
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
-    with rasterio.open(tile.local_dst[tile.default_format].uri) as src:
+    with rasterio.Env(**GDAL_ENV), rasterio.open(
+        tile.local_dst[tile.default_format].uri
+    ) as src:
         src_profile = src.profile
         output = src.read(1)
 
@@ -199,3 +204,14 @@ def test__vrt_transform():
     assert transform.almost_equals(rasterio.Affine(0.00025, 0, 9.1, 0, -0.00025, 9.2))
     assert isclose(width, 400)
     assert isclose(height, 400)
+
+
+def test_download_files():
+    layer = deepcopy(LAYER)
+    layer.process_locally = True
+    tile = RasterSrcTile("10N_010E", layer.grid, layer)
+    _ = tile.src  # trigger download
+
+    assert os.path.isfile(
+        os.path.join(tile.work_dir, "input/gfw-data-lake-test/10N_010E.tif")
+    )

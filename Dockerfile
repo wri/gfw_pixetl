@@ -4,6 +4,8 @@ ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
+ARG ENV
+
 RUN apt update -y && apt install -y python3-pip libpq-dev ca-certificates \
     postgresql-client-12
 RUN update-ca-certificates
@@ -16,7 +18,15 @@ WORKDIR ${DIR}
 COPY . .
 
 RUN pip3 install pipenv==2020.8.13
-RUN pipenv install --system --deploy --ignore-pipfile --dev
+
+RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
+	     echo "Install all dependencies" && \
+	     pipenv install --system --deploy --ignore-pipfile --dev;  \
+	else \
+	     echo "Install production dependencies only" && \
+	     pipenv install --system --deploy; \
+	fi
+
 RUN pip3 install -e .
 
 # Set current work directory to /tmp. This is important when running as AWS Batch job
