@@ -73,7 +73,7 @@ def retry_if_missing_gcs_key_error(exception) -> bool:
         and GDAL_ENV.get("GOOGLE_APPLICATION_CREDENTIALS")
         and GLOBALS.aws_gcs_key_secret_arn
     ):
-        set_google_application_credentials()
+        set_google_application_credentials(GDAL_ENV["GOOGLE_APPLICATION_CREDENTIALS"])
 
     elif is_missing_gcs_key_error and (
         not GDAL_ENV["GOOGLE_APPLICATION_CREDENTIALS"]

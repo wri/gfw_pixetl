@@ -2,10 +2,11 @@ import os
 from typing import Optional
 from urllib.parse import urlparse
 
-from pydantic import Field
+from pydantic import Field, validator
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.settings.models import EnvSettings
+from gfw_pixetl.utils.secrets import set_google_application_credentials
 
 LOGGER = get_module_logger(__name__)
 
@@ -41,28 +42,13 @@ class GdalEnv(EnvSettings):
     )
     cpl_debug: Optional[int] = None
     cpl_curl_verbose: Optional[str] = None
-    #
-    # @pydantic.validator(
-    #     "google_application_credentials", pre=True, always=True, allow_reuse=True
-    # )
-    # def set_google_application_credentials(cls, v):
-    #     if not os.path.isfile(v):
-    #         LOGGER.info("GCS key is missing. Try to fetch key from secret manager")
-    #
-    #         client = get_secret_client()
-    #         response = client.get_secret_value(SecretId=GLOBALS.aws_gcs_key_secret_arn)
-    #         print("SECRET: ", response)
-    #         os.makedirs(
-    #             os.path.dirname(v),
-    #             exist_ok=True,
-    #         )
-    #
-    #         LOGGER.info("Write GCS key to file")
-    #         with open(v, "w") as f:
-    #             f.write(response["SecretString"])
-    #
-    #         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = v
-    #     return v
+
+    @validator(
+        "google_application_credentials", pre=True, always=True, allow_reuse=True
+    )
+    def validate_google_application_credentials(cls, v):
+        set_google_application_credentials(v)
+        return v
 
 
 GDAL_ENV = GdalEnv().env_dict()

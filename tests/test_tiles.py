@@ -163,7 +163,7 @@ def test_gradient_symbology():
 
     tile = Tile("01N_001E", layer.grid, layer)
 
-    test_file = os.path.join(TILE.tmp_dir, "test_gradient_color.tif")
+    test_file = os.path.join(tile.tmp_dir, "test_gradient_color.tif")
     shutil.copyfile(TILE_4_PATH, test_file)
 
     # monkey patch method to point to test file
@@ -215,7 +215,7 @@ def test_discrete_symbology():
 
     tile = Tile("01N_001E", layer.grid, layer)
 
-    test_file = os.path.join(TILE.tmp_dir, "test_gradient_color.tif")
+    test_file = os.path.join(tile.tmp_dir, "test_gradient_color.tif")
     shutil.copyfile(TILE_4_PATH, test_file)
 
     # monkey patch method to point to test file
