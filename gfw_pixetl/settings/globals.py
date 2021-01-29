@@ -86,6 +86,11 @@ class Globals(EnvSettings):
         None, description="Endpoint URL for AWS S3 Server (required for Moto)"
     )
 
+    aws_secretsmanager_url: Optional[str] = Field(
+        None,
+        description="Endpoint URL for AWS Secretsmanager Server (required for Moto)",
+    )
+
     @pydantic.validator("db_password", pre=True, always=True)
     def hide_password(cls, v):
         return Secret(v) or None
