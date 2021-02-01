@@ -87,9 +87,13 @@ GeoTIFFs hosted on S3 must be accessible by the AWS profile used by PixETL.
 When referencing geotiffs hosted on GCS, you must set the ENV variable `GOOGLE_APPLICATION_CREDENTIALS` which points to
 a `json` file in the file system which holds the GCS private key of the google service account you will use to access the data.
 
-You can store the private key in AWS Secret Manager. In that case set `GCS_KEY_SECRET_ARN` to specify the secret id
+You can store the private key in AWS Secret Manager. In that case set `AWS_GCS_KEY_SECRET_ARN` to specify the secret id
 together with `GOOGLE_APPLICATION_CREDENTIALS`. PixETL with then attempt to download the private key from AWS Secret Manager
 and store it the `json` file specified.
+
+**Goolge Cloud Storage support is experimental only. It __should__ work as documented, but we don't have the tools in place
+to fully test this feature locally. The only way we can test right now is with integration tests after we deployed code in staging.
+For local tests to past __AWS_GCS_KEY_SECRET_ARN__ must NOT be set as we currently have issues running tests with a second moto server on Github Actions.**
 
 For example here is a pretty-printed sample raster layer definition followed
 by the command that one would issue to process it:
