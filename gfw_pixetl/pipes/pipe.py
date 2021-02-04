@@ -8,6 +8,7 @@ from gfw_pixetl.layers import Layer
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
+from gfw_pixetl.utils.gdal import get_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -101,8 +102,10 @@ class Pipe(ABC):
                 and tile.status == "pending"
                 and tile.dst[tile.default_format].exists()
             ):
-                tile.metadata = tile.dst[tile.default_format].metadata(
-                    tile.layer.compute_stats, tile.layer.compute_histogram
+                tile.metadata = get_metadata(
+                    tile.dst[tile.default_format].url,
+                    tile.layer.compute_stats,
+                    tile.layer.compute_histogram,
                 )
                 tile.status = "existing"
                 LOGGER.debug(f"Tile {tile} already in destination. Skip.")

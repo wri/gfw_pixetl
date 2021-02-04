@@ -8,7 +8,9 @@ from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.aws import get_s3_client
 from tests import minimal_layer_dict
+from tests.conftest import BUCKET, TILE_1_PATH
 
 os.environ["ENV"] = "test"
 
@@ -125,10 +127,18 @@ def test_delete_work_dir():
 
 
 def _get_subset_tiles() -> Set[Tile]:
+    s3_client = get_s3_client()
+
     tiles = set()
     for i in range(10, 12):
         for j in range(10, 12):
             assert isinstance(PIPE.grid, LatLngGrid)
             tile_id = PIPE.grid.xy_to_tile_id(j, i)
             tiles.add(Tile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
+            s3_client.upload_file(
+                TILE_1_PATH,
+                BUCKET,
+                f"aqueduct_erosion_risk/v201911/raster/epsg-4326/1/4000/level/geotiff/{tile_id}.tif",
+            )
+
     return tiles
