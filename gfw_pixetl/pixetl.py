@@ -17,6 +17,7 @@ from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they
 )
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
+from gfw_pixetl.utils.upload_geometries import prep_dst_prefix
 
 LOGGER = get_module_logger(__name__)
 
@@ -106,12 +107,16 @@ def pixetl(
 
         layer: Layer = layer_factory(layer_def)
 
+        # Clean up in case this resumes a previous run
+        prep_dst_prefix(layer.prefix, layer.compute_stats, layer.compute_histogram)
+
         pipe: Pipe = pipe_factory(layer, subset)
 
         tiles, skipped_tiles, failed_tiles = pipe.create_tiles(overwrite)
         remove_work_directory(old_cwd, cwd)
 
         return tiles, skipped_tiles, failed_tiles
+        # return [], [], []
 
     except Exception as e:
         remove_work_directory(old_cwd, cwd)

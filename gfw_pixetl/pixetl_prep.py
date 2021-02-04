@@ -1,5 +1,4 @@
-import os
-from typing import Dict, List
+from typing import Dict, List, Sequence
 from urllib.parse import urlparse
 
 import click
@@ -16,12 +15,14 @@ from gfw_pixetl.utils.aws import get_s3_client
 class DummyTile(object):
     """A dummy tile."""
 
-    def __init__(self, dst: str) -> None:
-        self.dst: Dict = {"geotiff": dst}
+    def __init__(self, dst: Dict) -> None:
+        self.dst: Dict = dst
         self.metadata: Dict = {}
 
 
-def get_aws_files(bucket: str, prefix: str) -> List[str]:
+def get_aws_files(
+    bucket: str, prefix: str, extensions: Sequence[str] = (".tif",)
+) -> List[str]:
     """Get all geotiffs in S3."""
     s3_client = get_s3_client()
     response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
@@ -30,7 +31,7 @@ def get_aws_files(bucket: str, prefix: str) -> List[str]:
     files = [
         f"/vsis3/{bucket}/{obj['Key']}"
         for obj in objs
-        if os.path.splitext(obj["Key"])[1] == ".tif"
+        if any(obj["Key"].endswith(ext) for ext in extensions)
     ]
 
     return files
@@ -40,7 +41,9 @@ def get_aws_files(bucket: str, prefix: str) -> List[str]:
     retry_on_exception=retry_if_missing_gcs_key_error,
     stop_max_attempt_number=2,
 )
-def get_gs_files(bucket: str, prefix: str) -> List[str]:
+def get_gs_files(
+    bucket: str, prefix: str, extensions: Sequence[str] = (".tif",)
+) -> List[str]:
     """Get all geotiffs in GCS."""
 
     try:
@@ -52,7 +55,7 @@ def get_gs_files(bucket: str, prefix: str) -> List[str]:
     files = [
         f"/vsigs/{bucket}/{blob.name}"
         for blob in blobs
-        if os.path.splitext(blob.name)[1] == ".tif"
+        if any(blob.name.endswith(ext) for ext in extensions)
     ]
     return files
 
@@ -78,7 +81,7 @@ def create_geojsons(
 
     for uri in files:
         src = RasterSource(uri)
-        tiles.append(DummyTile(src))  # type: ignore
+        tiles.append(DummyTile({"geotiff": src}))
 
     data_lake_bucket = get_bucket()
     upload_geometries.upload_geojsons(
