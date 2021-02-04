@@ -25,9 +25,9 @@ def test_pixetl():
     cwd = os.getcwd()
 
     with mock.patch.object(
-        RasterPipe, "create_tiles", return_value=(list(), list(), list())
+        RasterPipe, "create_tiles", return_value=(list(), list(), list(), list())
     ):
-        tiles, skipped_tiles, failed_tiles = pixetl(
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
             RASTER_LAYER_DEF,
             subset=SUBSET,
             overwrite=True,
@@ -36,6 +36,7 @@ def test_pixetl():
     assert tiles == list()
     assert skipped_tiles == list()
     assert failed_tiles == list()
+    assert existing_tiles == list()
     assert cwd == os.getcwd()
 
     os.chdir(cwd)

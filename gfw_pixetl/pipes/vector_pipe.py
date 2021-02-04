@@ -14,7 +14,9 @@ LOGGER = get_module_logger(__name__)
 
 
 class VectorPipe(Pipe):
-    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
+    def create_tiles(
+        self, overwrite
+    ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Vector Pipe."""
 
         LOGGER.debug("Start Vector Pipe")

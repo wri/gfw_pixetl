@@ -48,11 +48,9 @@ def test_create_tiles_subset():
         ), mock.patch(
             "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
         ):
-            (
-                tiles,
-                skipped_tiles,
-                failed_tiles,
-            ) = PIPE.create_tiles(overwrite=True)
+            (tiles, skipped_tiles, failed_tiles, existing_tiles) = PIPE.create_tiles(
+                overwrite=True
+            )
             assert len(tiles) == 1
             assert len(skipped_tiles) == 3
             assert len(failed_tiles) == 0
@@ -75,11 +73,9 @@ def test_create_tiles_all():
     ), mock.patch(
         "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
     ):
-        (
-            tiles,
-            skipped_tiles,
-            failed_tiles,
-        ) = pipe.create_tiles(overwrite=True)
+        (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
+            overwrite=True
+        )
         assert len(tiles) == 4
         assert len(skipped_tiles) == 0
         assert len(failed_tiles) == 0

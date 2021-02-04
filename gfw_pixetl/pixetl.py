@@ -17,7 +17,6 @@ from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they
 )
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
-from gfw_pixetl.utils.upload_geometries import prep_dst_prefix
 
 LOGGER = get_module_logger(__name__)
 
@@ -57,7 +56,7 @@ def cli(
         raise ValueError("URI specification is required for raster sources")
 
     # Finally, actually process the layer
-    tiles, skipped_tiles, failed_tiles = pixetl(
+    tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
         layer_def,
         subset,
         overwrite,
@@ -66,6 +65,7 @@ def cli(
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
     nb_failed_tiles = len(failed_tiles)
+    nb_existing_tiles = len(existing_tiles)
 
     LOGGER.info(f"Successfully processed {len(tiles)} tiles")
     LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
@@ -74,6 +74,8 @@ def cli(
         LOGGER.info(f"Processed tiles: {tiles}")
     if nb_skipped_tiles:
         LOGGER.info(f"Skipped tiles: {skipped_tiles}")
+    if nb_existing_tiles:
+        LOGGER.info(f"Existing tiles: {existing_tiles}")
     if nb_failed_tiles:
         LOGGER.info(f"Failed tiles: {failed_tiles}")
         sys.exit("Program terminated with Errors. Some tiles failed to process")
@@ -83,7 +85,7 @@ def pixetl(
     layer_def: LayerModel,
     subset: Optional[List[str]] = None,
     overwrite: bool = False,
-) -> Tuple[List[Tile], List[Tile], List[Tile]]:
+) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
     LOGGER.info(
@@ -107,16 +109,14 @@ def pixetl(
 
         layer: Layer = layer_factory(layer_def)
 
-        # Clean up in case this resumes a previous run
-        prep_dst_prefix(layer.prefix, layer.compute_stats, layer.compute_histogram)
-
         pipe: Pipe = pipe_factory(layer, subset)
 
-        tiles, skipped_tiles, failed_tiles = pipe.create_tiles(overwrite)
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
+            overwrite
+        )
         remove_work_directory(old_cwd, cwd)
 
-        return tiles, skipped_tiles, failed_tiles
-        # return [], [], []
+        return tiles, skipped_tiles, failed_tiles, existing_tiles
 
     except Exception as e:
         remove_work_directory(old_cwd, cwd)

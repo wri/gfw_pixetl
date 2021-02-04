@@ -37,7 +37,7 @@ class RasterPipe(Pipe):
 
     def create_tiles(
         self, overwrite: bool
-    ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
+    ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Raster Pipe."""
 
         LOGGER.info("Start Raster Pipe")
@@ -53,10 +53,10 @@ class RasterPipe(Pipe):
             | self.delete_work_dir
         )
 
-        tiles, skipped_tiles, failed_tiles = self._process_pipe(pipe)
+        tiles, skipped_tiles, failed_tiles, existing_tiles = self._process_pipe(pipe)
 
         LOGGER.info("Finished Raster Pipe")
-        return tiles, skipped_tiles, failed_tiles
+        return tiles, skipped_tiles, failed_tiles, existing_tiles
 
     @staticmethod
     @stage(workers=GLOBALS.cores)
