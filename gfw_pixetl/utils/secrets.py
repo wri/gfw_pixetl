@@ -9,7 +9,13 @@ LOGGER = get_module_logger(__name__)
 
 def set_google_application_credentials(credential_file):
 
-    if not os.path.isfile(credential_file):
+    # We will not reach out to AWS Secret Manager if no secret is set.
+    if not GLOBALS.aws_gcs_key_secret_arn:
+        LOGGER.warning(
+            "No GCS secret set. Will not update Google Application Credential file."
+        )
+
+    elif not os.path.isfile(credential_file):
         LOGGER.info("GCS key is missing. Try to fetch key from secret manager")
 
         client = get_secret_client()
@@ -25,6 +31,7 @@ def set_google_application_credentials(credential_file):
         with open(credential_file, "w") as f:
             f.write(response["SecretString"])
 
+    # make sure that global ENV VAR is set
     if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") != credential_file:
         LOGGER.info("Update ENV GOOGLE_APPLICATION_CREDENTIALS")
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credential_file
