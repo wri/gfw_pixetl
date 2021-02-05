@@ -1,3 +1,4 @@
+from geojson import FeatureCollection
 from shapely.geometry import shape
 
 from gfw_pixetl.utils.upload_geometries import (
@@ -11,27 +12,29 @@ from tests.test_pipe import _get_subset_tiles
 
 
 def test__merge_feature_collection():
-    fc = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [-20.0, 10.0],
-                            [-10.0, 10.0],
-                            [-10.0, 0.0],
-                            [-20.0, 0.0],
-                            [-20.0, 10.0],
-                        ]
-                    ],
-                },
-                "properties": {"name": "/vsis3/gfw-data-lake-test/10N_020W.tif"},
-            }
-        ],
-    }
+    fc = FeatureCollection(
+        **{
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [-20.0, 10.0],
+                                [-10.0, 10.0],
+                                [-10.0, 0.0],
+                                [-20.0, 0.0],
+                                [-20.0, 10.0],
+                            ]
+                        ],
+                    },
+                    "properties": {"name": "/vsis3/gfw-data-lake-test/10N_020W.tif"},
+                }
+            ],
+        }
+    )
 
     merged_fc = _merge_feature_collections(fc, BUCKET, GEOJSON_NAME)
     assert fc != merged_fc
