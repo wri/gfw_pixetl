@@ -11,9 +11,10 @@ from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
+from gfw_pixetl.utils.path import from_vsi
 from tests import minimal_layer_dict
 from tests.conftest import BUCKET, TILE_1_PATH
-from tests.utils import delete_s3_files
+from tests.utils import check_s3_file_present, delete_s3_files
 
 os.environ["ENV"] = "test"
 
@@ -114,23 +115,20 @@ def test_upload_file():
     prefix = "aqueduct_erosion_risk/v201911/raster/epsg-4326/1/4000/level/geotiff"  # pragma: allowlist secret
     delete_s3_files(BUCKET, prefix)
 
-    # with mock.patch.object(RasterPipe.Tile, "upload", return_value=None) as mock_upload:
+    # with mock.patch.object(Tile, "upload", return_value=None) as mock_upload:
     pipe = tiles | PIPE.upload_file()
     i = 0
     for tile in pipe.results():
         if tile.status == "pending":
             i += 1
             assert isinstance(tile, Tile)
+            print(f"TILE URL: {tile.dst[tile.default_format].url}")
+            key = (
+                from_vsi(tile.dst[tile.default_format].url).split(BUCKET)[1].strip("/")
+            )
+            print(f"KEY: {key}")
+            check_s3_file_present(BUCKET, [key])
     assert i == 4
-
-    # print(f"MOCK UPLOAD CALLS: {mock_upload.call_args_list}")
-    # assert 1 == 2
-    # mock_upload.assert_called_with()
-    # keys = [
-    #     f"{prefix}/{tile_id}.tif"
-    #     for tile_id in _get_subset_tile_ids()
-    # ]
-    # check_s3_file_present(BUCKET, keys)
 
 
 def test_delete_work_dir():
