@@ -144,7 +144,7 @@ def _sanitize_props(props: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
     # Non-numeric float values (like NaN) are not JSON-legal
     if props is None:
         return None
-    for band in props.get("bands", dict()):
+    for band in props.get("bands", list()):
         no_data = band.get("no_data")
         if no_data is not None and math.isnan(no_data):
             band["no_data"] = "nan"

@@ -102,13 +102,14 @@ class Pipe(ABC):
                 and tile.status == "pending"
                 and tile.dst[tile.default_format].exists()
             ):
-                tile.metadata = get_metadata(
-                    tile.dst[tile.default_format].url,
-                    tile.layer.compute_stats,
-                    tile.layer.compute_histogram,
-                )
+                for dst_format in tile.dst.keys():
+                    tile.metadata[dst_format] = get_metadata(
+                        tile.dst[tile.default_format].url,
+                        tile.layer.compute_stats,
+                        tile.layer.compute_histogram,
+                    ).dict()
                 tile.status = "existing"
-                LOGGER.debug(f"Tile {tile} already in destination. Skip.")
+                LOGGER.debug(f"Tile {tile} already in destination. Skip processing.")
             yield tile
 
     @staticmethod

@@ -54,6 +54,7 @@ def test_create_tiles_subset():
             assert len(tiles) == 1
             assert len(skipped_tiles) == 3
             assert len(failed_tiles) == 0
+            assert len(existing_tiles) == 0
 
 
 def test_create_tiles_all():
