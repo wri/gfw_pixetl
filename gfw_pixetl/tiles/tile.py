@@ -149,17 +149,21 @@ class Tile(ABC):
         try:
             bucket = utils.get_bucket()
             for dst_format in self.local_dst.keys():
-                LOGGER.info(f"Upload {dst_format} tile {self.tile_id} to s3")
                 local_tiff_path = self.local_dst[dst_format].uri
+                LOGGER.info(f"Upload {local_tiff_path} to s3")
                 S3.upload_file(
-                    local_tiff_path,
+                    "this shouldn't work",  # local_tiff_path,
                     bucket,
                     self.dst[dst_format].uri,
                 )
+                raise Exception("this shouldn't work even more")
                 # Also upload the stats sidecar file that gdalinfo creates
-                if os.path.isfile(local_tiff_path + stats_ext):
+                # Use the default format for path because we only create 1 sidecar
+                local_stats_path = self.local_dst[self.default_format].uri + stats_ext
+                if os.path.isfile(local_stats_path):
+                    LOGGER.info(f"Upload {local_stats_path} to s3")
                     S3.upload_file(
-                        local_tiff_path + stats_ext,
+                        local_stats_path,
                         bucket,
                         self.dst[dst_format].uri + stats_ext,
                     )
