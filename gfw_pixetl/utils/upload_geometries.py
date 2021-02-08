@@ -33,7 +33,7 @@ def upload_vrt(tiles: List[Tile], prefix) -> List[Dict[str, Any]]:
 
 
 def upload_geojsons(
-    tiles: List[Tile],
+    processed_tiles: List[Tile],
     existing_tiles: List[Tile],
     prefix: str,
     bucket: str = utils.get_bucket(),
@@ -44,9 +44,9 @@ def upload_geojsons(
     response: List[Dict[str, Any]] = list()
 
     if ignore_existing_tiles:
-        all_tiles = tiles + existing_tiles
+        all_tiles = processed_tiles
     else:
-        all_tiles = tiles
+        all_tiles = processed_tiles + existing_tiles
 
     geoms: Dict[str, List[Tuple[Polygon, Dict[str, Any]]]] = _geoms_uris_per_dst_format(
         all_tiles

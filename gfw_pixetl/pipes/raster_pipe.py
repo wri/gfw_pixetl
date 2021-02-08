@@ -65,7 +65,7 @@ class RasterPipe(Pipe):
         for tile in tiles:
             if tile.status == "pending" and not tile.within():
                 LOGGER.info(
-                    f"Tile {tile.tile_id} does not intersects with source raster - skip"
+                    f"Tile {tile.tile_id} does not intersect with source raster - skip"
                 )
                 tile.status = "skipped (does not intersect)"
             yield tile
