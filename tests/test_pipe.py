@@ -9,7 +9,7 @@ from gfw_pixetl.grids import LatLngGrid
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
-from gfw_pixetl.tiles import Tile
+from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from tests import minimal_layer_dict
 from tests.conftest import BUCKET, TILE_1_PATH
@@ -109,22 +109,18 @@ def test_filter_target_tiles(_upload_pipe_fixtures):
     assert i == 4
 
 
-def test_upload_file_success():
+def test_upload_file():
     tiles = _get_subset_tiles()
-    prefix = list(tiles)[0].layer.prefix
-    delete_s3_files(BUCKET, prefix)
-    print(f"Deleting prefix {prefix}")
-
-    # I can't get this mock to work, despite trying to patch in many places
-    # so I'll just let it run and check moto for the files
-    # with mock.patch.object(Tile, "upload", return_value=None) as mock_upload:
-    pipe = tiles | PIPE.upload_file()
-    i = 0
-    for tile in pipe.results():
-        if tile.status == "pending":
-            i += 1
+    # FIXME: I can't get this mock to work, despite trying to patch in many places
+    with mock.patch.object(Tile, "upload", return_value=None):  # as mock_upload:
+        pipe = tiles | PIPE.upload_file()
+        i = 0
+        for tile in pipe.results():
+            if tile.status == "pending":
+                i += 1
 
     assert i == 4
+    # assert mock_upload.call_count == 4
 
 
 def test_delete_work_dir():
@@ -160,11 +156,12 @@ def _get_subset_tiles() -> Set[Tile]:
 @pytest.fixture
 def _upload_pipe_fixtures():
     s3_client = get_s3_client()
-    prefix = "aqueduct_erosion_risk/v201911/raster/epsg-4326/1/4000/level/geotiff"  # pragma: allowlist secret
+    prefix = "aqueduct_erosion_risk/v201911/raster/epsg-4326/1/4000/level"  # pragma: allowlist secret
     delete_s3_files(BUCKET, prefix)
-    for tile_id in _get_subset_tile_ids():
-        s3_client.upload_file(
-            TILE_1_PATH,
-            BUCKET,
-            f"{prefix}/{tile_id}.tif",
-        )
+    for tile in _get_subset_tiles():
+        for dst_format in tile.dst.keys():
+            s3_client.upload_file(
+                TILE_1_PATH,
+                BUCKET,
+                f"{prefix}/{dst_format}/{tile.tile_id}.tif",
+            )

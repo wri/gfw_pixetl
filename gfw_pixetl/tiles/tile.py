@@ -156,7 +156,6 @@ class Tile(ABC):
                     bucket,
                     self.dst[dst_format].uri,
                 )
-                raise Exception("Why does this not set tile to failed?")
                 # Also upload the stats sidecar file that gdalinfo creates
                 # Use the default format for path because we only create 1 sidecar
                 local_stats_path = self.local_dst[self.default_format].uri + stats_ext

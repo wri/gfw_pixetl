@@ -100,7 +100,7 @@ class Pipe(ABC):
             if (
                 not overwrite
                 and tile.status == "pending"
-                and tile.dst[tile.default_format].exists()
+                and all([tile.dst[fmt].exists() for fmt in tile.dst.keys()])
             ):
                 for dst_format in tile.dst.keys():
                     tile.metadata[dst_format] = get_metadata(
