@@ -112,10 +112,9 @@ def test_upload():
         "/tmp/20N_010E/geotiff/",  # pragma: allowlist secret
         exist_ok=True,
     )
-    with open(
-        "/tmp/20N_010E/geotiff/20N_010E.tif",
-        "w+",
-    ):
+    with open("/tmp/20N_010E/geotiff/20N_010E.tif", "w+"):
+        pass
+    with open("/tmp/20N_010E/geotiff/20N_010E.tif.aux.xml", "w+"):
         pass
     tile = Tile("20N_010E", LAYER.grid, LAYER)
     with mock.patch("rasterio.open", return_value=EmptyImg()):
@@ -125,7 +124,7 @@ def test_upload():
     resp = s3_client.list_objects_v2(
         Bucket=BUCKET, Prefix="whrc_aboveground_biomass_stock_2000"
     )
-    assert resp["KeyCount"] == 2
+    assert resp["KeyCount"] == 3
 
 
 @mock.patch("gfw_pixetl.tiles.tile.os")

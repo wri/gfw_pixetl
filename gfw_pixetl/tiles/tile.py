@@ -152,11 +152,11 @@ class Tile(ABC):
                 local_tiff_path = self.local_dst[dst_format].uri
                 LOGGER.info(f"Upload {local_tiff_path} to s3")
                 S3.upload_file(
-                    "this shouldn't work",  # local_tiff_path,
+                    local_tiff_path,
                     bucket,
                     self.dst[dst_format].uri,
                 )
-                raise Exception("this shouldn't work even more")
+                raise Exception("Why does this not set tile to failed?")
                 # Also upload the stats sidecar file that gdalinfo creates
                 # Use the default format for path because we only create 1 sidecar
                 local_stats_path = self.local_dst[self.default_format].uri + stats_ext
