@@ -1,11 +1,13 @@
 from unittest import mock
 
+from geojson import FeatureCollection
 from shapely.geometry import shape
 
 from gfw_pixetl.utils.upload_geometries import (
-    _geoms_uris_per_dst_format,
+    _extract_geoms,
     _to_feature_collection,
     _union_tile_geoms,
+    generate_feature_collection,
     upload_geojsons,
 )
 from tests.test_pipe import _get_subset_tiles
@@ -33,7 +35,7 @@ def test_upload_geojsons():
             fc = mock_call[0][0]
             assert len(fc["features"]) == 4
 
-    # Get new mocks
+    # Get new mocks, and this time ignore existing tiles
     with mock.patch(
         "gfw_pixetl.utils.upload_geometries._upload_geojson", return_value={}
     ) as mock_upload_geojson, mock.patch(
@@ -48,16 +50,28 @@ def test_upload_geojsons():
             assert len(fc["features"]) == 2
 
 
-def test__union_tile_geoms():
+def test_union_tile_geoms():
     tiles = list(_get_subset_tiles())
 
-    features = _geoms_uris_per_dst_format(tiles)
-    for dst_format in features.keys():
-        assert len(features[dst_format]) == 4
-        fc = _to_feature_collection(features[dst_format])
+    for dst_format in tiles[0].dst.keys():
+        geoms = _extract_geoms(tiles, dst_format)
+        assert len(geoms) == 4
+        fc = _to_feature_collection(geoms)
         assert len(fc["features"]) == 4
 
         fc = _union_tile_geoms(fc)
         assert len(fc["features"]) == 1
         geom = shape(fc["features"][0]["geometry"])
         assert geom.bounds == (10, 9, 12, 11)
+
+
+def test_generate_feature_collection():
+    tiles = list(_get_subset_tiles())
+
+    dst_format = "geotiff"
+    fc: FeatureCollection = generate_feature_collection(tiles, dst_format)
+    assert len(fc["features"]) == 4
+
+    dst_format = "nonexisting"
+    fc: FeatureCollection = generate_feature_collection(tiles, dst_format)
+    assert len(fc["features"]) == 0
