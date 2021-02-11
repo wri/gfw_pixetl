@@ -27,7 +27,7 @@ class RasterPipe(Pipe):
         tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
-        LOGGER.info(f"Found {tile_count} tile inside grid")
+        LOGGER.info(f"Found {tile_count} tile(s) inside grid")
 
         return tiles
 

@@ -86,6 +86,7 @@ def create_geojsons(
     data_lake_bucket = get_bucket()
     upload_geometries.upload_geojsons(
         tiles,  # type: ignore
+        list(),
         bucket=data_lake_bucket,
         prefix=f"{dataset}/{version}/{prefix.strip('/')}/",
         ignore_existing_tiles=not merge_existing,
