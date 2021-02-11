@@ -105,7 +105,7 @@ class Tile(ABC):
 
     def remove_work_dir(self):
         LOGGER.debug(f"Delete working directory for tile {self.tile_id}")
-        shutil.rmtree(self.work_dir)
+        shutil.rmtree(self.work_dir, ignore_errors=True)
 
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):

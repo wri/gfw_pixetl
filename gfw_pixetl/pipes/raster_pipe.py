@@ -44,7 +44,7 @@ class RasterPipe(Pipe):
 
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        GLOBALS.workers = self.tiles_to_process
+        GLOBALS.workers = max(self.tiles_to_process, 1)
 
         pipe = (
             tiles

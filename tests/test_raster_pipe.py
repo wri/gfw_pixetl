@@ -1,4 +1,3 @@
-import itertools
 import os
 from typing import Set
 from unittest import mock
@@ -67,8 +66,6 @@ def test_create_tiles_subset():
 
 
 def test_create_tiles_all():
-    exists_iter = itertools.chain([True, True], itertools.repeat(False))
-    pipe = RasterPipe(LAYER)
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
     ), mock.patch(
@@ -76,7 +73,7 @@ def test_create_tiles_all():
     ), mock.patch.object(
         RasterSrcTile, "within", return_value=True
     ), mock.patch.object(
-        Destination, "exists", side_effect=exists_iter
+        Destination, "exists", return_value=False
     ), mock.patch.object(
         RasterSrcTile, "transform", return_value=True
     ), mock.patch.object(
@@ -88,13 +85,55 @@ def test_create_tiles_all():
     ), mock.patch(
         "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
     ):
+        pipe = RasterPipe(LAYER)
         (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
             overwrite=False
         )
-        assert len(tiles) == 3
+        assert len(tiles) == 4
         assert len(skipped_tiles) == 0
         assert len(failed_tiles) == 0
-        assert len(existing_tiles) == 1
+        assert len(existing_tiles) == 0
+
+
+def test_create_tiles_existing():
+    with mock.patch.object(
+        RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
+    ), mock.patch(
+        "gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA
+    ), mock.patch.object(
+        RasterSrcTile, "within", return_value=True
+    ), mock.patch.object(
+        Destination, "exists", return_value=True
+    ), mock.patch.object(
+        RasterSrcTile, "transform", return_value=True
+    ), mock.patch.object(
+        RasterSrcTile, "create_gdal_geotiff", return_value=None
+    ), mock.patch.object(
+        RasterSrcTile, "upload", return_value=None
+    ), mock.patch.object(
+        RasterSrcTile, "rm_local_src", return_value=None
+    ), mock.patch(
+        "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+    ):
+        # All exist
+        pipe = RasterPipe(LAYER)
+        (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
+            overwrite=False
+        )
+        assert len(tiles) == 0
+        assert len(skipped_tiles) == 0
+        assert len(failed_tiles) == 0
+        assert len(existing_tiles) == 4
+
+        # Now do it with overwrite set to True
+        pipe = RasterPipe(LAYER)
+        (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
+            overwrite=True
+        )
+        assert len(tiles) == 4
+        assert len(skipped_tiles) == 0
+        assert len(failed_tiles) == 0
+        assert len(existing_tiles) == 0
 
 
 def test_filter_src_tiles():
