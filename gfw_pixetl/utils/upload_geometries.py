@@ -66,14 +66,12 @@ def upload_geojsons(
             dst_formats.add(DstFormat(fmt))
 
     for dst_format in dst_formats:
-        LOGGER.info(f"Building FeatureCollection for dst_format {dst_format}")
         fc: FeatureCollection = generate_feature_collection(all_tiles, dst_format)
 
-        key = os.path.join(prefix, dst_format, "tiles.geojson")
-        LOGGER.info(f"Creating tiles.geojson at {key}")
-        response.append(_upload_geojson(fc, bucket, key))
-
         response.append(_upload_extent(fc, prefix=prefix, dst_format=dst_format))
+
+        key = os.path.join(prefix, dst_format, "tiles.geojson")
+        response.append(_upload_geojson(fc, bucket, key))
     return response
 
 

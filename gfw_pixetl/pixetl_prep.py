@@ -84,11 +84,22 @@ def create_geojsons(
         tiles.append(DummyTile({"geotiff": src}))
 
     data_lake_bucket = get_bucket()
+    target_prefix = f"{dataset}/{version}/{prefix.strip('/')}/"
+
+    # Don't bother checking for existing tiles unless we're going to use them
+    existing_tiles = list()
+    if merge_existing:
+        target_prefix = target_prefix
+        existing_uris = get_aws_files(data_lake_bucket, target_prefix)
+        for uri in existing_uris:
+            src = RasterSource(uri)
+            existing_tiles.append(DummyTile({"geotiff": src}))
+
     upload_geometries.upload_geojsons(
         tiles,  # type: ignore
-        list(),
+        existing_tiles,  # type: ignore
         bucket=data_lake_bucket,
-        prefix=f"{dataset}/{version}/{prefix.strip('/')}/",
+        prefix=target_prefix,
         ignore_existing_tiles=not merge_existing,
     )
 
