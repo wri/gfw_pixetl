@@ -1,7 +1,6 @@
 import itertools
 import math
-from multiprocessing import Pool
-from multiprocessing.pool import Pool as PoolType
+from multiprocessing import get_context
 from typing import Iterable, List, Set, Tuple
 
 from rasterio.coords import BoundingBox
@@ -130,8 +129,8 @@ class LatLngGrid(Grid):
         x_y: List[Tuple[int, int]] = list(itertools.product(x, y))
 
         # Get all grid ids using top left corners
-        pool: PoolType = Pool(processes=GLOBALS.cores)
-        tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
+        with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
+            tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
 
         return tile_ids
 
