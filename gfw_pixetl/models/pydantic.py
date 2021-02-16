@@ -7,7 +7,7 @@ from gfw_pixetl.grids.grid_factory import GridEnum
 from gfw_pixetl.models.enums import ColorMapType, Order, RasterizeMethod, SourceType
 from gfw_pixetl.resampling import ResamplingMethodEnum
 
-VERSION_REGEX = r"^v\d{1,8}\.?\d{,3}\.?\d{,3}$"
+VERSION_REGEX = r"^v\d{1,8}(\.\d{1,3}){0,2}?$|^latest$"
 
 
 class RGBA(BaseModel):
