@@ -1,4 +1,3 @@
-from multiprocessing import get_context
 from typing import Iterator, List, Set, Tuple
 
 from parallelpipe import Stage, stage
@@ -21,9 +20,14 @@ class RasterPipe(Pipe):
         duplicated grid cells.
         """
 
-        tile_ids = self.grid.get_tile_ids()
-        with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
-            tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
+        tiles: Set[RasterSrcTile] = set()
+        for tile_id in self.grid.get_tile_ids():
+            tiles.add(self._get_grid_tile(tile_id))
+
+        # tile_ids = self.grid.get_tile_ids()
+        #
+        # with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
+        #     tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
         LOGGER.info(f"Found {tile_count} tile inside grid")
