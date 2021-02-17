@@ -1,15 +1,12 @@
 import itertools
 import math
-from multiprocessing import Pool
-from multiprocessing.pool import Pool as PoolType
-from typing import Iterable, List, Set, Tuple
+from typing import Iterable, Set, Tuple
 
 from rasterio.coords import BoundingBox
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.grids.grid import Grid
 from gfw_pixetl.models.named_tuples import AreaOfUse
-from gfw_pixetl.settings.globals import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 
@@ -41,11 +38,15 @@ class WebMercatorGrid(Grid):
         rows: Iterable[int] = range(0, _nb_tiles)
         cols: Iterable[int] = range(0, _nb_tiles)
 
-        rows_cols: List[Tuple[int, int]] = list(itertools.product(rows, cols))
+        tile_ids: Set[str] = set()
+        for rows_cols in itertools.product(rows, cols):
+            tile_ids.add(self._get_tile_ids(rows_cols))
 
-        # Get all grid ids using top left corners
-        pool: PoolType = Pool(processes=GLOBALS.cores)
-        tile_ids: Set[str] = set(pool.map(self._get_tile_ids, rows_cols))
+        # rows_cols: List[Tuple[int, int]] = list(itertools.product(rows, cols))
+        #
+        # # Get all grid ids using top left corners
+        # with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
+        #     tile_ids: Set[str] = set(pool.map(self._get_tile_ids, rows_cols))
 
         return tile_ids
 

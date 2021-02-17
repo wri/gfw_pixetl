@@ -1,8 +1,7 @@
 import os
 from copy import deepcopy
 from math import floor, sqrt
-from multiprocessing import Pool
-from multiprocessing.pool import Pool as PoolType
+from multiprocessing import get_context
 from typing import Iterator, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -181,10 +180,10 @@ class RasterSrcTile(Tile):
 
         LOGGER.info(f"Process tile {self.tile_id} with {co_workers} co_workers")
 
-        pool: PoolType = Pool(processes=co_workers)
-        out_files: List[Optional[str]] = pool.map(
-            self._parallel_transform, self.windows()
-        )
+        with get_context("spawn").Pool(processes=co_workers) as pool:
+            out_files: List[Optional[str]] = pool.map(
+                self._parallel_transform, self.windows()
+            )
         all_files: List[str] = [f for f in out_files if f is not None]
         if all_files:
             # merge all data into one VRT and copy to target file
