@@ -1,14 +1,19 @@
 import os
-from typing import Set
+from typing import List, Set
 from unittest import mock
+
+import pytest
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
-from gfw_pixetl.tiles import Tile
+from gfw_pixetl.tiles.tile import Tile
+from gfw_pixetl.utils.aws import get_s3_client
 from tests import minimal_layer_dict
+from tests.conftest import BUCKET, TILE_1_PATH
+from tests.utils import delete_s3_files
 
 os.environ["ENV"] = "test"
 
@@ -59,16 +64,15 @@ def test_filter_subset_tiles():
     assert i == len(SUBSET)
 
 
-def test_filter_target_tiles():
+def test_filter_target_tiles(_upload_pipe_fixtures):
     tiles = _get_subset_tiles()
-    with mock.patch.object(Destination, "exists", return_value=True):
-        pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
-        i = 0
-        for tile in pipe.results():
-            if tile.status == "pending":
-                i += 1
-                assert isinstance(tile, Tile)
-        assert i == 0
+    pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
+    i = 0
+    for tile in pipe.results():
+        if tile.status == "pending":
+            i += 1
+            assert isinstance(tile, Tile)
+    assert i == 0
 
     with mock.patch.object(Destination, "exists", return_value=False):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
@@ -79,17 +83,15 @@ def test_filter_target_tiles():
                 assert isinstance(tile, Tile)
         assert i == 4
 
-    with mock.patch.object(Destination, "exists", return_value=True):
-        pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
-        i = 0
-        for tile in pipe.results():
-            if tile.status == "pending":
-                i += 1
-                assert isinstance(tile, Tile)
-        assert i == 4
+    pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
+    i = 0
+    for tile in pipe.results():
+        if tile.status == "pending":
+            i += 1
+            assert isinstance(tile, Tile)
+    assert i == 4
 
     with mock.patch.object(Destination, "exists", return_value=False):
-
         pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
         for tile in pipe.results():
@@ -97,19 +99,28 @@ def test_filter_target_tiles():
                 i += 1
                 assert isinstance(tile, Tile)
         assert i == 4
+
+    pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
+    i = 0
+    for tile in pipe.results():
+        if tile.status == "existing":
+            i += 1
+            assert isinstance(tile, Tile)
+    assert i == 4
 
 
 def test_upload_file():
     tiles = _get_subset_tiles()
-    with mock.patch.object(Tile, "upload", return_value=None):
-
+    # FIXME: I can't get this mock to work, despite trying to patch in many places
+    with mock.patch.object(Tile, "upload", return_value=None):  # as mock_upload:
         pipe = tiles | PIPE.upload_file()
         i = 0
         for tile in pipe.results():
             if tile.status == "pending":
                 i += 1
-                assert isinstance(tile, Tile)
-        assert i == 4
+
+    assert i == 4
+    # assert mock_upload.call_count == 4
 
 
 def test_delete_work_dir():
@@ -124,11 +135,33 @@ def test_delete_work_dir():
         assert not os.path.isdir(tile.work_dir)
 
 
-def _get_subset_tiles() -> Set[Tile]:
-    tiles = set()
+def _get_subset_tile_ids() -> List[str]:
+    tile_ids = list()
     for i in range(10, 12):
         for j in range(10, 12):
             assert isinstance(PIPE.grid, LatLngGrid)
             tile_id = PIPE.grid.xy_to_tile_id(j, i)
-            tiles.add(Tile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
+            tile_ids.append(tile_id)
+    return tile_ids
+
+
+def _get_subset_tiles() -> Set[Tile]:
+    tiles: Set[Tile] = set()
+    for tile_id in _get_subset_tile_ids():
+        tiles.add(Tile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
+
     return tiles
+
+
+@pytest.fixture
+def _upload_pipe_fixtures():
+    s3_client = get_s3_client()
+    prefix = "aqueduct_erosion_risk/v201911/raster/epsg-4326/1/4000/level"  # pragma: allowlist secret
+    delete_s3_files(BUCKET, prefix)
+    for tile in _get_subset_tiles():
+        for dst_format in tile.dst.keys():
+            s3_client.upload_file(
+                TILE_1_PATH,
+                BUCKET,
+                f"{prefix}/{dst_format}/{tile.tile_id}.tif",
+            )

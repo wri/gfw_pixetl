@@ -2,6 +2,7 @@ import os
 import shutil
 from typing import Any, Dict, Optional
 from unittest import mock
+from unittest.mock import call
 
 import numpy as np
 import pytest
@@ -111,10 +112,9 @@ def test_upload():
         "/tmp/20N_010E/geotiff/",  # pragma: allowlist secret
         exist_ok=True,
     )
-    with open(
-        "/tmp/20N_010E/geotiff/20N_010E.tif",
-        "w+",
-    ):
+    with open("/tmp/20N_010E/geotiff/20N_010E.tif", "w+"):
+        pass
+    with open("/tmp/20N_010E/geotiff/20N_010E.tif.aux.xml", "w+"):
         pass
     tile = Tile("20N_010E", LAYER.grid, LAYER)
     with mock.patch("rasterio.open", return_value=EmptyImg()):
@@ -124,7 +124,7 @@ def test_upload():
     resp = s3_client.list_objects_v2(
         Bucket=BUCKET, Prefix="whrc_aboveground_biomass_stock_2000"
     )
-    assert resp["KeyCount"] == 2
+    assert resp["KeyCount"] == 3
 
 
 @mock.patch("gfw_pixetl.tiles.tile.os")
@@ -132,11 +132,12 @@ def test_rm_local_src(mocked_os):
     with mock.patch("rasterio.open", return_value=EmptyImg()):
         TILE.set_local_dst(TILE.default_format)
         uri = TILE.local_dst[TILE.default_format].uri
+        stats_uri = uri + ".aux.xml"
         TILE.rm_local_src(TILE.default_format)
-        mocked_os.remove.assert_called_with(uri)
+        mocked_os.remove.assert_has_calls([call(uri), call(stats_uri)])
 
 
-def test__dst_has_no_data():
+def test_dst_has_no_data():
     print(LAYER.dst_profile)
     assert TILE.dst[TILE.default_format].has_no_data()
 

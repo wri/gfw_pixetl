@@ -1,10 +1,9 @@
 import os
 import shutil
 
-import boto3
 import pytest
 
-from gfw_pixetl.settings.globals import GLOBALS
+from gfw_pixetl.utils.aws import get_s3_client
 
 BUCKET = "gfw-data-lake-test"
 GEOJSON_NAME = "tiles.geojson"
@@ -62,9 +61,7 @@ with rasterio.open(TILE_4_PATH, "w", **profile) as dst:
 @pytest.fixture(autouse=True, scope="session")
 def copy_fixtures():
     # Upload file to mocked S3 bucket
-    s3_client = boto3.client(
-        "s3", region_name=GLOBALS.aws_region, endpoint_url=GLOBALS.aws_endpoint_url
-    )
+    s3_client = get_s3_client()
 
     s3_client.create_bucket(Bucket=BUCKET)
     s3_client.upload_file(GEOJSON_PATH, BUCKET, GEOJSON_NAME)
