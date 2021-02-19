@@ -1,14 +1,12 @@
 import itertools
 import math
-from multiprocessing import get_context
-from typing import Iterable, List, Set, Tuple
+from typing import Iterable, Set, Tuple
 
 from rasterio.coords import BoundingBox
 from shapely.geometry import Point
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.grids import Grid
-from gfw_pixetl.settings.globals import GLOBALS
 
 LOGGER = get_module_logger(__name__)
 
@@ -126,11 +124,16 @@ class LatLngGrid(Grid):
         # get all top let corners within grid
         x: Iterable[int] = range(-180 + lng_offset, 180 - lng_offset, self.width)
         y: Iterable[int] = range(-89 + lat_offset, 91 - lat_offset, self.height)
-        x_y: List[Tuple[int, int]] = list(itertools.product(x, y))
 
-        # Get all grid ids using top left corners
-        with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
-            tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
+        # x_y: List[Tuple[int, int]] = list(itertools.product(x, y))
+
+        tile_ids: Set[str] = set()
+        for x_y in itertools.product(x, y):
+            tile_ids.add(self._get_tile_ids(x_y))
+
+        # # Get all grid ids using top left corners
+        # with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
+        #     tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
 
         return tile_ids
 
