@@ -36,7 +36,7 @@ class LayerModel(BaseModel):
     grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
-    source_uri: Optional[str]
+    source_uri: Optional[List[str]]
     calc: Optional[str]
     order: Optional[Order]
     symbology: Optional[Symbology]

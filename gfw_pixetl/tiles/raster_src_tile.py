@@ -44,26 +44,30 @@ class RasterSrcTile(Tile):
     @lazy_property
     def src(self) -> RasterSource:
         LOGGER.debug(f"Find input files for {self.tile_id}")
-        input_files = list()
-        for f in self.layer.input_files:
-            if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
-                self.default_format
-            ].geom.touches(f[0]):
-                LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}")
 
-                if self.layer.process_locally:
-                    input_file = self._download_source_file(f[1])
-                else:
-                    input_file = f[1]
+        input_bands = list()
+        for band in self.layer.input_bands:
+            input_files = list()
+            for f in band:
+                if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
+                    self.default_format
+                ].geom.touches(f[0]):
+                    LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}")
 
-                input_files.append(input_file)
+                    if self.layer.process_locally:
+                        input_file = self._download_source_file(f[1])
+                    else:
+                        input_file = f[1]
 
-        if not len(input_files):
+                    input_files.append(input_file)
+            input_bands.append(input_files)
+
+        if not any(len(band) for band in input_bands):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
 
-        return RasterSource(create_vrt(input_files, vrt=self.tile_id + ".vrt"))
+        return RasterSource(create_vrt(input_bands, vrt=self.tile_id + ".vrt"))
 
     def _download_source_file(self, remote_file: str) -> str:
         """Download remote files."""
@@ -310,6 +314,7 @@ class RasterSrcTile(Tile):
     @staticmethod
     def _block_has_data(array: MaskedArray) -> bool:
         """Check if current block has any data."""
+        # TODO: Verify if multi bands have one mask or each bands has its own
         msk = np.invert(array.mask.astype(bool))
         size = msk[msk].size
         LOGGER.debug(f"Block has {size} data pixels")
@@ -394,10 +399,15 @@ class RasterSrcTile(Tile):
         LOGGER.debug(
             f"Read {dst_window} for Tile {self.tile_id} - this corresponds to bounds {src_bounds} in source"
         )
+
         try:
             return vrt.read(
                 window=window,
-                out_shape=(int(round(dst_window.height)), int(round(dst_window.width))),
+                out_shape=(
+                    len(self.layer.input_bands),
+                    int(round(dst_window.height)),
+                    int(round(dst_window.width)),
+                ),
                 masked=True,
             )
         except rasterio.RasterioIOError:
@@ -430,6 +440,7 @@ class RasterSrcTile(Tile):
         """Update data type to desired output datatype Update nodata value to
         desired nodata value (current no data values will be updated and any
         values which already has new no data value will stay as is)"""
+        # TODO: Figure out if we need seperate NoData values for each band
         if self.dst[self.default_format].has_no_data():
             LOGGER.debug(
                 f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
@@ -492,6 +503,7 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 self.local_dst[self.default_format].uri,
                 "r+",
+                # TODO: update profile and set bands
                 **self.dst[self.default_format].profile,
             ) as dst:
                 LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")

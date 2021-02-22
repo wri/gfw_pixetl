@@ -22,12 +22,25 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 LOGGER = get_module_logger(__name__)
 
 
+def create_vrt(
+    bands: List[List[str]], extent: Optional[Bounds] = None, vrt: str = "all.vrt"
+):
+    input_vrts = [
+        _create_vrt(band, extent, f"band_{i}.vrt") for i, band in enumerate(bands)
+    ]
+    _create_vrt(input_vrts, extent, vrt, True)
+    return vrt
+
+
 @retry(
     retry_on_exception=retry_if_missing_gcs_key_error,
     stop_max_attempt_number=2,
 )
-def create_vrt(
-    uris: List[str], extent: Optional[Bounds] = None, vrt: str = "all.vrt"
+def _create_vrt(
+    uris: List[str],
+    extent: Optional[Bounds] = None,
+    vrt: str = "all.vrt",
+    seperate=False,
 ) -> str:
     """
     ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
@@ -35,6 +48,9 @@ def create_vrt(
     """
 
     cmd = ["gdalbuildvrt"]
+
+    if seperate:
+        cmd += ["-seperate"]
     if extent:
         cmd += ["-te"] + [str(v) for v in extent]
     cmd += [vrt, *uris]

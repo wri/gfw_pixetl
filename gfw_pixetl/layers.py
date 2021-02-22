@@ -14,6 +14,7 @@ from gfw_pixetl.models.pydantic import LayerModel, Symbology
 from gfw_pixetl.resampling import resampling_factory
 from gfw_pixetl.sources import VectorSource
 
+from .settings.globals import GLOBALS
 from .utils.aws import get_s3_client
 
 LOGGER = get_module_logger(__name__)
@@ -111,32 +112,44 @@ class RasterSrcLayer(Layer):
         # self.geom = self._geom()
 
     @property
-    def input_files(self) -> List[Tuple[Polygon, str]]:
+    def input_bands(self) -> List[List[Tuple[Polygon, str]]]:
         s3_client = get_s3_client()
-        input_files = list()
+        input_bands = list()
+        assert isinstance(self._src_uri, list)
+        for src_uri in self._src_uri:
+            input_files = list()
+            o = urlparse(src_uri, allow_fragments=False)
+            bucket: Union[str, bytes] = o.netloc
+            prefix: str = str(o.path).lstrip("/")
 
-        o = urlparse(self._src_uri, allow_fragments=False)
-        bucket: Union[str, bytes] = o.netloc
-        prefix: str = str(o.path).lstrip("/")
-
-        LOGGER.debug(
-            f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
-        )
-        response = s3_client.get_object(Bucket=bucket, Key=prefix)
-        body = response["Body"].read()
-
-        features = json.loads(body.decode("utf-8"))["features"]
-        for feature in features:
-            LOGGER.debug(f"{feature}")
-            input_files.append(
-                (shape(feature["geometry"]), feature["properties"]["name"])
+            LOGGER.debug(
+                f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
             )
-        return input_files
+            response = s3_client.get_object(Bucket=bucket, Key=prefix)
+            body = response["Body"].read()
+
+            features = json.loads(body.decode("utf-8"))["features"]
+            for feature in features:
+                LOGGER.debug(f"{feature}")
+                input_files.append(
+                    (shape(feature["geometry"]), feature["properties"]["name"])
+                )
+            input_bands.append(input_files)
+
+        GLOBALS.divisor = GLOBALS.divisor * len(input_bands)
+        LOGGER.info(
+            f"Using {len(input_bands)} input band(s). Divisor set to {GLOBALS.divisor}."
+        )
+
+        return input_bands
 
     @property
     def geom(self) -> MultiPolygon:
+        """Create Multipolygon from union of all input tiles in all bands."""
+
         LOGGER.debug("Create Polygon from input tile bounds")
-        geoms: List[Polygon] = [tile[0] for tile in self.input_files]
+
+        geoms: List[Polygon] = [tile[0] for band in self.input_bands for tile in band]
         return unary_union(geoms)
 
 
