@@ -1,5 +1,6 @@
 import json
 import os
+from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
@@ -111,7 +112,7 @@ class RasterSrcLayer(Layer):
         # self.input_files = self._input_files()
         # self.geom = self._geom()
 
-    @property
+    @cached_property
     def input_bands(self) -> List[List[Tuple[Polygon, str]]]:
         s3_client = get_s3_client()
         input_bands = list()
