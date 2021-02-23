@@ -26,8 +26,10 @@ LOGGER = get_module_logger(__name__)
 def create_multiband_vrt(
     bands: List[List[str]], extent: Optional[Bounds] = None, vrt: str = "all.vrt"
 ):
+    vrt_name = os.path.splitext(vrt)[0]
     input_vrts = [
-        create_vrt(band, extent, f"band_{i}.vrt") for i, band in enumerate(bands)
+        create_vrt(band, extent, f"{vrt_name}_band_{i}.vrt")
+        for i, band in enumerate(bands)
     ]
 
     _check_crs_equal(input_vrts)
