@@ -24,7 +24,7 @@ layer_dict = {
     "data_type": "uint8",
     "nbits": 7,
     "grid": "1/4000",
-    "source_uri": f"s3://{BUCKET}/{GEOJSON_NAME}",
+    "source_uri": [f"s3://{BUCKET}/{GEOJSON_NAME}"],
     "resampling": "average",
 }
 LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
@@ -33,6 +33,15 @@ layer_dict_wm = deepcopy(layer_dict)
 layer_dict_wm["grid"] = "zoom_14"
 
 LAYER_WM = layers.layer_factory(LayerModel(**layer_dict_wm))
+
+layer_dict_multi = deepcopy(layer_dict)
+layer_dict_multi["source_uri"] = [
+    f"s3://{BUCKET}/{GEOJSON_NAME}",
+    f"s3://{BUCKET}/{GEOJSON_NAME}",
+]
+layer_dict_multi["calc"] = "A + B"
+
+LAYER_MULTI = layers.layer_factory(LayerModel(**layer_dict_multi))
 
 
 def test_src_tile_intersects():
@@ -100,7 +109,7 @@ def test_transform_final():
 def test_transform_final_wm():
     layer_dict_wm = deepcopy(layer_dict)
     layer_dict_wm["grid"] = "zoom_0"
-    layer_dict_wm["source_uri"] = f"s3://{BUCKET}/{GEOJSON_2_NAME}"
+    layer_dict_wm["source_uri"] = [f"s3://{BUCKET}/{GEOJSON_2_NAME}"]
 
     layer_wm = layers.layer_factory(LayerModel(**layer_dict_wm))
 
@@ -140,28 +149,82 @@ def test_transform_final_wm():
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
+def test_transform_final_multi():
+
+    assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
+    assert tile.dst[tile.default_format].crs.is_valid
+
+    with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
+        assert tile_src.profile["count"] == 2
+        window = rasterio.windows.from_bounds(
+            10, 9, 11, 10, transform=tile_src.transform
+        )
+        input = tile_src.read(1, window=window)
+
+    tile.transform()
+
+    LOGGER.debug(tile.local_dst[tile.default_format].uri)
+    with rasterio.Env(**GDAL_ENV), rasterio.open(
+        tile.local_dst[tile.default_format].uri
+    ) as src:
+        src_profile = src.profile
+        output = src.read(1)
+
+    LOGGER.debug(src_profile)
+
+    assert input.shape == output.shape
+    np.testing.assert_array_equal(input + input, output)
+
+    assert src_profile["blockxsize"] == LAYER.grid.blockxsize
+    assert src_profile["blockysize"] == LAYER.grid.blockysize
+    assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
+    assert src_profile["count"] == 1
+    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].is_valid
+    assert src_profile["driver"] == "GTiff"
+    assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
+    assert src_profile["height"] == LAYER.grid.cols
+    assert src_profile["interleave"] == "band"
+    assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
+    assert src_profile["tiled"] is True
+    assert src_profile["width"] == LAYER.grid.rows
+    # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
+
+    assert not hasattr(src_profile, "compress")
+
+    os.remove(tile.local_dst[tile.default_format].uri)
+
+
 def test__calc():
     window = Window(0, 0, 1, 3)
-    if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
-        tile.layer.calc = "A+1"
-        data = np.zeros((1, 3))
-        result = tile._calc(data, window)
-        assert result.sum() == 3
+    tile.layer.calc = "A+1"
+    data = np.zeros((1, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 3
 
-        tile.layer.calc = "A+1*5"
-        data = np.zeros((1, 3))
-        result = tile._calc(data, window)
-        assert result.sum() == 15
+    tile.layer.calc = "A+1*5"
+    data = np.zeros((1, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 15
 
-        tile.layer.calc = "A*5+1"
-        data = np.zeros((1, 3))
-        result = tile._calc(data, window)
-        assert result.sum() == 3
+    tile.layer.calc = "A*5+1"
+    data = np.zeros((1, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 3
 
-    else:
-        raise ValueError("Not a RasterSrcLayer")
+    tile.layer.calc = "A+B"
+    data = np.ones((2, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 6
+
+    tile.layer.calc = "(A+B)*(C+2)"
+    data = np.ones((3, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 18
 
 
 def test__set_dtype():

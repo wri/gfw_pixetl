@@ -78,7 +78,7 @@ def test_layer_model():
             no_data=0,
             grid="10/40000",
             resampling="wrong",
-            source_uri="s3://test/tiles.geojson",
+            source_uri=["s3://test/tiles.geojson"],
         )
 
     layer_def = LayerModel(
@@ -91,7 +91,7 @@ def test_layer_model():
         no_data=0,
         grid="10/40000",
         resampling="bilinear",
-        source_uri="s3://test/tiles.geojson",
+        source_uri=["s3://test/tiles.geojson"],
     )
 
     resampling = resampling_factory(layer_def.resampling)
@@ -109,7 +109,7 @@ def test_layer_model_floats():
         nbits=6,
         grid="10/40000",
         resampling="bilinear",
-        source_uri="s3://test/tiles.geojson",
+        source_uri=["s3://test/tiles.geojson"],
         no_data="nan",
     )
 
@@ -125,7 +125,7 @@ def test_layer_model_floats():
         nbits=6,
         grid="10/40000",
         resampling="bilinear",
-        source_uri="s3://test/tiles.geojson",
+        source_uri=["s3://test/tiles.geojson"],
         no_data="2.2",
     )
 

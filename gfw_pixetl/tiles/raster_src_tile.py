@@ -27,7 +27,7 @@ from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import download_s3
-from gfw_pixetl.utils.gdal import create_vrt
+from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
 
@@ -68,7 +68,9 @@ class RasterSrcTile(Tile):
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
 
-        return RasterSource(create_vrt(input_bands, vrt=self.tile_id + ".vrt"))
+        return RasterSource(
+            create_multiband_vrt(input_bands, vrt=self.tile_id + ".vrt")
+        )
 
     def _download_source_file(self, remote_file: str) -> str:
         """Download remote files."""
@@ -329,13 +331,15 @@ class RasterSrcTile(Tile):
         """Apply user defined calculation on array."""
         if self.layer.calc:
             # Assign upper case letters in alphabetic order to each band
-            bands = ", ".join(string.ascii_uppercase[: len(self.layer.input_bands)])
-            funcstr = f"def f(array: MaskedArray) -> MaskedArray:\n    {bands}=array\n    return {self.layer.calc}"
+            bands = ", ".join(string.ascii_uppercase[: len(array)])
+            funcstr = f"def f({bands}) -> MaskedArray:\n    return {self.layer.calc}"
             LOGGER.debug(
                 f"Apply function {funcstr} on block {dst_window} of tile {self.tile_id}"
             )
             exec(funcstr, globals())
-            array = f(array)  # type: ignore # noqa: F821
+            array = f(*array)  # type: ignore # noqa: F821
+            # assign band index
+            array = array.reshape(1, *array.shape)
         else:
             LOGGER.debug(
                 f"No user defined formula provided. Skip calculating values for {dst_window} of tile {self.tile_id}"
@@ -352,9 +356,11 @@ class RasterSrcTile(Tile):
         about 75%.
         """
 
+        # Adjust divisor to band count
+        divisor = GLOBALS.divisor * len(self.layer.input_bands)
+
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
-        divisor = GLOBALS.divisor
         co_workers = floor(GLOBALS.cores / GLOBALS.workers)
         if co_workers >= 2:
             divisor = divisor * co_workers

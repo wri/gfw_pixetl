@@ -136,7 +136,6 @@ class RasterSrcLayer(Layer):
                 )
             input_bands.append(input_files)
 
-        GLOBALS.divisor = GLOBALS.divisor * len(input_bands)
         LOGGER.info(
             f"Using {len(input_bands)} input band(s). Divisor set to {GLOBALS.divisor}."
         )
