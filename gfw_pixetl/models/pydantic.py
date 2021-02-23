@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, Field, StrictInt, validator
 
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.grids.grid_factory import GridEnum
@@ -43,6 +43,16 @@ class LayerModel(BaseModel):
     compute_stats: bool = False
     compute_histogram: bool = False
     process_locally: bool = False
+
+    @validator("source_uri")
+    def validate_source_uri(cls, v, values, **kwargs):
+        if values["source_type"] == SourceType.raster:
+            assert v, "Raster source types require source_uri"
+            if len(v) > 1:
+                assert values.get("calc"), "More than one source_uri require calc"
+        else:
+            assert not v, "Only raster source type require source_uri"
+        return v
 
 
 class Histogram(BaseModel):

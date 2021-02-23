@@ -1,4 +1,5 @@
 import os
+import string
 from copy import deepcopy
 from math import floor, sqrt
 from multiprocessing import get_context
@@ -311,21 +312,27 @@ class RasterSrcTile(Tile):
                     if not (str(e) == "windows do not intersect"):
                         raise
 
-    @staticmethod
-    def _block_has_data(array: MaskedArray) -> bool:
+    def _block_has_data(self, band_arrays: MaskedArray) -> bool:
         """Check if current block has any data."""
-        # TODO: Verify if multi bands have one mask or each bands has its own
-        msk = np.invert(array.mask.astype(bool))
-        size = msk[msk].size
-        LOGGER.debug(f"Block has {size} data pixels")
-        return array.shape[0] > 0 and array.shape[1] > 0 and size != 0
+        size = 0
+        for i, masked_array in enumerate(band_arrays):
+            msk = np.invert(masked_array.mask.astype(bool))
+            data_pixels = msk[msk].size
+            size += data_pixels
+            LOGGER.debug(
+                f"Block of tile {self.tile_id}, band {i} has {data_pixels} data pixels"
+            )
+
+        return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
         """Apply user defined calculation on array."""
         if self.layer.calc:
-            LOGGER.debug(f"Update {dst_window} of tile {self.tile_id}")
-            funcstr = (
-                f"def f(A: MaskedArray) -> MaskedArray:\n    return {self.layer.calc}"
+            # Assign upper case letters in alphabetic order to each band
+            bands = ", ".join(string.ascii_uppercase[: len(self.layer.input_bands)])
+            funcstr = f"def f(array: MaskedArray) -> MaskedArray:\n    {bands}=array\n    return {self.layer.calc}"
+            LOGGER.debug(
+                f"Apply function {funcstr} on block {dst_window} of tile {self.tile_id}"
             )
             exec(funcstr, globals())
             array = f(array)  # type: ignore # noqa: F821
@@ -440,7 +447,6 @@ class RasterSrcTile(Tile):
         """Update data type to desired output datatype Update nodata value to
         desired nodata value (current no data values will be updated and any
         values which already has new no data value will stay as is)"""
-        # TODO: Figure out if we need seperate NoData values for each band
         if self.dst[self.default_format].has_no_data():
             LOGGER.debug(
                 f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
@@ -503,7 +509,6 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 self.local_dst[self.default_format].uri,
                 "r+",
-                # TODO: update profile and set bands
                 **self.dst[self.default_format].profile,
             ) as dst:
                 LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
