@@ -1,6 +1,5 @@
 import copy
 import math
-import os
 import unittest
 
 import pytest
@@ -10,9 +9,7 @@ from rasterio.enums import Resampling
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.resampling import resampling_factory
-from tests import minimal_layer_dict
-
-os.environ["ENV"] = "test"
+from tests.conftest import minimal_layer_dict
 
 
 class TestValidation(unittest.TestCase):
@@ -78,7 +75,7 @@ def test_layer_model():
             no_data=0,
             grid="10/40000",
             resampling="wrong",
-            source_uri="s3://test/tiles.geojson",
+            source_uri=["s3://test/tiles.geojson"],
         )
 
     layer_def = LayerModel(
@@ -91,7 +88,7 @@ def test_layer_model():
         no_data=0,
         grid="10/40000",
         resampling="bilinear",
-        source_uri="s3://test/tiles.geojson",
+        source_uri=["s3://test/tiles.geojson"],
     )
 
     resampling = resampling_factory(layer_def.resampling)
@@ -109,7 +106,7 @@ def test_layer_model_floats():
         nbits=6,
         grid="10/40000",
         resampling="bilinear",
-        source_uri="s3://test/tiles.geojson",
+        source_uri=["s3://test/tiles.geojson"],
         no_data="nan",
     )
 
@@ -125,7 +122,7 @@ def test_layer_model_floats():
         nbits=6,
         grid="10/40000",
         resampling="bilinear",
-        source_uri="s3://test/tiles.geojson",
+        source_uri=["s3://test/tiles.geojson"],
         no_data="2.2",
     )
 

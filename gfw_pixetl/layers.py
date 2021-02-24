@@ -14,7 +14,9 @@ from gfw_pixetl.models.pydantic import LayerModel, Symbology
 from gfw_pixetl.resampling import resampling_factory
 from gfw_pixetl.sources import VectorSource
 
+from .settings.globals import GLOBALS
 from .utils.aws import get_s3_client
+from .utils.utils import intersection
 
 LOGGER = get_module_logger(__name__)
 
@@ -106,38 +108,57 @@ class RasterSrcLayer(Layer):
         super().__init__(layer_def, grid)
 
         self._src_uri = layer_def.source_uri
+        self.input_bands = self._input_bands()
 
         # self.input_files = self._input_files()
         # self.geom = self._geom()
 
-    @property
-    def input_files(self) -> List[Tuple[Polygon, str]]:
+    def _input_bands(self) -> List[List[Tuple[Polygon, str]]]:
         s3_client = get_s3_client()
-        input_files = list()
+        input_bands = list()
+        print(self._src_uri)
+        assert isinstance(self._src_uri, list)
+        for src_uri in self._src_uri:
+            input_files = list()
+            o = urlparse(src_uri, allow_fragments=False)
+            bucket: Union[str, bytes] = o.netloc
+            prefix: str = str(o.path).lstrip("/")
 
-        o = urlparse(self._src_uri, allow_fragments=False)
-        bucket: Union[str, bytes] = o.netloc
-        prefix: str = str(o.path).lstrip("/")
-
-        LOGGER.debug(
-            f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
-        )
-        response = s3_client.get_object(Bucket=bucket, Key=prefix)
-        body = response["Body"].read()
-
-        features = json.loads(body.decode("utf-8"))["features"]
-        for feature in features:
-            LOGGER.debug(f"{feature}")
-            input_files.append(
-                (shape(feature["geometry"]), feature["properties"]["name"])
+            LOGGER.debug(
+                f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
             )
-        return input_files
+            response = s3_client.get_object(Bucket=bucket, Key=prefix)
+            body = response["Body"].read()
+
+            features = json.loads(body.decode("utf-8"))["features"]
+            for feature in features:
+                LOGGER.debug(f"{feature}")
+                input_files.append(
+                    (shape(feature["geometry"]), feature["properties"]["name"])
+                )
+            input_bands.append(input_files)
+
+        LOGGER.info(
+            f"Using {len(input_bands)} input band(s). Divisor set to {GLOBALS.divisor}."
+        )
+
+        return input_bands
 
     @property
     def geom(self) -> MultiPolygon:
+        """Create Multipolygon from union of all input tiles in all bands."""
+
         LOGGER.debug("Create Polygon from input tile bounds")
-        geoms: List[Polygon] = [tile[0] for tile in self.input_files]
-        return unary_union(geoms)
+
+        geom: Optional[MultiPolygon] = None
+        for band in self.input_bands:
+            band_geom: MultiPolygon = unary_union([tile[0] for tile in band])
+            geom = intersection(band_geom, geom)
+
+        if not geom:
+            raise RuntimeError("Input bands do not overlap")
+
+        return geom
 
 
 def layer_factory(layer_def: LayerModel) -> Layer:

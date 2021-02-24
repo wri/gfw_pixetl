@@ -13,8 +13,8 @@ from gfw_pixetl.utils.upload_geometries import (
 from tests.test_pipe import _get_subset_tiles
 
 
-def test_upload_geojsons():
-    all_tiles = list(_get_subset_tiles())
+def test_upload_geojsons(PIPE):
+    all_tiles = list(_get_subset_tiles(PIPE))
     processed_tiles, existing_tiles = all_tiles[:2], all_tiles[2:]
     assert len(processed_tiles) == 2
     assert len(existing_tiles) == 2
@@ -50,8 +50,8 @@ def test_upload_geojsons():
             assert len(fc["features"]) == 2
 
 
-def test_union_tile_geoms():
-    tiles = list(_get_subset_tiles())
+def test_union_tile_geoms(PIPE):
+    tiles = list(_get_subset_tiles(PIPE))
 
     for dst_format in tiles[0].dst.keys():
         geoms = _extract_geoms(tiles, dst_format)
@@ -65,8 +65,8 @@ def test_union_tile_geoms():
         assert geom.bounds == (10, 9, 12, 11)
 
 
-def test_generate_feature_collection():
-    tiles = list(_get_subset_tiles())
+def test_generate_feature_collection(PIPE):
+    tiles = list(_get_subset_tiles(PIPE))
 
     dst_format = "geotiff"
     fc: FeatureCollection = generate_feature_collection(tiles, dst_format)

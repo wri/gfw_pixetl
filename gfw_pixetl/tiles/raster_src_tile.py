@@ -1,4 +1,5 @@
 import os
+import string
 from copy import deepcopy
 from math import floor, sqrt
 from multiprocessing import get_context
@@ -26,7 +27,7 @@ from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import download_s3
-from gfw_pixetl.utils.gdal import create_vrt
+from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
 
@@ -44,26 +45,32 @@ class RasterSrcTile(Tile):
     @lazy_property
     def src(self) -> RasterSource:
         LOGGER.debug(f"Find input files for {self.tile_id}")
-        input_files = list()
-        for f in self.layer.input_files:
-            if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
-                self.default_format
-            ].geom.touches(f[0]):
-                LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}")
 
-                if self.layer.process_locally:
-                    input_file = self._download_source_file(f[1])
-                else:
-                    input_file = f[1]
+        input_bands = list()
+        for band in self.layer.input_bands:
+            input_files = list()
+            for f in band:
+                if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
+                    self.default_format
+                ].geom.touches(f[0]):
+                    LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}")
 
-                input_files.append(input_file)
+                    if self.layer.process_locally:
+                        input_file = self._download_source_file(f[1])
+                    else:
+                        input_file = f[1]
 
-        if not len(input_files):
+                    input_files.append(input_file)
+            input_bands.append(input_files)
+
+        if not any(len(band) for band in input_bands):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
 
-        return RasterSource(create_vrt(input_files, vrt=self.tile_id + ".vrt"))
+        return RasterSource(
+            create_multiband_vrt(input_bands, vrt=self.tile_id + ".vrt")
+        )
 
     def _download_source_file(self, remote_file: str) -> str:
         """Download remote files."""
@@ -307,23 +314,32 @@ class RasterSrcTile(Tile):
                     if not (str(e) == "windows do not intersect"):
                         raise
 
-    @staticmethod
-    def _block_has_data(array: MaskedArray) -> bool:
+    def _block_has_data(self, band_arrays: MaskedArray) -> bool:
         """Check if current block has any data."""
-        msk = np.invert(array.mask.astype(bool))
-        size = msk[msk].size
-        LOGGER.debug(f"Block has {size} data pixels")
-        return array.shape[0] > 0 and array.shape[1] > 0 and size != 0
+        size = 0
+        for i, masked_array in enumerate(band_arrays):
+            msk = np.invert(masked_array.mask.astype(bool))
+            data_pixels = msk[msk].size
+            size += data_pixels
+            LOGGER.debug(
+                f"Block of tile {self.tile_id}, band {i} has {data_pixels} data pixels"
+            )
+
+        return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
         """Apply user defined calculation on array."""
         if self.layer.calc:
-            LOGGER.debug(f"Update {dst_window} of tile {self.tile_id}")
-            funcstr = (
-                f"def f(A: MaskedArray) -> MaskedArray:\n    return {self.layer.calc}"
+            # Assign upper case letters in alphabetic order to each band
+            bands = ", ".join(string.ascii_uppercase[: len(array)])
+            funcstr = f"def f({bands}) -> MaskedArray:\n    return {self.layer.calc}"
+            LOGGER.debug(
+                f"Apply function {funcstr} on block {dst_window} of tile {self.tile_id}"
             )
             exec(funcstr, globals())
-            array = f(array)  # type: ignore # noqa: F821
+            array = f(*array)  # type: ignore # noqa: F821
+            # assign band index
+            array = array.reshape(1, *array.shape)
         else:
             LOGGER.debug(
                 f"No user defined formula provided. Skip calculating values for {dst_window} of tile {self.tile_id}"
@@ -340,9 +356,11 @@ class RasterSrcTile(Tile):
         about 75%.
         """
 
+        # Adjust divisor to band count
+        divisor = GLOBALS.divisor * len(self.layer.input_bands)
+
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
-        divisor = GLOBALS.divisor
         co_workers = floor(GLOBALS.cores / GLOBALS.workers)
         if co_workers >= 2:
             divisor = divisor * co_workers
@@ -394,10 +412,15 @@ class RasterSrcTile(Tile):
         LOGGER.debug(
             f"Read {dst_window} for Tile {self.tile_id} - this corresponds to bounds {src_bounds} in source"
         )
+
         try:
             return vrt.read(
                 window=window,
-                out_shape=(int(round(dst_window.height)), int(round(dst_window.width))),
+                out_shape=(
+                    len(self.layer.input_bands),
+                    int(round(dst_window.height)),
+                    int(round(dst_window.width)),
+                ),
                 masked=True,
             )
         except rasterio.RasterioIOError:

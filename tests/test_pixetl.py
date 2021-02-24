@@ -1,20 +1,22 @@
 import os
+from copy import deepcopy
 from unittest import mock
 
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.pixetl import pixetl
-from tests import minimal_layer_dict
+from tests.conftest import minimal_layer_dict
 
-os.environ["ENV"] = "test"
+LAYER_DICT = deepcopy(minimal_layer_dict)
+LAYER_DICT.update(
+    {
+        "dataset": "aqueduct_erosion_risk",
+        "version": "v201911",
+        "pixel_meaning": "level",
+        "grid": "1/4000",
+    }
+)
 
-LAYER_DICT = {
-    **minimal_layer_dict,
-    "dataset": "aqueduct_erosion_risk",
-    "version": "v201911",
-    "pixel_meaning": "level",
-    "grid": "1/4000",
-}
 RASTER_LAYER_DEF = LayerModel.parse_obj(LAYER_DICT)
 
 SUBSET = ["10N_010E"]

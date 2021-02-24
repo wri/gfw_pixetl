@@ -3,6 +3,7 @@ import os
 import subprocess as sp
 from typing import Any, Dict, List, Optional, Tuple
 
+import rasterio
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
@@ -22,12 +23,29 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 LOGGER = get_module_logger(__name__)
 
 
+def create_multiband_vrt(
+    bands: List[List[str]], extent: Optional[Bounds] = None, vrt: str = "all.vrt"
+):
+    vrt_name = os.path.splitext(vrt)[0]
+    input_vrts = [
+        create_vrt(band, extent, f"{vrt_name}_band_{i}.vrt")
+        for i, band in enumerate(bands)
+    ]
+
+    _check_crs_equal(input_vrts)
+    create_vrt(input_vrts, extent, vrt, True)
+    return vrt
+
+
 @retry(
     retry_on_exception=retry_if_missing_gcs_key_error,
     stop_max_attempt_number=2,
 )
 def create_vrt(
-    uris: List[str], extent: Optional[Bounds] = None, vrt: str = "all.vrt"
+    uris: List[str],
+    extent: Optional[Bounds] = None,
+    vrt: str = "all.vrt",
+    separate=False,
 ) -> str:
     """
     ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
@@ -35,8 +53,12 @@ def create_vrt(
     """
 
     cmd = ["gdalbuildvrt"]
+
+    if separate:
+        cmd += ["-separate"]
     if extent:
         cmd += ["-te"] + [str(v) for v in extent]
+    cmd += ["-resolution", "highest"]
     cmd += [vrt, *uris]
 
     try:
@@ -160,3 +182,15 @@ def get_metadata(
         metadata.bands.append(band_metadata)
 
     return metadata
+
+
+def _check_crs_equal(input_vrts: List[str]) -> None:
+    other_crs = None
+    for i, vrt in enumerate(input_vrts):
+        with rasterio.open(vrt, "r") as src:
+            crs = src.profile["crs"]
+        if i > 0:
+            assert (
+                crs == other_crs
+            ), "Input layers must have same coordinate reference system."
+        other_crs = crs
