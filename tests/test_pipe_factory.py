@@ -1,12 +1,7 @@
-import os
-
 from gfw_pixetl import layers
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import RasterPipe, pipe_factory
-from tests import minimal_layer_dict
-
-os.environ["ENV"] = "test"
-
+from tests.conftest import minimal_layer_dict
 
 SUBSET = ["10N_010E", "20N_010E", "30N_010E"]
 

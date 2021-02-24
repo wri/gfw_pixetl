@@ -10,39 +10,19 @@ from gfw_pixetl import get_module_logger, layers
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
-from tests import minimal_layer_dict
-from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME
+from tests.conftest import BUCKET, GEOJSON_2_NAME, LAYER_DICT
 
-os.environ["ENV"] = "test"
 LOGGER = get_module_logger(__name__)
 
-layer_dict = {
-    **minimal_layer_dict,
-    "dataset": "umd_tree_cover_density_2000",
-    "version": "v1.6",
-    "pixel_meaning": "percent",
-    "data_type": "uint8",
-    "nbits": 7,
-    "grid": "1/4000",
-    "source_uri": f"s3://{BUCKET}/{GEOJSON_NAME}",
-    "resampling": "average",
-}
-LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
-layer_dict_wm = deepcopy(layer_dict)
-layer_dict_wm["grid"] = "zoom_14"
-
-LAYER_WM = layers.layer_factory(LayerModel(**layer_dict_wm))
-
-
-def test_src_tile_intersects():
+def test_src_tile_intersects(LAYER):
     assert isinstance(LAYER, layers.RasterSrcLayer)
 
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile.within()
 
 
-def test_src_tile_intersects_wm():
+def test_src_tile_intersects_wm(LAYER_WM):
     assert isinstance(LAYER_WM, layers.RasterSrcLayer)
 
     tile = RasterSrcTile("030R_034C", LAYER_WM.grid, LAYER_WM)
@@ -52,7 +32,7 @@ def test_src_tile_intersects_wm():
     assert not tile.within()
 
 
-def test_transform_final():
+def test_transform_final(LAYER):
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile.dst[tile.default_format].crs.is_valid
@@ -98,9 +78,9 @@ def test_transform_final():
 
 
 def test_transform_final_wm():
-    layer_dict_wm = deepcopy(layer_dict)
+    layer_dict_wm = deepcopy(LAYER_DICT)
     layer_dict_wm["grid"] = "zoom_0"
-    layer_dict_wm["source_uri"] = f"s3://{BUCKET}/{GEOJSON_2_NAME}"
+    layer_dict_wm["source_uri"] = [f"s3://{BUCKET}/{GEOJSON_2_NAME}"]
 
     layer_wm = layers.layer_factory(LayerModel(**layer_dict_wm))
 
@@ -140,31 +120,85 @@ def test_transform_final_wm():
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test__calc():
+def test_transform_final_multi(LAYER_MULTI, LAYER):
+
+    assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
+    assert tile.dst[tile.default_format].crs.is_valid
+
+    with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
+        assert tile_src.profile["count"] == 2
+        window = rasterio.windows.from_bounds(
+            10, 9, 11, 10, transform=tile_src.transform
+        )
+        input = tile_src.read(1, window=window)
+
+    tile.transform()
+
+    LOGGER.debug(tile.local_dst[tile.default_format].uri)
+    with rasterio.Env(**GDAL_ENV), rasterio.open(
+        tile.local_dst[tile.default_format].uri
+    ) as src:
+        src_profile = src.profile
+        output = src.read(1)
+
+    LOGGER.debug(src_profile)
+
+    assert input.shape == output.shape
+    np.testing.assert_array_equal(input + input, output)
+
+    assert src_profile["blockxsize"] == LAYER.grid.blockxsize
+    assert src_profile["blockysize"] == LAYER.grid.blockysize
+    assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
+    assert src_profile["count"] == 1
+    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].is_valid
+    assert src_profile["driver"] == "GTiff"
+    assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
+    assert src_profile["height"] == LAYER.grid.cols
+    assert src_profile["interleave"] == "band"
+    assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
+    assert src_profile["tiled"] is True
+    assert src_profile["width"] == LAYER.grid.rows
+    # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
+
+    assert not hasattr(src_profile, "compress")
+
+    os.remove(tile.local_dst[tile.default_format].uri)
+
+
+def test__calc(LAYER):
     window = Window(0, 0, 1, 3)
-    if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
-        tile.layer.calc = "A+1"
-        data = np.zeros((1, 3))
-        result = tile._calc(data, window)
-        assert result.sum() == 3
+    tile.layer.calc = "A+1"
+    data = np.zeros((1, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 3
 
-        tile.layer.calc = "A+1*5"
-        data = np.zeros((1, 3))
-        result = tile._calc(data, window)
-        assert result.sum() == 15
+    tile.layer.calc = "A+1*5"
+    data = np.zeros((1, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 15
 
-        tile.layer.calc = "A*5+1"
-        data = np.zeros((1, 3))
-        result = tile._calc(data, window)
-        assert result.sum() == 3
+    tile.layer.calc = "A*5+1"
+    data = np.zeros((1, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 3
 
-    else:
-        raise ValueError("Not a RasterSrcLayer")
+    tile.layer.calc = "A+B"
+    data = np.ones((2, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 6
+
+    tile.layer.calc = "(A+B)*(C+2)"
+    data = np.ones((3, 1, 3))
+    result = tile._calc(data, window)
+    assert result.sum() == 18
 
 
-def test__set_dtype():
+def test__set_dtype(LAYER):
     window = Window(0, 0, 10, 10)
     data = np.random.randint(4, size=(10, 10))
     masked_data = np.ma.masked_values(data, 0)
@@ -180,7 +214,7 @@ def test__set_dtype():
         raise ValueError("Not a RasterSrcLayer")
 
 
-def test__snap_coordinates():
+def test__snap_coordinates(LAYER):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
     lat = 9.777
@@ -196,7 +230,7 @@ def test__snap_coordinates():
     assert isclose(left, 10.1115)
 
 
-def test__vrt_transform():
+def test__vrt_transform(LAYER):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
     transform, width, height = tile._vrt_transform(9.1, 9.1, 9.2, 9.2)
@@ -206,7 +240,7 @@ def test__vrt_transform():
     assert isclose(height, 400)
 
 
-def test_download_files():
+def test_download_files(LAYER):
     layer = deepcopy(LAYER)
     layer.process_locally = True
     tile = RasterSrcTile("10N_010E", layer.grid, layer)

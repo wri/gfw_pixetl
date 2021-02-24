@@ -1,10 +1,18 @@
 import os
 import shutil
+from copy import deepcopy
 
-import boto3
+import numpy as np
 import pytest
+import rasterio
+from affine import Affine
+from rasterio.crs import CRS
 
-from gfw_pixetl.settings.globals import GLOBALS
+from gfw_pixetl.layers import layer_factory
+from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.pipes import RasterPipe
+from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils.aws import get_s3_client
 
 BUCKET = "gfw-data-lake-test"
 GEOJSON_NAME = "tiles.geojson"
@@ -20,10 +28,6 @@ TILE_3_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_3_NAME)
 TILE_4_NAME = "01N_001E.tif"
 TILE_4_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_4_NAME)
 
-import numpy as np
-import rasterio
-from affine import Affine
-from rasterio.crs import CRS
 
 ########### World.tif
 geotransform = (-180.0, 1.0, 0.0, 90.0, 0.0, -1.0)
@@ -62,9 +66,7 @@ with rasterio.open(TILE_4_PATH, "w", **profile) as dst:
 @pytest.fixture(autouse=True, scope="session")
 def copy_fixtures():
     # Upload file to mocked S3 bucket
-    s3_client = boto3.client(
-        "s3", region_name=GLOBALS.aws_region, endpoint_url=GLOBALS.aws_endpoint_url
-    )
+    s3_client = get_s3_client()
 
     s3_client.create_bucket(Bucket=BUCKET)
     s3_client.upload_file(GEOJSON_PATH, BUCKET, GEOJSON_NAME)
@@ -112,3 +114,71 @@ def cleanup_tmp():
         except Exception as e:
             print("Failed to delete %s. Reason: %s" % (file_path, e))
     open("/tmp/.gitkeep", "a").close()
+
+
+#########
+
+
+minimal_layer_dict = {
+    "dataset": "whrc_aboveground_biomass_stock_2000",
+    "version": "v4",
+    "pixel_meaning": "Mg_ha-1",
+    "data_type": "uint16",
+    "grid": "10/40000",
+    "source_type": "raster",
+    # "no_data": 0,
+    "source_uri": [f"s3://{BUCKET}/{GEOJSON_NAME}"],
+}
+
+LAYER_DICT = {
+    **minimal_layer_dict,
+    "dataset": "aqueduct_erosion_risk",
+    "version": "v201911",
+    "pixel_meaning": "level",
+    "grid": "1/4000",
+    "no_data": 0,
+}
+
+SUBSET_1x1 = ["10N_010E", "11N_010E", "11N_011E"]
+SUBSET_10x10 = ["10N_010E", "20N_010E", "30N_010E"]
+
+
+@pytest.fixture()
+def LAYER():
+    layer_def = LayerModel.parse_obj(LAYER_DICT)
+    yield layer_factory(layer_def)
+
+
+@pytest.fixture()
+def LAYER_WM():
+    layer_dict_wm = deepcopy(LAYER_DICT)
+    layer_dict_wm["grid"] = "zoom_14"
+
+    yield layer_factory(LayerModel(**layer_dict_wm))
+
+
+@pytest.fixture()
+def LAYER_MULTI():
+    layer_dict_multi = deepcopy(LAYER_DICT)
+    layer_dict_multi["source_uri"] = [
+        f"s3://{BUCKET}/{GEOJSON_NAME}",
+        f"s3://{BUCKET}/{GEOJSON_NAME}",
+    ]
+    layer_dict_multi["calc"] = "A + B"
+
+    yield layer_factory(LayerModel(**layer_dict_multi))
+
+
+@pytest.fixture()
+def PIPE(LAYER):
+    yield RasterPipe(LAYER, SUBSET_1x1)
+
+
+@pytest.fixture()
+def PIPE_10x10(LAYER):
+    yield RasterPipe(LAYER, SUBSET_10x10)
+
+
+@pytest.fixture()
+def TILE(LAYER):
+    yield Tile("10N_010E", LAYER.grid, LAYER)

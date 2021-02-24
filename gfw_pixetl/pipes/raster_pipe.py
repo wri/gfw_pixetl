@@ -30,7 +30,7 @@ class RasterPipe(Pipe):
         #     tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
-        LOGGER.info(f"Found {tile_count} tile inside grid")
+        LOGGER.info(f"Found {tile_count} tile(s) inside grid")
 
         return tiles
 
@@ -40,14 +40,14 @@ class RasterPipe(Pipe):
 
     def create_tiles(
         self, overwrite: bool
-    ) -> Tuple[List[Tile], List[Tile], List[Tile]]:
+    ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Raster Pipe."""
 
         LOGGER.info("Start Raster Pipe")
 
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        GLOBALS.workers = self.tiles_to_process
+        GLOBALS.workers = max(self.tiles_to_process, 1)
 
         pipe = (
             tiles
@@ -56,10 +56,10 @@ class RasterPipe(Pipe):
             | self.delete_work_dir
         )
 
-        tiles, skipped_tiles, failed_tiles = self._process_pipe(pipe)
+        tiles, skipped_tiles, failed_tiles, existing_tiles = self._process_pipe(pipe)
 
         LOGGER.info("Finished Raster Pipe")
-        return tiles, skipped_tiles, failed_tiles
+        return tiles, skipped_tiles, failed_tiles, existing_tiles
 
     @staticmethod
     @stage(workers=GLOBALS.cores)
@@ -68,7 +68,7 @@ class RasterPipe(Pipe):
         for tile in tiles:
             if tile.status == "pending" and not tile.within():
                 LOGGER.info(
-                    f"Tile {tile.tile_id} does not intersects with source raster - skip"
+                    f"Tile {tile.tile_id} does not intersect with source raster - skip"
                 )
                 tile.status = "skipped (does not intersect)"
             yield tile

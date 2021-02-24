@@ -26,6 +26,8 @@ from gfw_pixetl.utils.path import create_dir
 LOGGER = get_module_logger(__name__)
 S3 = get_s3_client()
 
+stats_ext = ".aux.xml"  # Extension of stats sidecar gdalinfo -stats creates
+
 
 class Tile(ABC):
     """A tile object which represents a single tile within a given grid."""
@@ -103,7 +105,7 @@ class Tile(ABC):
 
     def remove_work_dir(self):
         LOGGER.debug(f"Delete working directory for tile {self.tile_id}")
-        shutil.rmtree(self.work_dir)
+        shutil.rmtree(self.work_dir, ignore_errors=True)
 
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):
@@ -144,26 +146,40 @@ class Tile(ABC):
             )
 
     def upload(self) -> None:
-
         try:
+            bucket = utils.get_bucket()
             for dst_format in self.local_dst.keys():
-                LOGGER.info(f"Upload {dst_format} tile {self.tile_id} to s3")
+                local_tiff_path = self.local_dst[dst_format].uri
+                LOGGER.info(f"Upload {local_tiff_path} to s3")
                 S3.upload_file(
-                    self.local_dst[dst_format].uri,
-                    utils.get_bucket(),
+                    local_tiff_path,
+                    bucket,
                     self.dst[dst_format].uri,
                 )
+                # Also upload the stats sidecar file that gdalinfo creates
+                # Use the default format for path because we only create 1 sidecar
+                local_stats_path = self.local_dst[self.default_format].uri + stats_ext
+                if os.path.isfile(local_stats_path):
+                    LOGGER.info(f"Upload {local_stats_path} to s3")
+                    S3.upload_file(
+                        local_stats_path,
+                        bucket,
+                        self.dst[dst_format].uri + stats_ext,
+                    )
+
         except Exception as e:
             LOGGER.error(f"Could not upload file {self.tile_id}")
             LOGGER.exception(str(e))
             self.status = "failed"
 
     def rm_local_src(self, dst_format) -> None:
-        if dst_format in self.local_dst.keys() and os.path.isfile(
-            self.local_dst[dst_format].uri
-        ):
-            LOGGER.info(f"Delete local file {self.local_dst[dst_format].uri}")
-            os.remove(self.local_dst[dst_format].uri)
+        if dst_format in self.local_dst.keys():
+            tiff_uri = self.local_dst[dst_format].uri
+            stats_uri = tiff_uri + stats_ext
+            for local_file in (tiff_uri, stats_uri):
+                if os.path.isfile(local_file):
+                    LOGGER.info(f"Delete local file {local_file}")
+                    os.remove(local_file)
 
     def postprocessing(self):
         """Once we have the final geotiff, all postprocessing steps should be

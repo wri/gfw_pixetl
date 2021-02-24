@@ -90,7 +90,7 @@ def test_available_memory_per_process():
     assert available_memory_per_process_mb() == GLOBALS.max_mem / 2
 
 
-def test__create_vrt():
+def test_create_vrt():
     vrt = create_vrt(URIS)
     assert vrt == "all.vrt"
     with rasterio.open(vrt, "r") as src:
@@ -127,7 +127,7 @@ def test_get_aws_s3_endpoint():
     assert get_aws_s3_endpoint("motoserver:5000") == "motoserver:5000"
 
 
-def test__run_gdal_subcommand():
+def test_run_gdal_subcommand():
     cmd = ["/bin/bash", "-c", "echo test"]
     assert run_gdal_subcommand(cmd) == ("test\n", "")
 

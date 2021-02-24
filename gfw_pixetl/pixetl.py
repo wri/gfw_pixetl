@@ -56,7 +56,7 @@ def cli(
         raise ValueError("URI specification is required for raster sources")
 
     # Finally, actually process the layer
-    tiles, skipped_tiles, failed_tiles = pixetl(
+    tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
         layer_def,
         subset,
         overwrite,
@@ -65,14 +65,18 @@ def cli(
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
     nb_failed_tiles = len(failed_tiles)
+    nb_existing_tiles = len(existing_tiles)
 
     LOGGER.info(f"Successfully processed {len(tiles)} tiles")
     LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
+    LOGGER.info(f"{nb_existing_tiles} tiles already existed.")
     LOGGER.info(f"{nb_failed_tiles} tiles failed.")
     if nb_tiles:
         LOGGER.info(f"Processed tiles: {tiles}")
     if nb_skipped_tiles:
         LOGGER.info(f"Skipped tiles: {skipped_tiles}")
+    if nb_existing_tiles:
+        LOGGER.info(f"Existing tiles: {existing_tiles}")
     if nb_failed_tiles:
         LOGGER.info(f"Failed tiles: {failed_tiles}")
         sys.exit("Program terminated with Errors. Some tiles failed to process")
@@ -82,7 +86,7 @@ def pixetl(
     layer_def: LayerModel,
     subset: Optional[List[str]] = None,
     overwrite: bool = False,
-) -> Tuple[List[Tile], List[Tile], List[Tile]]:
+) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
     LOGGER.info(
@@ -108,10 +112,12 @@ def pixetl(
 
         pipe: Pipe = pipe_factory(layer, subset)
 
-        tiles, skipped_tiles, failed_tiles = pipe.create_tiles(overwrite)
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
+            overwrite
+        )
         remove_work_directory(old_cwd, cwd)
 
-        return tiles, skipped_tiles, failed_tiles
+        return tiles, skipped_tiles, failed_tiles, existing_tiles
 
     except Exception as e:
         remove_work_directory(old_cwd, cwd)

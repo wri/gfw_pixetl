@@ -2,6 +2,7 @@ import os
 import shutil
 from typing import Any, Dict, Optional
 from unittest import mock
+from unittest.mock import call
 
 import numpy as np
 import pytest
@@ -15,22 +16,9 @@ from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
-from tests import minimal_layer_dict
-from tests.conftest import BUCKET, TILE_4_PATH
+from tests.conftest import BUCKET, LAYER_DICT, TILE_4_PATH, minimal_layer_dict
 
-os.environ["ENV"] = "test"
-
-LAYER_DICT = {
-    **minimal_layer_dict,
-    "dataset": "whrc_aboveground_biomass_stock_2000",
-    "version": "v201911",
-    "pixel_meaning": "Mg_ha-1",
-    "data_type": "uint16",
-    "no_data": 0,
-}
-LAYER = layers.layer_factory(LayerModel.parse_obj(LAYER_DICT))
 LOGGER = get_module_logger(__name__)
-TILE = Tile("10N_010E", LAYER.grid, LAYER)
 
 
 class Img(object):
@@ -67,15 +55,15 @@ class EmptyImg(Img):
         return np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
 
 
-def test_tile():
+def test_tile(TILE):
     assert isinstance(TILE, Tile)
 
 
-def test_dst_exists():
+def test_dst_exists(TILE):
     assert TILE.dst[TILE.default_format].exists()
 
 
-def test_set_local_src():
+def test_set_local_src(TILE):
 
     with pytest.raises(FileNotFoundError):
         TILE.set_local_dst(TILE.default_format)
@@ -90,7 +78,7 @@ def test_set_local_src():
             )
 
 
-def test_get_local_dst_uri():
+def test_get_local_dst_uri(TILE):
     assert (
         TILE.get_local_dst_uri(TILE.default_format)
         == f"/tmp/10N_010E/{TILE.default_format}/10N_010E.tif"
@@ -101,54 +89,46 @@ def test_get_local_dst_uri():
     )
 
 
-def test_upload():
+def test_upload(LAYER, TILE):
     s3_client = get_s3_client()
-    resp = s3_client.list_objects_v2(
-        Bucket=BUCKET, Prefix="whrc_aboveground_biomass_stock_2000"
-    )
-    assert resp["KeyCount"] == 1
+    resp = s3_client.list_objects_v2(Bucket=BUCKET, Prefix=LAYER_DICT["dataset"])
+    count = resp["KeyCount"]
     os.makedirs(
         "/tmp/20N_010E/geotiff/",  # pragma: allowlist secret
         exist_ok=True,
     )
-    with open(
-        "/tmp/20N_010E/geotiff/20N_010E.tif",
-        "w+",
-    ):
+    with open("/tmp/20N_010E/geotiff/20N_010E.tif", "w+"):
+        pass
+    with open("/tmp/20N_010E/geotiff/20N_010E.tif.aux.xml", "w+"):
         pass
     tile = Tile("20N_010E", LAYER.grid, LAYER)
     with mock.patch("rasterio.open", return_value=EmptyImg()):
         tile.set_local_dst(TILE.default_format)
         tile.upload()
 
-    resp = s3_client.list_objects_v2(
-        Bucket=BUCKET, Prefix="whrc_aboveground_biomass_stock_2000"
-    )
-    assert resp["KeyCount"] == 2
+    resp = s3_client.list_objects_v2(Bucket=BUCKET, Prefix=LAYER_DICT["dataset"])
+
+    assert resp["KeyCount"] == count + 2
 
 
 @mock.patch("gfw_pixetl.tiles.tile.os")
-def test_rm_local_src(mocked_os):
+def test_rm_local_src(mocked_os, TILE):
     with mock.patch("rasterio.open", return_value=EmptyImg()):
         TILE.set_local_dst(TILE.default_format)
         uri = TILE.local_dst[TILE.default_format].uri
+        stats_uri = uri + ".aux.xml"
         TILE.rm_local_src(TILE.default_format)
-        mocked_os.remove.assert_called_with(uri)
+        mocked_os.remove.assert_has_calls([call(uri), call(stats_uri)])
 
 
-def test__dst_has_no_data():
+def test_dst_has_no_data(LAYER, TILE):
     print(LAYER.dst_profile)
     assert TILE.dst[TILE.default_format].has_no_data()
 
 
 def test_gradient_symbology():
     layer_dict = {
-        "dataset": "whrc_aboveground_biomass_stock_2000",
-        "version": "v4",
-        "pixel_meaning": "Mg_ha-1",
-        "data_type": "uint16",
-        "grid": "1/4000",
-        "source_type": "raster",
+        **minimal_layer_dict,
         "no_data": 0,
         "symbology": {
             "type": "gradient",
@@ -192,12 +172,7 @@ def test_gradient_symbology():
 
 def test_discrete_symbology():
     layer_dict = {
-        "dataset": "whrc_aboveground_biomass_stock_2000",
-        "version": "v4",
-        "pixel_meaning": "Mg_ha-1",
-        "data_type": "uint16",
-        "grid": "1/4000",
-        "source_type": "raster",
+        **minimal_layer_dict,
         "no_data": 0,
         "symbology": {
             "type": "discrete",

@@ -1,12 +1,11 @@
-import os
-
+import pytest
+from pydantic import ValidationError
 from rasterio.warp import Resampling
+from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl import layers
 from gfw_pixetl.models.pydantic import LayerModel
-from tests import minimal_layer_dict
-
-os.environ["ENV"] = "test"
+from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME, minimal_layer_dict
 
 
 def test_raster_layer_uri():
@@ -97,6 +96,7 @@ def test_vector_layer():
         "data_type": "uint8",
         "order": "desc",
     }
+    layer_dict.pop("source_uri")
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
     assert isinstance(layer, layers.VectorSrcLayer)
@@ -113,3 +113,51 @@ def test_vector_layer():
     assert layer.resampling == Resampling.nearest
     assert layer.rasterize_method is None
     assert layer.order == "desc"
+
+
+def test_multi_source_layer_no_calc():
+    layer_dict = {
+        **minimal_layer_dict,
+        "source_uri": [
+            f"s3://{BUCKET}/{GEOJSON_NAME}",
+            f"s3://{BUCKET}/{GEOJSON_2_NAME}",
+        ],
+    }
+
+    with pytest.raises(ValidationError):
+        layers.layer_factory(LayerModel.parse_obj(layer_dict))
+
+
+def test_multi_source_layer():
+    layer_dict = {
+        **minimal_layer_dict,
+        "source_uri": [
+            f"s3://{BUCKET}/{GEOJSON_NAME}",
+            f"s3://{BUCKET}/{GEOJSON_2_NAME}",
+        ],
+        "calc": "A + B",
+    }
+    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+
+    assert isinstance(layer, layers.RasterSrcLayer)
+    assert layer.__class__.__name__ == "RasterSrcLayer"
+    assert layer.dst_profile["dtype"] == "uint16"
+    assert layer.dst_profile["compress"] == "DEFLATE"
+    assert layer.dst_profile["tiled"] is True
+    assert layer.dst_profile["blockxsize"] == 400
+    assert layer.dst_profile["blockysize"] == 400
+    assert layer.dst_profile["pixeltype"] == "DEFAULT"
+    assert layer.resampling == Resampling.nearest
+    assert layer.calc == "A + B"
+    assert layer.rasterize_method is None
+    assert layer.order is None
+    assert layer.geom == MultiPolygon(
+        [
+            Polygon(
+                [[10.0, 10.0], [20.0, 10.0], [20.0, 0.0], [10.0, 0.0], [10.0, 10.0]]
+            ),
+            Polygon(
+                [[-10.0, 10.0], [0.0, 10.0], [0.0, 0.0], [-10.0, 0.0], [-10.0, 10.0]]
+            ),
+        ]
+    )

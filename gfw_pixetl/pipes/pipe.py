@@ -8,6 +8,7 @@ from gfw_pixetl.layers import Layer
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils import upload_geometries
+from gfw_pixetl.utils.gdal import get_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -49,7 +50,9 @@ class Pipe(ABC):
         return tiles
 
     @abstractmethod
-    def create_tiles(self, overwrite) -> Tuple[List[Tile], List[Tile], List[Tile]]:
+    def create_tiles(
+        self, overwrite
+    ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Override this method when implementing pipes."""
         ...
 
@@ -97,10 +100,16 @@ class Pipe(ABC):
             if (
                 not overwrite
                 and tile.status == "pending"
-                and tile.dst[tile.default_format].exists()
+                and all([tile.dst[fmt].exists() for fmt in tile.dst.keys()])
             ):
-                tile.status = "skipped (tile exists)"
-                LOGGER.debug(f"Tile {tile} already in destination. Skip.")
+                for dst_format in tile.dst.keys():
+                    tile.metadata[dst_format] = get_metadata(
+                        tile.dst[tile.default_format].url,
+                        tile.layer.compute_stats,
+                        tile.layer.compute_histogram,
+                    ).dict()
+                tile.status = "existing"
+                LOGGER.debug(f"Tile {tile} already in destination. Skip processing.")
             yield tile
 
     @staticmethod
@@ -129,8 +138,10 @@ class Pipe(ABC):
             tile.remove_work_dir()
             yield tile
 
-    def _process_pipe(self, pipe) -> Tuple[List[Tile], List[Tile], List[Tile]]:
-        """Fetching all tiles, which ran through the pipe.
+    def _process_pipe(
+        self, pipe
+    ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
+        """Fetching all tiles which ran through the pipe.
 
         Check and sort by status.
         """
@@ -138,7 +149,7 @@ class Pipe(ABC):
         processed_tiles: List[Tile] = list()
         skipped_tiles: List[Tile] = list()
         failed_tiles: List[Tile] = list()
-        # existing_tiles: List[Tile] = list()
+        existing_tiles: List[Tile] = list()
 
         for tile in pipe.results():
 
@@ -148,9 +159,13 @@ class Pipe(ABC):
                 processed_tiles.append(tile)
             elif tile.status == "failed":
                 failed_tiles.append(tile)
+            elif tile.status == "existing":
+                existing_tiles.append(tile)
             else:
                 skipped_tiles.append(tile)
 
-        upload_geometries.upload_geojsons(processed_tiles, self.layer.prefix)
+        upload_geometries.upload_geojsons(
+            processed_tiles, existing_tiles, self.layer.prefix
+        )
 
-        return processed_tiles, skipped_tiles, failed_tiles
+        return processed_tiles, skipped_tiles, failed_tiles, existing_tiles
