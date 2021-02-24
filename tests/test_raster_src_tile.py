@@ -10,48 +10,19 @@ from gfw_pixetl import get_module_logger, layers
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
-from tests import minimal_layer_dict
-from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME
+from tests.conftest import BUCKET, GEOJSON_2_NAME, LAYER_DICT
 
-os.environ["ENV"] = "test"
 LOGGER = get_module_logger(__name__)
 
-layer_dict = {
-    **minimal_layer_dict,
-    "dataset": "umd_tree_cover_density_2000",
-    "version": "v1.6",
-    "pixel_meaning": "percent",
-    "data_type": "uint8",
-    "nbits": 7,
-    "grid": "1/4000",
-    "source_uri": [f"s3://{BUCKET}/{GEOJSON_NAME}"],
-    "resampling": "average",
-}
-LAYER = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
-layer_dict_wm = deepcopy(layer_dict)
-layer_dict_wm["grid"] = "zoom_14"
-
-LAYER_WM = layers.layer_factory(LayerModel(**layer_dict_wm))
-
-layer_dict_multi = deepcopy(layer_dict)
-layer_dict_multi["source_uri"] = [
-    f"s3://{BUCKET}/{GEOJSON_NAME}",
-    f"s3://{BUCKET}/{GEOJSON_NAME}",
-]
-layer_dict_multi["calc"] = "A + B"
-
-LAYER_MULTI = layers.layer_factory(LayerModel(**layer_dict_multi))
-
-
-def test_src_tile_intersects():
+def test_src_tile_intersects(LAYER):
     assert isinstance(LAYER, layers.RasterSrcLayer)
 
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile.within()
 
 
-def test_src_tile_intersects_wm():
+def test_src_tile_intersects_wm(LAYER_WM):
     assert isinstance(LAYER_WM, layers.RasterSrcLayer)
 
     tile = RasterSrcTile("030R_034C", LAYER_WM.grid, LAYER_WM)
@@ -61,7 +32,7 @@ def test_src_tile_intersects_wm():
     assert not tile.within()
 
 
-def test_transform_final():
+def test_transform_final(LAYER):
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile.dst[tile.default_format].crs.is_valid
@@ -107,7 +78,7 @@ def test_transform_final():
 
 
 def test_transform_final_wm():
-    layer_dict_wm = deepcopy(layer_dict)
+    layer_dict_wm = deepcopy(LAYER_DICT)
     layer_dict_wm["grid"] = "zoom_0"
     layer_dict_wm["source_uri"] = [f"s3://{BUCKET}/{GEOJSON_2_NAME}"]
 
@@ -149,7 +120,7 @@ def test_transform_final_wm():
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test_transform_final_multi():
+def test_transform_final_multi(LAYER_MULTI, LAYER):
 
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
@@ -196,7 +167,7 @@ def test_transform_final_multi():
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test__calc():
+def test__calc(LAYER):
     window = Window(0, 0, 1, 3)
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
@@ -227,7 +198,7 @@ def test__calc():
     assert result.sum() == 18
 
 
-def test__set_dtype():
+def test__set_dtype(LAYER):
     window = Window(0, 0, 10, 10)
     data = np.random.randint(4, size=(10, 10))
     masked_data = np.ma.masked_values(data, 0)
@@ -243,7 +214,7 @@ def test__set_dtype():
         raise ValueError("Not a RasterSrcLayer")
 
 
-def test__snap_coordinates():
+def test__snap_coordinates(LAYER):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
     lat = 9.777
@@ -259,7 +230,7 @@ def test__snap_coordinates():
     assert isclose(left, 10.1115)
 
 
-def test__vrt_transform():
+def test__vrt_transform(LAYER):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
     transform, width, height = tile._vrt_transform(9.1, 9.1, 9.2, 9.2)
@@ -269,7 +240,7 @@ def test__vrt_transform():
     assert isclose(height, 400)
 
 
-def test_download_files():
+def test_download_files(LAYER):
     layer = deepcopy(LAYER)
     layer.process_locally = True
     tile = RasterSrcTile("10N_010E", layer.grid, layer)

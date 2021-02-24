@@ -1,6 +1,5 @@
 import copy
 import math
-import os
 import unittest
 
 import pytest
@@ -10,9 +9,7 @@ from rasterio.enums import Resampling
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.resampling import resampling_factory
-from tests import minimal_layer_dict
-
-os.environ["ENV"] = "test"
+from tests.conftest import minimal_layer_dict
 
 
 class TestValidation(unittest.TestCase):

@@ -5,6 +5,7 @@ from typing import Optional
 
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
+from shapely.geometry import MultiPolygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.models.types import Bounds
@@ -82,3 +83,19 @@ def world_bounds(crs: CRS) -> Bounds:
     LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
 
     return left, bottom, right, top
+
+
+def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> Optional[MultiPolygon]:
+    if b:
+        geom = None
+        _geom = a.intersection(b)
+        if _geom.type == "GeometryCollection":
+            for g in _geom.geoms:
+                if g.type == "MultiPolygon" or g.type == "Polygon":
+                    geom = g
+                    break
+        else:
+            geom = _geom
+        return geom
+    else:
+        return a

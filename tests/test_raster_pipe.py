@@ -1,4 +1,3 @@
-import os
 from typing import Set
 from unittest import mock
 
@@ -8,22 +7,10 @@ from gfw_pixetl.models.pydantic import LayerModel, Metadata
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import RasterSrcTile
-from tests import minimal_layer_dict
-
-os.environ["ENV"] = "test"
+from tests.conftest import minimal_layer_dict
 
 GRID_10 = grid_factory("10/40000")
 GRID_1 = grid_factory("1/4000")
-LAYER_DICT = {
-    **minimal_layer_dict,
-    "dataset": "aqueduct_erosion_risk",
-    "version": "v201911",
-    "pixel_meaning": "level",
-    "no_data": 0,
-}
-LAYER = layers.layer_factory(LayerModel.parse_obj(LAYER_DICT))
-SUBSET = ["10N_010E", "20N_010E", "30N_010E"]
-PIPE = RasterPipe(LAYER, SUBSET)
 EMPTY_METADATA = Metadata(
     extent=(0.0, 0.0, 0.0, 0.0),
     width=0,
@@ -37,7 +24,7 @@ EMPTY_METADATA = Metadata(
 )
 
 
-def test_create_tiles_subset():
+def test_create_tiles_subset(PIPE_10x10):
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
     ):
@@ -56,16 +43,19 @@ def test_create_tiles_subset():
         ), mock.patch(
             "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
         ):
-            (tiles, skipped_tiles, failed_tiles, existing_tiles) = PIPE.create_tiles(
-                overwrite=True
-            )
+            (
+                tiles,
+                skipped_tiles,
+                failed_tiles,
+                existing_tiles,
+            ) = PIPE_10x10.create_tiles(overwrite=True)
             assert len(tiles) == 1
             assert len(skipped_tiles) == 3
             assert len(failed_tiles) == 0
             assert len(existing_tiles) == 0
 
 
-def test_create_tiles_all():
+def test_create_tiles_all(LAYER):
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
     ), mock.patch(
@@ -95,7 +85,7 @@ def test_create_tiles_all():
         assert len(existing_tiles) == 0
 
 
-def test_create_tiles_existing():
+def test_create_tiles_existing(LAYER):
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
     ), mock.patch(
@@ -136,11 +126,11 @@ def test_create_tiles_existing():
         assert len(existing_tiles) == 0
 
 
-def test_filter_src_tiles():
+def test_filter_src_tiles(PIPE_10x10):
     tiles = _get_subset_tiles()
 
     with mock.patch.object(RasterSrcTile, "within", return_value=False):
-        pipe = tiles | PIPE.filter_src_tiles
+        pipe = tiles | PIPE_10x10.filter_src_tiles
         i = 0
         for tile in pipe.results():
             if tile.status == "pending":
@@ -149,7 +139,7 @@ def test_filter_src_tiles():
         assert i == 0
 
     with mock.patch.object(RasterSrcTile, "within", return_value=True):
-        pipe = tiles | PIPE.filter_src_tiles
+        pipe = tiles | PIPE_10x10.filter_src_tiles
         i = 0
         for tile in pipe.results():
             if tile.status == "pending":
@@ -158,9 +148,9 @@ def test_filter_src_tiles():
         assert i == 4
 
 
-def test_transform():
+def test_transform(PIPE_10x10):
     with mock.patch.object(RasterSrcTile, "transform", return_value=True):
-        tiles = PIPE.transform(_get_subset_tiles())
+        tiles = PIPE_10x10.transform(_get_subset_tiles())
         i = 0
         for tile in tiles:
             if tile.status == "pending":

@@ -46,7 +46,7 @@ class LayerModel(BaseModel):
 
     @validator("source_uri")
     def validate_source_uri(cls, v, values, **kwargs):
-        if values["source_type"] == SourceType.raster:
+        if values.get("source_type") == SourceType.raster:
             assert v, "Raster source types require source_uri"
             if len(v) > 1:
                 assert values.get("calc"), "More than one source_uri require calc"

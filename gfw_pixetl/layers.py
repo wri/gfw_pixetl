@@ -1,6 +1,5 @@
 import json
 import os
-from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
@@ -17,6 +16,7 @@ from gfw_pixetl.sources import VectorSource
 
 from .settings.globals import GLOBALS
 from .utils.aws import get_s3_client
+from .utils.utils import intersection
 
 LOGGER = get_module_logger(__name__)
 
@@ -108,14 +108,15 @@ class RasterSrcLayer(Layer):
         super().__init__(layer_def, grid)
 
         self._src_uri = layer_def.source_uri
+        self.input_bands = self._input_bands()
 
         # self.input_files = self._input_files()
         # self.geom = self._geom()
 
-    @cached_property
-    def input_bands(self) -> List[List[Tuple[Polygon, str]]]:
+    def _input_bands(self) -> List[List[Tuple[Polygon, str]]]:
         s3_client = get_s3_client()
         input_bands = list()
+        print(self._src_uri)
         assert isinstance(self._src_uri, list)
         for src_uri in self._src_uri:
             input_files = list()
@@ -149,8 +150,15 @@ class RasterSrcLayer(Layer):
 
         LOGGER.debug("Create Polygon from input tile bounds")
 
-        geoms: List[Polygon] = [tile[0] for band in self.input_bands for tile in band]
-        return unary_union(geoms)
+        geom: Optional[MultiPolygon] = None
+        for band in self.input_bands:
+            band_geom: MultiPolygon = unary_union([tile[0] for tile in band])
+            geom = intersection(band_geom, geom)
+
+        if not geom:
+            raise RuntimeError("Input bands do not overlap")
+
+        return geom
 
 
 def layer_factory(layer_def: LayerModel) -> Layer:
