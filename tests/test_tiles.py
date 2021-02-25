@@ -123,7 +123,7 @@ def test_rm_local_src(mocked_os, TILE):
 
 def test_dst_has_no_data(LAYER, TILE):
     print(LAYER.dst_profile)
-    assert TILE.dst[TILE.default_format].has_no_data()
+    assert TILE.dst[TILE.default_format].nodata is not None
 
 
 def test_gradient_symbology():

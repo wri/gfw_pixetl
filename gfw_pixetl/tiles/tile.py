@@ -60,7 +60,7 @@ class Tile(ABC):
             "driver": "GTiff",
             "width": grid.cols,
             "height": grid.rows,
-            "count": 1,
+            "count": self.layer.count,
             "transform": rasterio.transform.from_origin(
                 self.bounds.left, self.bounds.top, grid.xres, grid.yres
             ),

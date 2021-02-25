@@ -3,7 +3,7 @@ import string
 from copy import deepcopy
 from math import floor, sqrt
 from multiprocessing import get_context
-from typing import Iterator, List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
 import numpy as np
@@ -347,8 +347,15 @@ class RasterSrcTile(Tile):
             )
             exec(funcstr, globals())
             array = f(*array)  # type: ignore # noqa: F821
+
             # assign band index
-            array = array.reshape(1, *array.shape)
+            if len(array.shape) == 2:
+                array = array.reshape(1, *array.shape)
+            else:
+                if array.shape[0] != self.dst[self.default_format].profile["count"]:
+                    raise RuntimeError(
+                        "Output band count does not match desired count. Calc function must be wrong."
+                    )
         else:
             LOGGER.debug(
                 f"No user defined formula provided. Skip calculating values for {dst_window} of tile {self.tile_id}"
@@ -475,7 +482,20 @@ class RasterSrcTile(Tile):
         """Update data type to desired output datatype Update nodata value to
         desired nodata value (current no data values will be updated and any
         values which already has new no data value will stay as is)"""
-        if self.dst[self.default_format].has_no_data():
+        if self.dst[self.default_format].nodata is None:
+            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
+            array = array.data.astype(self.dst[self.default_format].dtype)
+        elif isinstance(self.dst[self.default_format].nodata, list):
+            LOGGER.debug(
+                "Set datatype for entire array and no data value for each band for {dst_window} of tile {self.tile_id}"
+            )
+            # make mypy happy. not sure why the isinstance check above alone doesn't do it
+            nodata_list = cast(list, self.dst[self.default_format].nodata)
+            array = np.array(
+                [np.ma.filled(array[i], nodata) for i, nodata in enumerate(nodata_list)]
+            ).astype(self.dst[self.default_format].dtype)
+
+        else:
             LOGGER.debug(
                 f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
             )
@@ -483,9 +503,6 @@ class RasterSrcTile(Tile):
                 self.dst[self.default_format].dtype
             )
 
-        else:
-            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
-            array = array.data.astype(self.dst[self.default_format].dtype)
         return array
 
     def _vrt_transform(
