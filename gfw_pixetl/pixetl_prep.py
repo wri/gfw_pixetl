@@ -1,4 +1,4 @@
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Tuple
 from urllib.parse import urlparse
 
 import click
@@ -66,22 +66,22 @@ def get_key_from_vsi(vsi_path: str) -> str:
 
 
 def create_geojsons(
-    bucket: str,
-    key: str,
-    provider: str,
+    resources: List[Tuple[str, str, str]],
     dataset: str,
     version: str,
     prefix: str,
     merge_existing: bool,
 ) -> None:
-
     get_files = {"s3": get_aws_files, "gs": get_gs_files}
-    files = get_files[provider](bucket, key)
-    tiles = list()
 
-    for uri in files:
-        src = RasterSource(uri)
-        tiles.append(DummyTile({"geotiff": src}))
+    tiles: List[DummyTile] = list()
+
+    for provider, bucket, key in resources:
+        files = get_files[provider](bucket, key)
+
+        for uri in files:
+            src = RasterSource(uri)
+            tiles.append(DummyTile({"geotiff": src}))
 
     data_lake_bucket = get_bucket()
     target_prefix = f"{dataset}/{version}/{prefix.strip('/')}/"
@@ -105,7 +105,7 @@ def create_geojsons(
 
 
 @click.command()
-@click.argument("resource", type=str)
+@click.argument("urls", type=str)
 @click.option(
     "--dataset", type=str, required=True, help="Dataset name of target tileset."
 )
@@ -123,26 +123,29 @@ def create_geojsons(
     type=bool,
     is_flag=True,
     default=False,
-    help="Merge new features with features already present in existing geojson files.",
+    help="Merge features from resources with features already present in S3 folder.",
 )
 def cli(
-    resource: str, dataset: str, version: str, prefix: str, merge_existing: bool
+    urls: str, dataset: str, version: str, prefix: str, merge_existing: bool
 ) -> None:
     """Retrieve all geotiffs under given resources and generate tiles.geojson
-    and extent.geojson at s3//{data-lake}/{dataset}/{version}/{prefix}/geotiff.
+    and extent.geojson at s3://{data-
+    lake}/{dataset}/{version}/{prefix}/geotiff.
 
-    RESOURCE: path to cloud resource. Must use `s3://` or `gs://` protocol.
+    URLS: Comma-separated paths to cloud resources. Must use `s3://` or `gs://` protocol.
     """
 
-    o = urlparse(resource, allow_fragments=False)
-    if o.scheme and o.scheme in ["s3", "gs"]:
+    resources: List[Tuple[str, str, str]] = list()
+
+    for url in urls.split(","):
+        o = urlparse(url, allow_fragments=False)
+        if not o.scheme or o.scheme not in ["s3", "gs"]:
+            raise ValueError(
+                f"URL {url} not supported. Must use `s3://` or `gs://` protocol."
+            )
         provider = o.scheme
-    else:
-        raise ValueError(
-            f"Resource {resource} not supported. Must use `s3://` or `gs://` protocol."
-        )
+        bucket = o.netloc
+        key = o.path.lstrip("/")
+        resources.append((provider, bucket, key))
 
-    bucket = o.netloc
-    key = o.path.lstrip("/")
-
-    create_geojsons(bucket, key, provider, dataset, version, prefix, merge_existing)
+    create_geojsons(resources, dataset, version, prefix, merge_existing)
