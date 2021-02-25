@@ -263,17 +263,17 @@ class RasterSrcTile(Tile):
         write to destination."""
         masked_array: MaskedArray = self._read_window(vrt, window)
         LOGGER.debug(
-            f"Masked Array size for tile {self.tile_id} when read: {masked_array.itemsize}"
+            f"Masked Array size for tile {self.tile_id} when read: {masked_array.nbytes}"
         )
         if self._block_has_data(masked_array):
             LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
             masked_array = self._calc(masked_array, window)
             LOGGER.debug(
-                f"Masked Array size for tile {self.tile_id} after calc: {masked_array.itemsize}"
+                f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes}"
             )
             array: np.ndarray = self._set_dtype(masked_array, window)
             LOGGER.debug(
-                f"Array size for tile {self.tile_id} after set dtype: {masked_array.itemsize}"
+                f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes}"
             )
             del masked_array
             out_file: Optional[str] = self._write_window(
@@ -409,8 +409,8 @@ class RasterSrcTile(Tile):
 
         dst_block_byte_size = np.zeros(
             shape, dtype=self.dst[self.default_format].dtype
-        ).itemsize
-        src_block_byte_size = np.zeros(shape, dtype=self.src.dtype).itemsize
+        ).nbytes
+        src_block_byte_size = np.zeros(shape, dtype=self.src.dtype).nbytes
         max_block_byte_size = max(dst_block_byte_size, src_block_byte_size)
         LOGGER.debug(f"Block byte size is {max_block_byte_size}")
 
