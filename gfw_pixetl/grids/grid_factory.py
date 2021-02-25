@@ -15,6 +15,7 @@ grids: Dict[str, Grid] = {
     "1/4000": LatLngGrid(1, 4000),  # TEST grid
     "3/33600": LatLngGrid(3, 33600),  # RADD alerts, ~10m pixel
     "10/40000": LatLngGrid(10, 40000),  # UMD alerts, ~30m pixel
+    "10/100000": LatLngGrid(10, 100000),  # UMD alerts, ~10m pixel
     "8/32000": LatLngGrid(8, 32000),  # UMD alerts, ~30m pixel, data cube optimized Grid
     "90/27008": LatLngGrid(90, 27008),  # VIIRS Fire alerts, ~375m pixel
     "90/9984": LatLngGrid(90, 9984),  # MODIS Fire alerts, ~1000m pixel
