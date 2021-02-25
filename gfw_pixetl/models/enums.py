@@ -28,10 +28,10 @@ class DstFormat(str, Enum):
 
 class PhotometricType(str, Enum):
     minisblack = "MINISBLACK"
-    miniswhite = ("MINISWHITE",)
-    rgb = ("RGB",)
-    cmyk = ("CMYK",)
-    ycbcr = ("YCBCR",)
-    cielab = ("CIELAB",)
-    icclab = ("ICCLAB",)
+    miniswhite = "MINISWHITE"
+    rgb = "RGB"
+    cmyk = "CMYK"
+    ycbcr = "YCBCR"
+    cielab = "CIELAB"
+    icclab = "ICCLAB"
     itulab = "ITULAB"
