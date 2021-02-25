@@ -249,3 +249,11 @@ def test_download_files(LAYER):
     assert os.path.isfile(
         os.path.join(tile.work_dir, "input/gfw-data-lake-test/10N_010E.tif")
     )
+
+
+def test__block_byte_size(LAYER, LAYER_MULTI):
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    assert tile._block_byte_size() == 1 * 2 * 400 * 400
+
+    tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
+    assert tile._block_byte_size() == 2 * 2 * 400 * 400
