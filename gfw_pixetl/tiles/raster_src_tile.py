@@ -262,10 +262,19 @@ class RasterSrcTile(Tile):
         """Reading windows from input VRT, reproject, resample, transform and
         write to destination."""
         masked_array: MaskedArray = self._read_window(vrt, window)
+        LOGGER.debug(
+            f"Masked Array size for tile {self.tile_id} when read: {masked_array.itemsize}"
+        )
         if self._block_has_data(masked_array):
             LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
             masked_array = self._calc(masked_array, window)
+            LOGGER.debug(
+                f"Masked Array size for tile {self.tile_id} after calc: {masked_array.itemsize}"
+            )
             array: np.ndarray = self._set_dtype(masked_array, window)
+            LOGGER.debug(
+                f"Array size for tile {self.tile_id} after set dtype: {masked_array.itemsize}"
+            )
             del masked_array
             out_file: Optional[str] = self._write_window(
                 array, window, write_to_seperate_files
@@ -357,42 +366,55 @@ class RasterSrcTile(Tile):
         """
 
         # Adjust divisor to band count
-        divisor = GLOBALS.divisor * len(self.layer.input_bands)
+        divisor = GLOBALS.divisor
+
+        # Just to be prudent let's reduce chunk size for float data types
+        if np.issubdtype(
+            self.dst[self.default_format].dtype, np.floating
+        ) or np.issubdtype(self.src.dtype, np.floating):
+            divisor *= 2
 
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
         co_workers = floor(GLOBALS.cores / GLOBALS.workers)
         if co_workers >= 2:
-            divisor = divisor * co_workers
+            divisor *= co_workers
 
         # further reduce block size in case we need to perform additional computations
         if self.layer.calc is not None:
-            divisor = divisor ** 2
+            divisor **= 2
 
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
-        bytes_per_block: int = self._block_byte_size()
+        block_byte_size: int = self._block_byte_size()
         memory_per_process: float = utils.available_memory_per_process_bytes() / divisor
 
         # make sure we get an number we whose sqrt is a whole number
-        max_blocks: int = floor(sqrt(memory_per_process / bytes_per_block)) ** 2
+        max_blocks: int = floor(sqrt(memory_per_process / block_byte_size)) ** 2
 
-        LOGGER.debug(f"Maximum number of blocks to read at once: {max_blocks}")
+        LOGGER.debug(
+            f"Maximum number of blocks for tile {self.tile_id} to read at once: {max_blocks}. "
+            f"Expected max chunk size: {max_blocks * block_byte_size}."
+        )
+
         return max_blocks
 
     def _block_byte_size(self):
-        # max_bytes_per_block: float = self._max_block_size(dst) * self._max_itemsize()
-        block_size: int = (
-            self.dst[self.default_format].blockxsize
-            * self.dst[self.default_format].blockysize
+
+        shape = (
+            len(self.layer.input_bands),
+            self.dst[self.default_format].blockxsize,
+            self.dst[self.default_format].blockysize,
         )
-        LOGGER.debug(f"Block Size: {block_size}")
 
-        item_size: int = np.zeros(1, dtype=self.dst[self.default_format].dtype).itemsize
-        LOGGER.debug(f"Item Size: {item_size}")
+        dst_block_byte_size = np.zeros(
+            shape, dtype=self.dst[self.default_format].dtype
+        ).itemsize
+        src_block_byte_size = np.zeros(shape, dtype=self.src.dtype).itemsize
+        max_block_byte_size = max(dst_block_byte_size, src_block_byte_size)
+        LOGGER.debug(f"Block byte size is {max_block_byte_size}")
 
-        bytes_per_block: int = block_size * item_size
-        return bytes_per_block
+        return max_block_byte_size
 
     @retry(
         retry_on_exception=retry_if_rasterio_io_error,
@@ -536,7 +558,6 @@ class RasterSrcTile(Tile):
         )
 
         with rasterio.Env(**GDAL_ENV):
-
             with rasterio.open(
                 file_path,
                 "w",
