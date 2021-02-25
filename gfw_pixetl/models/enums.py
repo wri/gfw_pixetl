@@ -24,3 +24,14 @@ class ColorMapType(str, Enum):
 class DstFormat(str, Enum):
     geotiff = "geotiff"
     gdal_geotiff = "gdal-geotiff"
+
+
+class PhotometricType(str, Enum):
+    minisblack = "MINISBLACK"
+    miniswhite = ("MINISWHITE",)
+    rgb = ("RGB",)
+    cmyk = ("CMYK",)
+    ycbcr = ("YCBCR",)
+    cielab = ("CIELAB",)
+    icclab = ("ICCLAB",)
+    itulab = "ITULAB"

@@ -4,7 +4,13 @@ from pydantic import BaseModel, Field, StrictInt, validator
 
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.grids.grid_factory import GridEnum
-from gfw_pixetl.models.enums import ColorMapType, Order, RasterizeMethod, SourceType
+from gfw_pixetl.models.enums import (
+    ColorMapType,
+    Order,
+    PhotometricType,
+    RasterizeMethod,
+    SourceType,
+)
 from gfw_pixetl.models.types import NoData
 from gfw_pixetl.resampling import ResamplingMethodEnum
 
@@ -38,13 +44,20 @@ class LayerModel(BaseModel):
     grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
-    calc: Optional[str]
+    calc: Optional[str] = Field(
+        None,
+        description="Numpy expression to transform array. "
+        "Use namespace `np`, not `numpy` when using numpy functions. "
+        "When using multiple input bands, reference each band with uppercase letter in alphabetic order (A,B,C,..). "
+        "To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`.",
+    )
     source_uri: Optional[List[str]]
     order: Optional[Order]
     symbology: Optional[Symbology]
     compute_stats: bool = False
     compute_histogram: bool = False
     process_locally: bool = False
+    photometric: Optional[PhotometricType] = None
 
     @validator("source_uri")
     def validate_source_uri(cls, v, values, **kwargs):

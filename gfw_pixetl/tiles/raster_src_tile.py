@@ -487,7 +487,7 @@ class RasterSrcTile(Tile):
             array = array.data.astype(self.dst[self.default_format].dtype)
         elif isinstance(self.dst[self.default_format].nodata, list):
             LOGGER.debug(
-                "Set datatype for entire array and no data value for each band for {dst_window} of tile {self.tile_id}"
+                f"Set datatype for entire array and no data value for each band for {dst_window} of tile {self.tile_id}"
             )
             # make mypy happy. not sure why the isinstance check above alone doesn't do it
             nodata_list = cast(list, self.dst[self.default_format].nodata)

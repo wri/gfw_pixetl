@@ -70,6 +70,9 @@ class Tile(ABC):
             "sparse_ok": "TRUE",
             "interleave": "BAND",
         }
+        if layer.photometric:
+            gdal_profile["photometric"] = layer.photometric
+
         gdal_profile.update(self.layer.dst_profile)
 
         # Drop GDAL specific optimizations which might not be readable by other applications
