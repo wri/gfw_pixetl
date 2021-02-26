@@ -112,7 +112,7 @@ class Globals(EnvSettings):
     @pydantic.validator("max_mem", pre=True, always=True)
     def set_max_mem(cls, v, *, values, **kwargs):
         max_mem = max(min(psutil.virtual_memory()[1] / 1000000, float(v)), 1)
-        LOGGER.info(f"Set maximum memory to {max_mem}")
+        LOGGER.info(f"Set maximum memory to {max_mem} MB")
         return max_mem
 
 
