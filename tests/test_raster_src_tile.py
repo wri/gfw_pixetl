@@ -8,6 +8,7 @@ from rasterio.enums import ColorInterp
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger, layers
+from gfw_pixetl.models.enums import PhotometricType
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
@@ -175,7 +176,7 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
     LAYER_MULTI.calc = "np.ma.array([A, B, A+B])"
     LAYER_MULTI.count = 3
-    LAYER_MULTI.photometric = "RGB"
+    LAYER_MULTI.photometric = PhotometricType.rgb.value
 
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
     assert tile.dst[tile.default_format].crs.is_valid

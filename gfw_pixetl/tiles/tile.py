@@ -71,7 +71,9 @@ class Tile(ABC):
             "interleave": "BAND",
         }
         if layer.photometric:
-            gdal_profile["photometric"] = layer.photometric
+            gdal_profile[
+                "photometric"
+            ] = layer.photometric.value  # need value, not just Enum!
 
         gdal_profile.update(self.layer.dst_profile)
 
