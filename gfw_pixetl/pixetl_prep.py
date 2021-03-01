@@ -89,7 +89,6 @@ def create_geojsons(
     # Don't bother checking for existing tiles unless we're going to use them
     existing_tiles = list()
     if merge_existing:
-        target_prefix = target_prefix
         existing_uris = get_aws_files(data_lake_bucket, target_prefix)
         for uri in existing_uris:
             src = RasterSource(uri)
