@@ -175,7 +175,7 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
 
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
     LAYER_MULTI.calc = "np.ma.array([A, B, A+B])"
-    LAYER_MULTI.count = 3
+    LAYER_MULTI.band_count = 3
     LAYER_MULTI.photometric = PhotometricType.rgb
 
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
@@ -269,7 +269,7 @@ def test__calc_multi_out(LAYER):
 
     assert isinstance(LAYER, layers.RasterSrcLayer)
 
-    LAYER.count = 3
+    LAYER.band_count = 3
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
 
     tile.layer.calc = "np.ma.array([A,A,A])"

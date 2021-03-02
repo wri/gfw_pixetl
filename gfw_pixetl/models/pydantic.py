@@ -39,7 +39,7 @@ class LayerModel(BaseModel):
     pixel_meaning: str
     data_type: DataTypeEnum
     nbits: Optional[int]
-    count: int = 1
+    band_count: int = 1
     no_data: Optional[Union[NoData, List[NoData]]]
     grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]
@@ -73,7 +73,7 @@ class LayerModel(BaseModel):
     def validate_no_data(cls, v, values, **kwargs):
         if isinstance(v, list):
             assert len(v) != values.get(
-                "count"
+                "band_count"
             ), "Length of no data list must much band count."
         return v
 

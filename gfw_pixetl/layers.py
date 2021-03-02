@@ -44,7 +44,7 @@ class Layer(object):
         self.compute_stats: bool = layer_def.compute_stats
         self.compute_histogram: bool = layer_def.compute_histogram
         self.process_locally: bool = layer_def.process_locally
-        self.count: int = layer_def.count
+        self.band_count: int = layer_def.band_count
         self.photometric: Optional[PhotometricType] = layer_def.photometric
 
     def _get_prefix(
