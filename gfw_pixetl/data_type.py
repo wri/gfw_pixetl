@@ -37,7 +37,7 @@ class DataType(object):
     ) -> None:
         self._validate_no_data(data_type, no_data, nbits)
         self.data_type: str = data_type
-        self.no_data: Optional[Union[StrictInt, float]] = no_data
+        self.no_data: Optional[NoData] = self._sanitize_nodata(no_data)
         self.nbits: Optional[StrictInt] = nbits
         self.compression: str = compression
 
@@ -79,6 +79,16 @@ class DataType(object):
         if not isinstance(no_data, int):
             message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
             raise ValueError(message)
+
+    @staticmethod
+    def _sanitize_nodata(
+        no_data: Optional[Union[NoData, List[NoData]]]
+    ) -> Optional[NoData]:
+        # RasterIO does not support multi dimensional no data values
+        if isinstance(no_data, list):
+            return no_data[0]
+        else:
+            return no_data
 
 
 def data_type_constructor(

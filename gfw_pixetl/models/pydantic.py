@@ -75,6 +75,7 @@ class LayerModel(BaseModel):
             assert len(v) == int(
                 values.get("band_count")
             ), f"Length of no data list ({v}) must match band count ({values.get('band_count')})."
+            assert len(set(v)) == 1, "No data values must be the same for all bands"
         return v
 
     @validator("band_count")
