@@ -39,11 +39,6 @@ class LayerModel(BaseModel):
     pixel_meaning: str
     data_type: DataTypeEnum
     nbits: Optional[int]
-    band_count: int = 1
-    no_data: Optional[Union[NoData, List[NoData]]]
-    grid: GridEnum
-    rasterize_method: Optional[RasterizeMethod]
-    resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
     calc: Optional[str] = Field(
         None,
         description="Numpy expression to transform array. "
@@ -51,6 +46,11 @@ class LayerModel(BaseModel):
         "When using multiple input bands, reference each band with uppercase letter in alphabetic order (A,B,C,..). "
         "To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`.",
     )
+    band_count: int = 1
+    no_data: Optional[Union[NoData, List[NoData]]]
+    grid: GridEnum
+    rasterize_method: Optional[RasterizeMethod]
+    resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
     source_uri: Optional[List[str]]
     order: Optional[Order]
     symbology: Optional[Symbology]
@@ -72,9 +72,17 @@ class LayerModel(BaseModel):
     @validator("no_data")
     def validate_no_data(cls, v, values, **kwargs):
         if isinstance(v, list):
-            assert len(v) != values.get(
-                "band_count"
-            ), "Length of no data list must much band count."
+            assert len(v) == int(
+                values.get("band_count")
+            ), f"Length of no data list ({v}) must match band count ({values.get('band_count')})."
+        return v
+
+    @validator("band_count")
+    def validate_band_count(cls, v, values, **kwargs):
+        if v > 1:
+            assert values.get(
+                "calc"
+            ), "Output raster with more than one band require calc"
         return v
 
 
