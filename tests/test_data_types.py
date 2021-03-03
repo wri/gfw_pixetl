@@ -53,6 +53,9 @@ def test_no_data():
     data_type = data_type_factory("uint8", no_data=0)
     assert data_type.no_data == 0
 
+    data_type = data_type_factory("uint8", no_data=[0, 0, 0])
+    assert data_type.no_data == [0, 0, 0]
+
     data_type = data_type_factory("int8")
     assert data_type.no_data is None
 
