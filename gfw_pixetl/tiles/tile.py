@@ -261,6 +261,11 @@ class Tile(ABC):
         except GDALError:
             LOGGER.error("Could not create Color Relief")
             raise
+
+        # Make sure no data value is set to [0, 0, 0, 0]
+        with rasterio.open(dst, "r+") as _dst:
+            _dst.nodata = 0
+
         # switch uri with new output file
         self.local_dst[self.default_format].uri = dst
 
