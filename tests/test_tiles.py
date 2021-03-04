@@ -1,5 +1,4 @@
 import os
-import shutil
 from typing import Any, Dict, Optional
 from unittest import mock
 from unittest.mock import call
@@ -11,12 +10,11 @@ from rasterio.crs import CRS
 from rasterio.windows import Window
 from shapely.geometry import box
 
-from gfw_pixetl import get_module_logger, layers
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
-from tests.conftest import BUCKET, LAYER_DICT, TILE_4_PATH, minimal_layer_dict
+from tests.conftest import BUCKET, LAYER_DICT
 
 LOGGER = get_module_logger(__name__)
 
@@ -124,94 +122,3 @@ def test_rm_local_src(mocked_os, TILE):
 def test_dst_has_no_data(LAYER, TILE):
     print(LAYER.dst_profile)
     assert TILE.dst[TILE.default_format].nodata is not None
-
-
-def test_gradient_symbology():
-    layer_dict = {
-        **minimal_layer_dict,
-        "no_data": 0,
-        "symbology": {
-            "type": "gradient",
-            "colormap": {
-                "1": {"red": 255, "green": 0, "blue": 0},
-                "5": {"red": 0, "green": 0, "blue": 255},
-            },
-        },
-    }
-
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
-
-    tile = Tile("01N_001E", layer.grid, layer)
-
-    test_file = os.path.join(tile.tmp_dir, "test_gradient_color.tif")
-    shutil.copyfile(TILE_4_PATH, test_file)
-
-    # monkey patch method to point to test file
-    # then initialize local destination
-    tile.get_local_dst_uri = lambda x: test_file
-    tile.set_local_dst(tile.default_format)
-
-    assert tile.local_dst[tile.default_format].profile["count"] == 1
-
-    tile.add_symbology()
-    # sleep(60)
-    assert (
-        os.path.basename(tile.local_dst[tile.default_format].uri)
-        == f"{tile.tile_id}_colored.tif"
-    )
-    assert tile.local_dst[tile.default_format].profile["count"] == 4
-    assert (
-        tile.local_dst[tile.default_format].blockxsize
-        == layer.dst_profile["blockxsize"]
-    )
-    assert (
-        tile.local_dst[tile.default_format].blockysize
-        == layer.dst_profile["blockysize"]
-    )
-
-
-def test_discrete_symbology():
-    layer_dict = {
-        **minimal_layer_dict,
-        "no_data": 0,
-        "symbology": {
-            "type": "discrete",
-            "colormap": {
-                "1": {"red": 255, "green": 0, "blue": 0},
-                "2": {"red": 255, "green": 255, "blue": 0},
-                "3": {"red": 0, "green": 255, "blue": 0},
-                "4": {"red": 0, "green": 255, "blue": 255},
-                "5": {"red": 0, "green": 0, "blue": 255},
-            },
-        },
-    }
-
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
-
-    tile = Tile("01N_001E", layer.grid, layer)
-
-    test_file = os.path.join(tile.tmp_dir, "test_gradient_color.tif")
-    shutil.copyfile(TILE_4_PATH, test_file)
-
-    # monkey patch method to point to test file
-    # then initialize local destination
-    tile.get_local_dst_uri = lambda x: test_file
-    tile.set_local_dst(tile.default_format)
-
-    assert tile.local_dst[tile.default_format].profile["count"] == 1
-
-    tile.add_symbology()
-    # sleep(60)
-    assert (
-        os.path.basename(tile.local_dst[tile.default_format].uri)
-        == f"{tile.tile_id}_colored.tif"
-    )
-    assert tile.local_dst[tile.default_format].profile["count"] == 4
-    assert (
-        tile.local_dst[tile.default_format].blockxsize
-        == layer.dst_profile["blockxsize"]
-    )
-    assert (
-        tile.local_dst[tile.default_format].blockysize
-        == layer.dst_profile["blockysize"]
-    )

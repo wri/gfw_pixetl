@@ -25,6 +25,7 @@ SQLAlchemy = "*"
 rasterio = "*"
 aenum = "*"
 google-cloud-storage = "*"
+typer = "*"
 
 [requires]
 python_version = "3.8"
