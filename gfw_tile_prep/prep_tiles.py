@@ -49,7 +49,7 @@ SRC = {
     },
     "RemovalForestType": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/removal_forest_type/standard/20200223/{tile_id}_removal_forest_type.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/removal_forest_type/standard/20210223/{tile_id}_removal_forest_type.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_1/removal_forest_type/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/removal_forest_type/biomass_swap/20200919/{tile_id}_removal_forest_type_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_2_1_0/removal_forest_type/biomass_swap/{tile_id}.tif",
@@ -209,7 +209,7 @@ SRC = {
         "data_type": "Byte",
         "nodata": 0
     },
-    "drivers": {
+    "Drivers": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/tree_cover_loss_drivers/processed/drivers_2020/20210305/{tile_id}_tree_cover_loss_driver_processed.tif",
         "s3_target": "{protocol}/gfw-files/flux_2_1_1/drivers/{tile_id}.tif",
