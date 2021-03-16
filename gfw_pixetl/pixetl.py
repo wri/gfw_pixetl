@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-import json
 import os
 import sys
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import click
+import typer
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel, VectorLayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
@@ -44,20 +44,16 @@ def cli(
     version: str,
     subset: Optional[List[str]],
     overwrite: bool,
-    layer_json: str,
+    layer_model: Union[RasterLayerModel, VectorLayerModel],
 ):
 
-    layer_dict = json.loads(layer_json)
-    layer_dict.update({"dataset": dataset, "version": version})
-    layer_def = LayerModel.parse_obj(layer_dict)
-
-    # Raster sources must have an source URI
-    if layer_def.source_type == "raster" and layer_def.source_uri is None:
-        raise ValueError("URI specification is required for raster sources")
+    # TODO: Make layer.dataset and layer.version optional or change API pattern and include parameters directly in layer model
+    layer_model.dataset = dataset
+    layer_model.version = version
 
     # Finally, actually process the layer
     tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
-        layer_def,
+        layer_model,
         subset,
         overwrite,
     )
@@ -83,16 +79,16 @@ def cli(
 
 
 def pixetl(
-    layer_def: LayerModel,
+    layer_model: Union[RasterLayerModel, VectorLayerModel],
     subset: Optional[List[str]] = None,
     overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
     LOGGER.info(
-        f"Start tile preparation for dataset {layer_def.dataset}, "
-        f"version {layer_def.version}, grid {layer_def.grid}, "
-        f"source type {layer_def.source_type}, field {layer_def.pixel_meaning}, "
+        f"Start tile preparation for dataset {layer_model.dataset}, "
+        f"version {layer_model.version}, grid {layer_model.grid}, "
+        f"source type {layer_model.source_type}, field {layer_model.pixel_meaning}, "
         f"with overwrite set to {overwrite}."
     )
 
@@ -108,7 +104,7 @@ def pixetl(
         else:
             LOGGER.info("Running on full extent")
 
-        layer: Layer = layer_factory(layer_def)
+        layer: Layer = layer_factory(layer_model)
 
         pipe: Pipe = pipe_factory(layer, subset)
 
@@ -126,4 +122,4 @@ def pixetl(
 
 
 if __name__ == "__main__":
-    cli()
+    typer.run(cli)

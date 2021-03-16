@@ -27,6 +27,8 @@ stats_ext = ".aux.xml"  # Extension of stats sidecar gdalinfo -stats creates
 class Tile(ABC):
     """A tile object which represents a single tile within a given grid."""
 
+    layer: Layer
+
     def __str__(self):
         return self.tile_id
 
@@ -41,10 +43,9 @@ class Tile(ABC):
             return NotImplemented
         return self.tile_id == other.tile_id and self.grid == other.grid
 
-    def __init__(self, tile_id: str, grid: Grid, layer: Layer) -> None:
+    def __init__(self, tile_id: str, grid: Grid) -> None:
 
         self.grid: Grid = grid
-        self.layer: Layer = layer
 
         self.local_dst: Dict[str, RasterSource] = dict()
 
@@ -77,14 +78,14 @@ class Tile(ABC):
         self.dst: Dict[str, Destination] = {
             DstFormat.gdal_geotiff: Destination(
                 uri=os.path.join(
-                    layer.prefix, DstFormat.gdal_geotiff, f"{self.tile_id}.tif"
+                    self.layer.prefix, DstFormat.gdal_geotiff, f"{self.tile_id}.tif"
                 ),
                 profile=gdal_profile,
                 bounds=self.bounds,
             ),
             DstFormat.geotiff: Destination(
                 uri=os.path.join(
-                    layer.prefix, DstFormat.geotiff, f"{self.tile_id}.tif"
+                    self.layer.prefix, DstFormat.geotiff, f"{self.tile_id}.tif"
                 ),
                 profile=geotiff_profile,
                 bounds=self.bounds,

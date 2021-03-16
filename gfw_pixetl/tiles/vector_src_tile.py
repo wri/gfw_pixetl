@@ -19,7 +19,8 @@ logger = get_module_logger(__name__)
 
 class VectorSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
-        super().__init__(tile_id, grid, layer)
+        self.layer: VectorSrcLayer = layer
+        super().__init__(tile_id, grid)
         self.src: VectorSource = layer.src
 
     def intersect_filter(self) -> TextClause:
@@ -49,6 +50,7 @@ class VectorSrcTile(Tile):
             )"""
         )
 
+    # TODO: extract base type of current layer, not just polygon
     def intersection_geom(self) -> TextClause:
         return text(
             f"""CASE
@@ -131,17 +133,7 @@ class VectorSrcTile(Tile):
 
         cmd: List[str] = ["gdal_rasterize"]
 
-        val_column = literal_column(str(self.layer.calc))
-        geom_column = literal_column(str(self.intersection_geom()))
-
-        sql = (
-            select([val_column.label(self.layer.field), geom_column.label("geom")])
-            .select_from(self.src_table())
-            .where(self.intersect_filter())
-            .order_by(self.order_column(val_column))
-        )
-
-        logger.debug(str(sql))
+        sql = self.compose_query()
 
         if self.layer.rasterize_method == "count":
             cmd += ["-burn", "1", "-add"]
@@ -194,3 +186,25 @@ class VectorSrcTile(Tile):
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
             self.postprocessing()
+
+    def compose_query(self):
+
+        val_column = literal_column(str(self.layer.calc.field))
+        geom_column = literal_column(str(self.intersection_geom()))
+
+        sql = (
+            select([val_column.label(self.layer.field), geom_column.label("geom")])
+            .select_from(self.src_table())
+            .where(self.intersect_filter())
+            .order_by(self.order_column(val_column))
+        )
+
+        if self.layer.calc.where:
+            sql = sql.where(text(self.layer.calc.where))
+
+        if self.layer.calc.group_by:
+            sql = sql.group_by(text(self.layer.calc.group_by))
+
+        logger.debug(str(sql))
+
+        return sql

@@ -9,6 +9,7 @@ from gfw_pixetl.grids import LatLngGrid
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
+from gfw_pixetl.tiles import RasterSrcTile
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from tests.conftest import BUCKET, LAYER_DICT, TILE_1_PATH, SUBSET_1x1
@@ -131,7 +132,7 @@ def _get_subset_tile_ids(PIPE) -> List[str]:
 def _get_subset_tiles(PIPE) -> Set[Tile]:
     tiles: Set[Tile] = set()
     for tile_id in _get_subset_tile_ids(PIPE):
-        tiles.add(Tile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
+        tiles.add(RasterSrcTile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
 
     return tiles
 

@@ -12,7 +12,7 @@ from shapely.geometry import box
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.sources import RasterSource
-from gfw_pixetl.tiles import Tile
+from gfw_pixetl.tiles import RasterSrcTile, Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from tests.conftest import BUCKET, LAYER_DICT
 
@@ -87,7 +87,7 @@ def test_get_local_dst_uri(TILE):
     )
 
 
-def test_upload(LAYER, TILE):
+def test_upload(LAYER):
     s3_client = get_s3_client()
     resp = s3_client.list_objects_v2(Bucket=BUCKET, Prefix=LAYER_DICT["dataset"])
     count = resp["KeyCount"]
@@ -99,9 +99,9 @@ def test_upload(LAYER, TILE):
         pass
     with open("/tmp/20N_010E/geotiff/20N_010E.tif.aux.xml", "w+"):
         pass
-    tile = Tile("20N_010E", LAYER.grid, LAYER)
+    tile = RasterSrcTile("20N_010E", LAYER.grid, LAYER)
     with mock.patch("rasterio.open", return_value=EmptyImg()):
-        tile.set_local_dst(TILE.default_format)
+        tile.set_local_dst(tile.default_format)
         tile.upload()
 
     resp = s3_client.list_objects_v2(Bucket=BUCKET, Prefix=LAYER_DICT["dataset"])

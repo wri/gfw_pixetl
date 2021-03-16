@@ -9,9 +9,9 @@ from affine import Affine
 from rasterio.crs import CRS
 
 from gfw_pixetl.layers import layer_factory
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel, VectorLayerModel
 from gfw_pixetl.pipes import RasterPipe
-from gfw_pixetl.tiles import Tile
+from gfw_pixetl.tiles import RasterSrcTile
 from gfw_pixetl.utils.aws import get_s3_client
 
 BUCKET = "gfw-data-lake-test"
@@ -139,13 +139,26 @@ LAYER_DICT = {
     "no_data": 0,
 }
 
+VECTOR_LAYER_DICT = {
+    "dataset": "whrc_aboveground_biomass_stock_2000",
+    "version": "v4",
+    "pixel_meaning": "Mg_ha-1",
+    "data_type": "uint16",
+    "grid": "10/40000",
+    "source_type": "vector",
+    "rasterize_method": "value",
+    "no_data": 0,
+    "calc": {"field": "biomass + 1", "where": "1=1", "group_by": "carbon"},
+}
+
+
 SUBSET_1x1 = ["10N_010E", "11N_010E", "11N_011E"]
 SUBSET_10x10 = ["10N_010E", "20N_010E", "30N_010E"]
 
 
 @pytest.fixture()
 def LAYER():
-    layer_def = LayerModel.parse_obj(LAYER_DICT)
+    layer_def = RasterLayerModel.parse_obj(LAYER_DICT)
     yield layer_factory(layer_def)
 
 
@@ -154,7 +167,7 @@ def LAYER_WM():
     layer_dict_wm = deepcopy(LAYER_DICT)
     layer_dict_wm["grid"] = "zoom_14"
 
-    yield layer_factory(LayerModel(**layer_dict_wm))
+    yield layer_factory(RasterLayerModel(**layer_dict_wm))
 
 
 @pytest.fixture()
@@ -166,7 +179,14 @@ def LAYER_MULTI():
     ]
     layer_dict_multi["calc"] = "A + B"
 
-    yield layer_factory(LayerModel(**layer_dict_multi))
+    yield layer_factory(RasterLayerModel(**layer_dict_multi))
+
+
+@pytest.fixture()
+def VECTOR_LAYER():
+    layer_dict = deepcopy(VECTOR_LAYER_DICT)
+
+    yield layer_factory(VectorLayerModel(**layer_dict))
 
 
 @pytest.fixture()
@@ -181,4 +201,4 @@ def PIPE_10x10(LAYER):
 
 @pytest.fixture()
 def TILE(LAYER):
-    yield Tile("10N_010E", LAYER.grid, LAYER)
+    yield RasterSrcTile("10N_010E", LAYER.grid, LAYER)
