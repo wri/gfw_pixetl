@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from rasterio.warp import Resampling
@@ -12,8 +12,10 @@ from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.models.pydantic import (
     LayerModel,
+    RasterLayerCliModel,
     RasterLayerModel,
     VectorCalc,
+    VectorLayerCliModel,
     VectorLayerModel,
 )
 from gfw_pixetl.resampling import resampling_factory
@@ -182,3 +184,17 @@ def layer_factory(layer_model: Union[RasterLayerModel, VectorLayerModel]) -> Lay
         )
 
     return layer
+
+
+def layer_model_factory(
+    dataset: str,
+    version: str,
+    layer_model: Union[RasterLayerCliModel, VectorLayerCliModel],
+) -> Union[RasterLayerModel, VectorLayerModel]:
+    model_constructor: Dict[str, Callable] = {
+        "vector": VectorLayerModel,
+        "raster": RasterLayerModel,
+    }
+    return model_constructor[layer_model.source_type](
+        dataset=dataset, version=version, **layer_model.dict()
+    )

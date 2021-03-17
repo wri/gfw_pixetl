@@ -16,9 +16,7 @@ class VectorCalc(BaseModel):
     group_by: Optional[str]
 
 
-class LayerModel(BaseModel):
-    dataset: str
-    version: str = Field(..., regex=VERSION_REGEX)
+class LayerCliModel(BaseModel):
     pixel_meaning: str
     data_type: DataTypeEnum
     nbits: Optional[int]
@@ -29,7 +27,12 @@ class LayerModel(BaseModel):
     process_locally: bool = False
 
 
-class RasterLayerModel(LayerModel):
+class LayerModel(LayerCliModel):
+    dataset: str
+    version: str = Field(..., regex=VERSION_REGEX)
+
+
+class RasterLayerCliModel(LayerCliModel):
     source_type: Literal["raster"]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
     calc: Optional[str]
@@ -42,11 +45,21 @@ class RasterLayerModel(LayerModel):
         return v
 
 
-class VectorLayerModel(LayerModel):
+class RasterLayerModel(RasterLayerCliModel):
+    dataset: str
+    version: str = Field(..., regex=VERSION_REGEX)
+
+
+class VectorLayerCliModel(LayerCliModel):
     source_type: Literal["vector"]
     rasterize_method: RasterizeMethod
     calc: Optional[VectorCalc]
     order: Order = Order.desc
+
+
+class VectorLayerModel(VectorLayerCliModel):
+    dataset: str
+    version: str = Field(..., regex=VERSION_REGEX)
 
 
 class Histogram(BaseModel):
