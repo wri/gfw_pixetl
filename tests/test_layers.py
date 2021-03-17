@@ -4,7 +4,7 @@ from rasterio.warp import Resampling
 from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl import layers
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel, VectorCalc, VectorLayerModel
 from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME, minimal_layer_dict
 
 
@@ -13,7 +13,7 @@ def test_raster_layer_uri():
         **minimal_layer_dict,
         "no_data": 0,
     }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layers.layer_factory(RasterLayerModel(**layer_dict))
 
     assert isinstance(layer, layers.RasterSrcLayer)
     assert layer.__class__.__name__ == "RasterSrcLayer"
@@ -26,8 +26,6 @@ def test_raster_layer_uri():
     assert layer.dst_profile["nodata"] == 0
     assert layer.resampling == Resampling.nearest
     assert layer.calc is None
-    assert layer.rasterize_method is None
-    assert layer.order is None
 
 
 def test_raster_layer_depended():
@@ -39,7 +37,7 @@ def test_raster_layer_depended():
         "no_data": 0,
         "calc": "1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)",
     }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layers.layer_factory(RasterLayerModel(**layer_dict))
 
     assert isinstance(layer, layers.RasterSrcLayer)
     assert layer.__class__.__name__ == "RasterSrcLayer"
@@ -55,7 +53,6 @@ def test_raster_layer_depended():
     assert (
         layer.calc == "1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)"
     )
-    assert layer.order is None
 
 
 def test_raster_calc_layer():
@@ -67,7 +64,7 @@ def test_raster_calc_layer():
         "calc": "1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)",
         "resampling": "nearest",
     }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layers.layer_factory(RasterLayerModel(**layer_dict))
 
     assert isinstance(layer, layers.RasterSrcLayer)
     assert layer.__class__.__name__ == "RasterSrcLayer"
@@ -83,8 +80,6 @@ def test_raster_calc_layer():
     assert (
         layer.calc == "1*(A>10)+1*(A>15)+1*(A>20)+1*(A>25)+1*(A>30)+1*(A>50)+1*(A>75)"
     )
-    assert layer.rasterize_method is None
-    assert layer.order is None
 
 
 def test_vector_layer():
@@ -95,9 +90,10 @@ def test_vector_layer():
         "nbits": 2,
         "data_type": "uint8",
         "order": "desc",
+        "rasterize_method": "value",
     }
     layer_dict.pop("source_uri")
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layers.layer_factory(VectorLayerModel(**layer_dict))
 
     assert isinstance(layer, layers.VectorSrcLayer)
     assert layer.__class__.__name__ == "VectorSrcLayer"
@@ -109,9 +105,8 @@ def test_vector_layer():
     assert layer.dst_profile["pixeltype"] == "DEFAULT"
     assert layer.dst_profile["nodata"] == 0
     assert layer.dst_profile["nbits"] == 2
-    assert layer.calc == "Mg_ha-1"
-    assert layer.resampling == Resampling.nearest
-    assert layer.rasterize_method is None
+    assert layer.calc == VectorCalc(field="Mg_ha-1")
+    assert layer.rasterize_method == "value"
     assert layer.order == "desc"
 
 
@@ -125,7 +120,7 @@ def test_multi_source_layer_no_calc():
     }
 
     with pytest.raises(ValidationError):
-        layers.layer_factory(LayerModel.parse_obj(layer_dict))
+        layers.layer_factory(RasterLayerModel(**layer_dict))
 
 
 def test_multi_source_layer():
@@ -137,7 +132,7 @@ def test_multi_source_layer():
         ],
         "calc": "A + B",
     }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layers.layer_factory(RasterLayerModel(**layer_dict))
 
     assert isinstance(layer, layers.RasterSrcLayer)
     assert layer.__class__.__name__ == "RasterSrcLayer"
@@ -149,8 +144,6 @@ def test_multi_source_layer():
     assert layer.dst_profile["pixeltype"] == "DEFAULT"
     assert layer.resampling == Resampling.nearest
     assert layer.calc == "A + B"
-    assert layer.rasterize_method is None
-    assert layer.order is None
     assert layer.geom == MultiPolygon(
         [
             Polygon(

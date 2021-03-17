@@ -11,16 +11,6 @@ class RasterizeMethod(str, Enum):
     value = "value"
 
 
-class SourceType(str, Enum):
-    raster = "raster"
-    vector = "vector"
-
-
-class ColorMapType(str, Enum):
-    discrete = "discrete"
-    gradient = "gradient"
-
-
 class DstFormat(str, Enum):
     geotiff = "geotiff"
     gdal_geotiff = "gdal-geotiff"

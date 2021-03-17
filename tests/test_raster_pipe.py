@@ -3,7 +3,7 @@ from unittest import mock
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid, grid_factory
-from gfw_pixetl.models.pydantic import LayerModel, Metadata
+from gfw_pixetl.models.pydantic import Metadata, RasterLayerModel
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import RasterSrcTile
@@ -168,7 +168,7 @@ def _get_subset_tiles() -> Set[RasterSrcTile]:
         "no_data": 0,
         "grid": "1/4000",
     }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layers.layer_factory(RasterLayerModel(**layer_dict))
 
     assert isinstance(layer, layers.RasterSrcLayer)
 

@@ -38,8 +38,8 @@ Windows = Tuple[Window, Window]
 
 class RasterSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: RasterSrcLayer) -> None:
-        super().__init__(tile_id, grid, layer)
         self.layer: RasterSrcLayer = layer
+        super().__init__(tile_id, grid)
         # self.src: RasterSource = RasterSource(uri=self._vrt())
 
     @lazy_property

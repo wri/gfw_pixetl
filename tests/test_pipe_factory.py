@@ -1,5 +1,5 @@
 from gfw_pixetl import layers
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel
 from gfw_pixetl.pipes import RasterPipe, pipe_factory
 from tests.conftest import minimal_layer_dict
 
@@ -17,8 +17,9 @@ def test_pipe_factory_raster_src_layer():
         "version": "v201911",
         "pixel_meaning": "level",
         "no_data": 0,
+        "source_type": "raster",
     }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layers.layer_factory(RasterLayerModel.parse_obj(layer_dict))
 
     pipe = pipe_factory(layer)
     assert isinstance(pipe, RasterPipe)

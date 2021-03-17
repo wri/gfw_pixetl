@@ -6,9 +6,10 @@ import pytest
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
+from gfw_pixetl.tiles import RasterSrcTile
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from tests.conftest import BUCKET, LAYER_DICT, TILE_1_PATH, SUBSET_1x1
@@ -27,11 +28,8 @@ def test_get_grid_tiles():
     #     message = "not implemented"
     # assert message == "not implemented"
 
-    layer_dict = {
-        **LAYER_DICT,
-        "grid": "10/40000",
-    }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer_dict = {**LAYER_DICT, "grid": "10/40000", "source_type": "raster"}
+    layer = layers.layer_factory(RasterLayerModel.parse_obj(layer_dict))
 
     pipe = RasterPipe(layer)
     assert len(pipe.get_grid_tiles()) == 648
@@ -131,7 +129,7 @@ def _get_subset_tile_ids(PIPE) -> List[str]:
 def _get_subset_tiles(PIPE) -> Set[Tile]:
     tiles: Set[Tile] = set()
     for tile_id in _get_subset_tile_ids(PIPE):
-        tiles.add(Tile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
+        tiles.add(RasterSrcTile(tile_id=tile_id, grid=PIPE.grid, layer=PIPE.layer))
 
     return tiles
 

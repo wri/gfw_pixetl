@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from rasterio.warp import Resampling
@@ -10,7 +10,14 @@ from shapely.ops import unary_union
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
-from gfw_pixetl.models.pydantic import LayerModel, Symbology
+from gfw_pixetl.models.pydantic import (
+    LayerModel,
+    RasterLayerCliModel,
+    RasterLayerModel,
+    VectorCalc,
+    VectorLayerCliModel,
+    VectorLayerModel,
+)
 from gfw_pixetl.resampling import resampling_factory
 from gfw_pixetl.sources import VectorSource
 
@@ -22,10 +29,10 @@ LOGGER = get_module_logger(__name__)
 
 
 class Layer(object):
-    def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
-        self.field: str = layer_def.pixel_meaning
-        self.name: str = layer_def.dataset
-        self.version: str = layer_def.version
+    def __init__(self, layer_model: LayerModel, grid: Grid) -> None:
+        self.field: str = layer_model.pixel_meaning
+        self.name: str = layer_model.dataset
+        self.version: str = layer_model.version
         self.grid: Grid = grid
 
         self.prefix: str = self._get_prefix()
@@ -33,16 +40,11 @@ class Layer(object):
         if not os.path.exists(self.prefix):
             os.makedirs(self.prefix)
 
-        self.dst_profile: Dict[str, Any] = self._get_dst_profile(layer_def, grid)
+        self.dst_profile: Dict[str, Any] = self._get_dst_profile(layer_model, grid)
 
-        self.resampling: Resampling = resampling_factory(layer_def.resampling)
-        self.calc: Optional[str] = layer_def.calc
-        self.rasterize_method: Optional[str] = layer_def.rasterize_method
-        self.order: Optional[str] = layer_def.order
-        self.symbology: Optional[Symbology] = layer_def.symbology
-        self.compute_stats: bool = layer_def.compute_stats
-        self.compute_histogram: bool = layer_def.compute_histogram
-        self.process_locally: bool = layer_def.process_locally
+        self.compute_stats: bool = layer_model.compute_stats
+        self.compute_histogram: bool = layer_model.compute_histogram
+        self.process_locally: bool = layer_model.process_locally
 
     def _get_prefix(
         self,
@@ -96,20 +98,26 @@ class Layer(object):
 
 
 class VectorSrcLayer(Layer):
-    def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
-        super().__init__(layer_def, grid)
+    def __init__(self, layer_model: VectorLayerModel, grid: Grid) -> None:
+        super().__init__(layer_model, grid)
         self.src: VectorSource = VectorSource(name=self.name, version=self.version)
-        if not self.calc:
-            self.calc = self.field
+
+        self.rasterize_method: Optional[str] = layer_model.rasterize_method
+        self.order: Optional[str] = layer_model.order
+        if layer_model.calc:
+            self.calc: VectorCalc = layer_model.calc
+        else:
+            self.calc = VectorCalc(field=self.field)
 
 
 class RasterSrcLayer(Layer):
-    def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
-        super().__init__(layer_def, grid)
+    def __init__(self, layer_model: RasterLayerModel, grid: Grid) -> None:
+        super().__init__(layer_model, grid)
 
-        self._src_uri = layer_def.source_uri
+        self._src_uri = layer_model.source_uri
+        self.resampling: Resampling = resampling_factory(layer_model.resampling)
         self.input_bands = self._input_bands()
-
+        self.calc: Optional[str] = layer_model.calc
         # self.input_files = self._input_files()
         # self.geom = self._geom()
 
@@ -161,18 +169,32 @@ class RasterSrcLayer(Layer):
         return geom
 
 
-def layer_factory(layer_def: LayerModel) -> Layer:
+def layer_factory(layer_model: Union[RasterLayerModel, VectorLayerModel]) -> Layer:
 
     layer_constructor = {"vector": VectorSrcLayer, "raster": RasterSrcLayer}
 
-    source_type: str = layer_def.source_type
-    grid: Grid = grid_factory(layer_def.grid)
+    source_type: str = layer_model.source_type
+    grid: Grid = grid_factory(layer_model.grid)
 
     try:
-        layer = layer_constructor[source_type](layer_def, grid)
+        layer = layer_constructor[source_type](layer_model, grid)
     except KeyError:
         raise NotImplementedError(
             f"Cannot create layer. Source type {source_type} not implemented."
         )
 
     return layer
+
+
+def layer_model_factory(
+    dataset: str,
+    version: str,
+    layer_model: Union[RasterLayerCliModel, VectorLayerCliModel],
+) -> Union[RasterLayerModel, VectorLayerModel]:
+    model_constructor: Dict[str, Callable] = {
+        "vector": VectorLayerModel,
+        "raster": RasterLayerModel,
+    }
+    return model_constructor[layer_model.source_type](
+        dataset=dataset, version=version, **layer_model.dict()
+    )

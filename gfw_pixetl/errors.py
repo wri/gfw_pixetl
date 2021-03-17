@@ -32,6 +32,10 @@ class MissingGCSKeyError(Exception):
     pass
 
 
+class RecordNotFoundError(Exception):
+    pass
+
+
 def retry_if_none_type_error(exception) -> bool:
     """Return True if we should retry (in this case when it's an IOError),
     False otherwise."""
