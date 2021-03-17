@@ -2,7 +2,7 @@ import os
 from copy import deepcopy
 from unittest import mock
 
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.pixetl import pixetl
 from tests.conftest import minimal_layer_dict
@@ -17,7 +17,7 @@ LAYER_DICT.update(
     }
 )
 
-RASTER_LAYER_DEF = LayerModel.parse_obj(LAYER_DICT)
+RASTER_LAYER_DEF = RasterLayerModel(**LAYER_DICT)
 
 SUBSET = ["10N_010E"]
 

@@ -2,7 +2,7 @@ from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.tiles import VectorSrcTile
 
 
-def test_vector_tile_sql(VECTOR_LAYER):
+def test_vector_tile_sql(VECTOR_LAYER, GEOSTORE_TABLE):
     assert isinstance(VECTOR_LAYER, VectorSrcLayer)
 
     tile = VectorSrcTile("10N_010E", VECTOR_LAYER.grid, VECTOR_LAYER)

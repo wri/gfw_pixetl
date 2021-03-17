@@ -6,7 +6,7 @@ import pytest
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles import RasterSrcTile
@@ -28,11 +28,8 @@ def test_get_grid_tiles():
     #     message = "not implemented"
     # assert message == "not implemented"
 
-    layer_dict = {
-        **LAYER_DICT,
-        "grid": "10/40000",
-    }
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer_dict = {**LAYER_DICT, "grid": "10/40000", "source_type": "raster"}
+    layer = layers.layer_factory(RasterLayerModel.parse_obj(layer_dict))
 
     pipe = RasterPipe(layer)
     assert len(pipe.get_grid_tiles()) == 648

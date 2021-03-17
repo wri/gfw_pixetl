@@ -3,6 +3,7 @@ import shutil
 from copy import deepcopy
 
 import numpy as np
+import psycopg2
 import pytest
 import rasterio
 from affine import Affine
@@ -11,6 +12,7 @@ from rasterio.crs import CRS
 from gfw_pixetl.layers import layer_factory
 from gfw_pixetl.models.pydantic import RasterLayerModel, VectorLayerModel
 from gfw_pixetl.pipes import RasterPipe
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import RasterSrcTile
 from gfw_pixetl.utils.aws import get_s3_client
 
@@ -202,3 +204,49 @@ def PIPE_10x10(LAYER):
 @pytest.fixture()
 def TILE(LAYER):
     yield RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def GEOSTORE_TABLE():
+
+    dataset = VECTOR_LAYER_DICT["dataset"]
+    version = VECTOR_LAYER_DICT["version"]
+    column_name = VECTOR_LAYER_DICT["pixel_meaning"]
+
+    conn = psycopg2.connect(
+        dbname=GLOBALS.db_name,
+        user=GLOBALS.db_username,
+        password=GLOBALS.db_password,
+        host=GLOBALS.db_host,
+        port=GLOBALS.db_port,
+    )
+
+    cursor = conn.cursor()
+
+    print("CREATE TABLE")
+    sql = f"""CREATE SCHEMA "{dataset}";"""
+    cursor.execute(sql)
+
+    sql = f"""CREATE TABLE "{dataset}"."{version}" (
+                "{column_name}" int,
+                geom  geometry(Polygon,4326)
+            );"""
+    cursor.execute(sql)
+
+    sql = f"""INSERT INTO "{dataset}"."{version}" VALUES (1, ST_GeomFromText('POLYGON((75 29, 77 29, 77 29, 75 29))', 4326));"""
+    cursor.execute(sql)
+
+    conn.commit()
+
+    yield
+
+    sql = f"""DROP TABLE "{dataset}"."{version}";"""
+
+    cursor.execute(str(sql))
+
+    sql = f"""DROP SCHEMA "{dataset}";"""
+    cursor.execute(str(sql))
+    conn.commit()
+
+    cursor.close()
+    conn.close()

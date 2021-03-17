@@ -7,7 +7,7 @@ import rasterio
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger, layers
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import RasterLayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
 from tests.conftest import BUCKET, GEOJSON_2_NAME, LAYER_DICT
@@ -82,7 +82,7 @@ def test_transform_final_wm():
     layer_dict_wm["grid"] = "zoom_0"
     layer_dict_wm["source_uri"] = [f"s3://{BUCKET}/{GEOJSON_2_NAME}"]
 
-    layer_wm = layers.layer_factory(LayerModel(**layer_dict_wm))
+    layer_wm = layers.layer_factory(RasterLayerModel(**layer_dict_wm))
 
     assert isinstance(layer_wm, layers.RasterSrcLayer)
     tile = RasterSrcTile("000R_000C", layer_wm.grid, layer_wm)

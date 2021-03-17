@@ -7,7 +7,7 @@ from sqlalchemy.sql.elements import TextClause, literal_column
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import to_gdal_data_type
-from gfw_pixetl.errors import GDALError
+from gfw_pixetl.errors import GDALError, RecordNotFoundError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.sources import VectorSource
@@ -50,12 +50,11 @@ class VectorSrcTile(Tile):
             )"""
         )
 
-    # TODO: extract base type of current layer, not just polygon
-    def intersection_geom(self) -> TextClause:
+    def intersection_geom(self, geometry_type: int) -> TextClause:
         return text(
             f"""CASE
                         WHEN st_geometrytype({str(self.intersection())}) = 'ST_GeometryCollection'::text
-                        THEN st_collectionextract({str(self.intersection())}, 3)
+                        THEN st_collectionextract({str(self.intersection())}, {geometry_type})
                         ELSE st_intersection(geom, {str(self.intersection())})
                 END"""
         )
@@ -74,43 +73,52 @@ class VectorSrcTile(Tile):
         src_table.schema = self.src.schema
         return src_table
 
-    def src_vector_intersects(self) -> bool:
+    def get_geometry_type(self) -> int:
+
+        geometry_number = {
+            "POINT": 1,
+            "MULTIPOINT": 1,
+            "LINESTRING": 2,
+            "MULTILINESTRING": 2,
+            "POLYGON": 3,
+            "MULTIPOLYGON": 3,
+        }
+
+        sql = (
+            select([literal_column("type")])
+            .select_from(table("geometry_columns"))
+            .where(text(f"f_table_schema = '{self.layer.name}'"))
+            .where(text(f"f_table_name = '{self.layer.version}'"))
+            .where(text("f_geometry_column = 'geom'"))
+        )
+        try:
+            geometry_type = self._make_query(sql, fetch_one=True)[0]
+        except TypeError:
+            raise RecordNotFoundError(
+                f"Dataset {self.layer.name}.{self.layer.version} has no geometry column or does not exist."
+            )
 
         try:
-            logger.debug(f"Check if tile {self.tile_id} intersects with postgis table")
-            conn = psycopg2.connect(
-                dbname=self.src.conn.db_name,
-                user=self.src.conn.db_user,
-                password=self.src.conn.db_password,
-                host=self.src.conn.db_host,
-                port=self.src.conn.db_port,
-            )
+            result = geometry_number[geometry_type]
+        except KeyError:
+            ValueError(f"Geometry type {geometry_type} not supported.")
 
-            cursor = conn.cursor()
+        return result
 
-            sql = (
-                select([literal_column("1")])
-                .select_from(self.src_table())
-                .where(self.intersect_filter())
-            )
-            # exists_query = select([literal_column("exists")]).select_from(select_1)
+    def src_vector_intersects(self) -> bool:
 
-            logger.debug(str(sql))
+        logger.debug(f"Check if tile {self.tile_id} intersects with postgis table")
 
-            cursor.execute(str(sql))
+        sql = (
+            select([literal_column("1")])
+            .select_from(self.src_table())
+            .where(self.intersect_filter())
+        )
 
-            try:
-                exists = bool(cursor.fetchone()[0])
-            except (ProgrammingError, TypeError):
-                exists = False
-
-            cursor.close()
-            conn.close()
-        except psycopg2.Error:
-            logger.exception(
-                "There was an issue when trying to connect to the database"
-            )
-            raise
+        try:
+            exists = bool(self._make_query(sql, fetch_one=True)[0])
+        except (ProgrammingError, TypeError):
+            exists = False
 
         logger.debug(f"EXISTS: {exists}")
 
@@ -189,8 +197,10 @@ class VectorSrcTile(Tile):
 
     def compose_query(self):
 
+        geometry_type: int = self.get_geometry_type()
+
         val_column = literal_column(str(self.layer.calc.field))
-        geom_column = literal_column(str(self.intersection_geom()))
+        geom_column = literal_column(str(self.intersection_geom(geometry_type)))
 
         sql = (
             select([val_column.label(self.layer.field), geom_column.label("geom")])
@@ -208,3 +218,31 @@ class VectorSrcTile(Tile):
         logger.debug(str(sql))
 
         return sql
+
+    def _make_query(self, sql, fetch_one=False):
+        try:
+            conn = psycopg2.connect(
+                dbname=self.src.conn.db_name,
+                user=self.src.conn.db_user,
+                password=self.src.conn.db_password,
+                host=self.src.conn.db_host,
+                port=self.src.conn.db_port,
+            )
+
+            cursor = conn.cursor()
+            logger.debug(str(sql))
+            cursor.execute(str(sql))
+
+            if fetch_one:
+                result = cursor.fetchone()
+            else:
+                result = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except psycopg2.Error:
+            logger.exception(
+                "There was an issue when trying to connect to the database"
+            )
+            raise
+        else:
+            return result

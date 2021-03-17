@@ -106,7 +106,7 @@ def test_vector_layer():
     assert layer.dst_profile["nodata"] == 0
     assert layer.dst_profile["nbits"] == 2
     assert layer.calc == VectorCalc(field="Mg_ha-1")
-    assert layer.rasterize_method is None
+    assert layer.rasterize_method == "value"
     assert layer.order == "desc"
 
 
