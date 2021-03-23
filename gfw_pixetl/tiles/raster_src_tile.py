@@ -435,22 +435,36 @@ class RasterSrcTile(Tile):
             f"Read {dst_window} for Tile {self.tile_id} - this corresponds to bounds {src_bounds} in source"
         )
 
+        shape = (
+            len(self.layer.input_bands),
+            int(round(dst_window.height)),
+            int(round(dst_window.width)),
+        )
+
         try:
+
             return vrt.read(
                 window=window,
-                out_shape=(
-                    len(self.layer.input_bands),
-                    int(round(dst_window.height)),
-                    int(round(dst_window.width)),
-                ),
+                out_shape=shape,
                 masked=True,
             )
-        except rasterio.RasterioIOError:
-            LOGGER.warning(
-                f"RasterioIO error while reading {dst_window} for Tile {self.tile_id}. "
-                "Will make attempt to retry."
-            )
-            raise
+        except rasterio.RasterioIOError as e:
+            if "Access window out of range" in str(e) and (
+                shape[1] == 1 or shape[2] == 1
+            ):
+                LOGGER.warning(
+                    f"Access window out of range while reading {dst_window} for Tile {self.tile_id}. "
+                    "This is most likely due to subpixel misalignment. "
+                    "Returning empty array instead."
+                )
+                return np.ma.zeros(shape=shape, mask=np.ones(shape=shape))
+
+            else:
+                LOGGER.warning(
+                    f"RasterioIO error while reading {dst_window} for Tile {self.tile_id}. "
+                    "Will make attempt to retry."
+                )
+                raise
 
     def _reproject_dst_window(self, dst_window: Window) -> Window:
         """Reproject window into same projection as source raster."""
