@@ -211,14 +211,14 @@ SRC = {
     },
     "Drivers": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/tree_cover_loss_drivers/processed/drivers_2020/20210321/{tile_id}_tree_cover_loss_driver_processed.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/tree_cover_loss_drivers/processed/drivers_2020/20210323/{tile_id}_tree_cover_loss_driver_processed.tif",
         "s3_target": "{protocol}/gfw-files/flux_1_2_1/drivers/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 15
     },
     "GrossEmissionsCo2OnlyCo2e": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/standard/20210321/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_20.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/standard/20210323/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_20.tif",
         "s3_target": "{protocol}/gfw-files/flux_1_2_1/gross_emissions_co2_only_co2e/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/soil_only/standard/20200828/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_soil_only_2001_19.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_emissions_co2_only_co2e/soil_only/{tile_id}.tif",
@@ -241,7 +241,7 @@ SRC = {
     },
     "GrossEmissionsCo2eNonCo2": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/standard/20210321/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_20.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/standard/20210323/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_20.tif",
         "s3_target": "{protocol}/gfw-files/flux_1_2_1/gross_emissions_non_co2_co2e/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/soil_only/standard/20200828/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_soil_only_2001_19.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_emissions_non_co2_co2e/soil_only/{tile_id}.tif",
@@ -264,7 +264,7 @@ SRC = {
     },
     "GrossEmissionsNodeCodes": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/standard/20210321/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_20.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/standard/20210323/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_20.tif",
         "s3_target": "{protocol}/gfw-files/flux_1_2_1/gross_emissions_node_codes/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/soil_only/standard/20200828/{tile_id}_gross_emis_decision_tree_nodes_soil_only_2001_19.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_emissions_node_codes/soil_only/{tile_id}.tif",
@@ -277,7 +277,7 @@ SRC = {
     },
     "NetFluxCo2e": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/standard/full_extent/per_hectare/20210321/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_20.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/standard/full_extent/per_hectare/20210323/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_20.tif",
         "s3_target": "{protocol}/gfw-files/flux_1_2_1/net_flux_all_forest_types_all_drivers/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/maxgain/per_hectare/20200915/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/net_flux_all_forest_types_all_drivers/maxgain/{tile_id}.tif",
