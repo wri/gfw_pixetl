@@ -96,6 +96,8 @@ def pixetl(
         f"with overwrite set to {overwrite}."
     )
 
+    LOGGER.debug(f"Full layer_def: {layer_def.json()}")
+
     old_cwd = os.getcwd()
     cwd = set_cwd()
 
