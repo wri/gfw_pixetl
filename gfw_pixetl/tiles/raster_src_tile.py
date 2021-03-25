@@ -464,7 +464,9 @@ class RasterSrcTile(Tile):
                     "This is most likely due to subpixel misalignment. "
                     "Returning empty array instead."
                 )
-                return np.ma.zeros(shape=shape, mask=np.ones(shape=shape))
+                return np.ma.array(
+                    data=np.zeros(shape=shape), mask=np.ones(shape=shape)
+                )
 
             else:
                 LOGGER.warning(
