@@ -4,7 +4,14 @@ from pydantic import BaseModel, Field, StrictInt, validator
 
 from gfw_pixetl.data_type import DataTypeEnum
 from gfw_pixetl.grids.grid_factory import GridEnum
-from gfw_pixetl.models.enums import ColorMapType, Order, RasterizeMethod, SourceType
+from gfw_pixetl.models.enums import (
+    ColorMapType,
+    Order,
+    PhotometricType,
+    RasterizeMethod,
+    SourceType,
+)
+from gfw_pixetl.models.types import NoData
 from gfw_pixetl.resampling import ResamplingMethodEnum
 
 VERSION_REGEX = r"^v\d{1,8}(\.\d{1,3}){0,2}?$|^latest$"
@@ -32,17 +39,25 @@ class LayerModel(BaseModel):
     pixel_meaning: str
     data_type: DataTypeEnum
     nbits: Optional[int]
-    no_data: Optional[Union[StrictInt, float]]
+    calc: Optional[str] = Field(
+        None,
+        description="Numpy expression to transform array. "
+        "Use namespace `np`, not `numpy` when using numpy functions. "
+        "When using multiple input bands, reference each band with uppercase letter in alphabetic order (A,B,C,..). "
+        "To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`.",
+    )
+    band_count: int = 1
+    no_data: Optional[Union[NoData, List[NoData]]]
     grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]
     resampling: ResamplingMethodEnum = ResamplingMethodEnum.nearest
-    calc: Optional[str]
     source_uri: Optional[List[str]]
     order: Optional[Order]
     symbology: Optional[Symbology]
     compute_stats: bool = False
     compute_histogram: bool = False
     process_locally: bool = False
+    photometric: Optional[PhotometricType] = None
 
     @validator("source_uri")
     def validate_source_uri(cls, v, values, **kwargs):
@@ -52,6 +67,23 @@ class LayerModel(BaseModel):
                 assert values.get("calc"), "More than one source_uri require calc"
         else:
             assert not v, "Only raster source type require source_uri"
+        return v
+
+    @validator("no_data")
+    def validate_no_data(cls, v, values, **kwargs):
+        if isinstance(v, list):
+            assert len(v) == int(
+                values.get("band_count")
+            ), f"Length of no data list ({v}) must match band count ({values.get('band_count')})."
+            assert len(set(v)) == 1, "No data values must be the same for all bands"
+        return v
+
+    @validator("band_count")
+    def validate_band_count(cls, v, values, **kwargs):
+        if v > 1:
+            assert values.get(
+                "calc"
+            ), "Output raster with more than one band require calc"
         return v
 
 

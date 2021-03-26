@@ -148,7 +148,7 @@ class VectorSrcTile(Tile):
         else:
             cmd += ["-a", self.layer.field]
 
-        if self.dst[self.default_format].has_no_data():
+        if self.dst[self.default_format].nodata is not None:
             cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
 
         cmd += [

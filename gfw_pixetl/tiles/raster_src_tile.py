@@ -3,7 +3,7 @@ import string
 from copy import deepcopy
 from math import floor, sqrt
 from multiprocessing import get_context
-from typing import Iterator, List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
 import numpy as np
@@ -263,17 +263,17 @@ class RasterSrcTile(Tile):
         write to destination."""
         masked_array: MaskedArray = self._read_window(vrt, window)
         LOGGER.debug(
-            f"Masked Array size for tile {self.tile_id} when read: {masked_array.nbytes}"
+            f"Masked Array size for tile {self.tile_id} when read: {masked_array.nbytes / 1000000} MB"
         )
         if self._block_has_data(masked_array):
             LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
             masked_array = self._calc(masked_array, window)
             LOGGER.debug(
-                f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes}"
+                f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes / 1000000} MB"
             )
             array: np.ndarray = self._set_dtype(masked_array, window)
             LOGGER.debug(
-                f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes}"
+                f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
             )
             del masked_array
             out_file: Optional[str] = self._write_window(
@@ -347,8 +347,15 @@ class RasterSrcTile(Tile):
             )
             exec(funcstr, globals())
             array = f(*array)  # type: ignore # noqa: F821
+
             # assign band index
-            array = array.reshape(1, *array.shape)
+            if len(array.shape) == 2:
+                array = array.reshape(1, *array.shape)
+            else:
+                if array.shape[0] != self.dst[self.default_format].profile["count"]:
+                    raise RuntimeError(
+                        "Output band count does not match desired count. Calc function must be wrong."
+                    )
         else:
             LOGGER.debug(
                 f"No user defined formula provided. Skip calculating values for {dst_window} of tile {self.tile_id}"
@@ -412,7 +419,7 @@ class RasterSrcTile(Tile):
         ).nbytes
         src_block_byte_size = np.zeros(shape, dtype=self.src.dtype).nbytes
         max_block_byte_size = max(dst_block_byte_size, src_block_byte_size)
-        LOGGER.debug(f"Block byte size is {max_block_byte_size}")
+        LOGGER.debug(f"Block byte size is {max_block_byte_size/ 1000000} MB")
 
         return max_block_byte_size
 
@@ -435,22 +442,38 @@ class RasterSrcTile(Tile):
             f"Read {dst_window} for Tile {self.tile_id} - this corresponds to bounds {src_bounds} in source"
         )
 
+        shape = (
+            len(self.layer.input_bands),
+            int(round(dst_window.height)),
+            int(round(dst_window.width)),
+        )
+
         try:
+
             return vrt.read(
                 window=window,
-                out_shape=(
-                    len(self.layer.input_bands),
-                    int(round(dst_window.height)),
-                    int(round(dst_window.width)),
-                ),
+                out_shape=shape,
                 masked=True,
             )
-        except rasterio.RasterioIOError:
-            LOGGER.warning(
-                f"RasterioIO error while reading {dst_window} for Tile {self.tile_id}. "
-                "Will make attempt to retry."
-            )
-            raise
+        except rasterio.RasterioIOError as e:
+            if "Access window out of range" in str(e) and (
+                shape[1] == 1 or shape[2] == 1
+            ):
+                LOGGER.warning(
+                    f"Access window out of range while reading {dst_window} for Tile {self.tile_id}. "
+                    "This is most likely due to subpixel misalignment. "
+                    "Returning empty array instead."
+                )
+                return np.ma.array(
+                    data=np.zeros(shape=shape), mask=np.ones(shape=shape)
+                )
+
+            else:
+                LOGGER.warning(
+                    f"RasterioIO error while reading {dst_window} for Tile {self.tile_id}. "
+                    "Will make attempt to retry."
+                )
+                raise
 
     def _reproject_dst_window(self, dst_window: Window) -> Window:
         """Reproject window into same projection as source raster."""
@@ -475,7 +498,20 @@ class RasterSrcTile(Tile):
         """Update data type to desired output datatype Update nodata value to
         desired nodata value (current no data values will be updated and any
         values which already has new no data value will stay as is)"""
-        if self.dst[self.default_format].has_no_data():
+        if self.dst[self.default_format].nodata is None:
+            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
+            array = array.data.astype(self.dst[self.default_format].dtype)
+        elif isinstance(self.dst[self.default_format].nodata, list):
+            LOGGER.debug(
+                f"Set datatype for entire array and no data value for each band for {dst_window} of tile {self.tile_id}"
+            )
+            # make mypy happy. not sure why the isinstance check above alone doesn't do it
+            nodata_list = cast(list, self.dst[self.default_format].nodata)
+            array = np.array(
+                [np.ma.filled(array[i], nodata) for i, nodata in enumerate(nodata_list)]
+            ).astype(self.dst[self.default_format].dtype)
+
+        else:
             LOGGER.debug(
                 f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
             )
@@ -483,9 +519,6 @@ class RasterSrcTile(Tile):
                 self.dst[self.default_format].dtype
             )
 
-        else:
-            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
-            array = array.data.astype(self.dst[self.default_format].dtype)
         return array
 
     def _vrt_transform(

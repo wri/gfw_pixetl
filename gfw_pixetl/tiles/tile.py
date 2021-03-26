@@ -55,7 +55,7 @@ class Tile(ABC):
             "driver": "GTiff",
             "width": grid.cols,
             "height": grid.rows,
-            "count": 1,
+            "count": self.layer.band_count,
             "transform": rasterio.transform.from_origin(
                 self.bounds.left, self.bounds.top, grid.xres, grid.yres
             ),
@@ -65,7 +65,14 @@ class Tile(ABC):
             "sparse_ok": "TRUE",
             "interleave": "BAND",
         }
+        if layer.photometric:
+            gdal_profile[
+                "photometric"
+            ] = layer.photometric.value  # need value, not just Enum!
+
         gdal_profile.update(self.layer.dst_profile)
+
+        LOGGER.debug(f"GDAL Profile for tile {self.tile_id}: {gdal_profile}")
 
         # Drop GDAL specific optimizations which might not be readable by other applications
         geotiff_profile = copy.deepcopy(gdal_profile)
@@ -73,6 +80,8 @@ class Tile(ABC):
         geotiff_profile.pop("sparse_ok", None)
         geotiff_profile.pop("interleave", None)
         geotiff_profile["compress"] = "DEFLATE"
+
+        LOGGER.debug(f"GEOTIFF Profile for tile {self.tile_id}: {geotiff_profile}")
 
         self.dst: Dict[str, Destination] = {
             DstFormat.gdal_geotiff: Destination(

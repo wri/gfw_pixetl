@@ -67,13 +67,14 @@ Supported Options:
 | grid              | yes       | Grid size of output dataset
 | no_data           | no        | Integer value, for float datatype use `NAN`. If left out or set to `null` output dataset will have no `no_data` value |
 | nbits             | no        | Max number of bits used for given datatype |
-| source_uri        | yes       | URI of source file |
+| source_uri        | yes       | List of URI of source file(s) |
 | resampling        | no        | Resampling method (nearest, mod, avg, etc), default `nearest |
-| calc              | no        | Numpy calculation to be performed on the tile. Use same syntax as for [gdal_calc](https://gdal.org/programs/gdal_calc.html) . Refer to tile as `A` |
+| calc              | no        | Numpy expression to transform array. Use namespace `np`, not `numpy` when using numpy functions. When using multiple input bands, reference each band with uppercase letter in alphabetic order (A,B,C,..). To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`. |
 | symbology         | no        | Add optional symbology to the output raster |
 | compute_stats     | no        | Compute band statistics and add to tiles.geojson |
 | compute_histogram | no        | Compute band histograms and add to tile.geojson |
 | process_locally   | no        | When set to True, forces PixETL to download all source files prior to processing. Default `False` |
+| photometric       | no        | Color interpretations of bands |
 
 _NOTE:_
 

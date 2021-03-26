@@ -4,9 +4,11 @@ from math import isclose
 
 import numpy as np
 import rasterio
+from rasterio.enums import ColorInterp
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger, layers
+from gfw_pixetl.models.enums import PhotometricType
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
@@ -120,7 +122,7 @@ def test_transform_final_wm():
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test_transform_final_multi(LAYER_MULTI, LAYER):
+def test_transform_final_multi_in(LAYER_MULTI, LAYER):
 
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
@@ -131,8 +133,9 @@ def test_transform_final_multi(LAYER_MULTI, LAYER):
         window = rasterio.windows.from_bounds(
             10, 9, 11, 10, transform=tile_src.transform
         )
-        input = tile_src.read(1, window=window)
+        input = tile_src.read(window=window)
 
+    assert input.shape == (2, 4000, 4000)
     tile.transform()
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
@@ -140,12 +143,13 @@ def test_transform_final_multi(LAYER_MULTI, LAYER):
         tile.local_dst[tile.default_format].uri
     ) as src:
         src_profile = src.profile
-        output = src.read(1)
+        output = src.read()
 
     LOGGER.debug(src_profile)
 
-    assert input.shape == output.shape
-    np.testing.assert_array_equal(input + input, output)
+    assert output.shape == (1, 4000, 4000)
+
+    np.testing.assert_array_equal(input[0] + input[1], output[0])
 
     assert src_profile["blockxsize"] == LAYER.grid.blockxsize
     assert src_profile["blockysize"] == LAYER.grid.blockysize
@@ -167,7 +171,63 @@ def test_transform_final_multi(LAYER_MULTI, LAYER):
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test__calc(LAYER):
+def test_transform_final_multi_out(LAYER_MULTI, LAYER):
+
+    assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
+    LAYER_MULTI.calc = "np.ma.array([A, B, A+B])"
+    LAYER_MULTI.band_count = 3
+    LAYER_MULTI.photometric = PhotometricType.rgb
+
+    tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
+    assert tile.dst[tile.default_format].crs.is_valid
+
+    with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
+        assert tile_src.profile["count"] == 2
+        window = rasterio.windows.from_bounds(
+            10, 9, 11, 10, transform=tile_src.transform
+        )
+        input = tile_src.read(window=window)
+    assert input.shape == (2, 4000, 4000)
+
+    tile.transform()
+
+    LOGGER.debug(tile.local_dst[tile.default_format].uri)
+    with rasterio.Env(**GDAL_ENV), rasterio.open(
+        tile.local_dst[tile.default_format].uri
+    ) as src:
+        src_profile = src.profile
+        output = src.read()
+        colorinterp = src.colorinterp
+
+    LOGGER.debug(src_profile)
+
+    assert output.shape == (3, 4000, 4000)
+    np.testing.assert_array_equal(input[0], output[0])
+    np.testing.assert_array_equal(input[1], output[1])
+    np.testing.assert_array_equal(input[0] + input[1], output[2])
+
+    assert src_profile["blockxsize"] == LAYER.grid.blockxsize
+    assert src_profile["blockysize"] == LAYER.grid.blockysize
+    assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
+    assert src_profile["count"] == 3
+    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].is_valid
+    assert src_profile["driver"] == "GTiff"
+    assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
+    assert src_profile["height"] == LAYER.grid.cols
+    assert src_profile["interleave"] == "pixel"
+    assert src_profile["nodata"] == LAYER.dst_profile["nodata"]
+    assert src_profile["tiled"] is True
+    assert src_profile["width"] == LAYER.grid.rows
+    assert colorinterp == (ColorInterp.red, ColorInterp.green, ColorInterp.blue)
+    # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
+
+    assert not hasattr(src_profile, "compress")
+
+    os.remove(tile.local_dst[tile.default_format].uri)
+
+
+def test__calc_single(LAYER):
     window = Window(0, 0, 1, 3)
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
@@ -187,6 +247,12 @@ def test__calc(LAYER):
     result = tile._calc(data, window)
     assert result.sum() == 3
 
+
+def test__calc_multi_in(LAYER):
+    window = Window(0, 0, 1, 3)
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+
     tile.layer.calc = "A+B"
     data = np.ones((2, 1, 3))
     result = tile._calc(data, window)
@@ -198,20 +264,75 @@ def test__calc(LAYER):
     assert result.sum() == 18
 
 
+def test__calc_multi_out(LAYER):
+    window = Window(0, 0, 1, 3)
+
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+
+    LAYER.band_count = 3
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+
+    tile.layer.calc = "np.ma.array([A,A,A])"
+    data = np.ones((1, 1, 3))
+    result = tile._calc(data, window)
+    assert result.shape == (3, 1, 3)
+    assert result.sum() == 9
+
+    tile.layer.calc = "np.ma.array([A+B,B*5,C+2])"
+    data = np.ones((3, 1, 3))
+    result = tile._calc(data, window)
+    assert result.shape == (3, 1, 3)
+    assert result.sum() == 30
+
+
 def test__set_dtype(LAYER):
     window = Window(0, 0, 10, 10)
     data = np.random.randint(4, size=(10, 10))
     masked_data = np.ma.masked_values(data, 0)
-    count = masked_data.mask.sum()
-    if isinstance(LAYER, layers.RasterSrcLayer):
-        tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
-        tile.dst[tile.default_format].nodata = 5
-        result = tile._set_dtype(masked_data, window)
-        masked_result = np.ma.masked_values(result, 5)
-        assert count == masked_result.mask.sum()
+    masked_sum = masked_data.sum()
+    masked_pixel_count = masked_data.mask.sum()
 
-    else:
-        raise ValueError("Not a RasterSrcLayer")
+    assert masked_sum == masked_data.data.sum()
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    tile.dst[tile.default_format].nodata = 5
+    result = tile._set_dtype(masked_data, window)
+
+    assert masked_sum != result.sum()
+
+    masked_result = np.ma.masked_values(result, 5)
+    assert masked_pixel_count == masked_result.mask.sum()
+    assert masked_sum == masked_result.sum()
+
+
+def test__set_dtype_multi(LAYER):
+    window = Window(0, 0, 10, 10)
+
+    band1 = np.random.randint(2, size=(10, 10)) + 1
+    masked_band1 = np.ma.masked_values(band1, 2)
+    masked_sum1 = masked_band1.sum()
+
+    band2 = np.random.randint(2, size=(10, 10)) + 1
+    masked_band2 = np.ma.masked_values(band2, 2)
+    masked_sum2 = masked_band2.sum()
+
+    band3 = np.random.randint(2, size=(10, 10)) + 1
+    masked_band3 = np.ma.masked_values(band3, 2)
+    masked_sum3 = masked_band3.sum()
+
+    masked_data = np.ma.array([masked_band1, masked_band2, masked_band3])
+
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+    tile.dst[tile.default_format].nodata = [1, 2, 3]
+    result = tile._set_dtype(masked_data, window)
+
+    print(result)
+    assert result[0].sum() == masked_sum1 + (100 - masked_sum1)
+    assert result[1].sum() == masked_sum2 + (100 - masked_sum2) * 2
+    assert result[2].sum() == masked_sum3 + (100 - masked_sum3) * 3
 
 
 def test__snap_coordinates(LAYER):
