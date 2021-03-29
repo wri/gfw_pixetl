@@ -1,7 +1,7 @@
 import datetime
 import os
 from math import floor
-from typing import Optional
+from typing import Dict, Optional
 
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
@@ -19,6 +19,14 @@ AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
 AVAILABLE_MEMORY: Optional[int] = None
 WORKERS: int = 1
+
+
+class DummyTile(object):
+    """A dummy tile."""
+
+    def __init__(self, dst: Dict) -> None:
+        self.dst: Dict = dst
+        self.metadata: Dict = {}
 
 
 def get_bucket(env: Optional[str] = None) -> str:

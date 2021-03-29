@@ -67,7 +67,7 @@ Supported Options:
 | grid              | yes       | Grid size of output dataset
 | no_data           | no        | Integer value, for float datatype use `NAN`. If left out or set to `null` output dataset will have no `no_data` value |
 | nbits             | no        | Max number of bits used for given datatype |
-| source_uri        | yes       | List of URI of source file(s) |
+| source_uri        | yes       | List of URIs of source folders or tiles.geojson file(s) |
 | resampling        | no        | Resampling method (nearest, mod, avg, etc), default `nearest |
 | calc              | no        | Numpy expression to transform array. Use namespace `np`, not `numpy` when using numpy functions. When using multiple input bands, reference each band with uppercase letter in alphabetic order (A,B,C,..). To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`. |
 | symbology         | no        | Add optional symbology to the output raster |

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Sequence
 
 import boto3
 
@@ -33,3 +33,20 @@ get_secret_client = client_constructor(
 def download_s3(bucket: str, key: str, dst: str) -> None:
     s3_client = get_s3_client()
     s3_client.download_file(bucket, key, dst)
+
+
+def get_aws_files(
+    bucket: str, prefix: str, extensions: Sequence[str] = (".tif",)
+) -> List[str]:
+    """Get all geotiffs in S3."""
+    s3_client = get_s3_client()
+    response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+
+    objs = response.get("Contents", [])
+    files = [
+        f"/vsis3/{bucket}/{obj['Key']}"
+        for obj in objs
+        if any(obj["Key"].endswith(ext) for ext in extensions)
+    ]
+
+    return files
