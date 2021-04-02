@@ -1,5 +1,4 @@
-from collections import Sequence
-from typing import List
+from typing import List, Sequence
 
 from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import storage

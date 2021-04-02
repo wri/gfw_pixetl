@@ -18,8 +18,8 @@ from gfw_pixetl.sources import RasterSource, VectorSource
 from .models.enums import DstFormat, PhotometricType
 from .settings.globals import GLOBALS
 from .utils.aws import get_aws_files, get_s3_client
+from .utils.geometry import generate_feature_collection
 from .utils.google import get_gs_files
-from .utils.upload_geometries import generate_feature_collection
 from .utils.utils import DummyTile, intersection
 
 LOGGER = get_module_logger(__name__)
@@ -170,15 +170,11 @@ class RasterSrcLayer(Layer):
                 f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
             )
 
-            if prefix.endswith("tiles.geojson"):
-                LOGGER.debug(
-                    "Prefix ends with tiles.geojson, getting features from there"
-                )
+            if prefix.endswith(".geojson"):
+                LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
                 input_files = get_input_files_from_tiles_geojson(bucket, prefix)
             else:
-                LOGGER.debug(
-                    "Prefix does NOT end with tiles.geojson, assumed to be folder"
-                )
+                LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
                 input_files = get_input_files_from_folder(o.scheme, bucket, prefix)
 
             input_bands.append(input_files)

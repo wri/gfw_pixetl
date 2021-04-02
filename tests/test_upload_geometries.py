@@ -3,10 +3,12 @@ from unittest import mock
 from geojson import FeatureCollection
 from shapely.geometry import shape
 
-from gfw_pixetl.utils.upload_geometries import (
+from gfw_pixetl.utils.geometry import (
     _extract_geoms,
     _to_feature_collection,
     _union_tile_geoms,
+)
+from gfw_pixetl.utils.upload_geometries import (
     generate_feature_collection,
     upload_geojsons,
 )
