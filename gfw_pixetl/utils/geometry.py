@@ -8,8 +8,6 @@ from shapely.ops import unary_union
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.models.types import FeatureTuple
 
-# from gfw_pixetl.tiles import Tile
-
 LOGGER = get_module_logger(__name__)
 
 
