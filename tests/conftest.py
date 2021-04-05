@@ -74,6 +74,8 @@ def copy_fixtures():
     s3_client.upload_file(TILE_1_PATH, BUCKET, TILE_1_NAME)
     s3_client.upload_file(TILE_2_PATH, BUCKET, TILE_2_NAME)
     s3_client.upload_file(TILE_3_PATH, BUCKET, TILE_3_NAME)
+    s3_client.upload_file(TILE_1_PATH, BUCKET, f"folder/{TILE_1_NAME}")
+    s3_client.upload_file(TILE_2_PATH, BUCKET, f"folder/{TILE_2_NAME}")
     s3_client.upload_file(
         TILE_1_PATH,
         BUCKET,

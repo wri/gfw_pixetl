@@ -161,3 +161,23 @@ def test_multi_source_layer():
             ),
         ]
     )
+
+
+def test_folder_source_uri():
+    layer_dict = {
+        **minimal_layer_dict,
+        "source_uri": [f"s3://{BUCKET}/folder"],
+    }
+    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+
+    assert isinstance(layer, layers.RasterSrcLayer)
+    assert layer.geom == MultiPolygon(
+        [
+            Polygon(
+                [[10.0, 10.0], [20.0, 10.0], [20.0, 0.0], [10.0, 0.0], [10.0, 10.0]]
+            ),
+            Polygon(
+                [[-10.0, 10.0], [0.0, 10.0], [0.0, 0.0], [-10.0, 0.0], [-10.0, 10.0]]
+            ),
+        ]
+    )

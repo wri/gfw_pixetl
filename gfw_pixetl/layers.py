@@ -131,10 +131,9 @@ def get_input_files_from_folder(provider, bucket, prefix):
     get_files = {"s3": get_aws_files, "gs": get_gs_files}
 
     file_list = get_files[provider](bucket, prefix)
-
     tiles: List[DummyTile] = list()
-
     for uri in file_list:
+        LOGGER.debug(f"Adding file {uri}")
         src = RasterSource(uri)
         tiles.append(DummyTile({"geotiff": src}))
 
