@@ -1,11 +1,12 @@
 import math
 from enum import Enum
-from typing import Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 from pydantic.types import StrictInt
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.models.types import NoData
 
 LOGGER = get_module_logger(__name__)
 
@@ -30,13 +31,13 @@ class DataType(object):
     def __init__(
         self,
         data_type: str,
-        no_data: Optional[Union[StrictInt, float]],
+        no_data: Optional[Union[NoData, List[NoData]]],
         nbits: Optional[StrictInt] = None,
         compression: str = "DEFLATE",
     ) -> None:
         self._validate_no_data(data_type, no_data, nbits)
         self.data_type: str = data_type
-        self.no_data: Optional[Union[StrictInt, float]] = no_data
+        self.no_data: Optional[NoData] = self._sanitize_nodata(no_data)
         self.nbits: Optional[StrictInt] = nbits
         self.compression: str = compression
 
@@ -48,17 +49,22 @@ class DataType(object):
     def has_no_data(self):
         return self.no_data == 0 or self.no_data or math.isnan(self.no_data)
 
-    @staticmethod
     def _validate_no_data(
+        self,
         data_type: str,
         no_data: Optional[Union[StrictInt, float]],
         nbits: Optional[StrictInt],
     ):
         dtype = data_type.lower()
 
-        if "int" in dtype and (no_data is not None and not isinstance(no_data, int)):
-            message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
+        if nbits == 1 and (no_data != 0 and no_data is not None):
+            message = f"No data value {no_data} must be 0 or None for data type Boolean"
             raise ValueError(message)
+        elif "int" in dtype and no_data is not None:
+            if isinstance(no_data, list):
+                [self._nodata_is_int(nd, dtype) for nd in no_data]
+            else:
+                self._nodata_is_int(no_data, dtype)
         elif (
             getattr(DataTypeEnum, dtype, None) is not None
             and np.issubdtype(np.dtype(dtype), np.floating)
@@ -67,9 +73,22 @@ class DataType(object):
         ):
             message = f"No data value {no_data} must be of type `float` or None for data type {data_type}"
             raise ValueError(message)
-        elif nbits == 1 and (no_data != 0 and no_data is not None):
-            message = f"No data value {no_data} must be 0 or None for data type Boolean"
+
+    @staticmethod
+    def _nodata_is_int(no_data: Any, data_type) -> None:
+        if not isinstance(no_data, int):
+            message = f"No data value {no_data} must be of type `int` or None for data type {data_type}"
             raise ValueError(message)
+
+    @staticmethod
+    def _sanitize_nodata(
+        no_data: Optional[Union[NoData, List[NoData]]]
+    ) -> Optional[NoData]:
+        # RasterIO does not support multi dimensional no data values
+        if isinstance(no_data, list):
+            return no_data[0]
+        else:
+            return no_data
 
 
 def data_type_constructor(
@@ -90,7 +109,7 @@ def data_type_constructor(
 def data_type_factory(
     data_type: str,
     nbits: Optional[int] = None,
-    no_data: Optional[Union[StrictInt, float]] = None,
+    no_data: Optional[Union[NoData, List[NoData]]] = None,
 ) -> DataType:
     _8bits: Optional[int] = None if not nbits or nbits not in range(1, 8) else nbits
     _16bits: Optional[int] = None if not nbits or nbits not in range(9, 16) else nbits
