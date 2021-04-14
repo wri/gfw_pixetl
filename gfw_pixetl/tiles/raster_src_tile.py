@@ -380,26 +380,21 @@ class RasterSrcTile(Tile):
             self.dst[self.default_format].dtype, np.floating
         ) or np.issubdtype(self.src.dtype, np.floating):
             divisor *= 2
-            LOGGER.debug("Divisor doubled for float data")
-
             # Float64s require even more.
             if (
                 self.dst[self.default_format].dtype == np.dtype("float64")
             ) or self.src.dtype == np.dtype("float64"):
-                divisor *= 4
-                LOGGER.debug("Divisor quadrupled for float64 data")
+                divisor *= 2
 
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
         co_workers = floor(GLOBALS.cores / GLOBALS.workers)
         if co_workers >= 2:
             divisor *= co_workers
-            LOGGER.debug("Divisor doubled for multiple workers")
 
         # further reduce block size in case we need to perform additional computations
         if self.layer.calc is not None:
             divisor **= 2
-            LOGGER.debug("Divisor doubled for calc operations")
 
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
