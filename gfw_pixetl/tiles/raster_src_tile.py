@@ -375,28 +375,38 @@ class RasterSrcTile(Tile):
         # Adjust divisor to band count
         divisor = GLOBALS.divisor
 
-        # Just to be prudent let's reduce chunk size for float data types
+        # Float data types seem to need more memory.
         if np.issubdtype(
             self.dst[self.default_format].dtype, np.floating
         ) or np.issubdtype(self.src.dtype, np.floating):
             divisor *= 2
+            LOGGER.debug("Divisor doubled for float data")
+
+            # Float64s require even more.
+            if (
+                self.dst[self.default_format].dtype == np.dtype("float64")
+            ) or self.src.dtype == np.dtype("float64"):
+                divisor *= 4
+                LOGGER.debug("Divisor quadrupled for float64 data")
 
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
         co_workers = floor(GLOBALS.cores / GLOBALS.workers)
         if co_workers >= 2:
             divisor *= co_workers
+            LOGGER.debug("Divisor doubled for multiple workers")
 
         # further reduce block size in case we need to perform additional computations
         if self.layer.calc is not None:
             divisor **= 2
+            LOGGER.debug("Divisor doubled for calc operations")
 
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
         block_byte_size: int = self._block_byte_size()
         memory_per_process: float = utils.available_memory_per_process_bytes() / divisor
 
-        # make sure we get an number we whose sqrt is a whole number
+        # make sure we get a number whose sqrt is a whole number
         max_blocks: int = floor(sqrt(memory_per_process / block_byte_size)) ** 2
 
         LOGGER.debug(
