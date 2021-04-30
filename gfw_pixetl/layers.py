@@ -3,6 +3,7 @@ import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
+from geojson import FeatureCollection
 from rasterio.warp import Resampling
 from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.ops import unary_union
@@ -12,12 +13,14 @@ from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.models.pydantic import LayerModel, Symbology
 from gfw_pixetl.resampling import resampling_factory
-from gfw_pixetl.sources import VectorSource
+from gfw_pixetl.sources import RasterSource, VectorSource
 
-from .models.enums import PhotometricType
+from .models.enums import DstFormat, PhotometricType
 from .settings.globals import GLOBALS
-from .utils.aws import get_s3_client
-from .utils.utils import intersection
+from .utils.aws import get_aws_files, get_s3_client
+from .utils.geometry import generate_feature_collection
+from .utils.google import get_gs_files
+from .utils.utils import DummyTile, intersection
 
 LOGGER = get_module_logger(__name__)
 
@@ -106,6 +109,46 @@ class VectorSrcLayer(Layer):
             self.calc = self.field
 
 
+def get_input_files_from_tiles_geojson(bucket, prefix):
+    s3_client = get_s3_client()
+
+    response = s3_client.get_object(Bucket=bucket, Key=prefix)
+    body = response["Body"].read()
+
+    features = json.loads(body.decode("utf-8"))["features"]
+
+    input_files = list()
+
+    for feature in features:
+        LOGGER.debug(f"Found feature: {feature}")
+        input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
+    return input_files
+
+
+def get_input_files_from_folder(provider, bucket, prefix):
+    prefix = prefix.rstrip("/") + "/"  # FIXME: Should we instead leave up to user?
+
+    get_files = {"s3": get_aws_files, "gs": get_gs_files}
+
+    file_list = get_files[provider](bucket, prefix)
+    tiles: List[DummyTile] = list()
+    for uri in file_list:
+        LOGGER.debug(f"Adding file {uri}")
+        src = RasterSource(uri)
+        tiles.append(DummyTile({"geotiff": src}))
+
+    fc: FeatureCollection = generate_feature_collection(
+        tiles, DstFormat(GLOBALS.default_dst_format)
+    )
+
+    input_files = list()
+
+    for feature in fc["features"]:
+        LOGGER.debug(f"Found feature: {feature}")
+        input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
+    return input_files
+
+
 class RasterSrcLayer(Layer):
     def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
         super().__init__(layer_def, grid)
@@ -113,15 +156,11 @@ class RasterSrcLayer(Layer):
         self._src_uri = layer_def.source_uri
         self.input_bands = self._input_bands()
 
-        # self.input_files = self._input_files()
-        # self.geom = self._geom()
-
     def _input_bands(self) -> List[List[Tuple[Polygon, str]]]:
-        s3_client = get_s3_client()
         input_bands = list()
         assert isinstance(self._src_uri, list)
+
         for src_uri in self._src_uri:
-            input_files = list()
             o = urlparse(src_uri, allow_fragments=False)
             bucket: Union[str, bytes] = o.netloc
             prefix: str = str(o.path).lstrip("/")
@@ -129,15 +168,14 @@ class RasterSrcLayer(Layer):
             LOGGER.debug(
                 f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
             )
-            response = s3_client.get_object(Bucket=bucket, Key=prefix)
-            body = response["Body"].read()
 
-            features = json.loads(body.decode("utf-8"))["features"]
-            for feature in features:
-                LOGGER.debug(f"{feature}")
-                input_files.append(
-                    (shape(feature["geometry"]), feature["properties"]["name"])
-                )
+            if prefix.endswith(".geojson"):
+                LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
+                input_files = get_input_files_from_tiles_geojson(bucket, prefix)
+            else:
+                LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
+                input_files = get_input_files_from_folder(o.scheme, bucket, prefix)
+
             input_bands.append(input_files)
 
         LOGGER.info(

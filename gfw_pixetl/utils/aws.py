@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Sequence
 
 import boto3
 from boto3.s3.transfer import TransferConfig
@@ -41,3 +41,20 @@ def upload_s3(path: str, bucket: str, dst: str) -> None:
     s3_client = get_s3_client()
     config = TransferConfig(use_threads=False)
     s3_client.upload_file(path, bucket, dst, Config=config)
+
+
+def get_aws_files(
+    bucket: str, prefix: str, extensions: Sequence[str] = (".tif",)
+) -> List[str]:
+    """Get all geotiffs in S3."""
+    s3_client = get_s3_client()
+    response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+
+    objs = response.get("Contents", [])
+    files = [
+        f"/vsis3/{bucket}/{obj['Key']}"
+        for obj in objs
+        if any(obj["Key"].endswith(ext) for ext in extensions)
+    ]
+
+    return files
