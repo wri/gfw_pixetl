@@ -10,7 +10,6 @@ from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.decorators import processify
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.models.enums import DstFormat
@@ -130,7 +129,6 @@ class Tile(ABC):
         LOGGER.debug(f"Local Source URI: {uri}")
         return uri
 
-    @processify
     def create_gdal_geotiff(self) -> None:
         dst_format = DstFormat.gdal_geotiff
         if self.default_format != dst_format:
@@ -150,14 +148,13 @@ class Tile(ABC):
                 f"Local file already Gdal Geotiff. Skip copying as Gdal Geotiff for tile {self.tile_id}"
             )
 
-    # @processify
     def upload(self) -> None:
         try:
             bucket = utils.get_bucket()
             for dst_format in self.local_dst.keys():
                 local_tiff_path = self.local_dst[dst_format].uri
                 LOGGER.info(f"Upload {local_tiff_path} to s3")
-                upload_s3(
+                _ = upload_s3(
                     local_tiff_path,
                     bucket,
                     self.dst[dst_format].uri,
@@ -167,7 +164,7 @@ class Tile(ABC):
                 local_stats_path = self.local_dst[self.default_format].uri + stats_ext
                 if os.path.isfile(local_stats_path):
                     LOGGER.info(f"Upload {local_stats_path} to s3")
-                    upload_s3(
+                    _ = upload_s3(
                         local_stats_path,
                         bucket,
                         self.dst[dst_format].uri + stats_ext,

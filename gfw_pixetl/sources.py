@@ -15,7 +15,7 @@ from shapely.geometry import Polygon
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.connection import PgConn
-from gfw_pixetl.decorators import lazy_property, processify
+from gfw_pixetl.decorators import lazy_property
 from gfw_pixetl.errors import retry_if_rasterio_error
 from gfw_pixetl.models.types import Bounds, NoData
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -206,7 +206,7 @@ class Raster(Source):
                 LOGGER.exception(f"Cannot open file {self.url}")
                 raise
 
-    @processify
+    # @processify
     def metadata(self, compute_stats: bool, compute_histogram: bool) -> Dict[str, Any]:
         return get_metadata(self.uri, compute_stats, compute_histogram).dict()
 
