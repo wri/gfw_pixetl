@@ -1,6 +1,7 @@
 from typing import Optional
 
 import boto3
+from boto3.s3.transfer import TransferConfig
 
 from gfw_pixetl.settings.globals import GLOBALS
 
@@ -32,4 +33,11 @@ get_secret_client = client_constructor(
 
 def download_s3(bucket: str, key: str, dst: str) -> None:
     s3_client = get_s3_client()
-    s3_client.download_file(bucket, key, dst)
+    config = TransferConfig(use_threads=False)
+    s3_client.download_file(bucket, key, dst, Config=config)
+
+
+def upload_s3(path: str, bucket: str, dst: str) -> None:
+    s3_client = get_s3_client()
+    config = TransferConfig(use_threads=False)
+    s3_client.upload_file(path, bucket, dst, Config=config)

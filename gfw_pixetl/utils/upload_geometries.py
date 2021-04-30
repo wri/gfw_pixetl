@@ -7,6 +7,7 @@ from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.decorators import processify
 from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.models.types import FeatureTuple
 from gfw_pixetl.settings.globals import GLOBALS
@@ -30,6 +31,7 @@ def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
     return uris
 
 
+@processify
 def upload_geojsons(
     processed_tiles: List[Tile],
     existing_tiles: List[Tile],

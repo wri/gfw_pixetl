@@ -141,9 +141,9 @@ class RasterSrcTile(Tile):
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
         chunk_size = (self._block_byte_size() * self._max_blocks(),)
         with rasterio.Env(
+            **GDAL_ENV,
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
             CPL_VSIL_CURL_CHUNK_SIZE=chunk_size,  # Chunk size for partial downloads
-            **GDAL_ENV,
         ):
             src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
 
@@ -156,7 +156,7 @@ class RasterSrcTile(Tile):
                 transform=transform,
                 width=width,
                 height=height,
-                warp_mem_limit=utils.available_memory_per_process_mb(),
+                warp_mem_limit=utils.available_memory_per_process_mb() / 2,
                 resampling=self.layer.resampling,
             )
 
@@ -386,20 +386,20 @@ class RasterSrcTile(Tile):
             if (
                 self.dst[self.default_format].dtype == np.dtype("float64")
             ) or self.src.dtype == np.dtype("float64"):
-                divisor *= 4
-                LOGGER.debug("Divisor quadrupled for float64 data")
+                divisor *= 2
+                LOGGER.debug("Divisor doubled again for float64 data")
 
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
         co_workers = floor(GLOBALS.cores / GLOBALS.workers)
         if co_workers >= 2:
             divisor *= co_workers
-            LOGGER.debug("Divisor doubled for multiple workers")
+            LOGGER.debug("Divisor multiplied for multiple workers")
 
         # further reduce block size in case we need to perform additional computations
         if self.layer.calc is not None:
             divisor **= 2
-            LOGGER.debug("Divisor doubled for calc operations")
+            LOGGER.debug("Divisor squared for calc operations")
 
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
