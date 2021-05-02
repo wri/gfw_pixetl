@@ -10,9 +10,11 @@ from rasterio.crs import CRS
 from rasterio.shutil import copy as raster_copy
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.decorators import processify
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.models.enums import DstFormat
+from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils.aws import upload_s3
@@ -21,6 +23,17 @@ from gfw_pixetl.utils.path import create_dir
 LOGGER = get_module_logger(__name__)
 
 stats_ext = ".aux.xml"  # Extension of stats sidecar gdalinfo -stats creates
+
+
+@processify
+def just_copy_to_gdal_geotiff(src_uri, dst_uri, profile):
+    with rasterio.Env(**GDAL_ENV):
+        raster_copy(
+            src_uri,
+            dst_uri,
+            strict=False,
+            **profile,
+        )
 
 
 class Tile(ABC):
@@ -136,11 +149,10 @@ class Tile(ABC):
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
             )
 
-            raster_copy(
+            just_copy_to_gdal_geotiff(
                 self.local_dst[self.default_format].uri,
                 self.get_local_dst_uri(dst_format),
-                strict=False,
-                **self.dst[dst_format].profile,
+                self.dst[dst_format].profile,
             )
             self.set_local_dst(dst_format)
         else:

@@ -156,7 +156,7 @@ class RasterSrcTile(Tile):
                 transform=transform,
                 width=width,
                 height=height,
-                warp_mem_limit=utils.available_memory_per_process_mb() / 2,
+                # warp_mem_limit=utils.available_memory_per_process_mb() / 2,
                 resampling=self.layer.resampling,
             )
 
@@ -386,7 +386,7 @@ class RasterSrcTile(Tile):
             if (
                 self.dst[self.default_format].dtype == np.dtype("float64")
             ) or self.src.dtype == np.dtype("float64"):
-                divisor *= 2
+                divisor *= 6
                 LOGGER.debug("Divisor doubled again for float64 data")
 
         # Decrease block size, in case we have co-workers.

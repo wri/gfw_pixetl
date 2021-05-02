@@ -31,7 +31,7 @@ class GdalEnv(EnvSettings):
     gdal_disable_readdir_on_open: Optional[str] = None
     gdal_http_max_retry: int = 4
     gdal_http_retry_delay: int = 10
-    vsi_cache: str = "YES"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
+    vsi_cache: str = "NO"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
     aws_https: Optional[str] = None
     aws_virtual_hosting: Optional[str] = None
     aws_s3_endpoint: Optional[str] = set_aws_s3_endpoint()

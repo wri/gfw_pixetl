@@ -206,7 +206,6 @@ class Raster(Source):
                 LOGGER.exception(f"Cannot open file {self.url}")
                 raise
 
-    # @processify
     def metadata(self, compute_stats: bool, compute_histogram: bool) -> Dict[str, Any]:
         return get_metadata(self.uri, compute_stats, compute_histogram).dict()
 
