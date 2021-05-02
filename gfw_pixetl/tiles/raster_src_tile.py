@@ -386,7 +386,7 @@ class RasterSrcTile(Tile):
             if (
                 self.dst[self.default_format].dtype == np.dtype("float64")
             ) or self.src.dtype == np.dtype("float64"):
-                divisor *= 6
+                divisor *= 2
                 LOGGER.debug("Divisor doubled again for float64 data")
 
         # Decrease block size, in case we have co-workers.
