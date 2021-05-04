@@ -391,7 +391,7 @@ class RasterSrcTile(Tile):
 
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
-        co_workers = floor(GLOBALS.cores / GLOBALS.workers)
+        co_workers = floor(GLOBALS.num_processes / GLOBALS.workers)
         if co_workers >= 2:
             divisor *= co_workers
             LOGGER.debug("Divisor doubled for multiple workers")

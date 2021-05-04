@@ -40,7 +40,9 @@ class Globals(EnvSettings):
     #####################
     # Resource management
     ######################
-    cores: PositiveInt = Field(cpu_count(), description="Max number of cores to use")
+    num_processes: PositiveInt = Field(
+        cpu_count(), description="Max number of parallel processes to use"
+    )
     max_mem: PositiveInt = Field(
         psutil.virtual_memory()[1] / 1000000,
         description="Max memory available to pixETL",
@@ -96,15 +98,17 @@ class Globals(EnvSettings):
         return Secret(v) or None
 
     @pydantic.root_validator()
-    def set_cores_workers(cls, values):
+    def set_processes_workers(cls, values):
 
-        cores = max(min(cpu_count(), values.get("cores", cpu_count())), 1)
-        workers = max(min(cores, values.get("workers", cores)), 1)
+        num_processes = max(
+            min(cpu_count(), values.get("num_processes", cpu_count())), 1
+        )
+        workers = max(min(num_processes, values.get("workers", num_processes)), 1)
 
-        values["cores"] = cores
+        values["num_processes"] = num_processes
         values["workers"] = workers
 
-        LOGGER.info(f"Set cores to {cores}")
+        LOGGER.info(f"Set num_processes to {num_processes}")
         LOGGER.info(f"Set workers to {workers}")
 
         return values

@@ -45,7 +45,7 @@ class WebMercatorGrid(Grid):
         # rows_cols: List[Tuple[int, int]] = list(itertools.product(rows, cols))
         #
         # # Get all grid ids using top left corners
-        # with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
+        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
         #     tile_ids: Set[str] = set(pool.map(self._get_tile_ids, rows_cols))
 
         return tile_ids
