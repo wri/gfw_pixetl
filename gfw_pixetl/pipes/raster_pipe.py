@@ -26,7 +26,7 @@ class RasterPipe(Pipe):
 
         # tile_ids = self.grid.get_tile_ids()
         #
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
+        # with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
         #     tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
@@ -62,7 +62,7 @@ class RasterPipe(Pipe):
         return tiles, skipped_tiles, failed_tiles, existing_tiles
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.cores)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """Only process tiles which intersect with source raster."""
         for tile in tiles:

@@ -54,7 +54,7 @@ def available_memory_per_process_mb() -> float:
 
 
 def get_co_workers() -> int:
-    return floor(GLOBALS.num_processes / GLOBALS.workers)
+    return floor(GLOBALS.cores / GLOBALS.workers)
 
 
 def snapped_window(window):

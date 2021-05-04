@@ -44,11 +44,11 @@ class VectorPipe(Pipe):
             tiles.add(self._get_grid_tile(tile_id))
 
         # tile_ids = self.grid.get_tile_ids()
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
+        # with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
         #     tiles: Set[VectorSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
-        LOGGER.info(f"Found {tile_count} tiles inside grid")
+        LOGGER.info(f"Found {tile_count} tile inside grid")
 
         return tiles
 

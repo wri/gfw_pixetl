@@ -132,7 +132,7 @@ class LatLngGrid(Grid):
             tile_ids.add(self._get_tile_ids(x_y))
 
         # # Get all grid ids using top left corners
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
+        # with get_context("spawn").Pool(processes=GLOBALS.cores) as pool:
         #     tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
 
         return tile_ids

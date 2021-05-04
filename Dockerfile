@@ -29,8 +29,6 @@ RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 
 RUN pip3 install -e .
 
-RUN pip3 install memory_profiler
-
 # Set current work directory to /tmp. This is important when running as AWS Batch job
 # When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
 # In AWS batch we will then mount host's /tmp directory as docker volume /tmp
