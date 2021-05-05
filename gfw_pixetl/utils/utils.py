@@ -48,7 +48,7 @@ def available_memory_per_process_bytes() -> float:
 
 
 def available_memory_per_process_mb() -> float:
-    mem = GLOBALS.max_mem / GLOBALS.workers / 2
+    mem = GLOBALS.max_mem / GLOBALS.workers
     LOGGER.info(f"Available memory per worker set to {mem} MB")
     return mem
 

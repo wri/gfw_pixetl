@@ -156,7 +156,7 @@ class RasterSrcTile(Tile):
                 transform=transform,
                 width=width,
                 height=height,
-                warp_mem_limit=utils.available_memory_per_process_mb() / 2,
+                warp_mem_limit=utils.available_memory_per_process_mb(),
                 resampling=self.layer.resampling,
             )
 

@@ -4,10 +4,12 @@ import subprocess as sp
 from typing import Any, Dict, List, Optional, Tuple
 
 import rasterio
+from rasterio.shutil import copy as raster_copy
 from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataTypeEnum, from_gdal_data_type
+from gfw_pixetl.decorators import processify
 from gfw_pixetl.errors import (
     GDALAWSConfigError,
     GDALError,
@@ -68,6 +70,17 @@ def create_vrt(
         raise
 
     return vrt
+
+
+@processify
+def just_copy_to_gdal_geotiff(src_uri, dst_uri, profile):
+    with rasterio.Env(**GDAL_ENV):
+        raster_copy(
+            src_uri,
+            dst_uri,
+            strict=False,
+            **profile,
+        )
 
 
 @retry(

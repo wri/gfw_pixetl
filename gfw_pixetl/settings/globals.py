@@ -48,7 +48,7 @@ class Globals(EnvSettings):
         description="Max memory available to pixETL",
     )
     divisor: PositiveInt = Field(
-        4,
+        16,
         description="Fraction of memory per worker to use to compute maximum block size."
         "(ie 4 => size =  25% of available memory)",
     )
