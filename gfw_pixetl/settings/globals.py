@@ -99,9 +99,7 @@ class Globals(EnvSettings):
     def set_cores_workers(cls, values):
 
         cores = max(min(cpu_count(), values.get("cores", cpu_count())), 1)
-        cores = 48
         workers = max(min(cores, values.get("workers", cores)), 1)
-        workers = 48
 
         values["cores"] = cores
         values["workers"] = workers
