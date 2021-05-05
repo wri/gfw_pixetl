@@ -1,7 +1,9 @@
-from typing import Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import boto3
+from boto3.s3.transfer import TransferConfig
 
+from gfw_pixetl.decorators import processify
 from gfw_pixetl.settings.globals import GLOBALS
 
 
@@ -30,6 +32,33 @@ get_secret_client = client_constructor(
 )
 
 
-def download_s3(bucket: str, key: str, dst: str) -> None:
+@processify
+def download_s3(bucket: str, key: str, dst: str) -> Dict[str, Any]:
     s3_client = get_s3_client()
-    s3_client.download_file(bucket, key, dst)
+    config = TransferConfig(use_threads=False)
+    return s3_client.download_file(bucket, key, dst, Config=config)
+
+
+@processify
+def upload_s3(path: str, bucket: str, dst: str) -> Dict[str, Any]:
+    s3_client = get_s3_client()
+    config = TransferConfig(use_threads=False)
+    return s3_client.upload_file(path, bucket, dst, Config=config)
+
+
+@processify
+def get_aws_files(
+    bucket: str, prefix: str, extensions: Sequence[str] = (".tif",)
+) -> List[str]:
+    """Get all geotiffs in S3."""
+    s3_client = get_s3_client()
+    response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+
+    objs = response.get("Contents", [])
+    files = [
+        f"/vsis3/{bucket}/{obj['Key']}"
+        for obj in objs
+        if any(obj["Key"].endswith(ext) for ext in extensions)
+    ]
+
+    return files

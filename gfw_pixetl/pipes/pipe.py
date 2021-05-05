@@ -72,14 +72,14 @@ class Pipe(ABC):
         ...
 
     @staticmethod
-    @stage(workers=GLOBALS.cores)
+    @stage(workers=GLOBALS.num_processes)
     @abstractmethod
     def filter_src_tiles():
         """Override this method when implementing pipes."""
         ...
 
     @staticmethod
-    @stage(workers=GLOBALS.cores)
+    @stage(workers=GLOBALS.num_processes)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """Apply filter in case user only want to process only a subset.
 
@@ -92,7 +92,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.cores)
+    @stage(workers=GLOBALS.num_processes)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """Don't process tiles if they already exists in target location,
         unless overwrite is set to True."""
@@ -113,7 +113,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.cores)
+    @stage(workers=GLOBALS.num_processes)
     def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Copy local file to geotiff format."""
         for tile in tiles:
@@ -122,7 +122,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.cores)
+    @stage(workers=GLOBALS.num_processes)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Upload tile to target location."""
         for tile in tiles:
@@ -131,7 +131,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.cores)
+    @stage(workers=GLOBALS.num_processes)
     def delete_work_dir(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Delete local files."""
         for tile in tiles:

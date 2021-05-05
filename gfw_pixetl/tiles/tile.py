@@ -7,7 +7,6 @@ from typing import Dict
 import rasterio
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
-from rasterio.shutil import copy as raster_copy
 
 from gfw_pixetl import get_module_logger, utils
 from gfw_pixetl.grids import Grid
@@ -15,11 +14,11 @@ from gfw_pixetl.layers import Layer
 from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
-from gfw_pixetl.utils.aws import get_s3_client
+from gfw_pixetl.utils.aws import upload_s3
+from gfw_pixetl.utils.gdal import just_copy_to_gdal_geotiff
 from gfw_pixetl.utils.path import create_dir
 
 LOGGER = get_module_logger(__name__)
-S3 = get_s3_client()
 
 stats_ext = ".aux.xml"  # Extension of stats sidecar gdalinfo -stats creates
 
@@ -137,11 +136,10 @@ class Tile(ABC):
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
             )
 
-            raster_copy(
+            just_copy_to_gdal_geotiff(
                 self.local_dst[self.default_format].uri,
                 self.get_local_dst_uri(dst_format),
-                strict=False,
-                **self.dst[dst_format].profile,
+                self.dst[dst_format].profile,
             )
             self.set_local_dst(dst_format)
         else:
@@ -155,7 +153,7 @@ class Tile(ABC):
             for dst_format in self.local_dst.keys():
                 local_tiff_path = self.local_dst[dst_format].uri
                 LOGGER.info(f"Upload {local_tiff_path} to s3")
-                S3.upload_file(
+                _ = upload_s3(
                     local_tiff_path,
                     bucket,
                     self.dst[dst_format].uri,
@@ -165,7 +163,7 @@ class Tile(ABC):
                 local_stats_path = self.local_dst[self.default_format].uri + stats_ext
                 if os.path.isfile(local_stats_path):
                     LOGGER.info(f"Upload {local_stats_path} to s3")
-                    S3.upload_file(
+                    _ = upload_s3(
                         local_stats_path,
                         bucket,
                         self.dst[dst_format].uri + stats_ext,

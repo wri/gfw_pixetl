@@ -1,17 +1,15 @@
-import math
 import os
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Set
 
-from geojson import Feature, FeatureCollection, dumps
-from shapely.geometry import MultiPolygon, Polygon, shape
-from shapely.ops import unary_union
+from geojson import FeatureCollection, dumps
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.decorators import processify
 from gfw_pixetl.models.enums import DstFormat
-from gfw_pixetl.models.types import FeatureTuple
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
+from gfw_pixetl.utils.geometry import _union_tile_geoms, generate_feature_collection
 
 LOGGER = get_module_logger(__name__)
 S3 = get_s3_client()
@@ -30,6 +28,7 @@ def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
     return uris
 
 
+@processify
 def upload_geojsons(
     processed_tiles: List[Tile],
     existing_tiles: List[Tile],
@@ -60,67 +59,6 @@ def upload_geojsons(
         key = os.path.join(prefix, dst_format, "tiles.geojson")
         response.append(_upload_geojson(fc, bucket, key))
     return response
-
-
-def generate_feature_collection(
-    tiles: List[Tile], dst_format: str
-) -> FeatureCollection:
-    geoms: List[Tuple[Polygon, Dict[str, Any]]] = _extract_geoms(tiles, dst_format)
-    fc: FeatureCollection = _to_feature_collection(geoms)
-    return fc
-
-
-def _extract_geoms(
-    tiles: List[Tile], dst_format: str
-) -> List[Tuple[Polygon, Dict[str, Any]]]:
-
-    LOGGER.debug("Collect Polygon from tile bounds")
-
-    geoms: List[Tuple[Polygon, Dict[str, Any]]] = list()
-
-    for tile in tiles:
-        if dst_format not in tile.dst:
-            continue
-        properties = tile.metadata.get(dst_format, dict())
-        properties["name"] = tile.dst[dst_format].url
-        geoms.append(
-            (
-                tile.dst[dst_format].geom,
-                properties,
-            )
-        )
-
-    return geoms
-
-
-def _union_tile_geoms(fc: FeatureCollection) -> FeatureCollection:
-    """Union tiles bounds into a single geometry."""
-
-    LOGGER.debug("Create Polygon from tile bounds")
-
-    polygons: List[Polygon] = [shape(feature["geometry"]) for feature in fc["features"]]
-    extent: Union[Polygon, MultiPolygon] = unary_union(polygons)
-    return _to_feature_collection([(extent, None)])
-
-
-def _sanitize_props(props: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    # Non-numeric float values (like NaN) are not JSON-legal
-    if props is None:
-        return None
-    for band in props.get("bands", list()):
-        no_data = band.get("no_data")
-        if no_data is not None and math.isnan(no_data):
-            band["no_data"] = "nan"
-    return props
-
-
-def _to_feature_collection(geoms: FeatureTuple) -> FeatureCollection:
-    """Convert list of features to feature collection."""
-
-    features: List[Feature] = [
-        Feature(geometry=item[0], properties=_sanitize_props(item[1])) for item in geoms
-    ]
-    return FeatureCollection(features)
 
 
 def _upload_geojson(fc: FeatureCollection, bucket: str, key: str) -> Dict[str, Any]:
