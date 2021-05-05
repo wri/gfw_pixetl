@@ -66,18 +66,18 @@ def test_set_cwd():
 
 
 def test_set_workers():
-    cores = GLOBALS.cores
-    GLOBALS.workers = cores
-    assert GLOBALS.workers == cores
+    num_processes = GLOBALS.num_processes
+    GLOBALS.workers = num_processes
+    assert GLOBALS.workers == num_processes
 
-    GLOBALS.workers = cores + 1
-    assert GLOBALS.workers == cores
+    GLOBALS.workers = num_processes + 1
+    assert GLOBALS.workers == num_processes
 
-    GLOBALS.workers = cores - 1
-    if cores == 1:
+    GLOBALS.workers = num_processes - 1
+    if num_processes == 1:
         assert GLOBALS.workers == 1
     else:
-        assert GLOBALS.workers == cores - 1
+        assert GLOBALS.workers == num_processes - 1
 
 
 def test_available_memory_per_process():
