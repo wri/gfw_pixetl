@@ -41,7 +41,7 @@ class Globals(EnvSettings):
     # Resource management
     ######################
     num_processes: PositiveInt = Field(
-        1, description="Max number of parallel processes to use"
+        cpu_count(), description="Max number of parallel processes to use"
     )
     max_mem: PositiveInt = Field(
         psutil.virtual_memory()[1] / 1000000,
