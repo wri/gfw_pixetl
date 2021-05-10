@@ -40,9 +40,9 @@ class Globals(EnvSettings):
     #####################
     # Resource management
     ######################
-    cores: PositiveInt = Field(..., description="Number of CPU cores available")
+    cores: PositiveInt = Field(cpu_count(), description="Number of CPU cores available")
     num_processes: PositiveInt = Field(
-        ..., description="Max number of parallel processes to use"
+        cpu_count(), description="Max number of parallel processes to use"
     )
     max_mem: PositiveInt = Field(
         psutil.virtual_memory()[1] / 1000000,
@@ -54,7 +54,7 @@ class Globals(EnvSettings):
         "(ie 4 => size =  25% of available memory)",
     )
     workers: PositiveInt = Field(
-        ..., description="Number of workers to use to execute job."
+        cpu_count(), description="Number of workers to use to execute job."
     )
 
     ########################
@@ -100,7 +100,7 @@ class Globals(EnvSettings):
 
     @pydantic.root_validator()
     def set_processes_workers(cls, values):
-        cores = values.get("cores", cpu_count())
+        cores = values.get("cores")
 
         num_processes = max(min(cores, values.get("num_processes", cores)), 1)
         workers = max(min(num_processes, values.get("workers", num_processes)), 1)
