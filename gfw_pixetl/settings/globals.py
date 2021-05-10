@@ -40,8 +40,9 @@ class Globals(EnvSettings):
     #####################
     # Resource management
     ######################
+    cores: PositiveInt = Field(..., description="Number of CPU cores available")
     num_processes: PositiveInt = Field(
-        cpu_count(), description="Max number of parallel processes to use"
+        ..., description="Max number of parallel processes to use"
     )
     max_mem: PositiveInt = Field(
         psutil.virtual_memory()[1] / 1000000,
@@ -53,7 +54,7 @@ class Globals(EnvSettings):
         "(ie 4 => size =  25% of available memory)",
     )
     workers: PositiveInt = Field(
-        1, description="Number of workers to use to execute job."
+        ..., description="Number of workers to use to execute job."
     )
 
     ########################
