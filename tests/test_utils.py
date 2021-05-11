@@ -71,7 +71,7 @@ def test_set_workers():
     assert GLOBALS.workers == num_processes
 
     GLOBALS.workers = num_processes + 1
-    assert GLOBALS.workers == num_processes
+    assert GLOBALS.workers == num_processes + 1
 
     GLOBALS.workers = num_processes - 1
     if num_processes == 1:

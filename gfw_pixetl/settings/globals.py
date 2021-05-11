@@ -102,8 +102,11 @@ class Globals(EnvSettings):
     def set_processes_workers(cls, values):
         cores = values.get("cores")
 
+        # Don't allow specifying more processes than cores
         num_processes = max(min(cores, values.get("num_processes", cores)), 1)
-        workers = max(min(num_processes, values.get("workers", num_processes)), 1)
+
+        # DO allow specifying more workers than processes/cores
+        workers = max(values.get("workers", num_processes), 1)
 
         values["num_processes"] = num_processes
         values["workers"] = workers
