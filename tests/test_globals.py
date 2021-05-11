@@ -3,12 +3,6 @@ from copy import deepcopy
 
 from gfw_pixetl.settings.globals import Globals
 
-#
-# def test_global_workers():
-#     config = Globals(num_processes=1, workers=2)
-#     assert config.num_processes == 1
-#     assert config.workers == 1
-
 
 def test_global_workers():
     config = Globals()
