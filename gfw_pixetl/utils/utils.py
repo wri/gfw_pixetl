@@ -17,8 +17,6 @@ TOKEN_EXPIRATION: Optional[datetime.datetime] = None
 AWS_ACCESS_KEY_ID: Optional[str] = None
 AWS_SECRET_ACCESS_KEY: Optional[str] = None
 AWS_SESSION_TOKEN: Optional[str] = None
-AVAILABLE_MEMORY: Optional[int] = None
-WORKERS: int = 1
 
 
 class DummyTile(object):
