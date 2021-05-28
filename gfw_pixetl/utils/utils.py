@@ -105,3 +105,25 @@ def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> Optional[MultiPo
         return geom
     else:
         return a
+
+
+def union(
+    a: Optional[MultiPolygon], b: Optional[MultiPolygon]
+) -> Optional[MultiPolygon]:
+    if not a and not b:
+        return None
+    elif not a:
+        return b
+    elif not b:
+        return a
+    else:
+        geom = None
+        _geom = a.union(b)
+        if _geom.type == "GeometryCollection":
+            for g in _geom.geoms:
+                if g.type == "MultiPolygon" or g.type == "Polygon":
+                    geom = g
+                    break
+        else:
+            geom = _geom
+        return geom

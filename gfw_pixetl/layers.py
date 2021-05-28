@@ -20,7 +20,7 @@ from .settings.globals import GLOBALS
 from .utils.aws import get_aws_files, get_s3_client
 from .utils.geometry import generate_feature_collection
 from .utils.google import get_gs_files
-from .utils.utils import DummyTile, intersection
+from .utils.utils import DummyTile, union
 
 LOGGER = get_module_logger(__name__)
 
@@ -193,7 +193,7 @@ class RasterSrcLayer(Layer):
         geom: Optional[MultiPolygon] = None
         for band in self.input_bands:
             band_geom: MultiPolygon = unary_union([tile[0] for tile in band])
-            geom = intersection(band_geom, geom)
+            geom = union(band_geom, geom)
 
         if not geom:
             raise RuntimeError("Input bands do not overlap")
