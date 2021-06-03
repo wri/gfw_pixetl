@@ -92,17 +92,15 @@ def world_bounds(crs: CRS) -> Bounds:
     return left, bottom, right, top
 
 
-def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> Optional[MultiPolygon]:
-    geom: Optional[MultiPolygon] = None
+def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> MultiPolygon:
     if not b:
-        geom = a
-
+        geom: MultiPolygon = a
     else:
         _geom = a.intersection(b)
         # Sometimes the intersection results in a GeometryCollection and
         # includes things like LineStrings (like when two polygons both share
         # an edge and overlap elsewhere), which we don't care about. Filter
-        # that stuff out to output a plain MultiPolygon.
+        # that stuff out to return a MultiPolygon.
         if _geom.type == "GeometryCollection":
             geom_pieces: List[Union[MultiPolygon, Polygon]] = list()
             for g in _geom.geoms:
