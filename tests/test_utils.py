@@ -4,6 +4,7 @@ from datetime import datetime
 import rasterio
 from dateutil.tz import tzutc
 from pyproj import CRS
+from shapely.geometry import MultiPolygon, Polygon
 
 from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.settings.globals import GLOBALS
@@ -14,6 +15,7 @@ from gfw_pixetl.utils.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
     get_bucket,
+    intersection,
     world_bounds,
 )
 from tests.conftest import BUCKET, TILE_1_NAME, TILE_2_NAME
@@ -136,3 +138,71 @@ def test_run_gdal_subcommand():
         run_gdal_subcommand(cmd)
     except GDALNoneTypeError as e:
         assert str(e) == ""
+
+
+def test_intersection():
+    polygon1 = Polygon([(0, 0), (0, 2), (2, 2), (2, 0)])
+    polygon2 = Polygon([(1, 1), (1, 3), (3, 3), (3, 1)])
+
+    # assert polygon1.intersection(polygon2).bounds == (1.0, 1.0, 2.0, 2.0)
+
+    # Make sure intersection of just one multi is itself
+    multi1 = MultiPolygon([polygon1])
+    expected_inters = multi1
+    inters = intersection(multi1, None)
+    _compare_multipolygons(inters, expected_inters)
+
+    # Basic test of two overlapping multis
+    multi2 = MultiPolygon([polygon2])
+    inters1 = intersection(multi1, multi2)
+    expected_inters = MultiPolygon([Polygon([(1, 1), (1, 2), (2, 2), (2, 1)])])
+    _compare_multipolygons(inters1, expected_inters)
+
+    # Make sure polys of a multi are unioned before intersection with other multi is taken
+    # (verifies fix for GTC-1236)
+    polygon4 = Polygon([(2, 2), (2, 4), (4, 4), (4, 2)])
+    multi3 = MultiPolygon([polygon1, polygon4])
+    inters2 = intersection(multi2, multi3)
+    expected_inters = MultiPolygon(
+        [
+            Polygon([(1, 1), (1, 2), (2, 2), (2, 1)]),
+            Polygon([(2, 2), (2, 3), (3, 3), (3, 2)]),
+        ]
+    )
+    _compare_multipolygons(inters2, expected_inters)
+
+    # Sometimes Shapely generates GeometryCollections because of funky intersections
+    # (for example when polygons intersect on an edge but also overlap elsewhere)
+    # Our intersection function should filter out extraneous bits so the result fits in
+    # a MultiPolygon
+    multi6 = MultiPolygon(
+        [
+            Polygon([(0, 0), (0, 2), (1, 2), (1, 0)]).union(
+                Polygon([(1, 0), (1, 1), (2, 1), (2, 0)])
+            )
+        ]
+    )
+    multi7 = MultiPolygon([Polygon([(1, 0), (1, 2), (2, 2), (2, 0)])])
+
+    # This doesn't test OUR code, just making sure it does what I think it does
+    geo_col = multi6.intersection(multi7)
+    assert geo_col.type == "GeometryCollection"
+    assert any(geo.type == "LineString" for geo in geo_col.geoms)
+
+    # Now test our function
+    inters3 = intersection(multi6, multi7)
+    expected_inters = MultiPolygon([Polygon([(1, 0), (1, 1), (2, 1), (2, 0)])])
+    _compare_multipolygons(inters3, expected_inters)
+
+
+def _compare_multipolygons(multi1, multi2):
+    # A bit ugly, but YOU try comparing MultiPolygons!
+    settified_multi1_coords = [set(geom.exterior.coords) for geom in multi1.geoms]
+    settified_multi2_coords = [set(geom.exterior.coords) for geom in multi2.geoms]
+    assert len(settified_multi1_coords) == len(settified_multi2_coords)
+
+    for coord_set in settified_multi1_coords:
+        assert coord_set in settified_multi2_coords
+
+    for coord_set in settified_multi2_coords:
+        assert coord_set in settified_multi1_coords
