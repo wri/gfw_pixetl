@@ -36,7 +36,7 @@ def create_empty_file(work_dir, dst_profile):
     local_file_path = os.path.join(work_dir, "input", "empty_file.tif")
     profile = {
         "driver": "GTiff",
-        "dtype": dst_profile.get("dtype", rasterio.uint8),
+        "dtype": dst_profile.get("dtype", rasterio.uint16),
         "nodata": dst_profile.get("no_data", 0),
         "count": 1,
         "width": 360,
@@ -48,7 +48,7 @@ def create_empty_file(work_dir, dst_profile):
     }
 
     # FIXME: Make work with any nodata/dtype
-    data = numpy.zeros((360, 180), dst_profile.get("dtype", rasterio.uint8))
+    data = numpy.zeros((360, 180), dst_profile.get("dtype", rasterio.uint16))
 
     create_dir(os.path.join(work_dir, "input"))
 

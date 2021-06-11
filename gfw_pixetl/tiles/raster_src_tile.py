@@ -398,6 +398,9 @@ class RasterSrcTile(Tile):
                 divisor *= 2
                 LOGGER.debug("Divisor doubled again for float64 data")
 
+        # Multiple layers need more memory
+        divisor *= self.layer.band_count
+
         # Decrease block size, in case we have co-workers.
         # This way we can process more blocks in parallel.
         co_workers = floor(GLOBALS.num_processes / GLOBALS.workers)
