@@ -1,14 +1,15 @@
 import datetime
 import os
 from math import floor
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy
 import rasterio
 from affine import Affine
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
-from shapely.geometry import MultiPolygon
+from shapely.geometry import MultiPolygon, Polygon
+from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.models.types import Bounds
@@ -122,39 +123,42 @@ def world_bounds(crs: CRS) -> Bounds:
     return left, bottom, right, top
 
 
-def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> Optional[MultiPolygon]:
-    if b:
-        geom = None
+def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> MultiPolygon:
+    if not b:
+        geom: MultiPolygon = a
+    else:
         _geom = a.intersection(b)
+        # Sometimes the intersection results in a GeometryCollection and
+        # includes things like LineStrings (like when two polygons both share
+        # an edge and overlap elsewhere), which we don't care about. Filter
+        # that stuff out to return a MultiPolygon.
         if _geom.type == "GeometryCollection":
+            geom_pieces: List[Union[MultiPolygon, Polygon]] = list()
             for g in _geom.geoms:
                 if g.type == "MultiPolygon" or g.type == "Polygon":
-                    geom = g
-                    break
+                    geom_pieces.append(g)
+            geom = unary_union(geom_pieces)
         else:
             geom = _geom
-        return geom
-    else:
-        return a
+
+    if geom.type == "Polygon":
+        geom = MultiPolygon([geom])
+
+    return geom
 
 
 def union(
     a: Optional[MultiPolygon], b: Optional[MultiPolygon]
 ) -> Optional[MultiPolygon]:
     if not a and not b:
-        return None
+        geom: Optional[MultiPolygon] = None
     elif not a:
-        return b
+        geom = b
     elif not b:
-        return a
+        geom = a
     else:
-        geom = None
-        _geom = a.union(b)
-        if _geom.type == "GeometryCollection":
-            for g in _geom.geoms:
-                if g.type == "MultiPolygon" or g.type == "Polygon":
-                    geom = g
-                    break
-        else:
-            geom = _geom
-        return geom
+        geom = unary_union([a, b])
+        if geom.type == "Polygon":
+            geom = MultiPolygon([geom])
+
+    return geom
