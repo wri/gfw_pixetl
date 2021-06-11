@@ -30,6 +30,7 @@ from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
+from gfw_pixetl.utils.utils import create_empty_file
 
 LOGGER = get_module_logger(__name__)
 
@@ -46,6 +47,8 @@ class RasterSrcTile(Tile):
     def src(self) -> RasterSource:
         LOGGER.debug(f"Find input files for {self.tile_id}")
 
+        empty_file = create_empty_file(self.work_dir, self.layer.dst_profile)
+
         input_bands = list()
         for band in self.layer.input_bands:
             input_files = list()
@@ -61,9 +64,15 @@ class RasterSrcTile(Tile):
                         input_file = f[1]
 
                     input_files.append(input_file)
+            if not input_files:
+                LOGGER.debug(
+                    f"No input files found for tile {self.tile_id}, padding VRT with empty file"
+                )
+                input_files.append(empty_file)
             input_bands.append(input_files)
 
-        if not any(len(band) for band in input_bands):
+        # if not any(len(band) for band in input_bands):
+        if all(band == [empty_file] for band in input_bands):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )

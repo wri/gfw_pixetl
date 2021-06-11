@@ -3,6 +3,9 @@ import os
 from math import floor
 from typing import Dict, Optional
 
+import numpy
+import rasterio
+from affine import Affine
 from pyproj import CRS, Transformer
 from rasterio.windows import Window
 from shapely.geometry import MultiPolygon
@@ -10,6 +13,7 @@ from shapely.geometry import MultiPolygon
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.globals import GLOBALS
+from gfw_pixetl.utils.path import create_dir
 
 LOGGER = get_module_logger(__name__)
 
@@ -25,6 +29,33 @@ class DummyTile(object):
     def __init__(self, dst: Dict) -> None:
         self.dst: Dict = dst
         self.metadata: Dict = {}
+
+
+def create_empty_file(work_dir, dst_profile):
+    local_file_path = os.path.join(work_dir, "input", "empty_file.tif")
+    profile = {
+        "driver": "GTiff",
+        "dtype": dst_profile.get("dtype", rasterio.uint8),
+        "nodata": dst_profile.get("no_data", 0),
+        "count": 1,
+        "width": 360,
+        "height": 180,
+        # "blockxsize": 100,
+        # "blockysize": 100,
+        "crs": dst_profile.get("crs", CRS.from_epsg(4326)),
+        "transform": Affine(1, 0, -180, 0, -1, 90),
+    }
+
+    # FIXME: Make work with any nodata/dtype
+    data = numpy.zeros((360, 180), dst_profile.get("dtype", rasterio.uint8))
+
+    create_dir(os.path.join(work_dir, "input"))
+
+    with rasterio.Env():
+        with rasterio.open(local_file_path, "w", **profile) as dst:
+            dst.write(data, 1)
+
+    return local_file_path
 
 
 def get_bucket(env: Optional[str] = None) -> str:
