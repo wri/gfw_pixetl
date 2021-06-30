@@ -41,7 +41,7 @@ def create_empty_file(work_dir, dst_profile: Dict[str, Any]):
         "count": 1,
         "width": 360,
         "height": 180,
-        "crs": dst_profile["crs"],
+        "crs": CRS.from_epsg(4326),  # FIXME: Always true?
         "transform": Affine(1, 0, -180, 0, -1, 90),
     }
 
