@@ -37,7 +37,7 @@ def create_empty_file(work_dir, dst_profile: Dict[str, Any]):
     profile = {
         "driver": "GTiff",
         "dtype": dst_profile["dtype"],
-        "nodata": dst_profile["no_data"],
+        "nodata": dst_profile["nodata"],
         "count": 1,
         "width": 360,
         "height": 180,
@@ -45,7 +45,7 @@ def create_empty_file(work_dir, dst_profile: Dict[str, Any]):
         "transform": Affine(1, 0, -180, 0, -1, 90),
     }
 
-    data = numpy.full((360, 180), dst_profile["no_data"]).astype(dst_profile["dtype"])
+    data = numpy.full((360, 180), dst_profile["nodata"]).astype(dst_profile["dtype"])
 
     create_dir(os.path.join(work_dir, "input"))
 
