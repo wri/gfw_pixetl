@@ -1,7 +1,7 @@
 import datetime
 import os
 from math import floor
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy
 import rasterio
@@ -32,23 +32,20 @@ class DummyTile(object):
         self.metadata: Dict = {}
 
 
-def create_empty_file(work_dir, dst_profile):
+def create_empty_file(work_dir, dst_profile: Dict[str, Any]):
     local_file_path = os.path.join(work_dir, "input", "empty_file.tif")
     profile = {
         "driver": "GTiff",
-        "dtype": dst_profile.get("dtype", rasterio.uint16),
-        "nodata": dst_profile.get("no_data", 0),
+        "dtype": dst_profile["dtype"],
+        "nodata": dst_profile["no_data"],
         "count": 1,
         "width": 360,
         "height": 180,
-        # "blockxsize": 100,
-        # "blockysize": 100,
-        "crs": dst_profile.get("crs", CRS.from_epsg(4326)),
+        "crs": dst_profile["crs"],
         "transform": Affine(1, 0, -180, 0, -1, 90),
     }
 
-    # FIXME: Make work with any nodata/dtype
-    data = numpy.zeros((360, 180), dst_profile.get("dtype", rasterio.uint16))
+    data = numpy.full((360, 180), dst_profile["no_data"]).astype(dst_profile["dtype"])
 
     create_dir(os.path.join(work_dir, "input"))
 

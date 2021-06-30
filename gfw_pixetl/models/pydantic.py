@@ -47,6 +47,7 @@ class LayerModel(BaseModel):
         "To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`.",
     )
     band_count: int = 1
+    union_bands: bool = False
     no_data: Optional[Union[NoData, List[NoData]]]
     grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]

@@ -20,7 +20,7 @@ from .settings.globals import GLOBALS
 from .utils.aws import get_aws_files, get_s3_client
 from .utils.geometry import generate_feature_collection
 from .utils.google import get_gs_files
-from .utils.utils import DummyTile, union
+from .utils.utils import DummyTile, intersection, union
 
 LOGGER = get_module_logger(__name__)
 
@@ -48,6 +48,7 @@ class Layer(object):
         self.compute_histogram: bool = layer_def.compute_histogram
         self.process_locally: bool = layer_def.process_locally
         self.band_count: int = layer_def.band_count
+        self.union_bands: bool = layer_def.union_bands
         self.photometric: Optional[PhotometricType] = layer_def.photometric
 
     def _get_prefix(
@@ -193,7 +194,11 @@ class RasterSrcLayer(Layer):
         geom: Optional[MultiPolygon] = None
         for band in self.input_bands:
             band_geom: MultiPolygon = unary_union([tile[0] for tile in band])
-            geom = union(band_geom, geom)
+
+            if self.union_bands:
+                geom = union(band_geom, geom)
+            else:
+                geom = intersection(band_geom, geom)
 
         if not geom:
             raise RuntimeError("Input bands do not overlap")
