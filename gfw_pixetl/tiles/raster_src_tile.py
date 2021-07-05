@@ -471,12 +471,18 @@ class RasterSrcTile(Tile):
         )
 
         try:
-
-            return vrt.read(
+            data = vrt.read(
                 window=window,
                 out_shape=shape,
                 masked=True,
             )
+            for i, band in enumerate(data):
+                bad_data = np.where(band == -1)
+                if bad_data:
+                    LOGGER.debug(
+                        f"Values of -1 detected while reading band {i}: {bad_data}"
+                    )
+            return data
         except rasterio.RasterioIOError as e:
             if "Access window out of range" in str(e) and (
                 shape[1] == 1 or shape[2] == 1
