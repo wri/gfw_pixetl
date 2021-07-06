@@ -477,10 +477,10 @@ class RasterSrcTile(Tile):
                 masked=True,
             )
             for i, band in enumerate(data):
-                bad_data = np.where(band == -1)
-                if bad_data:
+                neg_ones = np.count_nonzero(band == (int(-1)))
+                if neg_ones:
                     LOGGER.debug(
-                        f"Values of -1 detected while reading band {i}: {bad_data}"
+                        f"{neg_ones} values of -1 detected while reading band {i}"
                     )
             return data
         except rasterio.RasterioIOError as e:
