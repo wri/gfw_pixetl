@@ -219,8 +219,8 @@ class RasterSrcTile(Tile):
 
         return has_data
 
-    def _process_windows_sequential(self):
-        """Read on window after the other and update target file."""
+    def _process_windows_sequential(self) -> bool:
+        """Read one window after the other and update target file."""
         LOGGER.info(f"Process tile {self.tile_id} with a single worker")
 
         src: DatasetReader
