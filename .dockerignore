@@ -1,9 +1,11 @@
 .mypy_cache/*
 .pytest_cache/*
 tmp/*
+tests/cobertura.xml
 scripts/*
 terraform/*
 terraform/.terraform/*
+.terraform/*
 .git
 tests/*
 venv/*
