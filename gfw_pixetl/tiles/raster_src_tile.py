@@ -71,7 +71,6 @@ class RasterSrcTile(Tile):
                 input_files.append(empty_file)
             input_bands.append(input_files)
 
-        # if not any(len(band) for band in input_bands):
         if all(band == [empty_file] for band in input_bands):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"

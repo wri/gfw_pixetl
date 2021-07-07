@@ -33,6 +33,12 @@ class DummyTile(object):
 
 
 def create_empty_file(work_dir, dst_profile: Dict[str, Any]):
+    # FIXME: This grabs the dtype and nodata value from dst_profile,
+    # but I think it should ACTUALLY copy those values from the profile
+    # of one of the input files in case they are different (for example
+    # if the source files are int32 and the desired output is uint16).
+    # It matters because there currently seems to be a problem mixing
+    # dtypes in one VRT.
     local_file_path = os.path.join(work_dir, "input", "empty_file.tif")
     profile = {
         "driver": "GTiff",
