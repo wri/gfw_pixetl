@@ -21,10 +21,10 @@ psycopg2 = "*"
 pydantic = "*"
 PyYAML = "*"
 pyproj = "*"
+rasterio = "*"
 retrying = "*"
 Shapely = "*"
 SQLAlchemy = "*"
-rasterio = "*"
 typer = "*"
 
 [requires]

@@ -1,11 +1,12 @@
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+import string
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 from geojson import FeatureCollection
 from rasterio.warp import Resampling
-from shapely.geometry import MultiPolygon, Polygon, shape
+from shapely.geometry import MultiPolygon, shape
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger
@@ -13,9 +14,10 @@ from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.models.pydantic import LayerModel, Symbology
 from gfw_pixetl.resampling import resampling_factory
-from gfw_pixetl.sources import RasterSource, VectorSource
+from gfw_pixetl.sources import RasterSource, VectorSource, fetch_metadata
 
 from .models.enums import DstFormat, PhotometricType
+from .models.named_tuples import InputBandElement
 from .settings.globals import GLOBALS
 from .utils.aws import get_aws_files, get_s3_client
 from .utils.geometry import generate_feature_collection
@@ -155,11 +157,12 @@ class RasterSrcLayer(Layer):
         super().__init__(layer_def, grid)
 
         self._src_uri = layer_def.source_uri
-        self.input_bands = self._input_bands()
+        self.input_bands: List[List[InputBandElement]] = self._input_bands()
 
-    def _input_bands(self) -> List[List[Tuple[Polygon, str]]]:
-        input_bands = list()
+    def _input_bands(self) -> List[List[InputBandElement]]:
         assert isinstance(self._src_uri, list)
+
+        input_bands: List[List[InputBandElement]] = list()
 
         for src_uri in self._src_uri:
             o = urlparse(src_uri, allow_fragments=False)
@@ -172,15 +175,53 @@ class RasterSrcLayer(Layer):
 
             if prefix.endswith(".geojson"):
                 LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
-                input_files = get_input_files_from_tiles_geojson(bucket, prefix)
+                src_files = get_input_files_from_tiles_geojson(bucket, prefix)
             else:
                 LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
-                input_files = get_input_files_from_folder(o.scheme, bucket, prefix)
+                src_files = get_input_files_from_folder(o.scheme, bucket, prefix)
 
-            input_bands.append(input_files)
+            # Make sure band count of all files at a src_uri is consistent
+            src_band_count: Optional[int] = None
+            src_band_elements: List[List[InputBandElement]] = list()
+
+            for geometry, file_uri in src_files:
+                _, file_profile = fetch_metadata(file_uri)
+                file_band_count: int = file_profile["count"]
+
+                LOGGER.info(
+                    f"Found {file_band_count} data bands in file {file_uri} of source {src_uri}"
+                )
+
+                if file_band_count == 0:
+                    raise Exception(
+                        f"Input file {file_uri} from src_uri {src_uri} has 0 data bands!"
+                    )
+                elif src_band_count is None:
+                    LOGGER.info(
+                        f"Setting band count for src_uri {src_uri} to {file_band_count}"
+                    )
+                    src_band_count = file_band_count
+                    for i in range(file_band_count):
+                        src_band_elements.append(list())
+                elif file_band_count != src_band_count:
+                    raise Exception(
+                        f"Inconsistent band count! Previous files of src_uri {src_uri} had band count of {src_band_count}, but {file_uri} has band count of {file_band_count}"
+                    )
+
+                for i in range(file_band_count):
+                    LOGGER.info(
+                        f"Adding {file_uri} (band {i+1}) to input band {string.ascii_uppercase[len(input_bands) + i]}"
+                    )
+                    element = InputBandElement(
+                        geometry=geometry, uri=file_uri, band=i + 1
+                    )
+                    src_band_elements[i].append(element)
+
+            for band in src_band_elements:
+                input_bands.append(band)
 
         LOGGER.info(
-            f"Using {len(input_bands)} input band(s). Divisor set to {GLOBALS.divisor}."
+            f"Found {len(input_bands)} total input band(s). Divisor set to {GLOBALS.divisor}."
         )
 
         return input_bands
@@ -193,7 +234,7 @@ class RasterSrcLayer(Layer):
 
         geom: Optional[MultiPolygon] = None
         for band in self.input_bands:
-            band_geom: MultiPolygon = unary_union([tile[0] for tile in band])
+            band_geom: MultiPolygon = unary_union([tile.geometry for tile in band])
 
             if self.union_bands:
                 geom = union(band_geom, geom)

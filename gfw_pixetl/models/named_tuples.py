@@ -1,5 +1,7 @@
 from typing import NamedTuple, Optional
 
+from shapely.geometry import Polygon
+
 
 class AreaOfUse(NamedTuple):
     """Area Of Use for projections.
@@ -25,3 +27,15 @@ class AreaOfUse(NamedTuple):
 
     def __str__(self):
         return f"- name: {self.name}\n" f"- bounds: {self.bounds}"
+
+
+class InputBandElement(NamedTuple):
+
+    geometry: Optional[Polygon]
+    uri: str
+    band: int
+
+    def __str__(self):
+        return (
+            f"InputElement(uri={self.uri}, band={self.band}, geometry={self.geometry}"
+        )

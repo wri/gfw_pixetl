@@ -84,3 +84,23 @@ def retry_if_missing_gcs_key_error(exception) -> bool:
         )
 
     return is_missing_gcs_key_error
+
+
+def _file_does_not_exist(e: Exception) -> bool:
+    """Check if RasterIO can access file.
+
+    If file is inaccessible or does not exist, rasterio will always
+    raise RasterioIOError. Error messages will differ, depending on the
+    access method, if file exists or is inaccessible. However, end
+    result should always be the same.
+    """
+
+    errors = [
+        "does not exist in the file system, and is not recognized as a supported dataset name",
+        "The specified key does not exist",
+        "No such file or directory",
+        "not recognized as a supported file format",
+        "Access Denied",
+    ]
+
+    return isinstance(e, RasterioIOError) and any(error in str(e) for error in errors)

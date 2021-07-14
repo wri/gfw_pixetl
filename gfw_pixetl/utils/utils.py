@@ -1,18 +1,24 @@
 import datetime
 import os
+import uuid
 from math import floor
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy
+import numpy as np
 import rasterio
 from affine import Affine
 from pyproj import CRS, Transformer
+from rasterio.coords import BoundingBox
 from rasterio.windows import Window
+from retrying import retry
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.errors import _file_does_not_exist, retry_if_rasterio_error
 from gfw_pixetl.models.types import Bounds
+from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.path import create_dir
 
@@ -32,34 +38,76 @@ class DummyTile(object):
         self.metadata: Dict = {}
 
 
-def create_empty_file(work_dir, dst_profile: Dict[str, Any]):
-    # FIXME: This grabs the dtype and nodata value from dst_profile,
-    # but I think it should ACTUALLY copy those values from the profile
-    # of one of the input files in case they are different (for example
-    # if the source files are int32 and the desired output is uint16).
-    # It matters because there currently seems to be a problem mixing
-    # dtypes in one VRT.
-    local_file_path = os.path.join(work_dir, "input", "empty_file.tif")
+def create_empty_file(work_dir, src_profile: Dict[str, Any]):
+    local_file_path = os.path.join(work_dir, "input", f"{uuid.uuid1()}.tif")
+
+    # We want to write a file filled with the nodata value of others in its band...
+    # but what if they don't have one specified? "Pick something that works with the
+    # data type and set the nodata value in the profile of the written file" is the
+    # best I can come up with.
+
+    dtype = src_profile["dtype"]
+    band_count = src_profile["count"]
+
     profile = {
         "driver": "GTiff",
-        "dtype": dst_profile["dtype"],
-        "nodata": dst_profile["nodata"],
-        "count": 1,
+        "dtype": dtype,
+        "count": band_count,
         "width": 360,
         "height": 180,
         "crs": CRS.from_epsg(4326),  # FIXME: Always true?
         "transform": Affine(1, 0, -180, 0, -1, 90),
     }
 
-    data = numpy.full((360, 180), dst_profile["nodata"]).astype(dst_profile["dtype"])
+    no_data = src_profile["nodata"]
+    if no_data is None:
+        if np.issubdtype(np.dtype(dtype), np.floating):
+            no_data = np.nan
+        elif np.issubdtype(np.dtype(dtype), np.number):
+            no_data = 0
+        else:
+            raise Exception("Halp!")
+    profile["nodata"] = no_data
+
+    data = numpy.full((360, 180), no_data).astype(dtype)
 
     create_dir(os.path.join(work_dir, "input"))
 
-    with rasterio.Env():
+    with rasterio.Env(**GDAL_ENV):
         with rasterio.open(local_file_path, "w", **profile) as dst:
-            dst.write(data, 1)
+            dst.write(data, band_count)
 
     return local_file_path
+
+
+@retry(
+    retry_on_exception=retry_if_rasterio_error,
+    stop_max_attempt_number=7,
+    wait_exponential_multiplier=1000,
+    wait_exponential_max=300000,
+)
+def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
+    """Open file to fetch metadata."""
+    LOGGER.debug(f"Fetch metadata data for file {src_uri} if exists")
+
+    try:
+        with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
+            LOGGER.info(f"File {src_uri} exists")
+            return src.bounds, src.profile
+
+    except Exception as e:
+
+        if _file_does_not_exist(e):
+            LOGGER.info(f"File does not exist {src_uri}")
+            raise FileNotFoundError(f"File does not exist: {src_uri}")
+        elif isinstance(e, rasterio.RasterioIOError):
+            LOGGER.warning(
+                f"RasterioIO Error while opening {src_uri}. Will make attempts to retry"
+            )
+            raise
+        else:
+            LOGGER.exception(f"Cannot open file {src_uri}")
+            raise
 
 
 def get_bucket(env: Optional[str] = None) -> str:

@@ -21,6 +21,7 @@ from gfw_pixetl.decorators import lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
@@ -30,7 +31,7 @@ from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
-from gfw_pixetl.utils.utils import create_empty_file
+from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -45,33 +46,42 @@ class RasterSrcTile(Tile):
 
     @lazy_property
     def src(self) -> RasterSource:
-        LOGGER.debug(f"Find input files for {self.tile_id}")
-
-        empty_file = create_empty_file(self.work_dir, self.layer.dst_profile)
+        LOGGER.debug(f"Finding input files for tile {self.tile_id}")
 
         input_bands = list()
-        for band in self.layer.input_bands:
-            input_files = list()
+        for i, band in enumerate(self.layer.input_bands):
+            input_elements = list()
             for f in band:
-                if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
-                    self.default_format
-                ].geom.touches(f[0]):
-                    LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}")
+                if self.dst[self.default_format].geom.intersects(
+                    f.geometry
+                ) and not self.dst[self.default_format].geom.touches(f.geometry):
+                    LOGGER.debug(
+                        f"Adding {f.uri} to input files for tile {self.tile_id}"
+                    )
 
                     if self.layer.process_locally:
-                        input_file = self._download_source_file(f[1])
+                        uri = self._download_source_file(f.uri)
+                        input_file = InputBandElement(
+                            uri=uri, geometry=f.geometry, band=f.band
+                        )
                     else:
-                        input_file = f[1]
+                        input_file = f
 
-                    input_files.append(input_file)
-            if not input_files:
+                    input_elements.append(input_file)
+            if band and not input_elements:
                 LOGGER.debug(
-                    f"No input files found for tile {self.tile_id}, padding VRT with empty file"
+                    f"No input files found for tile {self.tile_id} in band {i}, padding VRT with empty file"
                 )
-                input_files.append(empty_file)
-            input_bands.append(input_files)
+                # But we need to know the profile of the tile's siblings in this band.
+                _, profile = fetch_metadata(band[0].uri)
+                empty_file_uri = create_empty_file(self.work_dir, profile)
+                empty_file_element = InputBandElement(
+                    geometry=None, band=band[0].band, uri=empty_file_uri
+                )
+                input_elements.append(empty_file_element)
+            input_bands.append(input_elements)
 
-        if all(band == [empty_file] for band in input_bands):
+        if all([item.geometry is None for sublist in input_bands for item in sublist]):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
@@ -92,7 +102,7 @@ class RasterSrcTile(Tile):
         create_dir(os.path.dirname(local_file))
 
         LOGGER.debug(
-            f"Download remote file {remote_file} to {local_file} using {parts.scheme}"
+            f"Downloading remote file {remote_file} to {local_file} using {parts.scheme}"
         )
         download_constructor[parts.scheme](
             bucket=parts.netloc, key=parts.path[1:], dst=local_file
