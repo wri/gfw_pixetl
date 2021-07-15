@@ -184,7 +184,7 @@ class RasterSrcTile(Tile):
 
         # In case we have more workers than cores we can further subdivide the read process.
         # In that case we will need to write the windows into separate files
-        # and merger them into one file at the end of the write process
+        # and merge them into one file at the end of the write process
         co_workers: int = utils.get_co_workers()
         if co_workers >= 2:
             has_data: bool = self._process_windows_parallel(co_workers)
@@ -196,7 +196,7 @@ class RasterSrcTile(Tile):
 
         return has_data
 
-    def _process_windows_parallel(self, co_workers):
+    def _process_windows_parallel(self, co_workers) -> bool:
         """Process windows in parallel and write output into separate files.
 
         Create VRT of output files and copy results into final GTIFF
@@ -410,7 +410,7 @@ class RasterSrcTile(Tile):
         # Multiple layers need more memory
         divisor *= self.layer.band_count
 
-        # Decrease block size, in case we have co-workers.
+        # Decrease block size if we have co-workers.
         # This way we can process more blocks in parallel.
         co_workers = floor(GLOBALS.num_processes / GLOBALS.workers)
         if co_workers >= 2:
