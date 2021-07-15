@@ -55,7 +55,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
         "count": band_count,
         "width": 360,
         "height": 180,
-        "crs": CRS.from_epsg(4326),  # FIXME: Always true?
+        "crs": src_profile["crs"],
         "transform": Affine(1, 0, -180, 0, -1, 90),
     }
 
