@@ -12,7 +12,6 @@ from gfw_pixetl.utils.aws import get_s3_client
 from gfw_pixetl.utils.geometry import _union_tile_geoms, generate_feature_collection
 
 LOGGER = get_module_logger(__name__)
-S3 = get_s3_client()
 
 
 def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
@@ -37,7 +36,6 @@ def upload_geojsons(
     ignore_existing_tiles=False,
 ) -> List[Dict[str, Any]]:
     """Create geojson listing all tiles and upload to S3."""
-
     response: List[Dict[str, Any]] = list()
 
     if ignore_existing_tiles:
@@ -62,9 +60,9 @@ def upload_geojsons(
 
 
 def _upload_geojson(fc: FeatureCollection, bucket: str, key: str) -> Dict[str, Any]:
-
-    LOGGER.info(f"Upload geometry to {bucket} {key}")
-    return S3.put_object(
+    LOGGER.info(f"Uploading geometry to {bucket} {key}")
+    s3_client = get_s3_client()
+    return s3_client.put_object(
         Body=str.encode(dumps(fc)),
         Bucket=bucket,
         Key=key,
@@ -83,12 +81,3 @@ def _upload_extent(
     key = os.path.join(prefix, dst_format, "extent.geojson")
 
     return _upload_geojson(extent_fc, bucket, key)
-
-
-def _upload_vrt(key: str, vrt: str, prefix: str) -> Dict[str, Any]:
-
-    bucket = utils.get_bucket()
-    key = os.path.join(prefix, key, vrt)
-
-    LOGGER.info(f"Upload vrt to {bucket} {key}")
-    return S3.upload_file(vrt, bucket, key)
