@@ -67,10 +67,8 @@ def processify(func):
         while p.is_alive():
             p.join(timeout=60)  # TODO: Make configurable
             if p.exitcode is None:
-                # print("Process is still running")
                 continue
             elif p.exitcode < 0:
-                # print("Process has been killed!")
                 untimely_death = True
                 break
             ret, error = q.get()
