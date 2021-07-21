@@ -56,7 +56,7 @@ def processify(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         q = Queue()
-        p = Process(target=process_func, args=[q] + list(args), kwargs=kwargs)
+        p = Process(target=process_func, args=(q, *args), kwargs=kwargs)
 
         error = None
         ret = None
