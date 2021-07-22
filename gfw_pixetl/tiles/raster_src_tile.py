@@ -17,7 +17,7 @@ from rasterio.windows import Window, bounds, from_bounds, union
 from retrying import retry
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.decorators import lazy_property, processify
+from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
@@ -123,14 +123,16 @@ class RasterSrcTile(Tile):
 
         try:
             has_data = self._process_windows()
-
+        except SubprocessKilledError as e:
+            LOGGER.exception(e)
+            self.status = "failed - subprocess was killed"
+            has_data = True
         except Exception as e:
             LOGGER.exception(e)
             self.status = "failed"
             has_data = True
-
         else:
-            # invoking gdal-geotiff and compute stats here
+            # creating gdal-geotiff and computing stats here
             # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash

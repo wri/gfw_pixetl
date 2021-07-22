@@ -81,7 +81,7 @@ class Pipe(ABC):
     @staticmethod
     @stage(workers=GLOBALS.num_processes)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
-        """Apply filter in case user only want to process only a subset.
+        """Apply filter in case user only wants to process a subset.
 
         Useful for testing.
         """
@@ -153,11 +153,11 @@ class Pipe(ABC):
 
         for tile in pipe.results():
 
-            # Sorting tiles based on their status final reporting
+            # Sort tiles based on their final status
             if tile.status == "pending":
                 tile.status = "processed"
                 processed_tiles.append(tile)
-            elif tile.status == "failed":
+            elif tile.status.startswith("failed"):
                 failed_tiles.append(tile)
             elif tile.status == "existing":
                 existing_tiles.append(tile)
