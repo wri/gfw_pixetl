@@ -28,10 +28,6 @@ class Pipe(ABC):
         self.tiles_to_process = 0
 
     def collect_tiles(self, overwrite: bool) -> List[Tile]:
-        """Raster Pipe."""
-
-        LOGGER.info("Start Raster Pipe")
-
         pipe = (
             self.get_grid_tiles()
             | self.filter_subset_tiles(self.subset)

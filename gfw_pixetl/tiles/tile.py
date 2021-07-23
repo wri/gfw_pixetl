@@ -9,6 +9,7 @@ from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 
 from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.models.enums import DstFormat
@@ -169,6 +170,10 @@ class Tile(ABC):
                         self.dst[dst_format].uri + stats_ext,
                     )
 
+        except SubprocessKilledError as e:
+            LOGGER.error(f"Could not upload file {self.tile_id}")
+            LOGGER.exception(str(e))
+            self.status = "failed - subprocess was killed"
         except Exception as e:
             LOGGER.error(f"Could not upload file {self.tile_id}")
             LOGGER.exception(str(e))
