@@ -42,7 +42,7 @@ profile = {
     "transform": Affine.from_gdal(*geotransform),
 }
 
-with rasterio.open(TILE_3_PATH, "w", **profile) as dst:
+with rasterio.open(TILE_3_PATH, "w", sharing=False, **profile) as dst:
     dst.write(data, 1)
 
 ############ 01N_001E.tif
@@ -59,7 +59,7 @@ profile = {
     "nodata": 0,
 }
 
-with rasterio.open(TILE_4_PATH, "w", **profile) as dst:
+with rasterio.open(TILE_4_PATH, "w", sharing=False, **profile) as dst:
     dst.write(data, 1)
 
 

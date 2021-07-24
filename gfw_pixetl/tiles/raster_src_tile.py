@@ -1,8 +1,8 @@
+import concurrent.futures
 import os
 import string
 from copy import deepcopy
 from math import floor, sqrt
-from multiprocessing import get_context
 from typing import Iterator, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
@@ -10,13 +10,12 @@ import numpy as np
 import rasterio
 from numpy.ma import MaskedArray
 from rasterio.io import DatasetReader, DatasetWriter
-from rasterio.shutil import copy as raster_copy
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
 from rasterio.windows import Window, bounds, from_bounds, union
 from retrying import retry
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
@@ -26,8 +25,18 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.utils import (
+    available_memory_per_process_bytes,
+    available_memory_per_process_mb,
+    get_co_workers,
+    snapped_window,
+)
 from gfw_pixetl.utils.aws import download_s3
-from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt
+from gfw_pixetl.utils.gdal import (
+    create_multiband_vrt,
+    create_vrt,
+    just_copy_to_gdal_geotiff,
+)
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
 
@@ -40,7 +49,6 @@ class RasterSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: RasterSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
         self.layer: RasterSrcLayer = layer
-        # self.src: RasterSource = RasterSource(uri=self._vrt())
 
     @lazy_property
     def src(self) -> RasterSource:
@@ -107,7 +115,7 @@ class RasterSrcTile(Tile):
         window: Window = rasterio.windows.from_bounds(
             left, bottom, right, top, transform=self.dst[self.default_format].transform
         )
-        return utils.snapped_window(window)
+        return snapped_window(window)
 
     def within(self) -> bool:
         """Check if target tile extent intersects with source extent."""
@@ -122,13 +130,14 @@ class RasterSrcTile(Tile):
         LOGGER.info(f"Transform tile {self.tile_id}")
 
         try:
-            has_data = self._process_windows()
+            has_data: bool = self._process_windows()
 
             # creating gdal-geotiff and computing stats here
             # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
-            self.postprocessing()
+            if has_data:
+                self.postprocessing()
 
         except SubprocessKilledError as e:
             LOGGER.exception(e)
@@ -159,7 +168,7 @@ class RasterSrcTile(Tile):
                 transform=transform,
                 width=width,
                 height=height,
-                warp_mem_limit=utils.available_memory_per_process_mb(),
+                warp_mem_limit=available_memory_per_process_mb(),
                 resampling=self.layer.resampling,
             )
 
@@ -169,44 +178,49 @@ class RasterSrcTile(Tile):
 
         # In case we have more workers than cores we can further subdivide the read process.
         # In that case we will need to write the windows into separate files
-        # and merger them into one file at the end of the write process
-        co_workers: int = utils.get_co_workers()
+        # and merging them into one file at the end of the write process
+        co_workers: int = get_co_workers()
         if co_workers >= 2:
             has_data: bool = self._process_windows_parallel(co_workers)
 
         # Otherwise we just read the entire image in one process
-        # And write directly to target file.
+        # and write directly to target file.
         else:
             has_data = self._process_windows_sequential()
 
         return has_data
 
-    def _process_windows_parallel(self, co_workers):
+    def _process_windows_parallel(self, co_workers) -> bool:
         """Process windows in parallel and write output into separate files.
 
         Create VRT of output files and copy results into final GTIFF
         """
+        LOGGER.info(f"Processing tile {self.tile_id} with {co_workers} co_workers")
+
         has_data = False
+        out_files: List[str] = list()
 
-        LOGGER.info(f"Process tile {self.tile_id} with {co_workers} co_workers")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=co_workers) as executor:
+            future_to_window = {
+                executor.submit(self._parallel_transform, window): window
+                for window in self.windows()
+            }
+            for future in concurrent.futures.as_completed(future_to_window):
+                out_file = future.result()
+                if out_file is not None:
+                    out_files.append(out_file)
 
-        with get_context("spawn").Pool(processes=co_workers) as pool:
-            out_files: List[Optional[str]] = pool.map(
-                self._parallel_transform, self.windows()
-            )
-        all_files: List[str] = [f for f in out_files if f is not None]
-        if all_files:
+        if out_files:
             # merge all data into one VRT and copy to target file
             vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
-            create_vrt(all_files, extent=self.bounds, vrt=vrt_name)
-            raster_copy(
+            create_vrt(out_files, extent=self.bounds, vrt=vrt_name)
+            just_copy_to_gdal_geotiff(
                 vrt_name,
                 self.local_dst[self.default_format].uri,
-                strict=False,
-                **self.dst[self.default_format].profile,
+                self.dst[self.default_format].profile,
             )
             # Clean up tmp files
-            for f in all_files:
+            for f in out_files:
                 LOGGER.debug(f"Delete temporary file {f}")
                 os.remove(f)
             has_data = True
@@ -214,7 +228,7 @@ class RasterSrcTile(Tile):
         return has_data
 
     def _process_windows_sequential(self):
-        """Read on window after the other and update target file."""
+        """Read one window after another and update target file."""
         LOGGER.info(f"Process tile {self.tile_id} with a single worker")
 
         src: DatasetReader
@@ -222,13 +236,14 @@ class RasterSrcTile(Tile):
 
         src, vrt = self._src_to_vrt()
         out_files = list()
-        for window in self.windows():
-            out_files.append(self._processified_transform(vrt, window))
+        try:
+            for window in self.windows():
+                out_files.append(self._processified_transform(vrt, window))
+        finally:
+            vrt.close()
+            src.close()
 
         has_data = any(value is not None for value in out_files)
-
-        vrt.close()
-        src.close()
 
         return has_data
 
@@ -240,12 +255,13 @@ class RasterSrcTile(Tile):
 
         src, vrt = self._src_to_vrt()
 
-        out_data: Optional[str] = self._transform(vrt, window, True)
+        try:
+            out_file: Optional[str] = self._processified_transform(vrt, window, True)
+        finally:
+            vrt.close()
+            src.close()
 
-        vrt.close()
-        src.close()
-
-        return out_data
+        return out_file
 
     @processify
     def _processified_transform(
@@ -253,8 +269,8 @@ class RasterSrcTile(Tile):
     ) -> Optional[str]:
         """Wrapper to run _transform in a separate process.
 
-        This will make sure that memory get completely cleared once
-        block is processed. With out this, we might experience memory
+        This will make sure that memory gets completely cleared once a
+        window is processed. Without this, we might experience memory
         leakage, in particular for float data types.
         """
         return self._transform(vrt, window, write_to_seperate_files)
@@ -262,7 +278,7 @@ class RasterSrcTile(Tile):
     def _transform(
         self, vrt: WarpedVRT, window: Window, write_to_seperate_files=False
     ) -> Optional[str]:
-        """Reading windows from input VRT, reproject, resample, transform and
+        """Read windows from input VRT, reproject, resample, transform and
         write to destination."""
         masked_array: MaskedArray = self._read_window(vrt, window)
         LOGGER.debug(
@@ -298,6 +314,7 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
                 "w",
+                sharing=False,
                 **self.dst[self.default_format].profile,
             ) as dst:
                 windows = [window for window in self._windows(dst)]
@@ -319,9 +336,7 @@ class RasterSrcTile(Tile):
                 max_j = min(j + block_count, y_blocks)
                 window = self._union_blocks(dst, i, j, max_i, max_j)
                 try:
-                    yield utils.snapped_window(
-                        window.intersection(self.intersecting_window)
-                    )
+                    yield snapped_window(window.intersection(self.intersecting_window))
                 except rasterio.errors.WindowError as e:
                     if not (str(e) == "windows do not intersect"):
                         raise
@@ -407,7 +422,7 @@ class RasterSrcTile(Tile):
         LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
 
         block_byte_size: int = self._block_byte_size()
-        memory_per_process: float = utils.available_memory_per_process_bytes() / divisor
+        memory_per_process: float = available_memory_per_process_bytes() / divisor
 
         # make sure we get a number whose sqrt is a whole number
         max_blocks: int = floor(sqrt(memory_per_process / block_byte_size)) ** 2
@@ -583,6 +598,7 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 self.local_dst[self.default_format].uri,
                 "r+",
+                sharing=False,
                 **self.dst[self.default_format].profile,
             ) as dst:
                 LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
@@ -607,6 +623,7 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 file_path,
                 "w",
+                sharing=False,
                 **profile,
             ) as dst:
                 LOGGER.debug(
