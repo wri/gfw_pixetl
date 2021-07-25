@@ -48,34 +48,30 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
 
     dtype = src_profile["dtype"]
     band_count = src_profile["count"]
+    size_x = 360
+    size_y = 180
+    no_data = 0
 
     profile = {
         "driver": "GTiff",
         "dtype": dtype,
         "count": band_count,
-        "width": 360,
-        "height": 180,
+        "nodata": no_data,
+        "width": size_x,
+        "height": size_y,
         "crs": src_profile["crs"],
         "transform": Affine(1, 0, -180, 0, -1, 90),
     }
 
-    no_data = src_profile["nodata"]
-    if no_data is None:
-        if np.issubdtype(np.dtype(dtype), np.floating):
-            no_data = np.nan
-        elif np.issubdtype(np.dtype(dtype), np.number):
-            no_data = 0
-        else:
-            raise Exception("Halp!")
-    profile["nodata"] = no_data
+    LOGGER.info(f"Creating empty file with profile {profile}")
 
-    data = numpy.full((360, 180), no_data).astype(dtype)
+    data = np.zeros((band_count, size_x, size_y), dtype)
 
     create_dir(os.path.join(work_dir, "input"))
 
     with rasterio.Env(**GDAL_ENV):
         with rasterio.open(local_file_path, "w", **profile) as dst:
-            dst.write(data, band_count)
+            dst.write(data)
 
     return local_file_path
 
