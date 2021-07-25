@@ -4,6 +4,10 @@ from functools import wraps
 from multiprocessing import Process, Queue
 
 
+class SubprocessKilledError(Exception):
+    pass
+
+
 def lazy_property(fn):
     """Decorator that makes a property lazy-evaluated.
 
@@ -24,9 +28,11 @@ def processify(func):
     """Decorator to run a function as a process.
 
     Be sure that every argument and the return value
-    is *pickable*.
-    The created process is joined, so the code does not
-    run in parallel.
+    is *picklable*.
+    The created process is joined, so the code is
+    synchronous.
+    Modified from original to not hang when subprocess
+    gets killed (such as from OOM).
     Credits: https://gist.github.com/schlamar/2311116
     """
 
@@ -43,19 +49,33 @@ def processify(func):
         q.put((ret, error))
 
     # register original function with different name
-    # in sys.modules so it is pickable
+    # in sys.modules so it is picklable
     process_func.__name__ = func.__name__ + "processify_func"
     setattr(sys.modules[__name__], process_func.__name__, process_func)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
         q = Queue()
-        p = Process(target=process_func, args=[q] + list(args), kwargs=kwargs)
-        p.start()
-        ret, error = q.get()
-        p.join()
+        p = Process(target=process_func, args=(q, *args), kwargs=kwargs)
 
-        if error:
+        error = None
+        ret = None
+        untimely_death = False
+
+        p.start()
+
+        while p.is_alive():
+            p.join(timeout=60)  # TODO: Make configurable
+            if p.exitcode is None:
+                continue
+            elif p.exitcode < 0:
+                untimely_death = True
+                break
+            ret, error = q.get()
+
+        if untimely_death:
+            raise SubprocessKilledError("Process was killed")
+        elif error:
             ex_type, ex_value, tb_str = error
             message = "%s (in subprocess)\n%s" % (str(ex_value), tb_str)
             raise ex_type(message)

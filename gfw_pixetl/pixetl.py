@@ -79,7 +79,16 @@ def cli(
         LOGGER.info(f"Existing tiles: {existing_tiles}")
     if nb_failed_tiles:
         LOGGER.info(f"Failed tiles: {failed_tiles}")
-        sys.exit("Program terminated with Errors. Some tiles failed to process")
+        if any(
+            tile.status == "failed - subprocess was killed" for tile in failed_tiles
+        ):
+            LOGGER.info(
+                "Detected involuntarily terminated subprocesses, exiting with code 137"
+            )
+            sys.exit(137)
+        else:
+            LOGGER.info("Program terminated with errors. Some tiles failed to process")
+            sys.exit(1)
 
 
 def pixetl(
