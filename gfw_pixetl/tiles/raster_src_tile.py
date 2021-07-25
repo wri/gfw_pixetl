@@ -48,9 +48,9 @@ class RasterSrcTile(Tile):
     def src(self) -> RasterSource:
         LOGGER.debug(f"Finding input files for tile {self.tile_id}")
 
-        input_bands = list()
+        input_bands: List[List[InputBandElement]] = list()
         for i, band in enumerate(self.layer.input_bands):
-            input_elements = list()
+            input_elements: List[InputBandElement] = list()
             for f in band:
                 if self.dst[self.default_format].geom.intersects(
                     f.geometry
@@ -65,7 +65,9 @@ class RasterSrcTile(Tile):
                             uri=uri, geometry=f.geometry, band=f.band
                         )
                     else:
-                        input_file = f
+                        input_file = InputBandElement(
+                            uri=f.uri, geometry=f.geometry, band=f.band
+                        )
 
                     input_elements.append(input_file)
             if band and not input_elements:
