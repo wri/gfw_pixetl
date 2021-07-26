@@ -17,7 +17,7 @@ from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
 from gfw_pixetl.utils import get_bucket
 from gfw_pixetl.utils.aws import upload_s3
-from gfw_pixetl.utils.gdal import just_copy_to_gdal_geotiff
+from gfw_pixetl.utils.gdal import just_copy_geotiff
 from gfw_pixetl.utils.path import create_dir
 
 LOGGER = get_module_logger(__name__)
@@ -138,7 +138,7 @@ class Tile(ABC):
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
             )
 
-            just_copy_to_gdal_geotiff(
+            just_copy_geotiff(
                 self.local_dst[self.default_format].uri,
                 self.get_local_dst_uri(dst_format),
                 self.dst[dst_format].profile,
