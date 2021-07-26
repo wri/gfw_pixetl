@@ -84,7 +84,7 @@ def create_vrt(
 
 
 @processify
-def just_copy_to_gdal_geotiff(src_uri, dst_uri, profile):
+def just_copy_geotiff(src_uri, dst_uri, profile):
     with rasterio.Env(**GDAL_ENV):
         raster_copy(
             src_uri,

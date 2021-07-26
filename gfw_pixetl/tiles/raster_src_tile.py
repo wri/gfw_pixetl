@@ -33,11 +33,7 @@ from gfw_pixetl.utils import (
     snapped_window,
 )
 from gfw_pixetl.utils.aws import download_s3
-from gfw_pixetl.utils.gdal import (
-    create_multiband_vrt,
-    create_vrt,
-    just_copy_to_gdal_geotiff,
-)
+from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
@@ -234,7 +230,7 @@ class RasterSrcTile(Tile):
             # merge all data into one VRT and copy to target file
             vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
             create_vrt(out_files, extent=self.bounds, vrt=vrt_name)
-            just_copy_to_gdal_geotiff(
+            just_copy_geotiff(
                 vrt_name,
                 self.local_dst[self.default_format].uri,
                 self.dst[self.default_format].profile,
