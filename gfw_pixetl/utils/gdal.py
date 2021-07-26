@@ -9,7 +9,7 @@ from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataTypeEnum, from_gdal_data_type
-from gfw_pixetl.decorators import processify
+from gfw_pixetl.decorators import SubprocessKilledError, processify
 from gfw_pixetl.errors import (
     GDALAWSConfigError,
     GDALError,
@@ -111,7 +111,9 @@ def run_gdal_subcommand(
         e = str(e_byte)
 
     if p.returncode != 0:
-        if not e:
+        if p.returncode == int(-9):
+            raise SubprocessKilledError()
+        elif not e:
             raise GDALNoneTypeError(e)
         elif (
             e
