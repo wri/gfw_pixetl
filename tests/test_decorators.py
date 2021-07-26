@@ -1,6 +1,6 @@
 import os
 import signal
-from concurrent import futures
+from concurrent.futures import ProcessPoolExecutor
 from time import sleep
 
 import pytest
@@ -45,7 +45,7 @@ def test_exception_proc():
 def test_terminating_proc():
     # Test in a future so if it DOESN'T work we don't have to
     # wait forever (i.e. pytest's timeout) to find out
-    with futures.ThreadPoolExecutor(max_workers=1) as executor:
+    with ProcessPoolExecutor(max_workers=1) as executor:
         future = executor.submit(terminating_proc)
         try:
             _ = future.result(timeout=2)
