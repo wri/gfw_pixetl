@@ -1,6 +1,6 @@
-import concurrent.futures
 import os
 import string
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from math import floor, sqrt
 from typing import Iterator, List, Optional, Tuple, cast
@@ -196,12 +196,12 @@ class RasterSrcTile(Tile):
         has_data = False
         out_files: List[str] = list()
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=co_workers) as executor:
+        with ProcessPoolExecutor(max_workers=co_workers) as executor:
             future_to_window = {
                 executor.submit(self._parallel_transform, window): window
                 for window in self.windows()
             }
-            for future in concurrent.futures.as_completed(future_to_window):
+            for future in as_completed(future_to_window):
                 out_file = future.result()
                 if out_file is not None:
                     out_files.append(out_file)

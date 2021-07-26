@@ -1,8 +1,6 @@
 from typing import Set
 from unittest import mock
 
-import pytest
-
 from gfw_pixetl import layers
 from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.grids import LatLngGrid, grid_factory
@@ -129,7 +127,6 @@ def test_create_tiles_existing(LAYER):
         assert len(existing_tiles) == 0
 
 
-@pytest.mark.skip("Causes test_raster_src_tile.py::test__calc_multi_in to fail")
 def test_create_tiles_fail(LAYER):
     with mock.patch.object(
         RasterPipe,
@@ -161,7 +158,6 @@ def test_create_tiles_fail(LAYER):
         assert all(tile.status == "failed" for tile in failed_tiles)
 
 
-@pytest.mark.skip("Causes test_raster_src_tile.py::test__calc_multi_in to fail")
 def test_create_tiles_subprocess_oom(LAYER):
     with mock.patch.object(
         RasterPipe,
