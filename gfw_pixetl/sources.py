@@ -188,9 +188,7 @@ class Raster(Source):
         LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
 
         try:
-            with rasterio.Env(**GDAL_ENV), rasterio.open(
-                self.url, "r", sharing=False
-            ) as src:
+            with rasterio.Env(**GDAL_ENV), rasterio.open(self.url) as src:
                 LOGGER.info(f"File {self.url} exists")
                 return src.bounds, src.profile
 
