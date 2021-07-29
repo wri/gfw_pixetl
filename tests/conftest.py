@@ -81,6 +81,11 @@ def copy_fixtures():
         BUCKET,
         f"whrc_aboveground_biomass_stock_2000/v201911/raster/epsg-4326/10/40000/Mg_ha-1/geotiff/{TILE_1_NAME}",
     )
+    s3_client.upload_file(
+        TILE_1_PATH,
+        BUCKET,
+        f"aqueduct_erosion_risk/v201911/raster/epsg-4326/1/4000/level/geotiff/{TILE_1_NAME}",
+    )
 
     yield
 
