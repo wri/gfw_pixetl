@@ -111,7 +111,7 @@ def run_gdal_subcommand(
         e = str(e_byte)
 
     if p.returncode != 0:
-        if p.returncode == int(-9):
+        if p.returncode < 0:
             raise SubprocessKilledError()
         elif not e:
             raise GDALNoneTypeError(e)
