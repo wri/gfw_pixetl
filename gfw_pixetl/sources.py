@@ -262,7 +262,7 @@ class Destination(Raster):
         if not self.url:
             raise Exception("Tile URL is not set")
         try:
-            self.fetch_meta()
+            _ = self.fetch_meta()
             LOGGER.debug(f"File {self.url} exists")
             return True
         except FileNotFoundError:

@@ -39,9 +39,7 @@ def test_transform_final(LAYER):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile.dst[tile.default_format].crs.is_valid
 
-    with rasterio.Env(**GDAL_ENV), rasterio.open(
-        tile.src.uri, "r", sharing=False
-    ) as tile_src:
+    with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
         window = rasterio.windows.from_bounds(
             10, 9, 11, 10, transform=tile_src.transform
         )
@@ -51,7 +49,7 @@ def test_transform_final(LAYER):
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
     with rasterio.Env(**GDAL_ENV), rasterio.open(
-        tile.local_dst[tile.default_format].uri, "r", sharing=False
+        tile.local_dst[tile.default_format].uri
     ) as src:
         src_profile = src.profile
         output = src.read(1)
@@ -96,7 +94,7 @@ def test_transform_final_wm():
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
     with rasterio.Env(**GDAL_ENV), rasterio.open(
-        tile.local_dst[tile.default_format].uri, "r", sharing=False
+        tile.local_dst[tile.default_format].uri
     ) as src:
         src_profile = src.profile
         output = src.read(1)
@@ -130,9 +128,7 @@ def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
     assert tile.dst[tile.default_format].crs.is_valid
 
-    with rasterio.Env(**GDAL_ENV), rasterio.open(
-        tile.src.uri, "r", sharing=False
-    ) as tile_src:
+    with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
         assert tile_src.profile["count"] == 2
         window = rasterio.windows.from_bounds(
             10, 9, 11, 10, transform=tile_src.transform
@@ -146,7 +142,7 @@ def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
 
     with rasterio.Env(**GDAL_ENV), rasterio.open(
-        tile.local_dst[tile.default_format].uri, "r", sharing=False
+        tile.local_dst[tile.default_format].uri
     ) as src:
         src_profile = src.profile
         output = src.read()
@@ -186,9 +182,7 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
     assert tile.dst[tile.default_format].crs.is_valid
 
-    with rasterio.Env(**GDAL_ENV), rasterio.open(
-        tile.src.uri, "r", sharing=False
-    ) as tile_src:
+    with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
         assert tile_src.profile["count"] == 2
         window = rasterio.windows.from_bounds(
             10, 9, 11, 10, transform=tile_src.transform
@@ -200,7 +194,7 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
     with rasterio.Env(**GDAL_ENV), rasterio.open(
-        tile.local_dst[tile.default_format].uri, "r", sharing=False
+        tile.local_dst[tile.default_format].uri
     ) as src:
         src_profile = src.profile
         output = src.read()

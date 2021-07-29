@@ -57,7 +57,9 @@ class DataType(object):
     ):
         dtype = data_type.lower()
 
-        if nbits == 1 and (no_data != 0 and no_data is not None):
+        if (dtype == DataTypeEnum.boolean or nbits == 1) and (
+            no_data != 0 and no_data is not None
+        ):
             message = f"No data value {no_data} must be 0 or None for data type Boolean"
             raise ValueError(message)
         elif "int" in dtype and no_data is not None:
@@ -67,6 +69,7 @@ class DataType(object):
                 self._nodata_is_int(no_data, dtype)
         elif (
             getattr(DataTypeEnum, dtype, None) is not None
+            and dtype != DataTypeEnum.boolean  # So the next line doesn't break
             and np.issubdtype(np.dtype(dtype), np.floating)
             and (no_data is not None)
             and (not isinstance(no_data, float))
