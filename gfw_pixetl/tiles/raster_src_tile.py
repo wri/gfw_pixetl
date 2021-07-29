@@ -153,7 +153,7 @@ class RasterSrcTile(Tile):
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
             CPL_VSIL_CURL_CHUNK_SIZE=chunk_size,  # Chunk size for partial downloads
         ):
-            src: DatasetReader = rasterio.open(self.src.uri, "r", sharing=False)
+            src: DatasetReader = rasterio.open(self.src.uri)
 
             transform, width, height = self._vrt_transform(
                 *self.src.reproject_bounds(self.grid.crs)
@@ -310,7 +310,6 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
                 "w",
-                sharing=False,
                 **self.dst[self.default_format].profile,
             ) as dst:
                 windows = [window for window in self._windows(dst)]
@@ -594,7 +593,6 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 self.local_dst[self.default_format].uri,
                 "r+",
-                sharing=False,
                 **self.dst[self.default_format].profile,
             ) as dst:
                 LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
@@ -619,7 +617,6 @@ class RasterSrcTile(Tile):
             with rasterio.open(
                 file_path,
                 "w",
-                sharing=False,
                 **profile,
             ) as dst:
                 LOGGER.debug(

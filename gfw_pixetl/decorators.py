@@ -66,12 +66,14 @@ def processify(func):
 
         while p.is_alive():
             p.join(timeout=60)  # TODO: Make configurable
-            if p.exitcode is None:
+            exit_code = p.exitcode
+            if exit_code is None:
                 continue
-            elif p.exitcode < 0:
+            elif exit_code < 0:
                 untimely_death = True
                 break
-            ret, error = q.get()
+            # Timeout for improbable case the processify exception handling itself fails
+            ret, error = q.get(timeout=60)
 
         if untimely_death:
             raise SubprocessKilledError("Process was killed")
