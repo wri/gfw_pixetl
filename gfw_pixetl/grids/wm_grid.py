@@ -91,7 +91,7 @@ class WebMercatorGrid(Grid):
         )
 
     def _get_block_size(self) -> int:
-        """Block size for WebMercator Tiles are is always 256x256."""
+        """Block size for WebMercator Tiles is always 256x256."""
         return 256
 
     def _get_xres(self) -> float:

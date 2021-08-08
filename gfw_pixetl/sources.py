@@ -144,14 +144,7 @@ class Raster(Source):
 
         left, bottom, right, top = self.bounds
 
-        LOGGER.debug(
-            "SRC Extent: {}, {}, {}, {}".format(
-                left,
-                bottom,
-                right,
-                top,
-            )
-        )
+        LOGGER.debug(f"SRC Extent: {left}, {bottom}, {right}, {top}")
 
         min_lng, min_lat, max_lng, max_lat = utils.world_bounds(crs)
 

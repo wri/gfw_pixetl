@@ -189,7 +189,7 @@ class RasterSrcLayer(Layer):
                 file_band_count: int = file_profile["count"]
 
                 LOGGER.info(
-                    f"Found {file_band_count} data bands in file {file_uri} of source {src_uri}"
+                    f"Found {file_band_count} data band(s) in file {file_uri} of source {src_uri}"
                 )
 
                 if file_band_count == 0:
@@ -228,9 +228,10 @@ class RasterSrcLayer(Layer):
 
     @property
     def geom(self) -> MultiPolygon:
-        """Create Multipolygon from union of all input tiles in all bands."""
+        """Create a Multipolygon from the union or intersection of the input
+        tiles in all bands."""
 
-        LOGGER.debug("Create Polygon from input tile bounds")
+        LOGGER.debug("Creating Multipolygon from input tile bounds")
 
         geom: Optional[MultiPolygon] = None
         for band in self.input_bands:

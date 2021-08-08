@@ -4,7 +4,6 @@ import uuid
 from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy
 import numpy as np
 import rasterio
 from affine import Affine
@@ -41,31 +40,33 @@ class DummyTile(object):
 def create_empty_file(work_dir, src_profile: Dict[str, Any]):
     local_file_path = os.path.join(work_dir, "input", f"{uuid.uuid1()}.tif")
 
-    # We want to write a file filled with the nodata value of others in its band...
-    # but what if they don't have one specified? "Pick something that works with the
-    # data type and set the nodata value in the profile of the written file" is the
-    # best I can come up with.
-
     dtype = src_profile["dtype"]
     band_count = src_profile["count"]
-    size_x = 360
-    size_y = 180
-    no_data = 0
+    crs = src_profile["crs"]
+    # no_data = src_profile["nodata"]
+    # transform = src_profile["transform"]
+
+    left, bottom, right, top = world_bounds(crs)
+
+    size_x = 1
+    size_y = 1
 
     profile = {
         "driver": "GTiff",
         "dtype": dtype,
         "count": band_count,
-        "nodata": no_data,
+        "nodata": 0,
         "width": size_x,
         "height": size_y,
-        "crs": src_profile["crs"],
-        "transform": Affine(1, 0, -180, 0, -1, 90),
+        "crs": crs,
+        "transform": Affine(
+            int(right - left), 0, int(left), 0, int(bottom - top), int(top)
+        ),
     }
 
     LOGGER.info(f"Creating empty file with profile {profile}")
 
-    data = np.zeros((band_count, size_x, size_y), dtype)
+    data = np.zeros((band_count, size_x, size_y), dtype=dtype)
 
     create_dir(os.path.join(work_dir, "input"))
 
@@ -148,7 +149,7 @@ def snapped_window(window):
 
 
 def world_bounds(crs: CRS) -> Bounds:
-    """Get world bounds got given CRT."""
+    """Get world bounds for given CRT."""
 
     from_crs = CRS(4326)
 
