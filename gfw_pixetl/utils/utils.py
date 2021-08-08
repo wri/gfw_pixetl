@@ -44,12 +44,20 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
     band_count = src_profile["count"]
     crs = src_profile["crs"]
     # no_data = src_profile["nodata"]
-    # transform = src_profile["transform"]
+    src_transform = src_profile["transform"]
 
-    left, bottom, right, top = world_bounds(crs)
+    # left, bottom, right, top = world_bounds(crs)
 
     size_x = 1
     size_y = 1
+
+    # Reminder of affine arguments:
+    # a = width of a pixel
+    # b = row rotation (typically zero)
+    # c = x-coordinate of the upper-left corner of the upper-left pixel
+    # d = column rotation (typically zero)
+    # e = height of a pixel (typically negative)
+    # f = y-coordinate of the of the upper-left corner of the upper-left pixel
 
     profile = {
         "driver": "GTiff",
@@ -60,7 +68,12 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
         "height": size_y,
         "crs": crs,
         "transform": Affine(
-            int(right - left), 0, int(left), 0, int(bottom - top), int(top)
+            size_x * src_profile["width"],
+            src_transform.b,
+            src_transform.c,
+            src_transform.d,
+            -(size_y * src_profile["height"]),
+            src_transform.f,
         ),
     }
 
