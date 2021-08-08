@@ -95,12 +95,12 @@ def test_available_memory_per_process():
 def test_create_vrt():
     vrt = create_vrt(URIS)
     assert vrt == "all.vrt"
-    with rasterio.open(vrt, "r") as src:
+    with rasterio.open(vrt) as src:
         assert src.bounds == (-10, 0, 20, 10)
 
     vrt = create_vrt(URIS, vrt="new_name.vrt", extent=(-20, -10, 30, 20))
     assert vrt == "new_name.vrt"
-    with rasterio.open(vrt, "r") as src:
+    with rasterio.open(vrt) as src:
         assert src.bounds == (-20, -10, 30, 20)
 
 

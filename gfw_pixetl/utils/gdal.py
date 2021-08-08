@@ -9,7 +9,7 @@ from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataTypeEnum, from_gdal_data_type
-from gfw_pixetl.decorators import processify
+from gfw_pixetl.decorators import SubprocessKilledError, processify
 from gfw_pixetl.errors import (
     GDALAWSConfigError,
     GDALError,
@@ -73,7 +73,7 @@ def create_vrt(
 
 
 @processify
-def just_copy_to_gdal_geotiff(src_uri, dst_uri, profile):
+def just_copy_geotiff(src_uri, dst_uri, profile):
     with rasterio.Env(**GDAL_ENV):
         raster_copy(
             src_uri,
@@ -111,7 +111,9 @@ def run_gdal_subcommand(
         e = str(e_byte)
 
     if p.returncode != 0:
-        if not e:
+        if p.returncode < 0:
+            raise SubprocessKilledError()
+        elif not e:
             raise GDALNoneTypeError(e)
         elif (
             e

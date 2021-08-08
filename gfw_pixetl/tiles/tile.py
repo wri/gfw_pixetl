@@ -8,14 +8,16 @@ import rasterio
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 
-from gfw_pixetl import get_module_logger, utils
+from gfw_pixetl import get_module_logger
+from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
 from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
+from gfw_pixetl.utils import get_bucket
 from gfw_pixetl.utils.aws import upload_s3
-from gfw_pixetl.utils.gdal import just_copy_to_gdal_geotiff
+from gfw_pixetl.utils.gdal import just_copy_geotiff
 from gfw_pixetl.utils.path import create_dir
 
 LOGGER = get_module_logger(__name__)
@@ -136,7 +138,7 @@ class Tile(ABC):
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
             )
 
-            just_copy_to_gdal_geotiff(
+            just_copy_geotiff(
                 self.local_dst[self.default_format].uri,
                 self.get_local_dst_uri(dst_format),
                 self.dst[dst_format].profile,
@@ -149,7 +151,7 @@ class Tile(ABC):
 
     def upload(self) -> None:
         try:
-            bucket = utils.get_bucket()
+            bucket = get_bucket()
             for dst_format in self.local_dst.keys():
                 local_tiff_path = self.local_dst[dst_format].uri
                 LOGGER.info(f"Upload {local_tiff_path} to s3")
@@ -169,6 +171,10 @@ class Tile(ABC):
                         self.dst[dst_format].uri + stats_ext,
                     )
 
+        except SubprocessKilledError as e:
+            LOGGER.error(f"Could not upload file {self.tile_id}")
+            LOGGER.exception(str(e))
+            self.status = "failed - subprocess was killed"
         except Exception as e:
             LOGGER.error(f"Could not upload file {self.tile_id}")
             LOGGER.exception(str(e))
