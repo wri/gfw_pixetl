@@ -397,9 +397,10 @@ class RasterSrcTile(Tile):
             data_pixels = msk[msk].size
             size += data_pixels
             LOGGER.debug(
-                f"Block of tile {self.tile_id}, band {i} has {data_pixels} data pixels"
+                f"Block of tile {self.tile_id}, band {i+1} has {data_pixels} data pixels"
             )
-
+            if size == 1:
+                LOGGER.debug(f"1? Suspicious. Here's the data: {masked_array[msk]}")
         return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
