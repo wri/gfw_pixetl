@@ -382,10 +382,12 @@ class RasterSrcTile(Tile):
                     yield snapped_window(window.intersection(self.intersecting_window))
                 except rasterio.errors.WindowError as e:
                     if "Bounds and transform are inconsistent" in str(e):
+                        # FIXME: This check was introduced recently in rasterio
+                        # Figure out what it means to fail, and fix the window
+                        # generating code in this function
                         LOGGER.warning(
                             f"Bogus window generated for tile {self.tile_id}! i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
                         )
-                        continue
                     elif not (str(e) == "windows do not intersect"):
                         raise
 
@@ -399,8 +401,6 @@ class RasterSrcTile(Tile):
             LOGGER.debug(
                 f"Block of tile {self.tile_id}, band {i+1} has {data_pixels} data pixels"
             )
-            if size == 1:
-                LOGGER.debug(f"1? Suspicious. Here's the data: {masked_array[msk]}")
         return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
