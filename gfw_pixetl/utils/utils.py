@@ -1,16 +1,25 @@
 import datetime
 import os
+import uuid
 from math import floor
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
+import rasterio
+from affine import Affine
 from pyproj import CRS, Transformer
+from rasterio.coords import BoundingBox
 from rasterio.windows import Window
+from retrying import retry
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.errors import _file_does_not_exist, retry_if_rasterio_error
 from gfw_pixetl.models.types import Bounds
+from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
+from gfw_pixetl.utils.path import create_dir
 
 LOGGER = get_module_logger(__name__)
 
@@ -26,6 +35,86 @@ class DummyTile(object):
     def __init__(self, dst: Dict) -> None:
         self.dst: Dict = dst
         self.metadata: Dict = {}
+
+
+def create_empty_file(work_dir, src_profile: Dict[str, Any]):
+    local_file_path = os.path.join(work_dir, "input", f"{uuid.uuid1()}.tif")
+
+    dtype = src_profile["dtype"]
+    band_count = src_profile["count"]
+    crs = src_profile["crs"]
+    src_transform = src_profile["transform"]
+
+    size_x = 1
+    size_y = 1
+
+    # Reminder of affine arguments:
+    # a = width of a pixel
+    # b = row rotation (typically zero)
+    # c = x-coordinate of the upper-left corner of the upper-left pixel
+    # d = column rotation (typically zero)
+    # e = height of a pixel (typically negative)
+    # f = y-coordinate of the of the upper-left corner of the upper-left pixel
+
+    profile = {
+        "driver": "GTiff",
+        "dtype": dtype,
+        "count": band_count,
+        "nodata": 0,
+        "width": size_x,
+        "height": size_y,
+        "crs": crs,
+        "transform": Affine(
+            size_x * src_profile["width"],
+            src_transform.b,
+            src_transform.c,
+            src_transform.d,
+            -(size_y * src_profile["height"]),
+            src_transform.f,
+        ),
+    }
+
+    LOGGER.info(f"Creating empty file with profile {profile}")
+
+    data = np.zeros((band_count, size_x, size_y), dtype=dtype)
+
+    create_dir(os.path.join(work_dir, "input"))
+
+    with rasterio.Env(**GDAL_ENV):
+        with rasterio.open(local_file_path, "w", **profile) as dst:
+            dst.write(data)
+
+    return local_file_path
+
+
+@retry(
+    retry_on_exception=retry_if_rasterio_error,
+    stop_max_attempt_number=7,
+    wait_exponential_multiplier=1000,
+    wait_exponential_max=300000,
+)
+def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
+    """Open file to fetch metadata."""
+    LOGGER.debug(f"Fetch metadata for file {src_uri} if exists")
+
+    try:
+        with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
+            LOGGER.info(f"File {src_uri} exists")
+            return src.bounds, src.profile
+
+    except Exception as e:
+
+        if _file_does_not_exist(e):
+            LOGGER.info(f"File does not exist {src_uri}")
+            raise FileNotFoundError(f"File does not exist: {src_uri}")
+        elif isinstance(e, rasterio.RasterioIOError):
+            LOGGER.warning(
+                f"RasterioIO Error while opening {src_uri}. Will make attempts to retry"
+            )
+            raise
+        else:
+            LOGGER.exception(f"Cannot open file {src_uri}")
+            raise
 
 
 def get_bucket(env: Optional[str] = None) -> str:
@@ -56,7 +145,7 @@ def get_co_workers() -> int:
     return floor(GLOBALS.num_processes / GLOBALS.workers)
 
 
-def snapped_window(window):
+def snapped_window(window: Window):
     """Make sure window is snapped to grid and contains full pixels to avoid
     missing rows and columns."""
     col_off, row_off, width, height = window.flatten()
@@ -70,7 +159,7 @@ def snapped_window(window):
 
 
 def world_bounds(crs: CRS) -> Bounds:
-    """Get world bounds got given CRT."""
+    """Get world bounds for given CRT."""
 
     from_crs = CRS(4326)
 
@@ -112,5 +201,22 @@ def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> MultiPolygon:
 
     if geom.type == "Polygon":
         geom = MultiPolygon([geom])
+
+    return geom
+
+
+def union(
+    a: Optional[MultiPolygon], b: Optional[MultiPolygon]
+) -> Optional[MultiPolygon]:
+    if not a and not b:
+        geom: Optional[MultiPolygon] = None
+    elif not a:
+        geom = b
+    elif not b:
+        geom = a
+    else:
+        geom = unary_union([a, b])
+        if geom.type == "Polygon":
+            geom = MultiPolygon([geom])
 
     return geom

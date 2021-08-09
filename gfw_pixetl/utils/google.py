@@ -30,7 +30,7 @@ def download_gcs(bucket: str, key: str, dst: str) -> None:
 def get_gs_files(
     bucket: str, prefix: str, extensions: Sequence[str] = (".tif",)
 ) -> List[str]:
-    """Get all geotiffs in GCS."""
+    """Get all matching files in GCS."""
 
     try:
         storage_client = storage.Client()

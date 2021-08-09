@@ -69,7 +69,7 @@ def test_layer_model():
         layer_def = LayerModel(
             dataset="test",
             version="v1.1.1",
-            source_type="raster",
+            source_type=SourceType.raster,
             pixel_meaning="test",
             data_type=DataTypeEnum.uint8,
             nbits=6,
@@ -82,7 +82,7 @@ def test_layer_model():
     layer_def = LayerModel(
         dataset="test",
         version="v1.1.1",
-        source_type="raster",
+        source_type=SourceType.raster,
         pixel_meaning="test",
         data_type=DataTypeEnum.uint8,
         nbits=6,
@@ -101,7 +101,7 @@ def test_layer_model_floats():
     layer_def = LayerModel(
         dataset="test",
         version="v1.1.1",
-        source_type="raster",
+        source_type=SourceType.raster,
         pixel_meaning="test",
         data_type=DataTypeEnum.float32,
         nbits=6,

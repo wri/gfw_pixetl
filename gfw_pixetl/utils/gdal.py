@@ -18,6 +18,7 @@ from gfw_pixetl.errors import (
     retry_if_missing_gcs_key_error,
     retry_if_none_type_error,
 )
+from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.pydantic import Band, BandStats, Histogram, Metadata
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -26,16 +27,23 @@ LOGGER = get_module_logger(__name__)
 
 
 def create_multiband_vrt(
-    bands: List[List[str]], extent: Optional[Bounds] = None, vrt: str = "all.vrt"
+    bands: List[List[InputBandElement]],
+    extent: Optional[Bounds] = None,
+    vrt: str = "all.vrt",
 ):
     vrt_name = os.path.splitext(vrt)[0]
     input_vrts = [
-        create_vrt(band, extent, f"{vrt_name}_band_{i}.vrt")
+        create_vrt(
+            [element.uri for element in band],
+            band[0].band,
+            extent,
+            f"{vrt_name}_band_{i+1}.vrt",
+        )
         for i, band in enumerate(bands)
     ]
 
     _check_crs_equal(input_vrts)
-    create_vrt(input_vrts, extent, vrt, True)
+    create_vrt(input_vrts, None, extent, vrt, separate=True)
     return vrt
 
 
@@ -45,6 +53,7 @@ def create_multiband_vrt(
 )
 def create_vrt(
     uris: List[str],
+    src_file_band: Optional[int] = None,
     extent: Optional[Bounds] = None,
     vrt: str = "all.vrt",
     separate=False,
@@ -56,6 +65,8 @@ def create_vrt(
 
     cmd = ["gdalbuildvrt"]
 
+    if src_file_band is not None:
+        cmd += ["-b", str(src_file_band)]
     if separate:
         cmd += ["-separate"]
     if extent:

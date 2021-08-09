@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import numpy as np
 import rasterio
 from numpy.ma import MaskedArray
+from rasterio.errors import WindowError
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
@@ -20,6 +21,7 @@ from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processi
 from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
@@ -35,6 +37,7 @@ from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
+from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -48,26 +51,44 @@ class RasterSrcTile(Tile):
 
     @lazy_property
     def src(self) -> RasterSource:
-        LOGGER.debug(f"Find input files for {self.tile_id}")
+        LOGGER.debug(f"Finding input files for tile {self.tile_id}")
 
-        input_bands = list()
-        for band in self.layer.input_bands:
-            input_files = list()
+        input_bands: List[List[InputBandElement]] = list()
+        for i, band in enumerate(self.layer.input_bands):
+            input_elements: List[InputBandElement] = list()
             for f in band:
-                if self.dst[self.default_format].geom.intersects(f[0]) and not self.dst[
-                    self.default_format
-                ].geom.touches(f[0]):
-                    LOGGER.debug(f"Add file {f[1]} to input files for {self.tile_id}")
+                if self.dst[self.default_format].geom.intersects(
+                    f.geometry
+                ) and not self.dst[self.default_format].geom.touches(f.geometry):
+                    LOGGER.debug(
+                        f"Adding {f.uri} to input files for tile {self.tile_id}"
+                    )
 
                     if self.layer.process_locally:
-                        input_file = self._download_source_file(f[1])
+                        uri = self._download_source_file(f.uri)
+                        input_file = InputBandElement(
+                            uri=uri, geometry=f.geometry, band=f.band
+                        )
                     else:
-                        input_file = f[1]
+                        input_file = InputBandElement(
+                            uri=f.uri, geometry=f.geometry, band=f.band
+                        )
 
-                    input_files.append(input_file)
-            input_bands.append(input_files)
+                    input_elements.append(input_file)
+            if band and not input_elements:
+                LOGGER.debug(
+                    f"No input files found for tile {self.tile_id} in band {i}, padding VRT with empty file"
+                )
+                # But we need to know the profile of the tile's siblings in this band.
+                _, profile = fetch_metadata(band[0].uri)
+                empty_file_uri = create_empty_file(self.work_dir, profile)
+                empty_file_element = InputBandElement(
+                    geometry=None, band=band[0].band, uri=empty_file_uri
+                )
+                input_elements.append(empty_file_element)
+            input_bands.append(input_elements)
 
-        if not any(len(band) for band in input_bands):
+        if all([item.geometry is None for sublist in input_bands for item in sublist]):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
@@ -88,7 +109,7 @@ class RasterSrcTile(Tile):
         create_dir(os.path.dirname(local_file))
 
         LOGGER.debug(
-            f"Download remote file {remote_file} to {local_file} using {parts.scheme}"
+            f"Downloading remote file {remote_file} to {local_file} using {parts.scheme}"
         )
         download_constructor[parts.scheme](
             bucket=parts.netloc, key=parts.path[1:], dst=local_file
@@ -99,6 +120,7 @@ class RasterSrcTile(Tile):
     @lazy_property
     def intersecting_window(self) -> Window:
         dst_left, dst_bottom, dst_right, dst_top = self.dst[self.default_format].bounds
+
         src_left, src_bottom, src_right, src_top = self.src.reproject_bounds(
             self.grid.crs
         )
@@ -108,9 +130,26 @@ class RasterSrcTile(Tile):
         right = min(dst_right, src_right)
         top = min(dst_top, src_top)
 
-        window: Window = rasterio.windows.from_bounds(
-            left, bottom, right, top, transform=self.dst[self.default_format].transform
+        LOGGER.debug(
+            f"Final bounds for window for tile {self.tile_id}: Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
         )
+
+        try:
+            window: Window = rasterio.windows.from_bounds(
+                left,
+                bottom,
+                right,
+                top,
+                transform=self.dst[self.default_format].transform,
+            )
+        except WindowError:
+            LOGGER.error(
+                f"WindowError encountered for tile {self.tile_id} with "
+                f"transform {self.dst[self.default_format].transform} "
+                f"SRC bounds {src_left, src_bottom, src_right, src_top} "
+                f"and DST bounds {dst_left, dst_bottom, dst_right, dst_top}"
+            )
+            raise
         return snapped_window(window)
 
     def within(self) -> bool:
@@ -123,7 +162,7 @@ class RasterSrcTile(Tile):
 
     def transform(self) -> bool:
         """Write input data to output tile."""
-        LOGGER.info(f"Transform tile {self.tile_id}")
+        LOGGER.debug(f"Transform tile {self.tile_id}")
 
         try:
             has_data: bool = self._process_windows()
@@ -223,7 +262,7 @@ class RasterSrcTile(Tile):
 
         return has_data
 
-    def _process_windows_sequential(self):
+    def _process_windows_sequential(self) -> bool:
         """Read one window after another and update target file."""
         LOGGER.info(f"Process tile {self.tile_id} with a single worker")
 
@@ -333,7 +372,14 @@ class RasterSrcTile(Tile):
                 try:
                     yield snapped_window(window.intersection(self.intersecting_window))
                 except rasterio.errors.WindowError as e:
-                    if not (str(e) == "windows do not intersect"):
+                    if "Bounds and transform are inconsistent" in str(e):
+                        # FIXME: This check was introduced recently in rasterio
+                        # Figure out what it means to fail, and fix the window
+                        # generating code in this function
+                        LOGGER.warning(
+                            f"Bogus window generated for tile {self.tile_id}! i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
+                        )
+                    elif not (str(e) == "windows do not intersect"):
                         raise
 
     def _block_has_data(self, band_arrays: MaskedArray) -> bool:
@@ -344,9 +390,8 @@ class RasterSrcTile(Tile):
             data_pixels = msk[msk].size
             size += data_pixels
             LOGGER.debug(
-                f"Block of tile {self.tile_id}, band {i} has {data_pixels} data pixels"
+                f"Block of tile {self.tile_id}, band {i+1} has {data_pixels} data pixels"
             )
-
         return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
@@ -402,7 +447,10 @@ class RasterSrcTile(Tile):
                 divisor *= 2
                 LOGGER.debug("Divisor doubled again for float64 data")
 
-        # Decrease block size, in case we have co-workers.
+        # Multiple layers need more memory
+        divisor *= self.layer.band_count
+
+        # Decrease block size if we have co-workers.
         # This way we can process more blocks in parallel.
         co_workers = floor(GLOBALS.num_processes / GLOBALS.workers)
         if co_workers >= 2:
@@ -472,7 +520,6 @@ class RasterSrcTile(Tile):
         )
 
         try:
-
             return vrt.read(
                 window=window,
                 out_shape=shape,
