@@ -130,6 +130,10 @@ class RasterSrcTile(Tile):
         right = min(dst_right, src_right)
         top = min(dst_top, src_top)
 
+        LOGGER.debug(
+            f"Final bounds for window for tile {self.tile_id}: Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
+        )
+
         try:
             window: Window = rasterio.windows.from_bounds(
                 left,
@@ -368,7 +372,14 @@ class RasterSrcTile(Tile):
                 try:
                     yield snapped_window(window.intersection(self.intersecting_window))
                 except rasterio.errors.WindowError as e:
-                    if not (str(e) == "windows do not intersect"):
+                    if "Bounds and transform are inconsistent" in str(e):
+                        # FIXME: This check was introduced recently in rasterio
+                        # Figure out what it means to fail, and fix the window
+                        # generating code in this function
+                        LOGGER.warning(
+                            f"Bogus window generated for tile {self.tile_id}! i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
+                        )
+                    elif not (str(e) == "windows do not intersect"):
                         raise
 
     def _block_has_data(self, band_arrays: MaskedArray) -> bool:
@@ -379,9 +390,8 @@ class RasterSrcTile(Tile):
             data_pixels = msk[msk].size
             size += data_pixels
             LOGGER.debug(
-                f"Block of tile {self.tile_id}, band {i} has {data_pixels} data pixels"
+                f"Block of tile {self.tile_id}, band {i+1} has {data_pixels} data pixels"
             )
-
         return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
