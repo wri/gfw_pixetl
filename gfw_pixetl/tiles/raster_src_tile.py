@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import numpy as np
 import rasterio
 from numpy.ma import MaskedArray
+from rasterio.errors import WindowError
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
@@ -118,9 +119,19 @@ class RasterSrcTile(Tile):
 
     @lazy_property
     def intersecting_window(self) -> Window:
+        LOGGER.debug(f"In intersecting_window() for tile {self.tile_id}")
         dst_left, dst_bottom, dst_right, dst_top = self.dst[self.default_format].bounds
+
+        LOGGER.debug(
+            f"DST bounds for tile {self.tile_id}: {dst_left, dst_bottom, dst_right, dst_top}"
+        )
+
         src_left, src_bottom, src_right, src_top = self.src.reproject_bounds(
             self.grid.crs
+        )
+
+        LOGGER.debug(
+            f"SRC bounds for tile {self.tile_id}: {src_left, src_bottom, src_right, src_top}"
         )
 
         left = max(dst_left, src_left)
@@ -128,10 +139,23 @@ class RasterSrcTile(Tile):
         right = min(dst_right, src_right)
         top = min(dst_top, src_top)
 
-        window: Window = rasterio.windows.from_bounds(
-            left, bottom, right, top, transform=self.dst[self.default_format].transform
-        )
-        return snapped_window(window)
+        try:
+            window: Window = rasterio.windows.from_bounds(
+                left,
+                bottom,
+                right,
+                top,
+                transform=self.dst[self.default_format].transform,
+            )
+        except WindowError:
+            LOGGER.error(
+                f"WindowError encountered for tile {self.tile_id} with transform {self.dst[self.default_format].transform}"
+            )
+            raise
+        s_w = snapped_window(window)
+        LOGGER.debug(f"Snapped window: {s_w}")
+
+        return s_w
 
     def within(self) -> bool:
         """Check if target tile extent intersects with source extent."""

@@ -1,6 +1,7 @@
 import datetime
 import os
 import uuid
+from functools import lru_cache
 from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -90,6 +91,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
     return local_file_path
 
 
+@lru_cache(maxsize=128, typed=False)
 @retry(
     retry_on_exception=retry_if_rasterio_error,
     stop_max_attempt_number=7,
@@ -98,7 +100,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
 )
 def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
     """Open file to fetch metadata."""
-    LOGGER.debug(f"Fetch metadata data for file {src_uri} if exists")
+    LOGGER.debug(f"Fetch metadata for file {src_uri} if exists")
 
     try:
         with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
@@ -148,7 +150,7 @@ def get_co_workers() -> int:
     return floor(GLOBALS.num_processes / GLOBALS.workers)
 
 
-def snapped_window(window):
+def snapped_window(window: Window):
     """Make sure window is snapped to grid and contains full pixels to avoid
     missing rows and columns."""
     col_off, row_off, width, height = window.flatten()
@@ -161,6 +163,7 @@ def snapped_window(window):
     )
 
 
+@lru_cache(maxsize=2, typed=False)
 def world_bounds(crs: CRS) -> Bounds:
     """Get world bounds for given CRT."""
 
