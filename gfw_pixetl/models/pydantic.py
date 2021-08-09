@@ -47,6 +47,7 @@ class LayerModel(BaseModel):
         "To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`.",
     )
     band_count: int = 1
+    union_bands: bool = False
     no_data: Optional[Union[NoData, List[NoData]]]
     grid: GridEnum
     rasterize_method: Optional[RasterizeMethod]
@@ -64,7 +65,9 @@ class LayerModel(BaseModel):
         if values.get("source_type") == SourceType.raster:
             assert v, "Raster source types require source_uri"
             if len(v) > 1:
-                assert values.get("calc"), "More than one source_uri require calc"
+                assert values.get(
+                    "calc"
+                ), "More than one source_uri requires a calc string"
         else:
             assert not v, "Only raster source type require source_uri"
         return v
@@ -83,7 +86,7 @@ class LayerModel(BaseModel):
         if v > 1:
             assert values.get(
                 "calc"
-            ), "Output raster with more than one band require calc"
+            ), "Output raster with more than one band requires a calc string"
         return v
 
 

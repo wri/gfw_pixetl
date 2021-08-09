@@ -99,6 +99,7 @@ debug.py
 
 .mypy_cache/*
 .pytest_cache/*
+tests/cobertura.xml
 gfw-data-lake-dev/*
 gfw-data-lake/*
 
@@ -106,4 +107,5 @@ venv/*
 
 cc-test-reporter
 terraform/.terraform/*
+.terraform/*
 *.tfplan
