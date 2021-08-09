@@ -119,19 +119,10 @@ class RasterSrcTile(Tile):
 
     @lazy_property
     def intersecting_window(self) -> Window:
-        LOGGER.debug(f"In intersecting_window() for tile {self.tile_id}")
         dst_left, dst_bottom, dst_right, dst_top = self.dst[self.default_format].bounds
-
-        LOGGER.debug(
-            f"DST bounds for tile {self.tile_id}: {dst_left, dst_bottom, dst_right, dst_top}"
-        )
 
         src_left, src_bottom, src_right, src_top = self.src.reproject_bounds(
             self.grid.crs
-        )
-
-        LOGGER.debug(
-            f"SRC bounds for tile {self.tile_id}: {src_left, src_bottom, src_right, src_top}"
         )
 
         left = max(dst_left, src_left)
@@ -149,13 +140,13 @@ class RasterSrcTile(Tile):
             )
         except WindowError:
             LOGGER.error(
-                f"WindowError encountered for tile {self.tile_id} with transform {self.dst[self.default_format].transform}"
+                f"WindowError encountered for tile {self.tile_id} with "
+                f"transform {self.dst[self.default_format].transform} "
+                f"SRC bounds {src_left, src_bottom, src_right, src_top} "
+                f"and DST bounds {dst_left, dst_bottom, dst_right, dst_top}"
             )
             raise
-        s_w = snapped_window(window)
-        LOGGER.debug(f"Snapped window: {s_w}")
-
-        return s_w
+        return snapped_window(window)
 
     def within(self) -> bool:
         """Check if target tile extent intersects with source extent."""
@@ -167,7 +158,7 @@ class RasterSrcTile(Tile):
 
     def transform(self) -> bool:
         """Write input data to output tile."""
-        LOGGER.info(f"Transform tile {self.tile_id}")
+        LOGGER.debug(f"Transform tile {self.tile_id}")
 
         try:
             has_data: bool = self._process_windows()

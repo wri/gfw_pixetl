@@ -1,7 +1,6 @@
 import datetime
 import os
 import uuid
-from functools import lru_cache
 from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -44,10 +43,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
     dtype = src_profile["dtype"]
     band_count = src_profile["count"]
     crs = src_profile["crs"]
-    # no_data = src_profile["nodata"]
     src_transform = src_profile["transform"]
-
-    # left, bottom, right, top = world_bounds(crs)
 
     size_x = 1
     size_y = 1
@@ -91,7 +87,6 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
     return local_file_path
 
 
-@lru_cache(maxsize=128, typed=False)
 @retry(
     retry_on_exception=retry_if_rasterio_error,
     stop_max_attempt_number=7,
@@ -163,7 +158,6 @@ def snapped_window(window: Window):
     )
 
 
-@lru_cache(maxsize=2, typed=False)
 def world_bounds(crs: CRS) -> Bounds:
     """Get world bounds for given CRT."""
 
