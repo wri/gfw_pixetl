@@ -18,7 +18,9 @@ class SourceType(str, Enum):
 
 class ColorMapType(str, Enum):
     discrete = "discrete"
+    discrete_intensity = "discrete_intensity"
     gradient = "gradient"
+    gradient_intensity = "gradient_intensity"
 
 
 class DstFormat(str, Enum):
