@@ -63,7 +63,13 @@ def create_vrt(
     Create VRT file from input URI.
     """
 
-    cmd = ["gdalbuildvrt"]
+    with open("input_file_list.txt", "w") as input_file_list:
+        for uri in uris:
+            input_file_list.write(uri + "\n")
+
+    cmd: List[str] = ["gdalbuildvrt"]
+
+    cmd += ["-input_file_list", "input_file_list.txt"]
 
     if src_file_band is not None:
         cmd += ["-b", str(src_file_band)]
@@ -72,7 +78,7 @@ def create_vrt(
     if extent:
         cmd += ["-te"] + [str(v) for v in extent]
     cmd += ["-resolution", "highest"]
-    cmd += [vrt, *uris]
+    cmd += [vrt]
 
     try:
         run_gdal_subcommand(cmd)
