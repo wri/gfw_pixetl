@@ -116,9 +116,9 @@ def test_world_bounds():
     crs = CRS(3857)
     left, bottom, right, top = world_bounds(crs)
     assert left == -20037508.342789244
-    assert bottom == -20048966.1040146
+    assert bottom == -20048966.104014594
     assert right == 20037508.342789244
-    assert top == 20048966.1040146
+    assert top == 20048966.104014594
 
 
 def test_get_aws_s3_endpoint():
