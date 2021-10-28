@@ -104,6 +104,7 @@ gfw-data-lake-dev/*
 gfw-data-lake/*
 
 venv/*
+.venv*
 
 cc-test-reporter
 terraform/.terraform/*
