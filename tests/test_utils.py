@@ -19,6 +19,7 @@ from gfw_pixetl.utils.utils import (
     world_bounds,
 )
 from tests.conftest import BUCKET, TILE_1_NAME, TILE_2_NAME
+from tests.utils import compare_multipolygons
 
 os.environ["ENV"] = "test"
 URIS = [f"/vsis3/{BUCKET}/{TILE_1_NAME}", f"/vsis3/{BUCKET}/{TILE_2_NAME}"]
@@ -115,7 +116,7 @@ def test_world_bounds():
     crs = CRS(3857)
     left, bottom, right, top = world_bounds(crs)
     assert left == -20037508.342789244
-    assert bottom == -20048966.1040146
+    assert bottom == -20048966.104014594
     assert right == 20037508.342789244
     assert top == 20048966.104014594
 
@@ -150,13 +151,13 @@ def test_intersection():
     multi1 = MultiPolygon([polygon1])
     expected_inters = multi1
     inters = intersection(multi1, None)
-    _compare_multipolygons(inters, expected_inters)
+    compare_multipolygons(inters, expected_inters)
 
     # Basic test of two overlapping multis
     multi2 = MultiPolygon([polygon2])
     inters1 = intersection(multi1, multi2)
     expected_inters = MultiPolygon([Polygon([(1, 1), (1, 2), (2, 2), (2, 1)])])
-    _compare_multipolygons(inters1, expected_inters)
+    compare_multipolygons(inters1, expected_inters)
 
     # Make sure polys of a multi are unioned before intersection with other multi is taken
     # (verifies fix for GTC-1236)
@@ -169,7 +170,7 @@ def test_intersection():
             Polygon([(2, 2), (2, 3), (3, 3), (3, 2)]),
         ]
     )
-    _compare_multipolygons(inters2, expected_inters)
+    compare_multipolygons(inters2, expected_inters)
 
     # Sometimes Shapely generates GeometryCollections because of funky intersections
     # (for example when polygons intersect on an edge but also overlap elsewhere)
@@ -192,17 +193,4 @@ def test_intersection():
     # Now test our function
     inters3 = intersection(multi6, multi7)
     expected_inters = MultiPolygon([Polygon([(1, 0), (1, 1), (2, 1), (2, 0)])])
-    _compare_multipolygons(inters3, expected_inters)
-
-
-def _compare_multipolygons(multi1, multi2):
-    # A bit ugly, but YOU try comparing MultiPolygons!
-    settified_multi1_coords = [set(geom.exterior.coords) for geom in multi1.geoms]
-    settified_multi2_coords = [set(geom.exterior.coords) for geom in multi2.geoms]
-    assert len(settified_multi1_coords) == len(settified_multi2_coords)
-
-    for coord_set in settified_multi1_coords:
-        assert coord_set in settified_multi2_coords
-
-    for coord_set in settified_multi2_coords:
-        assert coord_set in settified_multi1_coords
+    compare_multipolygons(inters3, expected_inters)
