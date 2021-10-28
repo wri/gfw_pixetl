@@ -6,6 +6,7 @@ from shapely.geometry import MultiPolygon, Polygon
 from gfw_pixetl import layers
 from gfw_pixetl.models.pydantic import LayerModel
 from tests.conftest import BUCKET, GEOJSON_2_NAME, GEOJSON_NAME, minimal_layer_dict
+from tests.utils import compare_multipolygons
 
 
 def test_raster_layer_uri():
@@ -151,15 +152,24 @@ def test_multi_source_layer():
     assert layer.calc == "A + B"
     assert layer.rasterize_method is None
     assert layer.order is None
-    assert layer.geom == MultiPolygon(
-        [
-            Polygon(
-                [[10.0, 10.0], [20.0, 10.0], [20.0, 0.0], [10.0, 0.0], [10.0, 10.0]]
-            ),
-            Polygon(
-                [[-10.0, 10.0], [0.0, 10.0], [0.0, 0.0], [-10.0, 0.0], [-10.0, 10.0]]
-            ),
-        ]
+    compare_multipolygons(
+        layer.geom,
+        MultiPolygon(
+            [
+                Polygon(
+                    [[10.0, 10.0], [20.0, 10.0], [20.0, 0.0], [10.0, 0.0], [10.0, 10.0]]
+                ),
+                Polygon(
+                    [
+                        [-10.0, 10.0],
+                        [0.0, 10.0],
+                        [0.0, 0.0],
+                        [-10.0, 0.0],
+                        [-10.0, 10.0],
+                    ]
+                ),
+            ]
+        ),
     )
 
 
@@ -171,13 +181,22 @@ def test_folder_source_uri():
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
     assert isinstance(layer, layers.RasterSrcLayer)
-    assert layer.geom == MultiPolygon(
-        [
-            Polygon(
-                [[10.0, 10.0], [20.0, 10.0], [20.0, 0.0], [10.0, 0.0], [10.0, 10.0]]
-            ),
-            Polygon(
-                [[-10.0, 10.0], [0.0, 10.0], [0.0, 0.0], [-10.0, 0.0], [-10.0, 10.0]]
-            ),
-        ]
+    compare_multipolygons(
+        layer.geom,
+        MultiPolygon(
+            [
+                Polygon(
+                    [[10.0, 10.0], [20.0, 10.0], [20.0, 0.0], [10.0, 0.0], [10.0, 10.0]]
+                ),
+                Polygon(
+                    [
+                        [-10.0, 10.0],
+                        [0.0, 10.0],
+                        [0.0, 0.0],
+                        [-10.0, 0.0],
+                        [-10.0, 10.0],
+                    ]
+                ),
+            ]
+        ),
     )
