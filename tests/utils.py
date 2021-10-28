@@ -19,3 +19,16 @@ def delete_s3_files(bucket, prefix):
     for obj in response.get("Contents", list()):
         print("Deleting", obj["Key"])
         s3_client.delete_object(Bucket=bucket, Key=obj["Key"])
+
+
+def compare_multipolygons(multi1, multi2):
+    # A bit ugly, but YOU try comparing MultiPolygons!
+    settified_multi1_coords = [set(geom.exterior.coords) for geom in multi1.geoms]
+    settified_multi2_coords = [set(geom.exterior.coords) for geom in multi2.geoms]
+    assert len(settified_multi1_coords) == len(settified_multi2_coords)
+
+    for coord_set in settified_multi1_coords:
+        assert coord_set in settified_multi2_coords
+
+    for coord_set in settified_multi2_coords:
+        assert coord_set in settified_multi1_coords
