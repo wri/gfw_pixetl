@@ -129,8 +129,6 @@ def get_input_files_from_tiles_geojson(bucket, prefix):
 
 
 def get_input_files_from_folder(provider, bucket, prefix):
-    prefix = prefix.rstrip("/") + "/"  # FIXME: Should we instead leave up to user?
-
     get_files = {"s3": get_aws_files, "gs": get_gs_files}
 
     file_list = get_files[provider](bucket, prefix)
