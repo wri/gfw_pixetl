@@ -4,28 +4,34 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+black = "==21.9b0"  # Pin to avoid having to allow pre-releases
+detect-secrets = "*"
+flake8 = "*"
+moto = "*"
+pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
-pre-commit = "*"
-moto = "*"
 
 [packages]
+aenum = "*"
 boto3 = "*"
 click = "*"
 geojson = "*"
+google-cloud-storage = "*"
 parallelpipe = "*"
 psutil = "*"
 psycopg2 = "*"
 pydantic = "*"
 pyproj = "*"
+rasterio = "==1.2.0"
 retrying = "*"
 PyYAML = "*"
 Shapely = "*"
 SQLAlchemy = "*"
-rasterio = "*"
-aenum = "*"
-google-cloud-storage = "*"
 typer = "*"
+
+[pipenv]
+allow_prereleases = false
 
 [requires]
 python_version = "3.8"
