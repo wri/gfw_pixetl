@@ -17,7 +17,7 @@ WORKDIR ${DIR}
 
 COPY . .
 
-RUN pip3 install pipenv==2020.8.13
+RUN pip3 install pipenv==2021.11.15
 
 RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 	     echo "Install all dependencies" && \
