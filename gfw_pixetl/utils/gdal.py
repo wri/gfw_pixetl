@@ -64,17 +64,13 @@ def create_vrt(
     ! Important this is not a parallelpipe Stage and must be run with
     only one worker per vrt file !
     """
-    input_list_string = "\n".join(uris)
+    input_file_list_string = "\n".join(uris)
 
     with tempfile.TemporaryDirectory() as temp_dir_name:
-        input_list_file_name = os.path.join(temp_dir_name, vrt.replace(".vrt", ".txt"))
+        input_list_file_name = os.path.join(temp_dir_name, "input_file_list.txt")
 
-        with open(input_list_file_name, "w") as input_file_list:
-            input_file_list.write(input_list_string)
-
-        LOGGER.debug(
-            f"Creating VRT with input file list at {os.path.abspath(input_list_file_name)}"
-        )
+        with open(input_list_file_name, "w") as input_file_list_file:
+            input_file_list_file.write(input_file_list_string)
 
         cmd: List[str] = ["gdalbuildvrt"]
 
@@ -92,7 +88,7 @@ def create_vrt(
         try:
             run_gdal_subcommand(cmd)
         except GDALError as e:
-            LOGGER.error(f"Could not create VRT file: {e}")
+            LOGGER.error(f"Error creating VRT file: {e}")
             raise
 
     return vrt
