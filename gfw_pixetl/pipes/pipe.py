@@ -160,8 +160,9 @@ class Pipe(ABC):
             else:
                 skipped_tiles.append(tile)
 
-        upload_geometries.upload_geojsons(
-            processed_tiles, existing_tiles, self.layer.prefix
-        )
+        if not failed_tiles:
+            upload_geometries.upload_geojsons(
+                processed_tiles, existing_tiles, self.layer.prefix
+            )
 
         return processed_tiles, skipped_tiles, failed_tiles, existing_tiles

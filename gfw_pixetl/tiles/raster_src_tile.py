@@ -264,7 +264,7 @@ class RasterSrcTile(Tile):
 
     def _process_windows_sequential(self) -> bool:
         """Read one window after another and update target file."""
-        LOGGER.info(f"Process tile {self.tile_id} with a single worker")
+        LOGGER.info(f"Processing tile {self.tile_id} with a single worker")
 
         src: DatasetReader
         vrt: WarpedVRT

@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess as sp
+import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
 import rasterio
@@ -58,33 +59,37 @@ def create_vrt(
     vrt: str = "all.vrt",
     separate=False,
 ) -> str:
+    """Create VRT file from input URI(s)
+
+    ! Important this is not a parallelpipe Stage and must be run with
+    only one worker per vrt file !
     """
-    ! Important this is not a parallelpipe Stage and must be run with only one worker per vrt file
-    Create VRT file from input URI.
-    """
+    input_file_list_string = "\n".join(uris)
 
-    with open("input_file_list.txt", "w") as input_file_list:
-        for uri in uris:
-            input_file_list.write(uri + "\n")
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        input_list_file_name = os.path.join(temp_dir_name, "input_file_list.txt")
 
-    cmd: List[str] = ["gdalbuildvrt"]
+        with open(input_list_file_name, "w") as input_file_list_file:
+            input_file_list_file.write(input_file_list_string)
 
-    cmd += ["-input_file_list", "input_file_list.txt"]
+        cmd: List[str] = ["gdalbuildvrt"]
 
-    if src_file_band is not None:
-        cmd += ["-b", str(src_file_band)]
-    if separate:
-        cmd += ["-separate"]
-    if extent:
-        cmd += ["-te"] + [str(v) for v in extent]
-    cmd += ["-resolution", "highest"]
-    cmd += [vrt]
+        cmd += ["-input_file_list", input_list_file_name]
 
-    try:
-        run_gdal_subcommand(cmd)
-    except GDALError:
-        LOGGER.error("Could not create VRT file")
-        raise
+        if src_file_band is not None:
+            cmd += ["-b", str(src_file_band)]
+        if separate:
+            cmd += ["-separate"]
+        if extent:
+            cmd += ["-te"] + [str(v) for v in extent]
+        cmd += ["-resolution", "highest"]
+        cmd += [vrt]
+
+        try:
+            run_gdal_subcommand(cmd)
+        except GDALError as e:
+            LOGGER.error(f"Error creating VRT file: {e}")
+            raise
 
     return vrt
 
