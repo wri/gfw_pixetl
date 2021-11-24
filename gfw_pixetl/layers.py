@@ -1,7 +1,7 @@
 import json
 import os
 import string
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from geojson import FeatureCollection
@@ -112,9 +112,10 @@ class VectorSrcLayer(Layer):
             self.calc = self.field
 
 
-def get_input_files_from_tiles_geojson(bucket, prefix):
+def get_input_files_from_tiles_geojson(
+    bucket: str, prefix: str
+) -> List[Tuple[Any, str]]:
     s3_client = get_s3_client()
-
     response = s3_client.get_object(Bucket=bucket, Key=prefix)
     body = response["Body"].read()
 
@@ -128,12 +129,21 @@ def get_input_files_from_tiles_geojson(bucket, prefix):
     return input_files
 
 
-def get_input_files_from_folder(provider, bucket, prefix):
-    prefix = prefix.rstrip("/") + "/"  # FIXME: Should we instead leave up to user?
+def get_input_files_from_folder(
+    provider: str, bucket: str, prefix: str
+) -> List[Tuple[Any, str]]:
+    # Allow pseudo-globbing: If the prefix doesn't end in *, assume the user
+    # meant for the prefix to specify a "folder" and add a "/" to enforce
+    # that behavior.
+    new_prefix: str = prefix
+    if new_prefix.endswith("*"):
+        new_prefix = new_prefix[:-1]
+    elif not new_prefix.endswith("/"):
+        new_prefix += "/"
 
     get_files = {"s3": get_aws_files, "gs": get_gs_files}
 
-    file_list = get_files[provider](bucket, prefix)
+    file_list = get_files[provider](bucket, new_prefix)
     tiles: List[DummyTile] = list()
     for uri in file_list:
         LOGGER.debug(f"Adding file {uri}")
@@ -166,7 +176,7 @@ class RasterSrcLayer(Layer):
 
         for src_uri in self._src_uri:
             o = urlparse(src_uri, allow_fragments=False)
-            bucket: Union[str, bytes] = o.netloc
+            bucket: str = str(o.netloc)
             prefix: str = str(o.path).lstrip("/")
 
             LOGGER.debug(
@@ -178,7 +188,7 @@ class RasterSrcLayer(Layer):
                 src_files = get_input_files_from_tiles_geojson(bucket, prefix)
             else:
                 LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
-                src_files = get_input_files_from_folder(o.scheme, bucket, prefix)
+                src_files = get_input_files_from_folder(str(o.scheme), bucket, prefix)
 
             # Make sure band count of all files at a src_uri is consistent
             src_band_count: Optional[int] = None

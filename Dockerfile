@@ -1,4 +1,4 @@
-FROM osgeo/gdal:ubuntu-small-3.3.2
+FROM osgeo/gdal:ubuntu-small-3.2.0
 
 ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
@@ -17,7 +17,7 @@ WORKDIR ${DIR}
 
 COPY . .
 
-RUN pip3 install pipenv==2020.8.13
+RUN pip3 install pipenv==2020.8.13 filelock==3.3.0 backports.entry-points-selectable==1.1.0 virtualenv==20.8.1
 
 RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 	     echo "Install all dependencies" && \
@@ -29,12 +29,10 @@ RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 
 RUN pip3 install -e .
 
-# Un-comment this to ease debugging of memory problems
-#RUN pip3 install memory_profiler
-
-# Set current work directory to /tmp. This is important when running as AWS Batch job
-# When using the ephemeral-storage launch template /tmp will be the mounting point for the external storage
-# In AWS batch we will then mount host's /tmp directory as docker volume /tmp
+# Set current work directory to /tmp. This is important when running as an
+# AWS Batch job. When using the ephemeral-storage launch template /tmp will
+# be the mounting point for the external storage.
+# In AWS batch we will then mount host's /tmp directory as Docker volume's /tmp
 WORKDIR /tmp
 
 ENTRYPOINT ["pixetl"]
