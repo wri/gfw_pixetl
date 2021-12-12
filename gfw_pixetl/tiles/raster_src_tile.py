@@ -49,6 +49,26 @@ class RasterSrcTile(Tile):
         super().__init__(tile_id, grid, layer)
         self.layer: RasterSrcLayer = layer
 
+    def src_uris(self) -> List[str]:
+        LOGGER.debug(f"Finding input files for tile {self.tile_id}")
+
+        src_uris: List[str] = list()
+
+        for i, band in enumerate(self.layer.input_bands):
+            for f in band:
+                if (
+                    self.dst[self.default_format].geom.intersects(f.geometry)
+                    and not self.dst[self.default_format].geom.touches(f.geometry)
+                    and self.layer.process_locally
+                ):
+                    LOGGER.debug(
+                        f"Adding {f.uri} to files to download for tile {self.tile_id} "
+                        "(it's okay to see this more than once for the same URI)"
+                    )
+                    src_uris.append(f.uri)
+
+        return src_uris
+
     @lazy_property
     def src(self) -> RasterSource:
         LOGGER.debug(f"Finding input files for tile {self.tile_id}")
@@ -65,7 +85,7 @@ class RasterSrcTile(Tile):
                     )
 
                     if self.layer.process_locally:
-                        uri = self._download_source_file(f.uri)
+                        uri = self._get_local_source_uri(f.uri)
                         input_file = InputBandElement(
                             uri=uri, geometry=f.geometry, band=f.band
                         )
@@ -97,15 +117,24 @@ class RasterSrcTile(Tile):
             create_multiband_vrt(input_bands, vrt=self.tile_id + ".vrt")
         )
 
+    def _get_local_source_uri(self, remote_file: str) -> str:
+        path = from_vsi(remote_file).encode("ASCII", "ignore").decode("ASCII")
+        parts = urlparse(path)
+
+        local_uri = os.path.join(self.work_dir, "input", parts.netloc, parts.path[1:])
+        # create_dir(os.path.dirname(local_file))
+
+        return local_uri
+
     def _download_source_file(self, remote_file: str) -> str:
         """Download remote files."""
+        local_file = self._get_local_source_uri(remote_file)
 
         download_constructor = {"gs": download_gcs, "s3": download_s3}
 
         path = from_vsi(remote_file)
         parts = urlparse(path)
 
-        local_file = os.path.join(self.work_dir, "input", parts.netloc, parts.path[1:])
         create_dir(os.path.dirname(local_file))
 
         LOGGER.debug(
@@ -186,7 +215,7 @@ class RasterSrcTile(Tile):
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
-        chunk_size = (self._block_byte_size() * self._max_blocks(),)
+        chunk_size = self._block_byte_size() * self._max_blocks()
         with rasterio.Env(
             **GDAL_ENV,
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
@@ -203,7 +232,7 @@ class RasterSrcTile(Tile):
                 transform=transform,
                 width=width,
                 height=height,
-                warp_mem_limit=available_memory_per_process_mb(),
+                warp_mem_limit=int(available_memory_per_process_mb() / 4),
                 resampling=self.layer.resampling,
             )
 
@@ -448,7 +477,7 @@ class RasterSrcTile(Tile):
                 LOGGER.debug("Divisor doubled again for float64 data")
 
         # Multiple layers need more memory
-        divisor *= self.layer.band_count
+        divisor *= len(self.layer.input_bands)
 
         # Decrease block size if we have co-workers.
         # This way we can process more blocks in parallel.

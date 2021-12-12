@@ -1,9 +1,13 @@
+import os
 from typing import Any, Dict, List, Optional, Sequence
 
 import boto3
 
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import processify
 from gfw_pixetl.settings.globals import GLOBALS
+
+LOGGER = get_module_logger(__name__)
 
 
 def client_constructor(service: str, endpoint_url: Optional[str] = None):
@@ -29,7 +33,10 @@ get_secret_client = client_constructor(
 @processify
 def download_s3(bucket: str, key: str, dst: str) -> Dict[str, Any]:
     s3_client = get_s3_client()
-    return s3_client.download_file(bucket, key, dst)
+    resp = s3_client.download_file(bucket, key, dst)
+    if os.stat(dst).st_size == 0:
+        LOGGER.error("Call to download_file succeeded, but result is an empty file!")
+    return resp
 
 
 @processify

@@ -117,7 +117,7 @@ class Tile(ABC):
             self.rm_local_src(dst_format)
 
         uri = self.get_local_dst_uri(dst_format)
-        LOGGER.debug(f"Set Local Source URI: {uri}")
+        LOGGER.debug(f"Set local destination URI: {uri}")
         self.local_dst[dst_format] = RasterSource(uri)
 
     def get_local_dst_uri(self, dst_format) -> str:
@@ -128,7 +128,7 @@ class Tile(ABC):
 
         uri = os.path.join(prefix, f"{self.tile_id}.tif")
 
-        LOGGER.debug(f"Local Source URI: {uri}")
+        LOGGER.debug(f"Local destination URI: {uri}")
         return uri
 
     def create_gdal_geotiff(self) -> None:
