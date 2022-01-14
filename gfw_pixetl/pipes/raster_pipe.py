@@ -39,7 +39,10 @@ class RasterPipe(Pipe):
         return RasterSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
     def create_tiles(
-        self, overwrite: bool
+        self,
+        overwrite: bool,
+        remove_work: bool = True,
+        upload: bool = True,
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Raster Pipe."""
 
@@ -49,14 +52,17 @@ class RasterPipe(Pipe):
 
         GLOBALS.workers = max(self.tiles_to_process, 1)
 
-        pipe = (
-            tiles
-            | Stage(self.transform).setup(workers=GLOBALS.workers)
-            | self.upload_file
-            | self.delete_work_dir
-        )
+        pipe = tiles | Stage(self.transform).setup(workers=GLOBALS.workers)
+        if upload:
+            pipe = pipe | self.upload_file
+            LOGGER.debug("upload_file added to pipe")
+        if remove_work:
+            pipe = pipe | self.delete_work_dir
+            LOGGER.debug("delete_work_dir added to pipe")
 
-        tiles, skipped_tiles, failed_tiles, existing_tiles = self._process_pipe(pipe)
+        tiles, skipped_tiles, failed_tiles, existing_tiles = self._process_pipe(
+            pipe, upload=upload
+        )
 
         LOGGER.info("Finished Raster Pipe")
         return tiles, skipped_tiles, failed_tiles, existing_tiles

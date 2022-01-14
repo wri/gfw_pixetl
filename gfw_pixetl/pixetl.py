@@ -38,6 +38,16 @@ LOGGER = get_module_logger(__name__)
     default=False,
     help="Overwrite existing tile in output location",
 )
+@click.option(
+    "--skip_upload", is_flag=True, default=False, help="Do not upload output to S3"
+)
+@click.option(
+    "--skip_deletion",
+    is_flag=True,
+    default=False,
+    multiple=False,
+    help="Do not delete local output on completion",
+)
 @click.argument("layer_json", type=str)
 def cli(
     dataset: str,
@@ -45,6 +55,8 @@ def cli(
     subset: Optional[List[str]],
     overwrite: bool,
     layer_json: str,
+    skip_upload: bool,
+    skip_deletion: bool,
 ):
 
     layer_dict = json.loads(layer_json)
@@ -57,9 +69,7 @@ def cli(
 
     # Finally, actually process the layer
     tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
-        layer_def,
-        subset,
-        overwrite,
+        layer_def, subset, overwrite, skip_upload, skip_deletion
     )
 
     nb_tiles = len(tiles)
@@ -95,6 +105,8 @@ def pixetl(
     layer_def: LayerModel,
     subset: Optional[List[str]] = None,
     overwrite: bool = False,
+    skip_upload: bool = False,
+    skip_deletion: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
@@ -102,7 +114,9 @@ def pixetl(
         f"Start tile preparation for dataset {layer_def.dataset}, "
         f"version {layer_def.version}, grid {layer_def.grid}, "
         f"source type {layer_def.source_type}, field {layer_def.pixel_meaning}, "
-        f"with overwrite set to {overwrite}."
+        f"with overwrite set to {overwrite}, "
+        f"skip_upload set to {skip_upload}. "
+        f"and skip_deletion set to {skip_deletion}."
     )
 
     LOGGER.debug(f"Full layer_def: {layer_def.json()}")
@@ -124,16 +138,18 @@ def pixetl(
         pipe: Pipe = pipe_factory(layer, subset)
 
         tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
-            overwrite
+            overwrite, remove_work=not skip_deletion, upload=not skip_upload
         )
-        remove_work_directory(old_cwd, cwd)
-
+        os.chdir(old_cwd)
         return tiles, skipped_tiles, failed_tiles, existing_tiles
 
     except Exception as e:
-        remove_work_directory(old_cwd, cwd)
+        os.chdir(old_cwd)
         LOGGER.exception(e)
         raise
+    finally:
+        if not skip_deletion:
+            remove_work_directory(old_cwd, cwd)
 
 
 if __name__ == "__main__":
