@@ -116,19 +116,6 @@ def test_vector_layer():
     assert layer.order == "desc"
 
 
-def test_multi_source_layer_no_calc():
-    layer_dict = {
-        **minimal_layer_dict,
-        "source_uri": [
-            f"s3://{BUCKET}/{GEOJSON_NAME}",
-            f"s3://{BUCKET}/{GEOJSON_2_NAME}",
-        ],
-    }
-
-    with pytest.raises(ValidationError):
-        layers.layer_factory(LayerModel.parse_obj(layer_dict))
-
-
 def test_multi_source_layer():
     layer_dict = {
         **minimal_layer_dict,
