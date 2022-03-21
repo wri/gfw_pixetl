@@ -1,5 +1,5 @@
 parallelpipe
-psycopg2-binary==2.8.6
+psycopg2
 rasterio
 boto3
 pytest
