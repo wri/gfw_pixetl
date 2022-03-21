@@ -3,3 +3,4 @@ rasterio
 boto3
 pytest
 pre-commit
+psycopg2
