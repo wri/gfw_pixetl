@@ -23,6 +23,9 @@ To run the tile prep script:
 ```bash
 prep_tiles.py [-h]
               [--layer {loss,tcd,co2_pixel,primary_forest,ifl,gadm2,wdpa,plantations,logging,mining, etc.}]
+
+prep_tiles.py --layer FluxModelExtent,ForestAgeCategory,RemovalForestType
+prep_tiles.py --layer AnnualAbovegroundRemovalRateCarbon,AnnualBelowgroundRemovalRateCarbon,StdevAnnualAbovegroundRemovalsCarbon,GrossCumulAbovegroundRemovalsCo2,GrossCumulBelowgroundRemovalsCo2
 ```
 
 # Add new layers or update existing once
