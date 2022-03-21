@@ -1,5 +1,4 @@
 parallelpipe
-psycopg2
 rasterio
 boto3
 pytest
