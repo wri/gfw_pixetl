@@ -1,6 +1,6 @@
 parallelpipe
+psycopg2-binary==2.8.6
 rasterio
 boto3
 pytest
 pre-commit
-psycopg2
