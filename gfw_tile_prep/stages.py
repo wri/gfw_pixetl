@@ -196,7 +196,7 @@ def upload_file(tiles, **kwargs):
     for tile in tiles:
         tile_id = get_tile_id(tile)
         s3_path = target.format(protocol="s3:/", tile_id=tile_id)
-        cmd = ["aws", "s3", "cp", tile, s3_path]
+        cmd = ["aws", "s3", "cp", tile, s3_path, "--no-progress"]
         try:
             logging.info("Upload to " + s3_path)
             sp.check_call(cmd)
