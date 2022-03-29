@@ -19,6 +19,7 @@ grids: Dict[str, Grid] = {
     "8/32000": LatLngGrid(8, 32000),  # UMD alerts, ~30m pixel, data cube optimized Grid
     "90/27008": LatLngGrid(90, 27008),  # VIIRS Fire alerts, ~375m pixel
     "90/9984": LatLngGrid(90, 9984),  # MODIS Fire alerts, ~1000m pixel
+    "90/998": LatLngGrid(90, 998),  # TCL Drivers ~10km pixel?
 }
 
 for zoom in range(0, 23):
