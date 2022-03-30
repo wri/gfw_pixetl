@@ -47,16 +47,20 @@ def test_filter_subset_tiles(PIPE):
     assert i == len(SUBSET_1x1)
 
 
-def test_filter_target_tiles(PIPE, _upload_pipe_fixtures):
+def test_filter_target_tiles_all_existing_no_overwrite(PIPE, _upload_pipe_fixtures):
     tiles = _get_subset_tiles(PIPE)
-    pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
-    i = 0
-    for tile in pipe.results():
-        if tile.status == "pending":
-            i += 1
-            assert isinstance(tile, Tile)
-    assert i == 0
+    with mock.patch.object(Destination, "exists", return_value=True):
+        pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
+        i = 0
+        for tile in pipe.results():
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
+        assert i == 0
 
+
+def test_filter_target_tiles_no_existing_no_overwrite(PIPE, _upload_pipe_fixtures):
+    tiles = _get_subset_tiles(PIPE)
     with mock.patch.object(Destination, "exists", return_value=False):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
@@ -66,14 +70,21 @@ def test_filter_target_tiles(PIPE, _upload_pipe_fixtures):
                 assert isinstance(tile, Tile)
         assert i == 4
 
-    pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
-    i = 0
-    for tile in pipe.results():
-        if tile.status == "pending":
-            i += 1
-            assert isinstance(tile, Tile)
-    assert i == 4
 
+def test_filter_target_tiles_all_existing_overwrite(PIPE, _upload_pipe_fixtures):
+    tiles = _get_subset_tiles(PIPE)
+    with mock.patch.object(Destination, "exists", return_value=True):
+        pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
+        i = 0
+        for tile in pipe.results():
+            if tile.status == "pending":
+                i += 1
+                assert isinstance(tile, Tile)
+        assert i == 4
+
+
+def test_filter_target_tiles_no_existing_overwrite(PIPE, _upload_pipe_fixtures):
+    tiles = _get_subset_tiles(PIPE)
     with mock.patch.object(Destination, "exists", return_value=False):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=True)
         i = 0
@@ -83,13 +94,17 @@ def test_filter_target_tiles(PIPE, _upload_pipe_fixtures):
                 assert isinstance(tile, Tile)
         assert i == 4
 
-    pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
-    i = 0
-    for tile in pipe.results():
-        if tile.status == "existing":
-            i += 1
-            assert isinstance(tile, Tile)
-    assert i == 4
+
+def test_filter_target_tiles_all_existing_no_overwrite_positive(PIPE, _upload_pipe_fixtures):
+    tiles = _get_subset_tiles(PIPE)
+    with mock.patch.object(Destination, "exists", return_value=True):
+        pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
+        i = 0
+        for tile in pipe.results():
+            if tile.status == "existing":
+                i += 1
+                assert isinstance(tile, Tile)
+        assert i == 4
 
 
 def test_upload_file(PIPE):

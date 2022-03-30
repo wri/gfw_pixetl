@@ -90,7 +90,7 @@ class Pipe(ABC):
     @staticmethod
     @stage(workers=GLOBALS.num_processes)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
-        """Don't process tiles if they already exists in target location,
+        """Don't process tiles if they already exist in target location,
         unless overwrite is set to True."""
         for tile in tiles:
             if (
