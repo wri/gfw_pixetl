@@ -132,7 +132,8 @@ def run_gdal_subcommand(
         o = str(o_byte)
         e = str(e_byte)
 
-    if p.returncode != 0:
+    # sometimes GDAL returns exit code 0 even though there was actually an error
+    if p.returncode != 0 or "error" in e.lower():
         if p.returncode < 0:
             raise SubprocessKilledError()
         elif not e:

@@ -6,7 +6,7 @@ from dateutil.tz import tzutc
 from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
 
-from gfw_pixetl.errors import GDALNoneTypeError
+from gfw_pixetl.errors import GDALError, GDALNoneTypeError
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
@@ -137,8 +137,16 @@ def test_run_gdal_subcommand():
     try:
         cmd = ["/bin/bash", "-c", "exit 1"]
         run_gdal_subcommand(cmd)
+        assert False
     except GDALNoneTypeError as e:
         assert str(e) == ""
+
+    try:
+        cmd = ["/bin/bash", "-c", "echo ERROR"]
+        run_gdal_subcommand(cmd)
+        assert False
+    except GDALError as e:
+        assert str(e) == "ERROR"
 
 
 def test_intersection():
