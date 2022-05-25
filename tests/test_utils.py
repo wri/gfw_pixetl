@@ -142,11 +142,12 @@ def test_run_gdal_subcommand():
         assert str(e) == ""
 
     try:
-        cmd = ["/bin/bash", "-c", "echo ERROR"]
+        # write to stderr
+        cmd = ["/bin/bash", "-c", ">&2 echo ERROR"]
         run_gdal_subcommand(cmd)
         assert False
     except GDALError as e:
-        assert str(e) == "ERROR"
+        assert "ERROR" in str(e)
 
 
 def test_intersection():
