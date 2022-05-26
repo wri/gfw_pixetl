@@ -16,6 +16,7 @@ from gfw_pixetl.errors import (
     GDALError,
     GDALNoneTypeError,
     MissingGCSKeyError,
+    PGConnectionInterruptedError,
     retry_if_missing_gcs_key_error,
     retry_on_gdal_errors,
 )
