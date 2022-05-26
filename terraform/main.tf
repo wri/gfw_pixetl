@@ -18,7 +18,7 @@ module "container_registry" {
 module "compute_environment_ephemeral_storage" {
   source               = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=v0.4.2.2"
   project              = local.project
-  key_pair             = data.terraform_remote_state.core.outputs.key_pairs["dmannarino_gfw"]
+  key_pair             = data.terraform_remote_state.core.outputs.key_pairs["dmannarino_gfw"].key_name
   subnets              = data.terraform_remote_state.core.outputs.private_subnet_ids
   tags                 = local.tags
   security_group_ids   = [data.terraform_remote_state.core.outputs.default_security_group_id, data.terraform_remote_state.core.outputs.postgresql_security_group_id]
