@@ -32,12 +32,21 @@ class MissingGCSKeyError(Exception):
     pass
 
 
-def retry_if_none_type_error(exception) -> bool:
-    """Return True if we should retry (in this case when it's an IOError),
+class PGConnectionInterruptedError(Exception):
+    pass
+
+
+def retry_on_gdal_errors(exception) -> bool:
+    """Return True if we should retry (in this case when it's an IOError or connection error),
     False otherwise."""
     is_none_type_error: bool = isinstance(exception, GDALNoneTypeError)
+    is_connection_error: bool = isinstance(exception, PGConnectionInterruptedError)
+
     if is_none_type_error:
         LOGGER.warning("GDALNoneType exception - RETRY")
+    elif is_connection_error:
+        LOGGER.warning("PGConnectionInterruptedError exception - RETRY")
+
     return is_none_type_error
 
 

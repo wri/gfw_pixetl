@@ -6,7 +6,7 @@ from dateutil.tz import tzutc
 from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
 
-from gfw_pixetl.errors import GDALError, GDALNoneTypeError
+from gfw_pixetl.errors import GDALError, GDALNoneTypeError, PGConnectionInterruptedError
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
@@ -148,6 +148,13 @@ def test_run_gdal_subcommand():
         assert False
     except GDALError as e:
         assert "ERROR" in str(e)
+
+    try:
+        cmd = ["/bin/bash", "-c", ">&2 echo ERROR 1: SSL SYSCALL error"]
+        run_gdal_subcommand(cmd)
+        assert False
+    except PGConnectionInterruptedError as e:
+        assert "ERROR 1: SSL SYSCALL error" in str(e)
 
 
 def test_intersection():
