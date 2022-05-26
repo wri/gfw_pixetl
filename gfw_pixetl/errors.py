@@ -47,7 +47,7 @@ def retry_on_gdal_errors(exception) -> bool:
     elif is_connection_error:
         LOGGER.warning("PGConnectionInterruptedError exception - RETRY")
 
-    return is_none_type_error
+    return is_none_type_error or is_connection_error
 
 
 def retry_if_volume_not_ready(exception) -> bool:
