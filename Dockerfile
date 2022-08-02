@@ -1,4 +1,4 @@
-FROM osgeo/gdal:ubuntu-small-3.2.0
+FROM osgeo/gdal:ubuntu-small-3.5.1
 
 ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
@@ -34,5 +34,7 @@ RUN pip3 install -e .
 # be the mounting point for the external storage.
 # In AWS batch we will then mount host's /tmp directory as Docker volume's /tmp
 WORKDIR /tmp
+
+ENV PYTHONPATH=/usr/local/app
 
 ENTRYPOINT ["pixetl"]
