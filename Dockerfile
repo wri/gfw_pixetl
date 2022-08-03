@@ -17,7 +17,7 @@ WORKDIR ${DIR}
 
 COPY . .
 
-RUN pip3 install pipenv==2020.8.13 filelock==3.3.0 backports.entry-points-selectable==1.1.0 virtualenv==20.8.1
+RUN pip3 install pipenv virtualenv
 
 RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 	     echo "Install all dependencies" && \
