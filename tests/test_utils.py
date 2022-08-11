@@ -151,14 +151,14 @@ def test_run_gdal_subcommand_zero_exit_with_stderr():
     assert run_gdal_subcommand(cmd) == ("test\n", "")
 
     logger = logging.getLogger()
-    logger.warning = Mock(logger.warning)
-    MonkeyPatch().setattr(gfw_pixetl.utils.gdal, "get_module_logger", lambda: logger)
+    logger.warning = Mock()
+    MonkeyPatch().setattr(gfw_pixetl.utils.gdal, "LOGGER", logger)
 
     # write to stderr
-    cmd = ["/bin/bash", "-c", ">&2 echo ERROR"]
+    cmd = ["/bin/bash", "-c", ">&2 echo ERROR 1: SSL SYSCALL"]
     o, e = run_gdal_subcommand(cmd)
 
-    assert "ERROR" in e
+    assert "ERROR 1: SSL SYSCALL" in str(e)
     assert logger.warning.called is True
 
 
