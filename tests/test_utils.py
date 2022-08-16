@@ -1,12 +1,15 @@
+import logging
 import os
 from datetime import datetime
+from unittest.mock import Mock
 
 import rasterio
 from dateutil.tz import tzutc
 from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
 
-from gfw_pixetl.errors import GDALError, GDALNoneTypeError, PGConnectionInterruptedError
+import gfw_pixetl.utils.gdal
+from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
@@ -18,6 +21,7 @@ from gfw_pixetl.utils.utils import (
     intersection,
     world_bounds,
 )
+from _pytest.monkeypatch import MonkeyPatch
 from tests.conftest import BUCKET, TILE_1_NAME, TILE_2_NAME
 from tests.utils import compare_multipolygons
 
@@ -130,7 +134,7 @@ def test_get_aws_s3_endpoint():
     assert get_aws_s3_endpoint("motoserver:5000") == "motoserver:5000"
 
 
-def test_run_gdal_subcommand():
+def test_run_gdal_subcommand_nonzero_exit():
     cmd = ["/bin/bash", "-c", "echo test"]
     assert run_gdal_subcommand(cmd) == ("test\n", "")
 
@@ -141,20 +145,21 @@ def test_run_gdal_subcommand():
     except GDALNoneTypeError as e:
         assert str(e) == ""
 
-    try:
-        # write to stderr
-        cmd = ["/bin/bash", "-c", ">&2 echo ERROR"]
-        run_gdal_subcommand(cmd)
-        assert False
-    except GDALError as e:
-        assert "ERROR" in str(e)
 
-    try:
-        cmd = ["/bin/bash", "-c", ">&2 echo ERROR 1: SSL SYSCALL error"]
-        run_gdal_subcommand(cmd)
-        assert False
-    except PGConnectionInterruptedError as e:
-        assert "ERROR 1: SSL SYSCALL error" in str(e)
+def test_run_gdal_subcommand_zero_exit_with_stderr():
+    cmd = ["/bin/bash", "-c", "echo test"]
+    assert run_gdal_subcommand(cmd) == ("test\n", "")
+
+    logger = logging.getLogger()
+    logger.warning = Mock()
+    MonkeyPatch().setattr(gfw_pixetl.utils.gdal, "LOGGER", logger)
+
+    # write to stderr
+    cmd = ["/bin/bash", "-c", ">&2 echo ERROR 1: SSL SYSCALL"]
+    o, e = run_gdal_subcommand(cmd)
+
+    assert "ERROR 1: SSL SYSCALL" in str(e)
+    assert logger.warning.called is True
 
 
 def test_intersection():
