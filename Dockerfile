@@ -6,8 +6,12 @@ ENV LANG=C.UTF-8
 
 ARG ENV
 
-RUN apt update -y && apt install -y python3-pip libpq-dev ca-certificates \
-    postgresql-client-12
+RUN apt-get update -y \
+     && apt-get install --no-install-recommends -y python3-pip libpq-dev ca-certificates \
+      postgresql-client-12 gcc python3-dev \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/*
+
 RUN update-ca-certificates
 RUN mkdir -p /etc/pki/tls/certs
 RUN cp /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
