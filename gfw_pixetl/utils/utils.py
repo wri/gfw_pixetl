@@ -223,13 +223,15 @@ def union(
     return geom
 
 
-def enumerate_bands(num_bands: int):
+def enumerate_bands(num_bands: int) -> List[str]:
     """Return a variable name for each of num_bands."""
 
     def count_with_letters():
         """Generate an infinite sequence of strings of uppercase letters
-        corresponding to numbers in base 26 Taken from
-        https://stackoverflow.com/a/29351603."""
+        corresponding to numbers in base 26.
+
+        Taken from https://stackoverflow.com/a/29351603.
+        """
         for size in itertools.count(1):
             for letters in itertools.product(string.ascii_uppercase, repeat=size):
                 yield "".join(letters)

@@ -1,9 +1,11 @@
 import logging
 import os
+import string
 from datetime import datetime
 from unittest.mock import Mock
 
 import rasterio
+from _pytest.monkeypatch import MonkeyPatch
 from dateutil.tz import tzutc
 from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
@@ -17,11 +19,11 @@ from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
+    enumerate_bands,
     get_bucket,
     intersection,
     world_bounds,
 )
-from _pytest.monkeypatch import MonkeyPatch
 from tests.conftest import BUCKET, TILE_1_NAME, TILE_2_NAME
 from tests.utils import compare_multipolygons
 
@@ -215,3 +217,10 @@ def test_intersection():
     inters3 = intersection(multi6, multi7)
     expected_inters = MultiPolygon([Polygon([(1, 0), (1, 1), (2, 1), (2, 0)])])
     compare_multipolygons(inters3, expected_inters)
+
+
+def test_enumerate_bands():
+    assert enumerate_bands(1) == ["A"]
+    assert enumerate_bands(26) == [x for x in string.ascii_uppercase]
+    assert len(enumerate_bands(27)) == 27
+    assert enumerate_bands(27)[-1] == "AA"
