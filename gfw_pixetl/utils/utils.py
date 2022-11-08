@@ -3,6 +3,7 @@ import itertools
 import os
 import string
 import uuid
+from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -143,7 +144,7 @@ def available_memory_per_process_mb() -> float:
 
 
 def get_co_workers() -> int:
-    return max(GLOBALS.num_processes / GLOBALS.workers, 1)
+    return floor(GLOBALS.num_processes / GLOBALS.workers)
 
 
 def snapped_window(window: Window):
@@ -225,6 +226,11 @@ def union(
 
 def enumerate_bands(num_bands: int) -> List[str]:
     """Return a variable name for each of num_bands."""
+
+    if not isinstance(num_bands, int):
+        raise ValueError(
+            "num_bands must be an int... you're asking for an infinite loop!"
+        )
 
     def count_with_letters():
         """Generate an infinite sequence of strings of uppercase letters

@@ -4,6 +4,7 @@ import string
 from datetime import datetime
 from unittest.mock import Mock
 
+import pytest
 import rasterio
 from _pytest.monkeypatch import MonkeyPatch
 from dateutil.tz import tzutc
@@ -219,8 +220,23 @@ def test_intersection():
     compare_multipolygons(inters3, expected_inters)
 
 
-def test_enumerate_bands():
+def test_enumerate_bands_simple_case_1():
     assert enumerate_bands(1) == ["A"]
+
+
+def test_enumerate_bands_verify_1_through_26():
     assert enumerate_bands(26) == [x for x in string.ascii_uppercase]
+
+
+def test_enumerate_bands_more_than_26():
     assert len(enumerate_bands(27)) == 27
     assert enumerate_bands(27)[-1] == "AA"
+
+
+def test_enumerate_bands_unique():
+    assert len(set([x for x in enumerate_bands(67)])) == 67
+
+
+def test_enumerate_bands_invalid_num_bands():
+    with pytest.raises(ValueError):
+        enumerate_bands(None)  # noqa
