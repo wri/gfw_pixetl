@@ -1,5 +1,7 @@
 import datetime
+import itertools
 import os
+import string
 import uuid
 from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -54,7 +56,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
     # c = x-coordinate of the upper-left corner of the upper-left pixel
     # d = column rotation (typically zero)
     # e = height of a pixel (typically negative)
-    # f = y-coordinate of the of the upper-left corner of the upper-left pixel
+    # f = y-coordinate of the upper-left corner of the upper-left pixel
 
     profile = {
         "driver": "GTiff",
@@ -220,3 +222,27 @@ def union(
             geom = MultiPolygon([geom])
 
     return geom
+
+
+def enumerate_bands(num_bands: int) -> List[str]:
+    """Return a variable name for each of num_bands."""
+
+    if not isinstance(num_bands, int):
+        raise ValueError(
+            "num_bands must be an int... you're asking for an infinite loop!"
+        )
+
+    def count_with_letters():
+        """Generate an infinite sequence of strings of uppercase letters
+        corresponding to numbers in base 26.
+
+        Taken from https://stackoverflow.com/a/29351603.
+        """
+        for size in itertools.count(1):
+            for letters in itertools.product(string.ascii_uppercase, repeat=size):
+                yield "".join(letters)
+
+    band_names: List[str] = list()
+    for s in itertools.islice(count_with_letters(), num_bands):
+        band_names.append(s)
+    return band_names

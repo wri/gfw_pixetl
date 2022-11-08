@@ -1,5 +1,4 @@
 import os
-import string
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from math import floor, sqrt
@@ -37,7 +36,7 @@ from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
-from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
+from gfw_pixetl.utils.utils import create_empty_file, enumerate_bands, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -377,7 +376,8 @@ class RasterSrcTile(Tile):
                         # Figure out what it means to fail, and fix the window
                         # generating code in this function
                         LOGGER.warning(
-                            f"Bogus window generated for tile {self.tile_id}! i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
+                            f"Bogus window generated for tile {self.tile_id}! "
+                            f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
                         )
                     elif not (str(e) == "windows do not intersect"):
                         raise
@@ -397,9 +397,11 @@ class RasterSrcTile(Tile):
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
         """Apply user defined calculation on array."""
         if self.layer.calc:
-            # Assign upper case letters in alphabetic order to each band
-            bands = ", ".join(string.ascii_uppercase[: len(array)])
-            funcstr = f"def f({bands}) -> MaskedArray:\n    return {self.layer.calc}"
+            # Assign a variable name to each band
+            band_names = ", ".join(enumerate_bands(len(array)))
+            funcstr = (
+                f"def f({band_names}) -> MaskedArray:\n    return {self.layer.calc}"
+            )
             LOGGER.debug(
                 f"Apply function {funcstr} on block {dst_window} of tile {self.tile_id}"
             )
@@ -624,9 +626,9 @@ class RasterSrcTile(Tile):
         return union(*windows)
 
     def _write_window(
-        self, array: np.ndarray, dst_window: Window, write_to_seperate_files: bool
+        self, array: np.ndarray, dst_window: Window, write_to_separate_files: bool
     ) -> str:
-        if write_to_seperate_files:
+        if write_to_separate_files:
             out_file: str = self._write_window_to_separate_file(array, dst_window)
         else:
             out_file = self._write_window_to_shared_file(array, dst_window)
