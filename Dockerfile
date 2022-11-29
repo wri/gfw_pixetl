@@ -7,8 +7,8 @@ ENV LANG=C.UTF-8
 ARG ENV
 
 RUN apt-get update -y \
-     && apt-get install --no-install-recommends -y python3-pip libpq-dev ca-certificates \
-      postgresql-client-12 gcc python3-dev \
+     && apt-get install --no-install-recommends -y python3-pip libpq-dev \
+      ca-certificates postgresql-client-14 gcc python3-dev curl git \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
