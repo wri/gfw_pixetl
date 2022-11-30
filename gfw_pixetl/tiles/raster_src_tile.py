@@ -454,7 +454,7 @@ class RasterSrcTile(Tile):
 
         # Decrease block size if we have co-workers.
         # This way we can process more blocks in parallel.
-        co_workers = floor(GLOBALS.num_processes / GLOBALS.workers)
+        co_workers = get_co_workers()
         if co_workers >= 2:
             divisor *= co_workers
             LOGGER.debug("Divisor multiplied for multiple workers")
@@ -470,11 +470,11 @@ class RasterSrcTile(Tile):
         memory_per_process: float = available_memory_per_process_bytes() / divisor
 
         # make sure we get a number whose sqrt is a whole number
-        max_blocks: int = floor(sqrt(memory_per_process / block_byte_size)) ** 2
+        max_blocks: int = max(1, floor(sqrt(memory_per_process / block_byte_size)) ** 2)
 
         LOGGER.debug(
             f"Maximum number of blocks for tile {self.tile_id} to read at once: {max_blocks}. "
-            f"Expected max chunk size: {max_blocks * block_byte_size}."
+            f"Expected max chunk size: {max_blocks * block_byte_size} B."
         )
 
         return max_blocks
