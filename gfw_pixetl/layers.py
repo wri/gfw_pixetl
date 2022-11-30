@@ -1,6 +1,5 @@
 import json
 import os
-import string
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -22,7 +21,7 @@ from .settings.globals import GLOBALS
 from .utils.aws import get_aws_files, get_s3_client
 from .utils.geometry import generate_feature_collection
 from .utils.google import get_gs_files
-from .utils.utils import DummyTile, intersection, union
+from .utils.utils import DummyTile, enumerate_bands, intersection, union
 
 LOGGER = get_module_logger(__name__)
 
@@ -219,8 +218,9 @@ class RasterSrcLayer(Layer):
                     )
 
                 for i in range(file_band_count):
+                    band_name: str = enumerate_bands(i)[-1]
                     LOGGER.info(
-                        f"Adding {file_uri} (band {i+1}) to input band {string.ascii_uppercase[len(input_bands) + i]}"
+                        f"Adding {file_uri} (band {i+1}) as input band {band_name}"
                     )
                     element = InputBandElement(
                         geometry=geometry, uri=file_uri, band=i + 1
