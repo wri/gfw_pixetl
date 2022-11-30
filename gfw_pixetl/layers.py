@@ -218,7 +218,7 @@ class RasterSrcLayer(Layer):
                     )
 
                 for i in range(file_band_count):
-                    band_name: str = enumerate_bands(i)[-1]
+                    band_name: str = enumerate_bands(i + 1)[-1]
                     LOGGER.info(
                         f"Adding {file_uri} (band {i+1}) as input band {band_name}"
                     )
