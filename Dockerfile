@@ -21,7 +21,7 @@ WORKDIR ${DIR}
 
 COPY . .
 
-RUN pip3 install pipenv virtualenv
+RUN pip3 install pipenv==v2022.11.30
 
 RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 	     echo "Install all dependencies" && \
