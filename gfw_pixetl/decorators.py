@@ -79,9 +79,7 @@ def processify(func):
             raise SubprocessKilledError("Process was killed")
         elif error:
             ex_type, ex_value, tb_str = error
-            message = "%s (in subprocess)\n%s" % (str(ex_value), tb_str)
-            raise ex_type(message)
-
+            raise ex_value
         return ret
 
     return wrapper
