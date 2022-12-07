@@ -15,7 +15,7 @@ boto3 = "*"
 click = "*"
 geojson = "*"
 google-cloud-storage = "*"
-parallelpipe = {editable = true,git = "https://github.com/wri/parallelpipe.git",ref = "fix_for_python_3.8"}
+parallelpipe = "*"
 psutil = "*"
 psycopg2 = "*"
 pydantic = "*"
