@@ -372,14 +372,17 @@ class RasterSrcTile(Tile):
                 window = self._union_blocks(dst, i, j, max_i, max_j)
                 try:
                     yield snapped_window(window.intersection(self.intersecting_window))
-                except rasterio.errors.WindowError:
-                    # FIXME: This check was introduced recently in rasterio
-                    # Figure out what it means to fail, and fix the window
-                    # generating code in this function
-                    LOGGER.warning(
-                        f"Bogus window generated for tile {self.tile_id}! "
-                        f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
-                    )
+                except rasterio.errors.WindowError as e:
+                    if "Bounds and transform are inconsistent" in str(e):
+                        # FIXME: This check was introduced recently in rasterio
+                        # Figure out what it means to fail, and fix the window
+                        # generating code in this function
+                        LOGGER.warning(
+                            f"Bogus window generated for tile {self.tile_id}! "
+                            f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
+                        )
+                    elif not (str(e) == "windows do not intersect"):
+                        raise
 
     def _block_has_data(self, band_arrays: MaskedArray) -> bool:
         """Check if current block has any data."""
