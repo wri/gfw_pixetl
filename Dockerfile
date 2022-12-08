@@ -1,4 +1,4 @@
-FROM osgeo/gdal:ubuntu-small-3.2.0
+FROM osgeo/gdal:ubuntu-small-3.6.0
 
 ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
@@ -6,8 +6,12 @@ ENV LANG=C.UTF-8
 
 ARG ENV
 
-RUN apt update -y && apt install -y python3-pip libpq-dev ca-certificates \
-    postgresql-client-12
+RUN apt-get update -y \
+     && apt-get install --no-install-recommends -y python3-pip libpq-dev \
+      ca-certificates postgresql-client-14 gcc python3-dev curl git \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/*
+
 RUN update-ca-certificates
 RUN mkdir -p /etc/pki/tls/certs
 RUN cp /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
@@ -17,7 +21,7 @@ WORKDIR ${DIR}
 
 COPY . .
 
-RUN pip3 install pipenv==2020.8.13 filelock==3.3.0 backports.entry-points-selectable==1.1.0 virtualenv==20.8.1
+RUN pip3 install pipenv==v2022.11.30
 
 RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 	     echo "Install all dependencies" && \
@@ -34,5 +38,7 @@ RUN pip3 install -e .
 # be the mounting point for the external storage.
 # In AWS batch we will then mount host's /tmp directory as Docker volume's /tmp
 WORKDIR /tmp
+
+ENV PYTHONPATH=/usr/local/app
 
 ENTRYPOINT ["pixetl"]
