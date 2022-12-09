@@ -16,7 +16,6 @@ from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
-from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
@@ -123,18 +122,9 @@ def test_world_bounds():
     crs = CRS(3857)
     left, bottom, right, top = world_bounds(crs)
     assert left == -20037508.342789244
-    assert bottom == -20048966.1040146
+    assert bottom == -20048966.104014594
     assert right == 20037508.342789244
     assert top == 20048966.104014594
-
-
-def test_get_aws_s3_endpoint():
-    """get_endpoint_url should optionally return server name without
-    protocol."""
-
-    assert get_aws_s3_endpoint(None) is None
-    assert get_aws_s3_endpoint("http://motoserver:5000") == "motoserver:5000"
-    assert get_aws_s3_endpoint("motoserver:5000") == "motoserver:5000"
 
 
 def test_run_gdal_subcommand_nonzero_exit():

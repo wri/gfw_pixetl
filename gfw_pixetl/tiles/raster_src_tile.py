@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 import numpy as np
 import rasterio
 from numpy.ma import MaskedArray
-from rasterio.errors import WindowError
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
@@ -76,7 +75,8 @@ class RasterSrcTile(Tile):
                     input_elements.append(input_file)
             if band and not input_elements:
                 LOGGER.debug(
-                    f"No input files found for tile {self.tile_id} in band {i}, padding VRT with empty file"
+                    f"No input files found for tile {self.tile_id} "
+                    f"in band {i}, padding VRT with empty file"
                 )
                 # But we need to know the profile of the tile's siblings in this band.
                 _, profile = fetch_metadata(band[0].uri)
@@ -130,7 +130,8 @@ class RasterSrcTile(Tile):
         top = min(dst_top, src_top)
 
         LOGGER.debug(
-            f"Final bounds for window for tile {self.tile_id}: Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
+            f"Final bounds for window for tile {self.tile_id}: "
+            f"Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
         )
 
         try:
@@ -141,7 +142,7 @@ class RasterSrcTile(Tile):
                 top,
                 transform=self.dst[self.default_format].transform,
             )
-        except WindowError:
+        except rasterio.errors.WindowError:
             LOGGER.error(
                 f"WindowError encountered for tile {self.tile_id} with "
                 f"transform {self.dst[self.default_format].transform} "
@@ -149,6 +150,7 @@ class RasterSrcTile(Tile):
                 f"and DST bounds {dst_left, dst_bottom, dst_right, dst_top}"
             )
             raise
+
         return snapped_window(window)
 
     def within(self) -> bool:
@@ -371,7 +373,8 @@ class RasterSrcTile(Tile):
                 try:
                     yield snapped_window(window.intersection(self.intersecting_window))
                 except rasterio.errors.WindowError as e:
-                    if "Bounds and transform are inconsistent" in str(e):
+                    e_str = str(e)
+                    if "Bounds and transform are inconsistent" in e_str:
                         # FIXME: This check was introduced recently in rasterio
                         # Figure out what it means to fail, and fix the window
                         # generating code in this function
@@ -379,7 +382,16 @@ class RasterSrcTile(Tile):
                             f"Bogus window generated for tile {self.tile_id}! "
                             f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
                         )
-                    elif not (str(e) == "windows do not intersect"):
+                    elif "Intersection is empty Window" in e_str:
+                        # Seems harmless to skip empty windows we generate
+                        continue
+                    elif "windows do not intersect" in e_str:
+                        # Hmm, should this happen? Log for further investigation
+                        LOGGER.warning(
+                            f"Non-intersecting windows generated for tile {self.tile_id}! "
+                            f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
+                        )
+                    else:
                         raise
 
     def _block_has_data(self, band_arrays: MaskedArray) -> bool:
