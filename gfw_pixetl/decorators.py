@@ -78,7 +78,7 @@ def processify(func):
         if untimely_death:
             raise SubprocessKilledError("Process was killed")
         elif error:
-            ex_type, ex_value, tb_str = error
+            _, ex_value, _ = error
             raise ex_value
         return ret
 
