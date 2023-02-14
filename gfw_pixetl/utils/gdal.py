@@ -16,8 +16,9 @@ from gfw_pixetl.errors import (
     GDALError,
     GDALNoneTypeError,
     MissingGCSKeyError,
+    PGConnectionInterruptedError,
     retry_if_missing_gcs_key_error,
-    retry_if_none_type_error,
+    retry_on_gdal_errors,
 )
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.pydantic import Band, BandStats, Histogram, Metadata
@@ -106,7 +107,7 @@ def just_copy_geotiff(src_uri, dst_uri, profile):
 
 
 @retry(
-    retry_on_exception=retry_if_none_type_error,
+    retry_on_exception=retry_on_gdal_errors,
     stop_max_attempt_number=7,
     wait_fixed=2000,
 )
@@ -132,7 +133,15 @@ def run_gdal_subcommand(
         o = str(o_byte)
         e = str(e_byte)
 
-    if p.returncode != 0:
+    # Sometimes GDAL returns exit code 0 even though there was actually an error
+    # It's hard to tell what is and what isn't though, so log as a warning
+    if p.returncode == 0 and "error" in e.lower():
+        LOGGER.warning(
+            'Word "error" found in stderr but exit code was 0. '
+            f'command: {cmd} '
+            f'stderr: {e}'
+        )
+    elif p.returncode != 0:
         if p.returncode < 0:
             raise SubprocessKilledError()
         elif not e:
@@ -144,6 +153,8 @@ def run_gdal_subcommand(
             raise GDALAWSConfigError(e)
         elif "ERROR 3: Load json file" in e or "GOOGLE_APPLICATION_CREDENTIALS" in e:
             raise MissingGCSKeyError(e)
+        elif "ERROR 1: SSL SYSCALL error" in e:
+            raise PGConnectionInterruptedError(e)
         else:
             raise GDALError(e)
 

@@ -1,19 +1,25 @@
+import logging
 import os
+import string
 from datetime import datetime
+from unittest.mock import Mock
 
+import pytest
 import rasterio
+from _pytest.monkeypatch import MonkeyPatch
 from dateutil.tz import tzutc
 from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
 
+import gfw_pixetl.utils.gdal
 from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
-from gfw_pixetl.utils.path import get_aws_s3_endpoint
 from gfw_pixetl.utils.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
+    enumerate_bands,
     get_bucket,
     intersection,
     world_bounds,
@@ -116,29 +122,37 @@ def test_world_bounds():
     crs = CRS(3857)
     left, bottom, right, top = world_bounds(crs)
     assert left == -20037508.342789244
-    assert bottom == -20048966.1040146
+    assert bottom == -20048966.104014594
     assert right == 20037508.342789244
     assert top == 20048966.104014594
 
 
-def test_get_aws_s3_endpoint():
-    """get_endpoint_url should optionally return server name without
-    protocol."""
-
-    assert get_aws_s3_endpoint(None) is None
-    assert get_aws_s3_endpoint("http://motoserver:5000") == "motoserver:5000"
-    assert get_aws_s3_endpoint("motoserver:5000") == "motoserver:5000"
-
-
-def test_run_gdal_subcommand():
+def test_run_gdal_subcommand_nonzero_exit():
     cmd = ["/bin/bash", "-c", "echo test"]
     assert run_gdal_subcommand(cmd) == ("test\n", "")
 
     try:
         cmd = ["/bin/bash", "-c", "exit 1"]
         run_gdal_subcommand(cmd)
+        assert False
     except GDALNoneTypeError as e:
         assert str(e) == ""
+
+
+def test_run_gdal_subcommand_zero_exit_with_stderr():
+    cmd = ["/bin/bash", "-c", "echo test"]
+    assert run_gdal_subcommand(cmd) == ("test\n", "")
+
+    logger = logging.getLogger()
+    logger.warning = Mock()
+    MonkeyPatch().setattr(gfw_pixetl.utils.gdal, "LOGGER", logger)
+
+    # write to stderr
+    cmd = ["/bin/bash", "-c", ">&2 echo ERROR 1: SSL SYSCALL"]
+    o, e = run_gdal_subcommand(cmd)
+
+    assert "ERROR 1: SSL SYSCALL" in str(e)
+    assert logger.warning.called is True
 
 
 def test_intersection():
@@ -194,3 +208,25 @@ def test_intersection():
     inters3 = intersection(multi6, multi7)
     expected_inters = MultiPolygon([Polygon([(1, 0), (1, 1), (2, 1), (2, 0)])])
     compare_multipolygons(inters3, expected_inters)
+
+
+def test_enumerate_bands_simple_case_1():
+    assert enumerate_bands(1) == ["A"]
+
+
+def test_enumerate_bands_verify_1_through_26():
+    assert enumerate_bands(26) == [x for x in string.ascii_uppercase]
+
+
+def test_enumerate_bands_more_than_26():
+    assert len(enumerate_bands(27)) == 27
+    assert enumerate_bands(27)[-1] == "AA"
+
+
+def test_enumerate_bands_unique():
+    assert len(set([x for x in enumerate_bands(67)])) == 67
+
+
+def test_enumerate_bands_invalid_num_bands():
+    with pytest.raises(ValueError):
+        enumerate_bands(None)  # noqa

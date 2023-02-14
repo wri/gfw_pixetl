@@ -166,40 +166,6 @@ def test_layer_model_multi_band_no_data_different():
         )
 
 
-def test_layer_model_multi_band_no_calc_multi_output():
-    # no calc, multi band output
-    with pytest.raises(ValidationError):
-        LayerModel(
-            dataset="test",
-            version="v1.1.1",
-            source_type=SourceType.raster,
-            pixel_meaning="test",
-            data_type=DataTypeEnum.uint8,
-            nbits=6,
-            no_data=0,
-            band_count=3,
-            grid="10/40000",
-            source_uri=["s3://test/tiles.geojson"],
-        )
-
-
-def test_layer_model_multi_band_no_calc_multi_input():
-    # no calc,  multi band input
-    with pytest.raises(ValidationError):
-        LayerModel(
-            dataset="test",
-            version="v1.1.1",
-            source_type=SourceType.raster,
-            pixel_meaning="test",
-            data_type=DataTypeEnum.uint8,
-            nbits=6,
-            no_data=0,
-            band_count=1,
-            grid="10/40000",
-            source_uri=["s3://test/tiles.geojson", "s3://test/tiles.geojson"],
-        )
-
-
 def test_layer_model_multi_band_output_multi_no_data():
     LayerModel(
         dataset="test",

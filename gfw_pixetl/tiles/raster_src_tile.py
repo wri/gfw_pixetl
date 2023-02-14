@@ -1,5 +1,4 @@
 import os
-import string
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from math import floor, sqrt
@@ -9,7 +8,6 @@ from urllib.parse import urlparse
 import numpy as np
 import rasterio
 from numpy.ma import MaskedArray
-from rasterio.errors import WindowError
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
@@ -37,7 +35,7 @@ from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
-from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
+from gfw_pixetl.utils.utils import create_empty_file, enumerate_bands, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -97,7 +95,8 @@ class RasterSrcTile(Tile):
                     input_elements.append(input_file)
             if band and not input_elements:
                 LOGGER.debug(
-                    f"No input files found for tile {self.tile_id} in band {i}, padding VRT with empty file"
+                    f"No input files found for tile {self.tile_id} "
+                    f"in band {i}, padding VRT with empty file"
                 )
                 # But we need to know the profile of the tile's siblings in this band.
                 _, profile = fetch_metadata(band[0].uri)
@@ -160,7 +159,8 @@ class RasterSrcTile(Tile):
         top = min(dst_top, src_top)
 
         LOGGER.debug(
-            f"Final bounds for window for tile {self.tile_id}: Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
+            f"Final bounds for window for tile {self.tile_id}: "
+            f"Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
         )
 
         try:
@@ -171,7 +171,7 @@ class RasterSrcTile(Tile):
                 top,
                 transform=self.dst[self.default_format].transform,
             )
-        except WindowError:
+        except rasterio.errors.WindowError:
             LOGGER.error(
                 f"WindowError encountered for tile {self.tile_id} with "
                 f"transform {self.dst[self.default_format].transform} "
@@ -179,6 +179,7 @@ class RasterSrcTile(Tile):
                 f"and DST bounds {dst_left, dst_bottom, dst_right, dst_top}"
             )
             raise
+
         return snapped_window(window)
 
     def within(self) -> bool:
@@ -401,14 +402,25 @@ class RasterSrcTile(Tile):
                 try:
                     yield snapped_window(window.intersection(self.intersecting_window))
                 except rasterio.errors.WindowError as e:
-                    if "Bounds and transform are inconsistent" in str(e):
+                    e_str = str(e)
+                    if "Bounds and transform are inconsistent" in e_str:
                         # FIXME: This check was introduced recently in rasterio
                         # Figure out what it means to fail, and fix the window
                         # generating code in this function
                         LOGGER.warning(
-                            f"Bogus window generated for tile {self.tile_id}! i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
+                            f"Bogus window generated for tile {self.tile_id}! "
+                            f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
                         )
-                    elif not (str(e) == "windows do not intersect"):
+                    elif "Intersection is empty Window" in e_str:
+                        # Seems harmless to skip empty windows we generate
+                        continue
+                    elif "windows do not intersect" in e_str:
+                        # Hmm, should this happen? Log for further investigation
+                        LOGGER.warning(
+                            f"Non-intersecting windows generated for tile {self.tile_id}! "
+                            f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
+                        )
+                    else:
                         raise
 
     def _block_has_data(self, band_arrays: MaskedArray) -> bool:
@@ -426,9 +438,11 @@ class RasterSrcTile(Tile):
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
         """Apply user defined calculation on array."""
         if self.layer.calc:
-            # Assign upper case letters in alphabetic order to each band
-            bands = ", ".join(string.ascii_uppercase[: len(array)])
-            funcstr = f"def f({bands}) -> MaskedArray:\n    return {self.layer.calc}"
+            # Assign a variable name to each band
+            band_names = ", ".join(enumerate_bands(len(array)))
+            funcstr = (
+                f"def f({band_names}) -> MaskedArray:\n    return {self.layer.calc}"
+            )
             LOGGER.debug(
                 f"Apply function {funcstr} on block {dst_window} of tile {self.tile_id}"
             )
@@ -481,7 +495,7 @@ class RasterSrcTile(Tile):
 
         # Decrease block size if we have co-workers.
         # This way we can process more blocks in parallel.
-        co_workers = floor(GLOBALS.num_processes / GLOBALS.workers)
+        co_workers = get_co_workers()
         if co_workers >= 2:
             divisor *= co_workers
             LOGGER.debug("Divisor multiplied for multiple workers")
@@ -497,11 +511,11 @@ class RasterSrcTile(Tile):
         memory_per_process: float = available_memory_per_process_bytes() / divisor
 
         # make sure we get a number whose sqrt is a whole number
-        max_blocks: int = floor(sqrt(memory_per_process / block_byte_size)) ** 2
+        max_blocks: int = max(1, floor(sqrt(memory_per_process / block_byte_size)) ** 2)
 
         LOGGER.debug(
             f"Maximum number of blocks for tile {self.tile_id} to read at once: {max_blocks}. "
-            f"Expected max chunk size: {max_blocks * block_byte_size}."
+            f"Expected max chunk size: {max_blocks * block_byte_size} B."
         )
 
         return max_blocks
@@ -653,9 +667,9 @@ class RasterSrcTile(Tile):
         return union(*windows)
 
     def _write_window(
-        self, array: np.ndarray, dst_window: Window, write_to_seperate_files: bool
+        self, array: np.ndarray, dst_window: Window, write_to_separate_files: bool
     ) -> str:
-        if write_to_seperate_files:
+        if write_to_separate_files:
             out_file: str = self._write_window_to_separate_file(array, dst_window)
         else:
             out_file = self._write_window_to_shared_file(array, dst_window)

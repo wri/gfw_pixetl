@@ -64,10 +64,6 @@ class LayerModel(BaseModel):
     def validate_source_uri(cls, v, values, **kwargs):
         if values.get("source_type") == SourceType.raster:
             assert v, "Raster source types require source_uri"
-            if len(v) > 1:
-                assert values.get(
-                    "calc"
-                ), "More than one source_uri requires a calc string"
         else:
             assert not v, "Only raster source type require source_uri"
         return v
@@ -79,14 +75,6 @@ class LayerModel(BaseModel):
                 values.get("band_count")
             ), f"Length of no data list ({v}) must match band count ({values.get('band_count')})."
             assert len(set(v)) == 1, "No data values must be the same for all bands"
-        return v
-
-    @validator("band_count")
-    def validate_band_count(cls, v, values, **kwargs):
-        if v > 1:
-            assert values.get(
-                "calc"
-            ), "Output raster with more than one band requires a calc string"
         return v
 
 

@@ -4,9 +4,6 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-black = "==21.9b0"  # Pin to avoid having to allow pre-releases
-detect-secrets = "*"
-flake8 = "*"
 moto = "*"
 pre-commit = "*"
 pytest = "*"
@@ -23,7 +20,7 @@ psutil = "*"
 psycopg2 = "*"
 pydantic = "*"
 pyproj = "*"
-rasterio = "==1.2.0"
+rasterio = "==1.3.4"  # Upgrade carefully
 retrying = "*"
 PyYAML = "*"
 Shapely = "*"
@@ -31,4 +28,4 @@ SQLAlchemy = "*"
 typer = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.10"
