@@ -121,7 +121,6 @@ class RasterSrcTile(Tile):
         parts = urlparse(path)
 
         local_uri = os.path.join(self.work_dir, "input", parts.netloc, parts.path[1:])
-        # create_dir(os.path.dirname(local_file))
 
         return local_uri
 

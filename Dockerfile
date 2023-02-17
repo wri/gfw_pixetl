@@ -1,4 +1,7 @@
 FROM osgeo/gdal:ubuntu-small-3.6.1
+LABEL desc="Docker image with Pixetl and dependencies"
+LABEL version="v1.7.4"
+
 
 ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
