@@ -1,5 +1,4 @@
 import os
-import shutil
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from typing import DefaultDict, Iterator, List, Set, Tuple, cast
@@ -32,21 +31,29 @@ def populate_local_sources(args: Tuple[str, List[str]]):
         bucket=parts.netloc, key=parts.path[1:], dst=local_dsts[0]
     )
     for dest in local_dsts[1:]:
-        LOGGER.info(f"Copying {local_dsts[0]} to {dest}")
         create_dir(os.path.dirname(dest))
-        shutil.copyfile(local_dsts[0], dest)
-        if not os.path.isfile(dest):
-            LOGGER.error(f"Copying to {dest} seems to have failed!")
-        elif os.stat(dest).st_size == 0:
-            LOGGER.error(
-                f"Copying {local_dsts[0]} to {dest} threw no errors, "
-                "but result is an empty file!"
-            )
+
+        # LOGGER.info(f"Copying {local_dsts[0]} to {dest}")
+        # shutil.copyfile(local_dsts[0], dest)
+        # if not os.path.isfile(dest):
+        #     LOGGER.error(f"Copying to {dest} seems to have failed!")
+        # elif os.stat(dest).st_size == 0:
+        #     LOGGER.error(
+        #         f"Copying {local_dsts[0]} to {dest} threw no errors, "
+        #         "but result is an empty file!"
+        #     )
 
         # LOGGER.info(f"Making {dest} a hardlink to {local_dsts[0]}")
         # os.link(local_dsts[0], dest)
         # if not os.path.isfile(dest):
         #     LOGGER.error(f"Making hardlink {dest} seems to have failed!")
+        # elif os.stat(dest).st_size == 0:
+        #     LOGGER.error(f"Hardlinking {dest} to {local_dsts[0]} succeeded, but result is an empty file!")
+
+        LOGGER.info(f"Making {dest} a symlink to {local_dsts[0]}")
+        os.symlink(local_dsts[0], dest)
+        if not os.path.islink(dest):
+            LOGGER.error(f"Making symlink {dest} seems to have failed!")
         # elif os.stat(dest).st_size == 0:
         #     LOGGER.error(f"Hardlinking {dest} to {local_dsts[0]} succeeded, but result is an empty file!")
 
