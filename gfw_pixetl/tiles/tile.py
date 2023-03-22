@@ -73,7 +73,7 @@ class Tile(ABC):
 
         gdal_profile.update(self.layer.dst_profile)
 
-        LOGGER.debug(f"GDAL Profile for tile {self.tile_id}: {gdal_profile}")
+        # LOGGER.debug(f"GDAL Profile for tile {self.tile_id}: {gdal_profile}")
 
         # Drop GDAL specific optimizations which might not be readable by other applications
         geotiff_profile = copy.deepcopy(gdal_profile)
@@ -82,7 +82,7 @@ class Tile(ABC):
         geotiff_profile.pop("interleave", None)
         geotiff_profile["compress"] = "DEFLATE"
 
-        LOGGER.debug(f"GEOTIFF Profile for tile {self.tile_id}: {geotiff_profile}")
+        # LOGGER.debug(f"GEOTIFF Profile for tile {self.tile_id}: {geotiff_profile}")
 
         self.dst: Dict[str, Destination] = {
             DstFormat.gdal_geotiff: Destination(

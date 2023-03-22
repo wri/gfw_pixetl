@@ -31,10 +31,8 @@ from gfw_pixetl.utils import (
     get_co_workers,
     snapped_window,
 )
-from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
-from gfw_pixetl.utils.google import download_gcs
-from gfw_pixetl.utils.path import create_dir, from_vsi
+from gfw_pixetl.utils.path import from_vsi
 from gfw_pixetl.utils.utils import create_empty_file, enumerate_bands, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -120,29 +118,9 @@ class RasterSrcTile(Tile):
         path = from_vsi(remote_file).encode("ASCII", "ignore").decode("ASCII")
         parts = urlparse(path)
 
-        local_uri = os.path.join(self.work_dir, "input", parts.netloc, parts.path[1:])
+        local_uri = os.path.join(self.work_dir, parts.netloc, parts.path[1:])
 
         return local_uri
-
-    def _download_source_file(self, remote_file: str) -> str:
-        """Download remote files."""
-        local_file = self._get_local_source_uri(remote_file)
-
-        download_constructor = {"gs": download_gcs, "s3": download_s3}
-
-        path = from_vsi(remote_file)
-        parts = urlparse(path)
-
-        create_dir(os.path.dirname(local_file))
-
-        LOGGER.debug(
-            f"Downloading remote file {remote_file} to {local_file} using {parts.scheme}"
-        )
-        download_constructor[parts.scheme](
-            bucket=parts.netloc, key=parts.path[1:], dst=local_file
-        )
-
-        return local_file
 
     @lazy_property
     def intersecting_window(self) -> Window:

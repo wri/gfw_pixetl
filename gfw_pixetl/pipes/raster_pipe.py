@@ -26,10 +26,11 @@ def populate_local_sources(args: Tuple[str, List[str]]):
 
     create_dir(os.path.dirname(local_dsts[0]))
 
-    LOGGER.debug(f"Downloading remote file {uri} to {local_dsts}")
+    LOGGER.debug(f"Downloading remote file {uri} to {local_dsts[0]}")
     download_constructor[parts.scheme](
         bucket=parts.netloc, key=parts.path[1:], dst=local_dsts[0]
     )
+
     for dest in local_dsts[1:]:
         create_dir(os.path.dirname(dest))
 
@@ -43,19 +44,21 @@ def populate_local_sources(args: Tuple[str, List[str]]):
         #         "but result is an empty file!"
         #     )
 
-        # LOGGER.info(f"Making {dest} a hardlink to {local_dsts[0]}")
-        # os.link(local_dsts[0], dest)
-        # if not os.path.isfile(dest):
-        #     LOGGER.error(f"Making hardlink {dest} seems to have failed!")
-        # elif os.stat(dest).st_size == 0:
-        #     LOGGER.error(f"Hardlinking {dest} to {local_dsts[0]} succeeded, but result is an empty file!")
+        LOGGER.info(f"Making {dest} a hardlink to {local_dsts[0]}")
+        os.link(local_dsts[0], dest)
+        if not os.path.isfile(dest):
+            LOGGER.error(f"Making hardlink {dest} seems to have failed!")
+        elif os.stat(dest).st_size == 0:
+            LOGGER.error(
+                f"Hardlinking {dest} to {local_dsts[0]} succeeded, but result is an empty file!"
+            )
 
-        LOGGER.info(f"Making {dest} a symlink to {local_dsts[0]}")
-        os.symlink(local_dsts[0], dest)
-        if not os.path.islink(dest):
-            LOGGER.error(f"Making symlink {dest} seems to have failed!")
-        # elif os.stat(dest).st_size == 0:
-        #     LOGGER.error(f"Hardlinking {dest} to {local_dsts[0]} succeeded, but result is an empty file!")
+        # LOGGER.info(f"Making {dest} a symlink to {local_dsts[0]}")
+        # os.symlink(local_dsts[0], dest)
+        # if not os.path.islink(dest):
+        #     LOGGER.error(f"Making symlink {dest} seems to have failed!")
+        # # elif os.stat(dest).st_size == 0:
+        # #     LOGGER.error(f"Symlinking {dest} to {local_dsts[0]} succeeded, but result is an empty file!")
 
 
 class RasterPipe(Pipe):
@@ -70,11 +73,6 @@ class RasterPipe(Pipe):
         tiles: Set[RasterSrcTile] = set()
         for tile_id in self.grid.get_tile_ids():
             tiles.add(self._get_grid_tile(tile_id))
-
-        # tile_ids = self.grid.get_tile_ids()
-        #
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
-        #     tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
 
         tile_count: int = len(tiles)
         LOGGER.info(f"Found {tile_count} tile(s) inside grid")
@@ -95,8 +93,8 @@ class RasterPipe(Pipe):
         tiles: List[Tile] = self.collect_tiles(overwrite=overwrite)
 
         LOGGER.info(
-            f"There are {len(tiles)} total tiles, {self.tiles_to_process} "
-            "of which are to be processed"
+            f"There are {len(tiles)} total tiles in the target grid, "
+            f"{self.tiles_to_process} of which are to be processed"
         )
         LOGGER.info(
             f"Right now, GLOBALS.workers is {GLOBALS.workers} and "
@@ -108,7 +106,7 @@ class RasterPipe(Pipe):
 
         # Different tiles may reference the same source files. To prevent
         # multiple workers trying to download the same source and
-        # stepping on each others' toes, download the source files first with
+        # stepping on each other's toes, download the source files first with
         # one process per SOURCE, not per TILE.
         src_uri_to_local_paths: DefaultDict[str, Set[str]] = defaultdict(lambda: set())
 
@@ -150,9 +148,9 @@ class RasterPipe(Pipe):
         """Only process tiles which intersect with source raster."""
         for tile in tiles:
             if tile.status == "pending" and not tile.within():
-                LOGGER.info(
-                    f"Tile {tile.tile_id} does not intersect with source raster - skip"
-                )
+                # LOGGER.info(
+                #     f"Tile {tile.tile_id} does not intersect with source raster - skip"
+                # )
                 tile.status = "skipped (does not intersect)"
             yield tile
 

@@ -178,9 +178,7 @@ class RasterSrcLayer(Layer):
             bucket: str = str(o.netloc)
             prefix: str = str(o.path).lstrip("/")
 
-            LOGGER.debug(
-                f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
-            )
+            LOGGER.debug(f"Getting input files for source {src_uri}")
 
             if prefix.endswith(".geojson"):
                 LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
@@ -214,7 +212,9 @@ class RasterSrcLayer(Layer):
                         src_band_elements.append(list())
                 elif file_band_count != src_band_count:
                     raise Exception(
-                        f"Inconsistent band count! Previous files of src_uri {src_uri} had band count of {src_band_count}, but {file_uri} has band count of {file_band_count}"
+                        f"Inconsistent band count! Previous files of src_uri {src_uri} "
+                        f"had band count of {src_band_count}, but {file_uri} has band "
+                        f"count of {file_band_count}"
                     )
 
                 for i in range(file_band_count):

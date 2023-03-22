@@ -71,7 +71,7 @@ class Grid(ABC):
     def snap_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
         """Snap a given coordinate to tile grid coordinates.
 
-        Always returns the closes coordinates to the top left of the
+        Always returns the closest coordinates to the top left of the
         input coordinates for "snapped grids"
         """
 

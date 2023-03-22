@@ -51,7 +51,7 @@ def cli(
     layer_dict.update({"dataset": dataset, "version": version})
     layer_def = LayerModel.parse_obj(layer_dict)
 
-    # Raster sources must have an source URI
+    # Raster sources must have a source URI
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 

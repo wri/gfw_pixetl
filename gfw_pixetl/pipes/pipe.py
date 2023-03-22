@@ -34,7 +34,7 @@ class Pipe(ABC):
             | self.filter_src_tiles
             | self.filter_target_tiles(overwrite=overwrite)
         )
-        tiles = list()
+        tiles: List[Tile] = list()
 
         for tile in pipe.results():
             if tile.status == "pending":
@@ -90,8 +90,8 @@ class Pipe(ABC):
     @staticmethod
     @stage(workers=GLOBALS.num_processes)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
-        """Don't process tiles if they already exist in target location,
-        unless overwrite is set to True."""
+        """Don't process tiles if they already exist in target location, unless
+        overwrite is set to True."""
         for tile in tiles:
             if (
                 not overwrite

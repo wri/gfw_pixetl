@@ -362,17 +362,6 @@ def test__vrt_transform(LAYER):
     assert isclose(height, 400)
 
 
-# def test_download_files(LAYER):
-#     layer = deepcopy(LAYER)
-#     layer.process_locally = True
-#     tile = RasterSrcTile("10N_010E", layer.grid, layer)
-#     _ = tile.src  # trigger download
-#
-#     assert os.path.isfile(
-#         os.path.join(tile.work_dir, "input/gfw-data-lake-test/10N_010E.tif")
-#     )
-
-
 def test__block_byte_size(LAYER, LAYER_MULTI):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile._block_byte_size() == 1 * 2 * 400 * 400

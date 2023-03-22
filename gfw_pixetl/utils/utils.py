@@ -41,7 +41,7 @@ class DummyTile(object):
 
 
 def create_empty_file(work_dir, src_profile: Dict[str, Any]):
-    local_file_path = os.path.join(work_dir, "input", f"{uuid.uuid1()}.tif")
+    local_file_path = os.path.join(work_dir, f"{uuid.uuid1()}.tif")
 
     dtype = src_profile["dtype"]
     band_count = src_profile["count"]
@@ -81,7 +81,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
 
     data = np.zeros((band_count, size_x, size_y), dtype=dtype)
 
-    create_dir(os.path.join(work_dir, "input"))
+    create_dir(work_dir)
 
     with rasterio.Env(**GDAL_ENV):
         with rasterio.open(local_file_path, "w", **profile) as dst:
