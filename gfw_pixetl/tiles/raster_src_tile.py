@@ -1,6 +1,5 @@
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from copy import deepcopy
 from math import floor, sqrt
 from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union, cast
@@ -33,6 +32,7 @@ from gfw_pixetl.utils import (
 )
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.path import create_dir
+from gfw_pixetl.utils.rasterio.window_writer import write_window
 from gfw_pixetl.utils.utils import create_empty_file, enumerate_bands, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -304,9 +304,12 @@ class RasterSrcTile(Tile):
                 f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
             )
             del masked_array
-            out_file: Optional[str] = self._write_window(
-                array, window, write_to_seperate_files
-            )
+            out_file: Optional[str] = write_window(self.tile_id, self.tmp_dir,
+                                                   self.dst[self.default_format],
+                                                   self.local_dst[self.default_format].uri,
+                                                   array, window,
+                                                   write_to_seperate_files
+                                                   )
             del array
 
         else:
@@ -399,7 +402,7 @@ class RasterSrcTile(Tile):
             else:
                 if array.shape[0] != self.dst[self.default_format].profile["count"]:
                     raise RuntimeError(
-                        "Output band count does not match desired count. Calc function must be wrong."
+                    "Output band count does not match desired count. Calc function must be wrong."
                     )
         else:
             LOGGER.debug(
@@ -610,55 +613,6 @@ class RasterSrcTile(Tile):
                 windows.append(dst.block_window(1, i, j))
         return union(*windows)
 
-    def _write_window(
-        self, array: np.ndarray, dst_window: Window, write_to_separate_files: bool
-    ) -> str:
-        if write_to_separate_files:
-            out_file: str = self._write_window_to_separate_file(array, dst_window)
-        else:
-            out_file = self._write_window_to_shared_file(array, dst_window)
-        return out_file
-
-    def _write_window_to_shared_file(
-        self, array: np.ndarray, dst_window: Window
-    ) -> str:
-        """Write blocks into output raster."""
-        with rasterio.Env(**GDAL_ENV):
-            with rasterio.open(
-                self.local_dst[self.default_format].uri,
-                "r+",
-                **self.dst[self.default_format].profile,
-            ) as dst:
-                LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
-                dst.write(array, window=dst_window)
-                del array
-        return self.local_dst[self.default_format].uri
-
-    def _write_window_to_separate_file(
-        self, array: np.ndarray, dst_window: Window
-    ) -> str:
-
-        file_name = f"{self.tile_id}_{dst_window.col_off}_{dst_window.row_off}.tif"
-        file_path = os.path.join(self.tmp_dir, file_name)
-
-        profile = deepcopy(self.dst[self.default_format].profile)
-        transform = rasterio.windows.transform(dst_window, profile["transform"])
-        profile.update(
-            width=dst_window.width, height=dst_window.height, transform=transform
-        )
-
-        with rasterio.Env(**GDAL_ENV):
-            with rasterio.open(
-                file_path,
-                "w",
-                **profile,
-            ) as dst:
-                LOGGER.debug(
-                    f"Write {dst_window} of tile {self.tile_id} to separate file {file_path}"
-                )
-                dst.write(array)
-                del array
-        return file_path
 
     def make_local_copy(self, path: Union[Path, str]) -> str:
         """Make a hardlink to a source file in this tile's work directory."""
