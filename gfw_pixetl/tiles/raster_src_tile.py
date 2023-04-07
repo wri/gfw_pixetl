@@ -33,6 +33,7 @@ from gfw_pixetl.utils import (
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.path import create_dir
 from gfw_pixetl.utils.rasterio.window_writer import write_window
+from gfw_pixetl.utils.update_datatype import update_datatype
 from gfw_pixetl.utils.utils import create_empty_file, enumerate_bands, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -299,7 +300,12 @@ class RasterSrcTile(Tile):
             LOGGER.debug(
                 f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes / 1000000} MB"
             )
-            array: np.ndarray = self._set_dtype(masked_array, window)
+
+            array: np.ndarray = update_datatype(masked_array,
+                                                self.dst[self.default_format].nodata,
+                                                self.dst[self.default_format].dtype)
+            LOGGER.debug(f"Set datatype for {window} of tile {self.tile_id}")
+
             LOGGER.debug(
                 f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
             )
@@ -553,33 +559,6 @@ class RasterSrcTile(Tile):
             f"Source window for {dst_window} of tile {self.tile_id} is {src_window}"
         )
         return src_window
-
-    def _set_dtype(self, array: MaskedArray, dst_window) -> np.ndarray:
-        """Update data type to desired output datatype Update nodata value to
-        desired nodata value (current no data values will be updated and any
-        values which already has new no data value will stay as is)"""
-        if self.dst[self.default_format].nodata is None:
-            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
-            array = array.data.astype(self.dst[self.default_format].dtype)
-        elif isinstance(self.dst[self.default_format].nodata, list):
-            LOGGER.debug(
-                f"Set datatype for entire array and no data value for each band for {dst_window} of tile {self.tile_id}"
-            )
-            # make mypy happy. not sure why the isinstance check above alone doesn't do it
-            nodata_list = cast(list, self.dst[self.default_format].nodata)
-            array = np.array(
-                [np.ma.filled(array[i], nodata) for i, nodata in enumerate(nodata_list)]
-            ).astype(self.dst[self.default_format].dtype)
-
-        else:
-            LOGGER.debug(
-                f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
-            )
-            array = np.ma.filled(array, self.dst[self.default_format].nodata).astype(
-                self.dst[self.default_format].dtype
-            )
-
-        return array
 
     def _vrt_transform(
         self, west: float, south: float, east: float, north: float

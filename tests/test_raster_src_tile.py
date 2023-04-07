@@ -12,6 +12,7 @@ from gfw_pixetl.models.enums import PhotometricType
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
+from gfw_pixetl.utils.update_datatype import update_datatype
 from tests.conftest import BUCKET, GEOJSON_2_NAME, LAYER_DICT
 
 LOGGER = get_module_logger(__name__)
@@ -299,7 +300,8 @@ def test__set_dtype(LAYER):
 
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     tile.dst[tile.default_format].nodata = 5
-    result = tile._set_dtype(masked_data, window)
+    result = update_datatype(tile.dst, tile.default_format, tile.tile_id, masked_data,
+                             window)
 
     assert masked_sum != result.sum()
 
@@ -329,7 +331,8 @@ def test__set_dtype_multi(LAYER):
 
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     tile.dst[tile.default_format].nodata = [1, 2, 3]
-    result = tile._set_dtype(masked_data, window)
+    result = update_datatype(tile.dst, tile.default_format, tile.tile_id, masked_data,
+                             window)
 
     print(result)
     assert result[0].sum() == masked_sum1 + (100 - masked_sum1)
