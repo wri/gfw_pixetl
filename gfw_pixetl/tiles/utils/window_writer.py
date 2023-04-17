@@ -1,3 +1,6 @@
+import os
+from copy import deepcopy
+
 import numpy as np
 import rasterio
 from rasterio.windows import Window
@@ -22,3 +25,29 @@ def write_window_to_shared_file(local_dst, default_format, dst1, tile_id,
             dst.write(array, window=dst_window)
             del array
     return local_dst[default_format].uri
+
+
+def write_window_to_separate_file(tile_id, tmp_dir, dst1, default_format,
+                                  array: np.ndarray, dst_window: Window
+                                  ) -> str:
+    file_name = f"{tile_id}_{dst_window.col_off}_{dst_window.row_off}.tif"
+    file_path = os.path.join(tmp_dir, file_name)
+
+    profile = deepcopy(dst1[default_format].profile)
+    transform = rasterio.windows.transform(dst_window, profile["transform"])
+    profile.update(
+        width=dst_window.width, height=dst_window.height, transform=transform
+    )
+
+    with rasterio.Env(**GDAL_ENV):
+        with rasterio.open(
+                file_path,
+                "w",
+                **profile,
+        ) as dst:
+            LOGGER.debug(
+                f"Write {dst_window} of tile {tile_id} to separate file {file_path}"
+            )
+            dst.write(array)
+            del array
+    return file_path
