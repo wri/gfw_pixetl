@@ -1,5 +1,6 @@
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from copy import deepcopy
 from math import floor, sqrt
 from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union, cast
@@ -305,12 +306,9 @@ class RasterSrcTile(Tile):
                 f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
             )
             del masked_array
-            out_file: Optional[str] = write_window(self.tile_id, self.tmp_dir,
-                                                   self.dst[self.default_format],
-                                                   self.local_dst[self.default_format].uri,
-                                                   array, window,
-                                                   write_to_seperate_files
-                                                   )
+            out_file: Optional[str] = self._write_window(
+                array, window, write_to_seperate_files
+            )
             del array
 
         else:
@@ -403,7 +401,7 @@ class RasterSrcTile(Tile):
             else:
                 if array.shape[0] != self.dst[self.default_format].profile["count"]:
                     raise RuntimeError(
-                    "Output band count does not match desired count. Calc function must be wrong."
+                        "Output band count does not match desired count. Calc function must be wrong."
                     )
         else:
             LOGGER.debug(
