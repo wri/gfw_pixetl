@@ -12,6 +12,7 @@ from gfw_pixetl.models.enums import PhotometricType
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.tiles import RasterSrcTile
+from gfw_pixetl.utils.calc import calc
 from gfw_pixetl.utils.update_datatype import update_datatype
 from tests.conftest import BUCKET, GEOJSON_2_NAME, LAYER_DICT
 
@@ -237,17 +238,20 @@ def test__calc_single(LAYER):
 
     tile.layer.calc = "A+1"
     data = np.zeros((1, 1, 3))
-    result = tile._calc(data, window)
+    result = calc(tile.layer, tile.tile_id, tile.dst, tile.default_format, data,
+                  window)
     assert result.sum() == 3
 
     tile.layer.calc = "A+1*5"
     data = np.zeros((1, 1, 3))
-    result = tile._calc(data, window)
+    result = calc(tile.layer, tile.tile_id, tile.dst, tile.default_format, data,
+                  window)
     assert result.sum() == 15
 
     tile.layer.calc = "A*5+1"
     data = np.zeros((1, 1, 3))
-    result = tile._calc(data, window)
+    result = calc(tile.layer, tile.tile_id, tile.dst, tile.default_format, data,
+                  window)
     assert result.sum() == 3
 
 
@@ -258,12 +262,14 @@ def test__calc_multi_in(LAYER):
 
     tile.layer.calc = "A+B"
     data = np.ones((2, 1, 3))
-    result = tile._calc(data, window)
+    result = calc(tile.layer, tile.tile_id, tile.dst, tile.default_format, data,
+                  window)
     assert result.sum() == 6
 
     tile.layer.calc = "(A+B)*(C+2)"
     data = np.ones((3, 1, 3))
-    result = tile._calc(data, window)
+    result = calc(tile.layer, tile.tile_id, tile.dst, tile.default_format, data,
+                  window)
     assert result.sum() == 18
 
 
@@ -277,13 +283,15 @@ def test__calc_multi_out(LAYER):
 
     tile.layer.calc = "np.ma.array([A,A,A])"
     data = np.ones((1, 1, 3))
-    result = tile._calc(data, window)
+    result = calc(tile.layer, tile.tile_id, tile.dst, tile.default_format, data,
+                  window)
     assert result.shape == (3, 1, 3)
     assert result.sum() == 9
 
     tile.layer.calc = "np.ma.array([A+B,B*5,C+2])"
     data = np.ones((3, 1, 3))
-    result = tile._calc(data, window)
+    result = calc(tile.layer, tile.tile_id, tile.dst, tile.default_format, data,
+                  window)
     assert result.shape == (3, 1, 3)
     assert result.sum() == 30
 
