@@ -51,3 +51,18 @@ def write_window_to_separate_file(tile_id, tmp_dir, dst1, default_format,
             dst.write(array)
             del array
     return file_path
+
+
+def write_window(tile_id, tmp_dir, dst, default_format, local_dst,
+                 array: np.ndarray, dst_window: Window, write_to_separate_files: bool
+                 ) -> str:
+    if write_to_separate_files:
+        out_file: str = write_window_to_separate_file(tile_id, tmp_dir,
+                                                      dst,
+                                                      default_format, array,
+                                                      dst_window)
+    else:
+        out_file = write_window_to_shared_file(local_dst, default_format,
+                                               dst, tile_id, array,
+                                               dst_window)
+    return out_file

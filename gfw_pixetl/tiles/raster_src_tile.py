@@ -24,8 +24,7 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl.tiles.utils.window_writer import write_window_to_shared_file, \
-    write_window_to_separate_file
+from gfw_pixetl.tiles.utils.window_writer import write_window
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
@@ -307,9 +306,12 @@ class RasterSrcTile(Tile):
                 f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
             )
             del masked_array
-            out_file: Optional[str] = self._write_window(
-                array, window, write_to_seperate_files
-            )
+            out_file: Optional[str] = write_window(self.tile_id, self.tmp_dir,
+                                                   self.dst, self.default_format,
+                                                   self.local_dst,
+                                                   array, window,
+                                                   write_to_seperate_files
+                                                   )
             del array
 
         else:
