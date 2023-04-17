@@ -11,25 +11,25 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 LOGGER = get_module_logger(__name__)
 
 
-def write_window_to_shared_file(local_dst, default_format, dst1, tile_id,
-                                array: np.ndarray, dst_window: Window
-                                ) -> str:
+def _write_window_to_shared_file(uri, profile, tile_id,
+                                 array: np.ndarray, dst_window: Window
+                                 ) -> str:
     """Write blocks into output raster."""
     with rasterio.Env(**GDAL_ENV):
         with rasterio.open(
-                local_dst[default_format].uri,
+                uri,
                 "r+",
-                **dst1[default_format].profile,
+                **profile,
         ) as dst:
             LOGGER.debug(f"Write {dst_window} of tile {tile_id}")
             dst.write(array, window=dst_window)
             del array
-    return local_dst[default_format].uri
+    return uri
 
 
-def write_window_to_separate_file(tile_id, tmp_dir, dst1, default_format,
-                                  array: np.ndarray, dst_window: Window
-                                  ) -> str:
+def _write_window_to_separate_file(tile_id, tmp_dir, dst1, default_format,
+                                   array: np.ndarray, dst_window: Window
+                                   ) -> str:
     file_name = f"{tile_id}_{dst_window.col_off}_{dst_window.row_off}.tif"
     file_path = os.path.join(tmp_dir, file_name)
 
@@ -57,12 +57,13 @@ def write_window(tile_id, tmp_dir, dst, default_format, local_dst,
                  array: np.ndarray, dst_window: Window, write_to_separate_files: bool
                  ) -> str:
     if write_to_separate_files:
-        out_file: str = write_window_to_separate_file(tile_id, tmp_dir,
-                                                      dst,
-                                                      default_format, array,
-                                                      dst_window)
+        out_file: str = _write_window_to_separate_file(tile_id, tmp_dir,
+                                                       dst,
+                                                       default_format, array,
+                                                       dst_window)
     else:
-        out_file = write_window_to_shared_file(local_dst, default_format,
-                                               dst, tile_id, array,
-                                               dst_window)
+        out_file = _write_window_to_shared_file(local_dst[default_format].uri,
+                                                dst[default_format].profile,
+                                                tile_id, array,
+                                                dst_window)
     return out_file
