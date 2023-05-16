@@ -24,6 +24,7 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.tiles.utils.array_utils import set_datatype
 from gfw_pixetl.tiles.utils.window_writer import write_window
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
@@ -186,7 +187,6 @@ class RasterSrcTile(Tile):
         return src, vrt
 
     def _process_windows(self) -> bool:
-
         # In case we have more workers than cores we can further subdivide the read process.
         # In that case we will need to write the windows into separate files
         # and merging them into one file at the end of the write process
@@ -301,17 +301,27 @@ class RasterSrcTile(Tile):
             LOGGER.debug(
                 f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes / 1000000} MB"
             )
-            array: np.ndarray = self._set_dtype(masked_array, window)
+            array: np.ndarray = set_datatype(
+                masked_array,
+                window,
+                self.dst[self.default_format].nodata,
+                self.dst[self.default_format].dtype,
+                self.tile_id,
+            )
             LOGGER.debug(
                 f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
             )
             del masked_array
-            out_file: Optional[str] = write_window(self.tile_id, self.tmp_dir,
-                                                   self.dst, self.default_format,
-                                                   self.local_dst,
-                                                   array, window,
-                                                   write_to_seperate_files
-                                                   )
+            out_file: Optional[str] = write_window(
+                self.tile_id,
+                self.tmp_dir,
+                self.dst,
+                self.default_format,
+                self.local_dst,
+                array,
+                window,
+                write_to_seperate_files,
+            )
             del array
 
         else:
@@ -470,7 +480,6 @@ class RasterSrcTile(Tile):
         return max_blocks
 
     def _block_byte_size(self):
-
         shape = (
             len(self.layer.input_bands),
             self.dst[self.default_format].blockxsize,
@@ -555,33 +564,6 @@ class RasterSrcTile(Tile):
             f"Source window for {dst_window} of tile {self.tile_id} is {src_window}"
         )
         return src_window
-
-    def _set_dtype(self, array: MaskedArray, dst_window) -> np.ndarray:
-        """Update data type to desired output datatype Update nodata value to
-        desired nodata value (current no data values will be updated and any
-        values which already has new no data value will stay as is)"""
-        if self.dst[self.default_format].nodata is None:
-            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
-            array = array.data.astype(self.dst[self.default_format].dtype)
-        elif isinstance(self.dst[self.default_format].nodata, list):
-            LOGGER.debug(
-                f"Set datatype for entire array and no data value for each band for {dst_window} of tile {self.tile_id}"
-            )
-            # make mypy happy. not sure why the isinstance check above alone doesn't do it
-            nodata_list = cast(list, self.dst[self.default_format].nodata)
-            array = np.array(
-                [np.ma.filled(array[i], nodata) for i, nodata in enumerate(nodata_list)]
-            ).astype(self.dst[self.default_format].dtype)
-
-        else:
-            LOGGER.debug(
-                f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
-            )
-            array = np.ma.filled(array, self.dst[self.default_format].nodata).astype(
-                self.dst[self.default_format].dtype
-            )
-
-        return array
 
     def _vrt_transform(
         self, west: float, south: float, east: float, north: float
