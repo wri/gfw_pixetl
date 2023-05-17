@@ -3,7 +3,7 @@ from rasterio.windows import Window
 
 from gfw_pixetl import layers
 from gfw_pixetl.tiles import RasterSrcTile
-from gfw_pixetl.tiles.utils.array_utils import set_datatype
+from gfw_pixetl.tiles.utils.array_utils import calc, set_datatype
 
 
 def test_set_dtype(LAYER):
@@ -66,3 +66,103 @@ def test_set_dtype_multi(LAYER):
     assert result[0].sum() == masked_sum1 + (100 - masked_sum1)
     assert result[1].sum() == masked_sum2 + (100 - masked_sum2) * 2
     assert result[2].sum() == masked_sum3 + (100 - masked_sum3) * 3
+
+
+def test_calc_single(LAYER):
+    window = Window(0, 0, 1, 3)
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+
+    tile.layer.calc = "A+1"
+    data = np.zeros((1, 1, 3))
+    result = calc(
+        data,
+        window,
+        tile.layer.calc,
+        tile.dst[tile.default_format].profile["count"],
+        tile.tile_id,
+    )
+    assert result.sum() == 3
+
+    tile.layer.calc = "A+1*5"
+    data = np.zeros((1, 1, 3))
+    result = calc(
+        data,
+        window,
+        tile.layer.calc,
+        tile.dst[tile.default_format].profile["count"],
+        tile.tile_id,
+    )
+    assert result.sum() == 15
+
+    tile.layer.calc = "A*5+1"
+    data = np.zeros((1, 1, 3))
+    result = calc(
+        data,
+        window,
+        tile.layer.calc,
+        tile.dst[tile.default_format].profile["count"],
+        tile.tile_id,
+    )
+    assert result.sum() == 3
+
+
+def test_calc_multi_in(LAYER):
+    window = Window(0, 0, 1, 3)
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+
+    tile.layer.calc = "A+B"
+    data = np.ones((2, 1, 3))
+    result = calc(
+        data,
+        window,
+        tile.layer.calc,
+        tile.dst[tile.default_format].profile["count"],
+        tile.tile_id,
+    )
+    assert result.sum() == 6
+
+    tile.layer.calc = "(A+B)*(C+2)"
+    data = np.ones((3, 1, 3))
+    result = calc(
+        data,
+        window,
+        tile.layer.calc,
+        tile.dst[tile.default_format].profile["count"],
+        tile.tile_id,
+    )
+    assert result.sum() == 18
+
+
+def test_calc_multi_out(LAYER):
+    window = Window(0, 0, 1, 3)
+
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+
+    LAYER.band_count = 3
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+
+    tile.layer.calc = "np.ma.array([A,A,A])"
+    data = np.ones((1, 1, 3))
+    result = calc(
+        data,
+        window,
+        tile.layer.calc,
+        tile.dst[tile.default_format].profile["count"],
+        tile.tile_id,
+    )
+    assert result.shape == (3, 1, 3)
+    assert result.sum() == 9
+
+    tile.layer.calc = "np.ma.array([A+B,B*5,C+2])"
+    data = np.ones((3, 1, 3))
+    result = calc(
+        data,
+        window,
+        tile.layer.calc,
+        tile.dst[tile.default_format].profile["count"],
+        tile.tile_id,
+    )
+    assert result.shape == (3, 1, 3)
+    assert result.sum() == 30

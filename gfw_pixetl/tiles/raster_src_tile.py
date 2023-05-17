@@ -22,7 +22,7 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl.tiles.utils.array_utils import block_has_data, set_datatype
+from gfw_pixetl.tiles.utils.array_utils import block_has_data, calc, set_datatype
 from gfw_pixetl.tiles.utils.window_utils import read_window, write_window
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
@@ -34,7 +34,7 @@ from gfw_pixetl.utils.calc import calc
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.path import create_dir
 from gfw_pixetl.utils.rasterio.window_writer import write_window
-from gfw_pixetl.utils.utils import create_empty_file, enumerate_bands, fetch_metadata
+from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -303,7 +303,13 @@ class RasterSrcTile(Tile):
         )
         if block_has_data(masked_array, self.tile_id):
             LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
-            masked_array = self._calc(masked_array, window)
+            masked_array = calc(
+                masked_array,
+                window,
+                self.layer.calc,
+                self.dst[self.default_format].profile["count"],
+                self.tile_id,
+            )
             LOGGER.debug(
                 f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes / 1000000} MB"
             )
@@ -386,34 +392,6 @@ class RasterSrcTile(Tile):
                         )
                     else:
                         raise
-
-    def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
-        """Apply user defined calculation on array."""
-        if self.layer.calc:
-            # Assign a variable name to each band
-            band_names = ", ".join(enumerate_bands(len(array)))
-            funcstr = (
-                f"def f({band_names}) -> MaskedArray:\n    return {self.layer.calc}"
-            )
-            LOGGER.debug(
-                f"Apply function {funcstr} on block {dst_window} of tile {self.tile_id}"
-            )
-            exec(funcstr, globals())
-            array = f(*array)  # type: ignore # noqa: F821
-
-            # assign band index
-            if len(array.shape) == 2:
-                array = array.reshape(1, *array.shape)
-            else:
-                if array.shape[0] != self.dst[self.default_format].profile["count"]:
-                    raise RuntimeError(
-                        "Output band count does not match desired count. Calc function must be wrong."
-                    )
-        else:
-            LOGGER.debug(
-                f"No user defined formula provided. Skip calculating values for {dst_window} of tile {self.tile_id}"
-            )
-        return array
 
     def _max_blocks(self) -> int:
         """Calculate the maximum amount of blocks we can fit into memory,
