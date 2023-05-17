@@ -11,11 +11,9 @@ from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
 from rasterio.windows import Window, bounds, from_bounds, union
-from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
-from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.models.named_tuples import InputBandElement
@@ -25,7 +23,7 @@ from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.tiles.utils.array_utils import set_datatype
-from gfw_pixetl.tiles.utils.window_writer import write_window
+from gfw_pixetl.tiles.utils.window_utils import read_window, write_window
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
@@ -291,7 +289,15 @@ class RasterSrcTile(Tile):
     ) -> Optional[str]:
         """Read windows from input VRT, reproject, resample, transform and
         write to destination."""
-        masked_array: MaskedArray = self._read_window(vrt, window)
+        masked_array: MaskedArray = read_window(
+            vrt,
+            window,
+            self.dst[self.default_format].transform,
+            self.src.crs,
+            self.dst[self.default_format].crs,
+            self.layer.input_bands,
+            self.tile_id,
+        )
         LOGGER.debug(
             f"Masked Array size for tile {self.tile_id} when read: {masked_array.nbytes / 1000000} MB"
         )
@@ -493,57 +499,6 @@ class RasterSrcTile(Tile):
         LOGGER.debug(f"Block byte size is {max_block_byte_size/ 1000000} MB")
 
         return max_block_byte_size
-
-    @retry(
-        retry_on_exception=retry_if_rasterio_io_error,
-        stop_max_attempt_number=7,
-        wait_exponential_multiplier=1000,
-        wait_exponential_max=300000,
-    )  # Wait 2^x * 1000 ms between retries by to 300 sec, then 300 sec afterwards.
-    def _read_window(self, vrt: WarpedVRT, dst_window: Window) -> MaskedArray:
-        """Read window of input raster."""
-        dst_bounds: Bounds = bounds(dst_window, self.dst[self.default_format].transform)
-        window = vrt.window(*dst_bounds)
-
-        src_bounds = transform_bounds(
-            self.dst[self.default_format].crs, self.src.crs, *dst_bounds
-        )
-
-        LOGGER.debug(
-            f"Read {dst_window} for Tile {self.tile_id} - this corresponds to bounds {src_bounds} in source"
-        )
-
-        shape = (
-            len(self.layer.input_bands),
-            int(round(dst_window.height)),
-            int(round(dst_window.width)),
-        )
-
-        try:
-            return vrt.read(
-                window=window,
-                out_shape=shape,
-                masked=True,
-            )
-        except rasterio.RasterioIOError as e:
-            if "Access window out of range" in str(e) and (
-                shape[1] == 1 or shape[2] == 1
-            ):
-                LOGGER.warning(
-                    f"Access window out of range while reading {dst_window} for Tile {self.tile_id}. "
-                    "This is most likely due to subpixel misalignment. "
-                    "Returning empty array instead."
-                )
-                return np.ma.array(
-                    data=np.zeros(shape=shape), mask=np.ones(shape=shape)
-                )
-
-            else:
-                LOGGER.warning(
-                    f"RasterioIO error while reading {dst_window} for Tile {self.tile_id}. "
-                    "Will make attempt to retry."
-                )
-                raise
 
     def _reproject_dst_window(self, dst_window: Window) -> Window:
         """Reproject window into same projection as source raster."""
