@@ -315,9 +315,8 @@ class RasterSrcTile(Tile):
             out_file: Optional[str] = write_window(
                 self.tile_id,
                 self.tmp_dir,
-                self.dst,
-                self.default_format,
-                self.local_dst,
+                self.local_dst[self.default_format].uri,
+                self.dst[self.default_format].profile,
                 array,
                 window,
                 write_to_seperate_files,

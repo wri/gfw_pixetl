@@ -11,15 +11,15 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 LOGGER = get_module_logger(__name__)
 
 
-def _write_window_to_shared_file(uri, profile, tile_id,
-                                 array: np.ndarray, dst_window: Window
-                                 ) -> str:
+def _write_window_to_shared_file(
+    uri, profile, tile_id, array: np.ndarray, dst_window: Window
+) -> str:
     """Write blocks into output raster."""
     with rasterio.Env(**GDAL_ENV):
         with rasterio.open(
-                uri,
-                "r+",
-                **profile,
+            uri,
+            "r+",
+            **profile,
         ) as dst:
             LOGGER.debug(f"Write {dst_window} of tile {tile_id}")
             dst.write(array, window=dst_window)
@@ -27,13 +27,13 @@ def _write_window_to_shared_file(uri, profile, tile_id,
     return uri
 
 
-def _write_window_to_separate_file(tile_id, tmp_dir, dst1, default_format,
-                                   array: np.ndarray, dst_window: Window
-                                   ) -> str:
+def _write_window_to_separate_file(
+    tmp_dir, profile, tile_id, array: np.ndarray, dst_window: Window
+) -> str:
     file_name = f"{tile_id}_{dst_window.col_off}_{dst_window.row_off}.tif"
     file_path = os.path.join(tmp_dir, file_name)
 
-    profile = deepcopy(dst1[default_format].profile)
+    profile = deepcopy(profile)
     transform = rasterio.windows.transform(dst_window, profile["transform"])
     profile.update(
         width=dst_window.width, height=dst_window.height, transform=transform
@@ -41,9 +41,9 @@ def _write_window_to_separate_file(tile_id, tmp_dir, dst1, default_format,
 
     with rasterio.Env(**GDAL_ENV):
         with rasterio.open(
-                file_path,
-                "w",
-                **profile,
+            file_path,
+            "w",
+            **profile,
         ) as dst:
             LOGGER.debug(
                 f"Write {dst_window} of tile {tile_id} to separate file {file_path}"
@@ -53,17 +53,21 @@ def _write_window_to_separate_file(tile_id, tmp_dir, dst1, default_format,
     return file_path
 
 
-def write_window(tile_id, tmp_dir, dst, default_format, local_dst,
-                 array: np.ndarray, dst_window: Window, write_to_separate_files: bool
-                 ) -> str:
+def write_window(
+    tile_id,
+    temp_dir,
+    uri,
+    profile,
+    array: np.ndarray,
+    dst_window: Window,
+    write_to_separate_files: bool,
+) -> str:
     if write_to_separate_files:
-        out_file: str = _write_window_to_separate_file(tile_id, tmp_dir,
-                                                       dst,
-                                                       default_format, array,
-                                                       dst_window)
+        out_file: str = _write_window_to_separate_file(
+            temp_dir, profile, tile_id, array, dst_window
+        )
     else:
-        out_file = _write_window_to_shared_file(local_dst[default_format].uri,
-                                                dst[default_format].profile,
-                                                tile_id, array,
-                                                dst_window)
+        out_file = _write_window_to_shared_file(
+            uri, profile, tile_id, array, dst_window
+        )
     return out_file
