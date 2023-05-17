@@ -22,7 +22,7 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl.tiles.utils.array_utils import set_datatype
+from gfw_pixetl.tiles.utils.array_utils import block_has_data, set_datatype
 from gfw_pixetl.tiles.utils.window_utils import read_window, write_window
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
@@ -301,7 +301,7 @@ class RasterSrcTile(Tile):
         LOGGER.debug(
             f"Masked Array size for tile {self.tile_id} when read: {masked_array.nbytes / 1000000} MB"
         )
-        if self._block_has_data(masked_array):
+        if block_has_data(masked_array, self.tile_id):
             LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
             masked_array = self._calc(masked_array, window)
             LOGGER.debug(
@@ -386,18 +386,6 @@ class RasterSrcTile(Tile):
                         )
                     else:
                         raise
-
-    def _block_has_data(self, band_arrays: MaskedArray) -> bool:
-        """Check if current block has any data."""
-        size = 0
-        for i, masked_array in enumerate(band_arrays):
-            msk = np.invert(masked_array.mask.astype(bool))
-            data_pixels = msk[msk].size
-            size += data_pixels
-            LOGGER.debug(
-                f"Block of tile {self.tile_id}, band {i+1} has {data_pixels} data pixels"
-            )
-        return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
     def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
         """Apply user defined calculation on array."""
