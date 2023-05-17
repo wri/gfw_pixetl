@@ -290,55 +290,49 @@ class RasterSrcTile(Tile):
         """Read windows from input VRT, reproject, resample, transform and
         write to destination."""
         out_file: Optional[str] = None
+        transform = self.dst[self.default_format].transform
+        source_crs = self.src.crs
+        destination_crs = self.dst[self.default_format].crs
+        input_bands = self.layer.input_bands
+        tile_id = self.tile_id
+        calc_str = self.layer.calc
+        count = self.dst[self.default_format].profile["count"]
+        no_data = self.dst[self.default_format].nodata
+        datatype = self.dst[self.default_format].dtype
+        tmp_dir = self.tmp_dir
+        uri = self.local_dst[self.default_format].uri
+        profile = self.dst[self.default_format].profile
+
+        def m_bytes(arr):
+            return arr.nbytes / 1000000
 
         masked_array: MaskedArray = read_window(
-            vrt,
-            window,
-            self.dst[self.default_format].transform,
-            self.src.crs,
-            self.dst[self.default_format].crs,
-            self.layer.input_bands,
-            self.tile_id,
+            vrt, window, transform, source_crs, destination_crs, input_bands, tile_id
         )
         LOGGER.debug(
-            f"Masked Array size for tile {self.tile_id} when read: {masked_array.nbytes / 1000000} MB"
+            f"Masked Array size for tile {tile_id} when read: {m_bytes(masked_array)} MB"
         )
 
-        if not block_has_data(masked_array, self.tile_id):
-            LOGGER.debug(f"{window} of tile {self.tile_id} has no data - skip")
+        if not block_has_data(masked_array, tile_id):
+            LOGGER.debug(f"{window} of tile {tile_id} has no data - skip")
             del masked_array
             return out_file
 
-        LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
-        masked_array = calc(
-            masked_array,
-            window,
-            self.layer.calc,
-            self.dst[self.default_format].profile["count"],
-            self.tile_id,
-        )
+        LOGGER.debug(f"{window} of tile {tile_id} has data - continue")
+
+        masked_array = calc(masked_array, window, calc_str, count, tile_id)
         LOGGER.debug(
-            f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes / 1000000} MB"
+            f"Masked Array size for tile {tile_id} after calc: {m_bytes(masked_array)} MB"
         )
         array: np.ndarray = set_datatype(
-            masked_array,
-            window,
-            self.dst[self.default_format].nodata,
-            self.dst[self.default_format].dtype,
-            self.tile_id,
+            masked_array, window, no_data, datatype, tile_id
         )
         LOGGER.debug(
-            f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
+            f"Array size for tile {self.tile_id} after set dtype: {m_bytes(masked_array)} MB"
         )
         del masked_array
         out_file = write_window(
-            self.tile_id,
-            self.tmp_dir,
-            self.local_dst[self.default_format].uri,
-            self.dst[self.default_format].profile,
-            array,
-            window,
-            write_to_seperate_files,
+            tile_id, tmp_dir, uri, profile, array, window, write_to_seperate_files
         )
         del array
         return out_file
