@@ -285,23 +285,28 @@ class RasterSrcTile(Tile):
         return self._transform(vrt, window, write_to_seperate_files)
 
     def _transform(
-        self, vrt: WarpedVRT, window: Window, write_to_seperate_files=False
+        self, vrt: WarpedVRT, window: Window, write_to_separate_files=False
     ) -> Optional[str]:
         """Read windows from input VRT, reproject, resample, transform and
         write to destination."""
-        out_file: Optional[str] = None
         transform = self.dst[self.default_format].transform
-        source_crs = self.src.crs
         destination_crs = self.dst[self.default_format].crs
-        input_bands = self.layer.input_bands
-        tile_id = self.tile_id
-        calc_str = self.layer.calc
         count = self.dst[self.default_format].profile["count"]
         no_data = self.dst[self.default_format].nodata
         datatype = self.dst[self.default_format].dtype
-        tmp_dir = self.tmp_dir
-        uri = self.local_dst[self.default_format].uri
         profile = self.dst[self.default_format].profile
+
+        source_crs = self.src.crs
+
+        input_bands = self.layer.input_bands
+        calc_str = self.layer.calc
+
+        tile_id = self.tile_id
+        tmp_dir = self.tmp_dir
+
+        uri = self.local_dst[self.default_format].uri
+
+        out_file: Optional[str] = None
 
         def m_bytes(arr):
             return arr.nbytes / 1000000
@@ -328,11 +333,11 @@ class RasterSrcTile(Tile):
             masked_array, window, no_data, datatype, tile_id
         )
         LOGGER.debug(
-            f"Array size for tile {self.tile_id} after set dtype: {m_bytes(masked_array)} MB"
+            f"Array size for tile {tile_id} after set dtype: {m_bytes(masked_array)} MB"
         )
         del masked_array
         out_file = write_window(
-            tile_id, tmp_dir, uri, profile, array, window, write_to_seperate_files
+            tile_id, tmp_dir, uri, profile, array, window, write_to_separate_files
         )
         del array
         return out_file
