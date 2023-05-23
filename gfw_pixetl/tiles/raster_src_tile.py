@@ -6,7 +6,6 @@ from typing import Iterator, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import rasterio
-from numpy.ma import MaskedArray
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
@@ -22,8 +21,8 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl.tiles.utils.array_utils import block_has_data, calc, set_datatype
-from gfw_pixetl.tiles.utils.window_utils import read_window, write_window
+from gfw_pixetl.tiles.utils.named_tuples import Destination, Layer, Source
+from gfw_pixetl.tiles.utils.transform import transform
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
@@ -282,65 +281,23 @@ class RasterSrcTile(Tile):
         window is processed. Without this, we might experience memory
         leakage, in particular for float data types.
         """
-        return self._transform(vrt, window, write_to_seperate_files)
+        layer = Layer(input_bands=self.layer.input_bands, calc_string=self.layer.calc)
 
-    def _transform(
-        self, vrt: WarpedVRT, window: Window, write_to_separate_files=False
-    ) -> Optional[str]:
-        """Read windows from input VRT, reproject, resample, transform and
-        write to destination."""
-        transform = self.dst[self.default_format].transform
-        destination_crs = self.dst[self.default_format].crs
-        count = self.dst[self.default_format].profile["count"]
-        no_data = self.dst[self.default_format].nodata
-        datatype = self.dst[self.default_format].dtype
-        profile = self.dst[self.default_format].profile
+        source = Source(vrt=vrt, crs=self.src.crs)
 
-        source_crs = self.src.crs
-
-        input_bands = self.layer.input_bands
-        calc_str = self.layer.calc
-
-        tile_id = self.tile_id
-        tmp_dir = self.tmp_dir
-
-        uri = self.local_dst[self.default_format].uri
-
-        out_file: Optional[str] = None
-
-        def m_bytes(arr):
-            return arr.nbytes / 1000000
-
-        masked_array: MaskedArray = read_window(
-            vrt, window, transform, source_crs, destination_crs, input_bands, tile_id
-        )
-        LOGGER.debug(
-            f"Masked Array size for tile {tile_id} when read: {m_bytes(masked_array)} MB"
+        destination = Destination(
+            transform=self.dst[self.default_format].transform,
+            crs=self.dst[self.default_format].crs,
+            count=self.dst[self.default_format].profile["count"],
+            no_data=self.dst[self.default_format].nodata,
+            datatype=self.dst[self.default_format].dtype,
+            profile=self.dst[self.default_format].profile,
+            tmp_dir=self.tmp_dir,
+            uri=self.local_dst[self.default_format].uri,
+            write_to_separate_files=write_to_seperate_files,
         )
 
-        if not block_has_data(masked_array, tile_id):
-            LOGGER.debug(f"{window} of tile {tile_id} has no data - skip")
-            del masked_array
-            return out_file
-
-        LOGGER.debug(f"{window} of tile {tile_id} has data - continue")
-
-        masked_array = calc(masked_array, window, calc_str, count, tile_id)
-        LOGGER.debug(
-            f"Masked Array size for tile {tile_id} after calc: {m_bytes(masked_array)} MB"
-        )
-        array: np.ndarray = set_datatype(
-            masked_array, window, no_data, datatype, tile_id
-        )
-        LOGGER.debug(
-            f"Array size for tile {tile_id} after set dtype: {m_bytes(masked_array)} MB"
-        )
-        del masked_array
-        out_file = write_window(
-            tile_id, tmp_dir, uri, profile, array, window, write_to_separate_files
-        )
-        del array
-        return out_file
+        return transform(self.tile_id, window, layer, source, destination)
 
     def windows(self) -> List[Window]:
         """Creates local output file and returns list of size optimized windows

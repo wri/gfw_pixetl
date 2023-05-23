@@ -1,37 +1,15 @@
-from typing import Any, NamedTuple, Optional
+from typing import Optional
 
 import numpy as np
 from numpy.ma import MaskedArray
-from rasterio.vrt import WarpedVRT
 from rasterio.windows import Window
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.tiles.utils.array_utils import block_has_data, calc, set_datatype
+from gfw_pixetl.tiles.utils.named_tuples import Destination, Layer, Source
 from gfw_pixetl.tiles.utils.window_utils import read_window, write_window
 
 LOGGER = get_module_logger(__name__)
-
-
-class Destination(NamedTuple):
-    transform: Any
-    crs: Any
-    count: Any
-    no_data: Any
-    datatype: Any
-    profile: Any
-    tmp_dir: Any
-    uri: Any
-    write_to_separate_files: bool
-
-
-class Source(NamedTuple):
-    vrt: WarpedVRT
-    crs: Any
-
-
-class Layer(NamedTuple):
-    input_bands: Any
-    calc_string: str
 
 
 def transform(
