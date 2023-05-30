@@ -1,5 +1,6 @@
 import json
 import os
+import pathlib
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -18,9 +19,10 @@ from gfw_pixetl.sources import RasterSource, VectorSource, fetch_metadata
 from .models.enums import DstFormat, PhotometricType
 from .models.named_tuples import InputBandElement
 from .settings.globals import GLOBALS
-from .utils.aws import get_aws_files, get_s3_client
+from .utils.aws import download_s3, get_aws_files, get_s3_client
 from .utils.geometry import generate_feature_collection
-from .utils.google import get_gs_files
+from .utils.google import download_gcs, get_gs_files
+from .utils.path import create_dir, from_vsi
 from .utils.utils import DummyTile, enumerate_bands, intersection, union
 
 LOGGER = get_module_logger(__name__)
@@ -123,7 +125,7 @@ def get_input_files_from_tiles_geojson(
     input_files = list()
 
     for feature in features:
-        LOGGER.debug(f"Found feature: {feature}")
+        # LOGGER.debug(f"Found feature: {feature}")
         input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
     return input_files
 
@@ -144,8 +146,9 @@ def get_input_files_from_folder(
 
     file_list = get_files[provider](bucket, new_prefix)
     tiles: List[DummyTile] = list()
+
     for uri in file_list:
-        LOGGER.debug(f"Adding file {uri}")
+        # LOGGER.debug(f"Adding file {uri}")
         src = RasterSource(uri)
         tiles.append(DummyTile({"geotiff": src}))
 
@@ -156,74 +159,145 @@ def get_input_files_from_folder(
     input_files = list()
 
     for feature in fc["features"]:
-        LOGGER.debug(f"Found feature: {feature}")
+        # LOGGER.debug(f"Found feature: {feature}")
         input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
     return input_files
+
+
+def get_input_files_from_directory(dir_path: str) -> List[Tuple[Any, str]]:
+    path_obj = pathlib.Path(dir_path)
+    file_list = list(path_obj.rglob("*.tif"))
+
+    tiles: List[DummyTile] = list()
+
+    for path in file_list:
+        src = RasterSource(str(path))
+        tiles.append(DummyTile({"geotiff": src}))
+
+    fc: FeatureCollection = generate_feature_collection(
+        tiles, DstFormat(GLOBALS.default_dst_format)
+    )
+
+    input_files = list()
+
+    for feature in fc["features"]:
+        input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
+    return input_files
+
+
+def download_source_file(remote_file: str) -> str:
+    """Download remote files."""
+
+    download_constructor = {"gs": download_gcs, "s3": download_s3}
+
+    parts = urlparse(remote_file)
+
+    local_file = os.path.join("/tmp/input", parts.netloc, parts.path[1:])
+    create_dir(os.path.dirname(local_file))
+
+    LOGGER.debug(f"Downloading remote file {remote_file} to {local_file}")
+    download_constructor[parts.scheme](
+        bucket=parts.netloc, key=parts.path[1:], dst=local_file
+    )
+
+    return local_file
+
+
+def download_sources(source_uris: List[str]) -> List[str]:
+    assert isinstance(source_uris, list)
+
+    file_uris: List[str] = list()
+    local_source_uris: List[str] = list()
+
+    for source_uri in source_uris:
+        o = urlparse(source_uri, allow_fragments=False)
+
+        bucket: str = str(o.netloc)
+        prefix: str = str(o.path).lstrip("/").rstrip("*")
+
+        LOGGER.debug(f"Getting input files from {str(source_uri)}")
+
+        if prefix.endswith(".geojson"):
+            LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
+            file_uris += [
+                from_vsi(uri)
+                for _, uri in get_input_files_from_tiles_geojson(bucket, prefix)
+            ]
+            local_source_uris.append(
+                os.path.join("/tmp/input", bucket, os.path.dirname(prefix))
+            )
+        else:
+            LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
+            file_uris += [
+                from_vsi(uri)
+                for _, uri in get_input_files_from_folder(str(o.scheme), bucket, prefix)
+            ]
+            local_source_uris.append(os.path.join("/tmp/input", bucket, prefix))
+
+    for file_uri in file_uris:
+        download_source_file(file_uri)
+
+    return local_source_uris
 
 
 class RasterSrcLayer(Layer):
     def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
         super().__init__(layer_def, grid)
 
-        self._src_uri = layer_def.source_uri
-        self.input_bands: List[List[InputBandElement]] = self._input_bands()
+        assert isinstance(layer_def.source_uri, List)
+        _source_paths: List[str] = download_sources(layer_def.source_uri)
+        LOGGER.info(f"SOURCE PATHS AFTER DOWNLOADING: {_source_paths}")
+        self.input_bands: List[List[InputBandElement]] = self._input_bands(
+            _source_paths
+        )
 
-    def _input_bands(self) -> List[List[InputBandElement]]:
-        assert isinstance(self._src_uri, list)
+    def _input_bands(self, source_paths: List[str]) -> List[List[InputBandElement]]:
+        assert isinstance(source_paths, list)
 
         input_bands: List[List[InputBandElement]] = list()
 
-        for src_uri in self._src_uri:
-            o = urlparse(src_uri, allow_fragments=False)
-            bucket: str = str(o.netloc)
-            prefix: str = str(o.path).lstrip("/")
-
+        for source_path in source_paths:
             LOGGER.debug(
-                f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
+                f"Getting input files for layer {self.name} from {source_path}"
             )
 
-            if prefix.endswith(".geojson"):
-                LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
-                src_files = get_input_files_from_tiles_geojson(bucket, prefix)
-            else:
-                LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
-                src_files = get_input_files_from_folder(str(o.scheme), bucket, prefix)
+            src_files = get_input_files_from_directory(source_path)
 
             # Make sure band count of all files at a src_uri is consistent
             src_band_count: Optional[int] = None
             src_band_elements: List[List[InputBandElement]] = list()
 
-            for geometry, file_uri in src_files:
-                _, file_profile = fetch_metadata(file_uri)
+            for geometry, file_path in src_files:
+                _, file_profile = fetch_metadata(file_path)
                 file_band_count: int = file_profile["count"]
 
                 LOGGER.info(
-                    f"Found {file_band_count} data band(s) in file {file_uri} of source {src_uri}"
+                    f"Found {file_band_count} data band(s) in file {file_path} of source {source_path}"
                 )
 
                 if file_band_count == 0:
                     raise Exception(
-                        f"Input file {file_uri} from src_uri {src_uri} has 0 data bands!"
+                        f"Input file {file_path} from src_uri {source_path} has 0 data bands!"
                     )
                 elif src_band_count is None:
                     LOGGER.info(
-                        f"Setting band count for src_uri {src_uri} to {file_band_count}"
+                        f"Setting band count for source_path {source_path} to {file_band_count}"
                     )
                     src_band_count = file_band_count
                     for i in range(file_band_count):
                         src_band_elements.append(list())
                 elif file_band_count != src_band_count:
                     raise Exception(
-                        f"Inconsistent band count! Previous files of src_uri {src_uri} had band count of {src_band_count}, but {file_uri} has band count of {file_band_count}"
+                        f"Inconsistent band count! Previous files of source_path {source_path} had band count of {src_band_count}, but {file_path} has band count of {file_band_count}"
                     )
 
                 for i in range(file_band_count):
                     band_name: str = enumerate_bands(i + 1)[-1]
                     LOGGER.info(
-                        f"Adding {file_uri} (band {i+1}) as input band {band_name}"
+                        f"Adding {file_path} (band {i+1}) as input band {band_name}"
                     )
                     element = InputBandElement(
-                        geometry=geometry, uri=file_uri, band=i + 1
+                        geometry=geometry, uri=file_path, band=i + 1
                     )
                     src_band_elements[i].append(element)
 
@@ -252,7 +326,7 @@ class RasterSrcLayer(Layer):
             else:
                 geom = intersection(band_geom, geom)
 
-        if not geom:
+        if geom is None:
             raise RuntimeError("Input bands do not overlap")
 
         return geom
