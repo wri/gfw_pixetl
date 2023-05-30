@@ -1,5 +1,3 @@
-import pytest
-from pydantic import ValidationError
 from rasterio.warp import Resampling
 from shapely.geometry import MultiPolygon, Polygon
 

@@ -73,7 +73,7 @@ class Tile(ABC):
 
         gdal_profile.update(self.layer.dst_profile)
 
-        LOGGER.debug(f"GDAL Profile for tile {self.tile_id}: {gdal_profile}")
+        # LOGGER.debug(f"GDAL Profile for tile {self.tile_id}: {gdal_profile}")
 
         # Drop GDAL specific optimizations which might not be readable by other applications
         geotiff_profile = copy.deepcopy(gdal_profile)
@@ -82,7 +82,7 @@ class Tile(ABC):
         geotiff_profile.pop("interleave", None)
         geotiff_profile["compress"] = "DEFLATE"
 
-        LOGGER.debug(f"GEOTIFF Profile for tile {self.tile_id}: {geotiff_profile}")
+        # LOGGER.debug(f"GEOTIFF Profile for tile {self.tile_id}: {geotiff_profile}")
 
         self.dst: Dict[str, Destination] = {
             DstFormat.gdal_geotiff: Destination(
@@ -117,13 +117,13 @@ class Tile(ABC):
             self.rm_local_src(dst_format)
 
         uri = self.get_local_dst_uri(dst_format)
-        LOGGER.debug(f"Set Local Source URI: {uri}")
+        # LOGGER.debug(f"Set Local Source URI: {uri}")
         self.local_dst[dst_format] = RasterSource(uri)
 
     def get_local_dst_uri(self, dst_format) -> str:
 
         prefix = f"{self.work_dir}/{dst_format}"
-        LOGGER.debug(f"Attempt to create local folder {prefix} if not already exists")
+        # LOGGER.debug(f"Attempt to create local folder {prefix} if not already exists")
         os.makedirs(f"{prefix}", exist_ok=True)
 
         uri = os.path.join(prefix, f"{self.tile_id}.tif")
