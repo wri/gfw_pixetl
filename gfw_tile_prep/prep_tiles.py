@@ -27,8 +27,8 @@ PG_CONN = "PG:dbname={} port={} host={} user={} password={}".format(
 SRC = {
        "FluxModelExtent": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/standard/20220309/{tile_id}_model_extent.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/model_extent/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/standard/20230315/{tile_id}_model_extent.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/model_extent/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/biomass_swap/20200919/{tile_id}_model_extent_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/model_extent/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/model_extent/legal_Amazon_loss/20200920/{tile_id}_model_extent_legal_Amazon_loss.tif",
@@ -38,8 +38,8 @@ SRC = {
     },
     "ForestAgeCategory": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/forest_age_category_IPCC/standard/20220309/{tile_id}_forest_age_category_IPCC__1_young_2_mid_3_old.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/forest_age_category/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/forest_age_category_IPCC/standard/20230315/{tile_id}_forest_age_category_IPCC__1_young_2_mid_3_old.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/forest_age_category/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/forest_age_category_IPCC/biomass_swap/20200919/{tile_id}_forest_age_category_IPCC__1_young_2_mid_3_old_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/forest_age_category/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/forest_age_category_IPCC/legal_Amazon_loss/20200920/{tile_id}_forest_age_category_IPCC__1_young_2_mid_3_old_legal_Amazon_loss.tif",
@@ -49,8 +49,8 @@ SRC = {
     },
     "RemovalForestType": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/removal_forest_type/standard/20220309/{tile_id}_removal_forest_type.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/removal_forest_type/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/removal_forest_type/standard/20230315/{tile_id}_removal_forest_type.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/removal_forest_type/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/removal_forest_type/biomass_swap/20200919/{tile_id}_removal_forest_type_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/removal_forest_type/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/removal_forest_type/US_removals/20200919/{tile_id}_removal_forest_type_US_removals.tif",
@@ -64,29 +64,29 @@ SRC = {
     },
     "AnnualAbovegroundRemovalRateCarbon": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/annual_removal_factor_AGC_all_forest_types/standard/20220309/{tile_id}_annual_removal_factor_AGC_Mg_ha_all_forest_types.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/annual_removal_factor_AGC_all_forest_types/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/annual_removal_factor_AGC_all_forest_types/standard/20230315/{tile_id}_annual_removal_factor_AGC_Mg_ha_all_forest_types.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/annual_removal_factor_AGC_all_forest_types/standard/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "AnnualBelowgroundRemovalRateCarbon": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/annual_removal_factor_BGC_all_forest_types/standard/20220309/{tile_id}_annual_removal_factor_BGC_Mg_ha_all_forest_types.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/annual_removal_factor_BGC_all_forest_types/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/annual_removal_factor_BGC_all_forest_types/standard/20230315/{tile_id}_annual_removal_factor_BGC_Mg_ha_all_forest_types.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/annual_removal_factor_BGC_all_forest_types/standard/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "StdevAnnualAbovegroundRemovalsCarbon": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/stdev_annual_removal_factor_AGC_all_forest_types/standard/20220309/{tile_id}_annual_removal_factor_stdev_AGC_Mg_ha_all_forest_types.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/stdev_annual_removal_factor_AGC_all_forest_types/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/stdev_annual_removal_factor_AGC_all_forest_types/standard/20230315/{tile_id}_annual_removal_factor_stdev_AGC_Mg_ha_all_forest_types.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/stdev_annual_removal_factor_AGC_all_forest_types/standard/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "GrossCumulAbovegroundRemovalsCo2": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_AGCO2_all_forest_types/standard/per_hectare/20220309/{tile_id}_gross_removals_AGCO2_Mg_ha_all_forest_types_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_removals_AGCO2_all_forest_types/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_AGCO2_all_forest_types/standard/per_hectare/20230315/{tile_id}_gross_removals_AGCO2_Mg_ha_all_forest_types_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_removals_AGCO2_all_forest_types/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_AGCO2_all_forest_types/maxgain/per_hectare/20200915/{tile_id}_gross_removals_AGCO2_Mg_ha_all_forest_types_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_removals_AGCO2_all_forest_types/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_AGCO2_all_forest_types/biomass_swap/per_hectare/20200919/{tile_id}_gross_removals_AGCO2_Mg_ha_all_forest_types_2001_19_biomass_swap.tif",
@@ -102,8 +102,8 @@ SRC = {
     },
     "GrossCumulBelowgroundRemovalsCo2": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/standard/per_hectare/20220309/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_removals_BGCO2_all_forest_types/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/standard/per_hectare/20230315/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_removals_BGCO2_all_forest_types/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/maxgain/per_hectare/20200915/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_removals_BGCO2_all_forest_types/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_removals_BGCO2_all_forest_types/biomass_swap/per_hectare/20200919/{tile_id}_gross_removals_BGCO2_Mg_ha_all_forest_types_2001_19_biomass_swap.tif",
@@ -119,8 +119,8 @@ SRC = {
     },
     "AgcEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/standard/20220309/{tile_id}_Mg_AGC_ha_emis_year.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/agc_emis_year/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/standard/20230315/{tile_id}_Mg_AGC_ha_emis_year.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/agc_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/maxgain/20200915/{tile_id}_Mg_AGC_ha_emis_year_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/agc_emis_year/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/biomass_swap/20200919/{tile_id}_Mg_AGC_ha_emis_year_biomass_swap.tif",
@@ -136,8 +136,8 @@ SRC = {
     },
     "BgcEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/belowground_carbon/loss_pixels/standard/20220309/{tile_id}_Mg_BGC_ha_emis_year.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/bgc_emis_year/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/belowground_carbon/loss_pixels/standard/20230315/{tile_id}_Mg_BGC_ha_emis_year.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/bgc_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/biomass_swap/20200107/{tile_id}_t_AGC_ha_emis_year_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/agc_emis_year/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/US_removals/20200107/{tile_id}_t_AGC_ha_emis_year_US_removals.tif",
@@ -153,8 +153,8 @@ SRC = {
     },
     "DeadwoodCarbonEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/loss_pixels/standard/20220309/{tile_id}_Mg_deadwood_C_ha_emis_year_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/deadwood_emis_year/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/loss_pixels/standard/20230315/{tile_id}_Mg_deadwood_C_ha_emis_year_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/deadwood_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/biomass_swap/20200107/{tile_id}_t_AGC_ha_emis_year_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/agc_emis_year/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/US_removals/20200107/{tile_id}_t_AGC_ha_emis_year_US_removals.tif",
@@ -170,8 +170,8 @@ SRC = {
     },
     "LitterCarbonEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/loss_pixels/standard/20220309/{tile_id}_Mg_litter_C_ha_emis_year_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/litter_emis_year/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/loss_pixels/standard/20230315/{tile_id}_Mg_litter_C_ha_emis_year_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/litter_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/biomass_swap/20200107/{tile_id}_t_AGC_ha_emis_year_biomass_swap.tif",
         # "s3_target": "{protocol}/gfw-files/2018_update/agc_emis_year/biomass_swap/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/loss_pixels/US_removals/20200107/{tile_id}_t_AGC_ha_emis_year_US_removals.tif",
@@ -187,8 +187,8 @@ SRC = {
     },
     "SoilCarbonEmisYear": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/standard/20220309/{tile_id}_Mg_soil_C_ha_emis_year_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/soil_emis_year/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/standard/20230315/{tile_id}_Mg_soil_C_ha_emis_year_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/soil_emis_year/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/maxgain/20200915/{tile_id}_Mg_soil_C_ha_emis_year_2000_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/soil_emis_year/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/loss_pixels/biomass_swap/20200919/{tile_id}_Mg_soil_C_ha_emis_year_2000_biomass_swap.tif",
@@ -202,24 +202,24 @@ SRC = {
         "data_type": "Float32",
         "nodata": 0,
     },
-    "BurnYearHansenLoss": {
+    "TreeCoverLossFires": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/burn_year/burn_year_with_Hansen_loss/20220308/{tile_id}_burnyear_with_Hansen_loss.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/burn_year_with_Hansen_loss/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/tree_cover_loss_fires/20230315/processed/{tile_id}_tree_cover_loss_fire_processed.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/tree_cover_loss_fires/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0
     },
     "Drivers": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/tree_cover_loss_drivers/processed/drivers_2020/20220316/{tile_id}_tree_cover_loss_driver_processed.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/drivers/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/tree_cover_loss_drivers/processed/drivers_2022/20230407/{tile_id}_tree_cover_loss_driver_processed.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/drivers/{tile_id}.tif",
         "data_type": "Byte",
-        "nodata": 15
+        "nodata": 0
     },
     "GrossEmissionsCo2OnlyCo2eBiomassSoil": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/standard/20220316/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_emissions_co2_only_co2e/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/standard/20230407/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_emissions_co2_only_co2e/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/maxgain/20200915/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_emissions_co2_only_co2e/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
@@ -239,8 +239,8 @@ SRC = {
     },
     "GrossEmissionsCo2eNonCo2BiomassSoil": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/standard/20220316/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_emissions_non_co2_co2e/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/standard/20230407/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_emissions_non_co2_co2e/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/maxgain/20200915/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_emissions_non_co2_co2e/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
@@ -260,8 +260,8 @@ SRC = {
     },
     "GrossEmissionsNodeCodesBiomassSoil": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/standard/20220316/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_emissions_node_codes/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/standard/20230407/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_emissions_node_codes/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/no_shifting_ag/20200914/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_19_no_shifting_ag.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/gross_emissions_node_codes/no_shifting_ag/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/biomass_soil/legal_Amazon_loss/20200920/{tile_id}_gross_emis_decision_tree_nodes_biomass_soil_2001_19_legal_Amazon_loss.tif",
@@ -271,29 +271,29 @@ SRC = {
     },
     "GrossEmissionsCo2OnlyCo2eSoilOnly": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/soil_only/standard/20220318/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_soil_only_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_emissions_co2_only_co2e/soil_only/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/CO2_only/soil_only/standard/20230407/{tile_id}_gross_emis_CO2_only_all_drivers_Mg_CO2e_ha_soil_only_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_emissions_co2_only_co2e/soil_only/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "GrossEmissionsCo2eNonCo2SoilOnly": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/soil_only/standard/20220318/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_soil_only_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_emissions_non_co2_co2e/soil_only/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/all_drivers/non_CO2/soil_only/standard/20230407/{tile_id}_gross_emis_non_CO2_all_drivers_Mg_CO2e_ha_soil_only_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_emissions_non_co2_co2e/soil_only/{tile_id}.tif",
         "data_type": "Float32",
         "nodata": 0,
     },
     "GrossEmissionsNodeCodesSoilOnly": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/soil_only/standard/20220318/{tile_id}_gross_emis_decision_tree_nodes_soil_only_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/gross_emissions_node_codes/soil_only/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/gross_emissions/decision_tree_nodes/soil_only/standard/20230407/{tile_id}_gross_emis_decision_tree_nodes_soil_only_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/gross_emissions_node_codes/soil_only/{tile_id}.tif",
         "data_type": "Int16",
         "nodata": 0
     },
     "NetFluxCo2e": {
         "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/standard/full_extent/per_hectare/20220316/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_21.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_2/net_flux_all_forest_types_all_drivers/standard/{tile_id}.tif",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/standard/full_extent/per_hectare/20230407/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_22.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/net_flux_all_forest_types_all_drivers/standard/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/maxgain/per_hectare/20200915/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_maxgain.tif",
         # "s3_target": "{protocol}/gfw-files/flux_1_2_0/net_flux_all_forest_types_all_drivers/maxgain/{tile_id}.tif",
         # "src": "{protocol}/gfw2-data/climate/carbon_model/net_flux_all_forest_types_all_drivers/biomass_soil/no_shifting_ag/per_hectare/20200914/{tile_id}_net_flux_Mg_CO2e_ha_biomass_soil_2001_19_no_shifting_ag.tif",
@@ -312,6 +312,51 @@ SRC = {
         "nodata": 0,
     },
 
+    "PeatlandsExtentFluxModel": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/peatlands/processed/20230315/{tile_id}_peat_mask_processed.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/peatlands_flux_extent/standard/{tile_id}.tif",
+        "data_type": "Byte",
+        "nodata": 0
+    },
+    "Agc2000": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/extent_2000/standard/20230222/{tile_id}_Mg_AGC_ha_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/agc_2000/standard/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "Bgc2000": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/belowground_carbon/extent_2000/standard/20230222/{tile_id}_Mg_BGC_ha_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/bgc_2000/standard/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "DeadwoodCarbon2000": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/extent_2000/standard/20230222/{tile_id}_Mg_deadwood_C_ha_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/deadwood_carbon_2000/standard/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "LitterCarbon2000": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/extent_2000/standard/20230222/{tile_id}_Mg_litter_C_ha_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/litter_carbon_2000/standard/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+    "SoilCarbon2000": {
+        "type": "raster",
+        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/intermediate_full_extent/standard/20230222/{tile_id}_t_soil_C_ha_full_extent_2000.tif",
+        "s3_target": "{protocol}/gfw-files/flux_1_2_3/soil_carbon_2000/standard/{tile_id}.tif",
+        "data_type": "Float32",
+        "nodata": 0,
+    },
+
+
+
 
     "StdevSoilCarbonFullExtent": {
         "type": "raster",
@@ -327,52 +372,10 @@ SRC = {
         "data_type": "Float32",
         "nodata": 0
     },
-    "Agc2000": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/aboveground_carbon/extent_2000/standard/20200824/{tile_id}_Mg_AGC_ha_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_0/agc_2000/standard/{tile_id}.tif",
-        "data_type": "Float32",
-        "nodata": 0,
-    },
-    "Bgc2000": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/belowground_carbon/extent_2000/standard/20200824/{tile_id}_Mg_BGC_ha_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_0/bgc_2000/standard/{tile_id}.tif",
-        "data_type": "Float32",
-        "nodata": 0,
-    },
-    "DeadwoodCarbon2000": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/deadwood_carbon/extent_2000/standard/20200824/{tile_id}_Mg_deadwood_C_ha_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_0/deadwood_carbon_2000/standard/{tile_id}.tif",
-        "data_type": "Float32",
-        "nodata": 0,
-    },
-    "LitterCarbon2000": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/litter_carbon/extent_2000/standard/20200824/{tile_id}_Mg_litter_C_ha_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_0/litter_carbon_2000/standard/{tile_id}.tif",
-        "data_type": "Float32",
-        "nodata": 0,
-    },
-    "SoilCarbon2000": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/carbon_pools/soil_carbon/intermediate_full_extent/standard/20200724/{tile_id}_t_soil_C_ha_full_extent_2000.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_0/soil_carbon_2000/standard/{tile_id}.tif",
-        "data_type": "Float32",
-        "nodata": 0,
-    },
     "PlantationsTypeFluxModel": {
         "type": "raster",
         "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/plantation_type/standard/20200730/{tile_id}_plantation_type_oilpalm_woodfiber_other_unmasked.tif",
         "s3_target": "{protocol}/gfw-files/flux_1_2_0/plantation_type/standard/{tile_id}.tif",
-        "data_type": "Byte",
-        "nodata": 0
-    },
-    "PeatlandsExtentFluxModel": {
-        "type": "raster",
-        "src": "{protocol}/gfw2-data/climate/carbon_model/other_emissions_inputs/peatlands/processed/20200807/{tile_id}_peat_mask_processed.tif",
-        "s3_target": "{protocol}/gfw-files/flux_1_2_0/peatlands_flux_extent/standard/{tile_id}.tif",
         "data_type": "Byte",
         "nodata": 0
     },
