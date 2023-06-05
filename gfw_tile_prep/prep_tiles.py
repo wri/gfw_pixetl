@@ -7,7 +7,7 @@ import argparse
 import os
 
 # parallel workers
-WORKERS = 20
+WORKERS = 42
 
 # tile specifications
 TILE_SIZE = 400
