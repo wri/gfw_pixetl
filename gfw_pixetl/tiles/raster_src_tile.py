@@ -2,7 +2,8 @@ import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from math import floor, sqrt
-from typing import Iterator, List, Optional, Tuple, cast
+from pathlib import Path
+from typing import Iterator, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import rasterio
@@ -659,13 +660,13 @@ class RasterSrcTile(Tile):
                 del array
         return file_path
 
-    def make_local_copy(self, path: str) -> str:
-        """Download remote files."""
+    def make_local_copy(self, path: Union[Path, str]) -> str:
+        """Make a hardlink to a source file in this tile's work directory."""
 
-        new_path: str = os.path.join(self.work_dir, path.lstrip("/"))
+        new_path: str = os.path.join(self.work_dir, str(path).lstrip("/"))
         create_dir(os.path.dirname(new_path))
 
-        LOGGER.debug(f"Copying file {path} to {new_path}")
+        LOGGER.debug(f"Linking file {path} to {new_path}")
         os.link(path, new_path)
 
         return new_path

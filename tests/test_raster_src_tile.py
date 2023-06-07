@@ -125,6 +125,7 @@ def test_transform_final_wm():
 
 def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
+
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
     assert tile.dst[tile.default_format].crs.is_valid
 
@@ -365,17 +366,16 @@ def test__vrt_transform(LAYER):
 def test_download_files(LAYER):
     layer = deepcopy(LAYER)
     layer.process_locally = True
-    tile = RasterSrcTile("10N_010E", layer.grid, layer)
-    _ = tile.src  # trigger download
+    _ = RasterSrcTile("10N_010E", layer.grid, layer)
 
-    assert os.path.isfile(
-        os.path.join(tile.work_dir, "input/gfw-data-lake-test/10N_010E.tif")
-    )
+    assert os.path.isfile("/tmp/input/source0/gfw-data-lake-test/10N_010E.tif")
 
 
-def test__block_byte_size(LAYER, LAYER_MULTI):
+def test__block_byte_size_single(LAYER):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile._block_byte_size() == 1 * 2 * 400 * 400
 
+
+def test__block_byte_size_multi(LAYER_MULTI):
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
     assert tile._block_byte_size() == 2 * 2 * 400 * 400

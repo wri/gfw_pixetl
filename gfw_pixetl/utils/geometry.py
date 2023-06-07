@@ -1,12 +1,11 @@
 import math
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from geojson import Feature, FeatureCollection
 from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.models.types import FeatureTuple
 
 LOGGER = get_module_logger(__name__)
 
@@ -18,9 +17,6 @@ def generate_feature_collection(tiles, dst_format: str) -> FeatureCollection:
 
 
 def _extract_geoms(tiles, dst_format: str) -> List[Tuple[Polygon, Dict[str, Any]]]:
-
-    LOGGER.debug("Collect Polygon from tile bounds")
-
     geoms: List[Tuple[Polygon, Dict[str, Any]]] = list()
 
     for tile in tiles:
@@ -40,9 +36,6 @@ def _extract_geoms(tiles, dst_format: str) -> List[Tuple[Polygon, Dict[str, Any]
 
 def _union_tile_geoms(fc: FeatureCollection) -> FeatureCollection:
     """Union tiles bounds into a single geometry."""
-
-    LOGGER.debug("Create Polygon from tile bounds")
-
     polygons: List[Polygon] = [shape(feature["geometry"]) for feature in fc["features"]]
     extent: Union[Polygon, MultiPolygon] = unary_union(polygons)
     return _to_feature_collection([(extent, None)])
@@ -59,7 +52,9 @@ def _sanitize_props(props: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
     return props
 
 
-def _to_feature_collection(geoms: FeatureTuple) -> FeatureCollection:
+def _to_feature_collection(
+    geoms: Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
+) -> FeatureCollection:
     """Convert list of features to feature collection."""
 
     features: List[Feature] = [

@@ -1,4 +1,5 @@
-from typing import NamedTuple, Optional
+from pathlib import Path
+from typing import NamedTuple, Optional, Union
 
 from shapely.geometry import Polygon
 
@@ -6,7 +7,7 @@ from shapely.geometry import Polygon
 class InputBandElement(NamedTuple):
 
     geometry: Optional[Polygon]
-    uri: str
+    uri: Union[Path, str]
     band: int
 
     def __str__(self):
