@@ -175,6 +175,8 @@ def translate(tiles, name, **kwargs):
             "BLOCKXSIZE={}".format(tile_size),
             "-co",
             "BLOCKYSIZE={}".format(tile_size),
+            "-co",
+            "BIGTIFF=YES",
             # "-co", "SPARSE_OK=TRUE",
             src.format(protocol="/vsis3", tile_id=tile_id),
             output,
