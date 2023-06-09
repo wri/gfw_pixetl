@@ -365,7 +365,6 @@ def test__vrt_transform(LAYER):
 
 def test_download_files(LAYER):
     layer = deepcopy(LAYER)
-    layer.process_locally = True
     _ = RasterSrcTile("10N_010E", layer.grid, layer)
 
     assert os.path.isfile("/tmp/input/source0/gfw-data-lake-test/10N_010E.tif")
