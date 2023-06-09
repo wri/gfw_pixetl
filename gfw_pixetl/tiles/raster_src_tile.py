@@ -56,9 +56,9 @@ class RasterSrcTile(Tile):
                 if self.dst[self.default_format].geom.intersects(
                     f.geometry
                 ) and not self.dst[self.default_format].geom.touches(f.geometry):
-                    # LOGGER.debug(
-                    #     f"Adding {f.uri} to input files for tile {self.tile_id}"
-                    # )
+                    LOGGER.debug(
+                        f"Adding {f.uri} to input files for tile {self.tile_id}"
+                    )
 
                     uri = self.make_local_copy(f.uri)
                     input_file = InputBandElement(
