@@ -1,5 +1,6 @@
 import json
 import os
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import List, Tuple
 from urllib.parse import urlparse
@@ -71,8 +72,9 @@ def get_shape_path_pairs_under_directory(dir_path: str) -> List[ShapePathPair]:
     ]
 
 
-def download_source_file(remote_file: str, basedir: str = "/tmp/input") -> Path:
+def download_source_file(args: Tuple[str, str]) -> Path:
     """Download remote AWS or GCS files."""
+    remote_file, basedir = args
 
     download_constructor = {"gs": download_gcs, "s3": download_s3}
 
@@ -124,8 +126,8 @@ def download_sources(source_uris: List[str]) -> List[str]:
 
     LOGGER.info(f"Complete list of file_uris to download: {file_uris}")
 
-    for file_uri, target_dir in file_uris:
-
-        download_source_file(file_uri, basedir=target_dir)
+    with ProcessPoolExecutor(max_workers=GLOBALS.num_processes) as executor:
+        for file_uri, target_dir in file_uris:
+            executor.submit(download_source_file, (file_uri, target_dir))
 
     return local_source_uris
