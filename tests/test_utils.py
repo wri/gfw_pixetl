@@ -41,7 +41,7 @@ class Client(object):
             "Credentials": {
                 "Expiration": datetime.now(tz=tzutc()),
                 "AccessKeyId": "test",
-                "SecretAccessKey": "test",
+                "SecretAccessKey": "test",  # pragma: allowlist secret
                 "SessionToken": "test",
             }
         }
@@ -164,12 +164,12 @@ def test_intersection():
     # Make sure intersection of just one multi is itself
     multi1 = MultiPolygon([polygon1])
     expected_inters = multi1
-    inters = intersection(multi1, None)
+    inters = intersection([multi1, None])
     compare_multipolygons(inters, expected_inters)
 
     # Basic test of two overlapping multis
     multi2 = MultiPolygon([polygon2])
-    inters1 = intersection(multi1, multi2)
+    inters1 = intersection([multi1, multi2])
     expected_inters = MultiPolygon([Polygon([(1, 1), (1, 2), (2, 2), (2, 1)])])
     compare_multipolygons(inters1, expected_inters)
 
@@ -177,7 +177,7 @@ def test_intersection():
     # (verifies fix for GTC-1236)
     polygon4 = Polygon([(2, 2), (2, 4), (4, 4), (4, 2)])
     multi3 = MultiPolygon([polygon1, polygon4])
-    inters2 = intersection(multi2, multi3)
+    inters2 = intersection([multi2, multi3])
     expected_inters = MultiPolygon(
         [
             Polygon([(1, 1), (1, 2), (2, 2), (2, 1)]),
@@ -205,7 +205,7 @@ def test_intersection():
     assert any(geo.type == "LineString" for geo in geo_col.geoms)
 
     # Now test our function
-    inters3 = intersection(multi6, multi7)
+    inters3 = intersection([multi6, multi7])
     expected_inters = MultiPolygon([Polygon([(1, 0), (1, 1), (2, 1), (2, 0)])])
     compare_multipolygons(inters3, expected_inters)
 
