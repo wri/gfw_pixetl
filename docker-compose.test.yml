@@ -41,7 +41,7 @@ services:
     container_name: pixetl-test-database
     image: postgis/postgis:11-3.0-alpine
     ports:
-      - 54323:5432
+      - "54323:5432"
     environment:
       - POSTGRES_PORT=5432
       - POSTGRES_DB=_test
