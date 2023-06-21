@@ -46,7 +46,11 @@ def block_has_data(band_arrays: MaskedArray, tile_id) -> bool:
     size = 0
     for i, masked_array in enumerate(band_arrays):
         msk = np.invert(masked_array.mask.astype(bool))
+
+        # Get the number of valid pixels using Advanced Boolean array indexing
+        # https://numpy.org/doc/stable/user/basics.indexing.html#boolean-array-indexing
         data_pixels = msk[msk].size
+
         size += data_pixels
         LOGGER.debug(
             f"Block of tile {tile_id}, band {i+1} has {data_pixels} data pixels"
