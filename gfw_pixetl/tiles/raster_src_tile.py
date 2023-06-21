@@ -2,7 +2,7 @@ import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import floor, sqrt
 from pathlib import Path
-from typing import Iterator, List, Optional, Tuple, Union, cast
+from typing import Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import rasterio
@@ -29,10 +29,8 @@ from gfw_pixetl.utils import (
     get_co_workers,
     snapped_window,
 )
-from gfw_pixetl.utils.calc import calc
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.path import create_dir
-from gfw_pixetl.utils.rasterio.window_writer import write_window
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -474,7 +472,6 @@ class RasterSrcTile(Tile):
             for j in range(min_j, max_j):
                 windows.append(dst.block_window(1, i, j))
         return union(*windows)
-
 
     def make_local_copy(self, path: Union[Path, str]) -> str:
         """Make a hardlink to a source file in this tile's work directory."""
