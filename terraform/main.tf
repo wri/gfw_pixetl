@@ -1,5 +1,4 @@
 terraform {
-
   backend "s3" {
     key     = "wri__gfw_pixetl.tfstate"
     region  = "us-east-1"
@@ -8,15 +7,14 @@ terraform {
 }
 
 module "container_registry" {
-  source     = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/container_registry?ref=v0.4.2.2"
+  source     = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/container_registry?ref=v0.4.5"
   image_name = "${local.project}${local.name_suffix}"
   root_dir   = "../${path.root}"
 }
 
 
-
 module "compute_environment_ephemeral_storage" {
-  source               = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=v0.4.2.2"
+  source               = "git::https://github.com/wri/gfw-terraform-modules.git//terraform/modules/compute_environment?ref=v0.4.5"
   project              = local.project
   key_pair             = data.terraform_remote_state.core.outputs.key_pairs["dmannarino_gfw"].key_name
   subnets              = data.terraform_remote_state.core.outputs.private_subnet_ids
