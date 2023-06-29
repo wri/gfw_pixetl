@@ -52,7 +52,6 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
-
 # Config files
 utilities/*.ini
 
@@ -66,7 +65,6 @@ config/hot_export_token.txt
 .idea/
 
 *.lock
-*.mxd
 *.mxd
 *.adf
 *.dat
