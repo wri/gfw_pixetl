@@ -3,10 +3,10 @@ from abc import ABC, abstractmethod
 from typing import Set, Tuple
 
 from pyproj import CRS, Transformer
-from pyproj.database import AreaOfUse
 from rasterio.coords import BoundingBox
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.models.named_tuples import AreaOfUse
 
 LOGGER = get_module_logger(__name__)
 

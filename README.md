@@ -73,13 +73,13 @@ Supported Options:
 | symbology         | no        | Add optional symbology to the output raster |
 | compute_stats     | no        | Compute band statistics and add to tiles.geojson |
 | compute_histogram | no        | Compute band histograms and add to tile.geojson |
-| process_locally   | no        | Deprecated, PixETL now downloads all source files prior to processing |
+| process_locally   | no        | When set to True, forces PixETL to download all source files prior to processing. Default `False` |
 | photometric       | no        | Color interpretations of bands |
 
 _NOTE:_
 
 File listed in `source_uri` must be stored on S3 and accessible to PixETL. The file path must use the s3 protocol (`s3://`).
-File content must be of format `geoJSON`. The geojson must contain a `FeatureCollection` where each feature represents one geoTIFF file.
+File content must be of format `geoJSON`. The geojson must contain a `FeatureColletion` where each feature represents one geoTIFF file.
 The feature geometry describes the extent of the geoTIFF, the property `name` the path to the geotiff using GDAL `vsi` notation.
 You can reference file hosted on S3 (`/vsis3/`), GCS  (`/vsigs/`) or anywhere else accessible over http  (`/vsicurl/`)
 You can use the `pixetl_prep` script to generate the tile.geojson file.
@@ -92,7 +92,7 @@ You can store the private key in AWS Secret Manager. In that case set `AWS_GCS_K
 together with `GOOGLE_APPLICATION_CREDENTIALS`. PixETL with then attempt to download the private key from AWS Secret Manager
 and store it the `json` file specified.
 
-**Google Cloud Storage support is experimental only. It __should__ work as documented, but we don't have the tools in place
+**Goolge Cloud Storage support is experimental only. It __should__ work as documented, but we don't have the tools in place
 to fully test this feature locally. The only way we can test right now is with integration tests after we deployed code in staging.
 For local tests to past __AWS_GCS_KEY_SECRET_ARN__ must NOT be set as we currently have issues running tests with a second moto server on Github Actions.**
 
