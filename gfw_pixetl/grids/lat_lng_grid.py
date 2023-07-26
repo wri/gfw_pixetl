@@ -68,7 +68,7 @@ class LatLngGrid(Grid):
         lat: int = math.ceil(y / self.height) * self.height
         lat = self._apply_lat_offset(lat, y)
 
-        # Make sure we are still on earth
+        # Make sure we are are still on earth
         assert 180 - self.width >= lng >= -180, "Origin's Longitude is out of bounds"
         assert 90 >= lat >= -90 + self.height, "Origin's Latitude is out of bounds"
 
@@ -130,6 +130,10 @@ class LatLngGrid(Grid):
         tile_ids: Set[str] = set()
         for x_y in itertools.product(x, y):
             tile_ids.add(self._get_tile_ids(x_y))
+
+        # # Get all grid ids using top left corners
+        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
+        #     tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
 
         return tile_ids
 

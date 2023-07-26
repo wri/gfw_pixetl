@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import rasterio
-import shapely
 from affine import Affine
 from pyproj import CRS, Transformer
 from rasterio.coords import BoundingBox
@@ -103,11 +102,13 @@ def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
 
     try:
         with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
+            LOGGER.info(f"File {src_uri} exists")
             return src.bounds, src.profile
 
     except Exception as e:
 
         if _file_does_not_exist(e):
+            LOGGER.info(f"File does not exist {src_uri}")
             raise FileNotFoundError(f"File does not exist: {src_uri}")
         elif isinstance(e, rasterio.RasterioIOError):
             LOGGER.warning(
@@ -178,32 +179,30 @@ def world_bounds(crs: CRS) -> Bounds:
     bottom = proj.transform(0, _bottom)[1]
     right = proj.transform(_right, 0)[0]
 
+    LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
+
     return left, bottom, right, top
 
 
-def intersection(geom_list: List[Optional[MultiPolygon]]) -> Optional[MultiPolygon]:
-    if all(geom is None for geom in geom_list):
-        return None
-
-    _geom = shapely.intersection_all(geom_list)
-
-    # Sometimes the intersection results in a GeometryCollection and
-    # includes things like LineStrings (like when two polygons both share
-    # an edge and overlap elsewhere), which we don't care about. Filter
-    # that stuff out and return what's left.
-    if _geom.geom_type == "GeometryCollection":
-        if len(_geom.geoms) == 0:
-            return None
-
-        geom_pieces: List[Union[MultiPolygon, Polygon]] = list()
-        for g in _geom.geoms:
-            if g.geom_type == "MultiPolygon" or g.geom_type == "Polygon":
-                geom_pieces.append(g)
-        geom = unary_union(geom_pieces)
+def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> MultiPolygon:
+    if not b:
+        geom: MultiPolygon = a
     else:
-        geom = _geom
+        _geom = a.intersection(b)
+        # Sometimes the intersection results in a GeometryCollection and
+        # includes things like LineStrings (like when two polygons both share
+        # an edge and overlap elsewhere), which we don't care about. Filter
+        # that stuff out to return a MultiPolygon.
+        if _geom.type == "GeometryCollection":
+            geom_pieces: List[Union[MultiPolygon, Polygon]] = list()
+            for g in _geom.geoms:
+                if g.type == "MultiPolygon" or g.type == "Polygon":
+                    geom_pieces.append(g)
+            geom = unary_union(geom_pieces)
+        else:
+            geom = _geom
 
-    if geom.geom_type == "Polygon":
+    if geom.type == "Polygon":
         geom = MultiPolygon([geom])
 
     return geom
@@ -220,7 +219,7 @@ def union(
         geom = a
     else:
         geom = unary_union([a, b])
-        if geom.geom_type == "Polygon":
+        if geom.type == "Polygon":
             geom = MultiPolygon([geom])
 
     return geom

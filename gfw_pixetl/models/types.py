@@ -1,9 +1,9 @@
-from pathlib import Path
-from typing import Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 from pydantic import StrictInt
 from shapely.geometry import MultiPolygon, Polygon
 
 Bounds = Tuple[float, float, float, float]
-ShapePathPair = Tuple[Union[Polygon, MultiPolygon], Path]
+OrderedColorMap = Dict[Union[int, float], Tuple[int, int, int, int]]
+FeatureTuple = Sequence[Tuple[Union[Polygon, MultiPolygon], Optional[Dict[str, Any]]]]
 NoData = Union[StrictInt, float]

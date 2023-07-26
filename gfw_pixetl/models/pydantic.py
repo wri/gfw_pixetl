@@ -57,7 +57,7 @@ class LayerModel(BaseModel):
     symbology: Optional[Symbology]
     compute_stats: bool = False
     compute_histogram: bool = False
-    process_locally: bool = True
+    process_locally: bool = False
     photometric: Optional[PhotometricType] = None
 
     @validator("source_uri")
