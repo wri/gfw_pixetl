@@ -20,6 +20,13 @@ def test_pipe(PIPE):
 
 
 def test_get_grid_tiles():
+    # message = ""
+    # try:
+    #     len(PIPE.get_grid_tiles())
+    # except NotImplementedError:
+    #     message = "not implemented"
+    # assert message == "not implemented"
+
     layer_dict = {
         **LAYER_DICT,
         "grid": "10/40000",
@@ -88,9 +95,7 @@ def test_filter_target_tiles_no_existing_overwrite(PIPE, _upload_pipe_fixtures):
         assert i == 4
 
 
-def test_filter_target_tiles_all_existing_no_overwrite_positive(
-    PIPE, _upload_pipe_fixtures
-):
+def test_filter_target_tiles_all_existing_no_overwrite_positive(PIPE, _upload_pipe_fixtures):
     tiles = _get_subset_tiles(PIPE)
     with mock.patch.object(Destination, "exists", return_value=True):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
