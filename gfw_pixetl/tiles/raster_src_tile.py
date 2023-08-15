@@ -1,22 +1,19 @@
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from copy import deepcopy
 from math import floor, sqrt
-from typing import Iterator, List, Optional, Tuple, cast
+from pathlib import Path
+from typing import Iterator, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import numpy as np
 import rasterio
-from numpy.ma import MaskedArray
 from rasterio.io import DatasetReader, DatasetWriter
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
 from rasterio.windows import Window, bounds, from_bounds, union
-from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
-from gfw_pixetl.errors import retry_if_rasterio_io_error
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.models.named_tuples import InputBandElement
@@ -25,6 +22,8 @@ from gfw_pixetl.settings.gdal import GDAL_ENV
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
+from gfw_pixetl.tiles.utils.named_tuples import Destination, Layer, Source
+from gfw_pixetl.tiles.utils.transform import transform
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
@@ -35,7 +34,7 @@ from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
 from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
-from gfw_pixetl.utils.utils import create_empty_file, enumerate_bands, fetch_metadata
+from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
 
@@ -211,7 +210,6 @@ class RasterSrcTile(Tile):
         return src, vrt
 
     def _process_windows(self) -> bool:
-
         # In case we have more workers than cores we can further subdivide the read process.
         # In that case we will need to write the windows into separate files
         # and merging them into one file at the end of the write process
@@ -309,38 +307,23 @@ class RasterSrcTile(Tile):
         window is processed. Without this, we might experience memory
         leakage, in particular for float data types.
         """
-        return self._transform(vrt, window, write_to_seperate_files)
+        layer = Layer(input_bands=self.layer.input_bands, calc_string=self.layer.calc)
 
-    def _transform(
-        self, vrt: WarpedVRT, window: Window, write_to_seperate_files=False
-    ) -> Optional[str]:
-        """Read windows from input VRT, reproject, resample, transform and
-        write to destination."""
-        masked_array: MaskedArray = self._read_window(vrt, window)
-        LOGGER.debug(
-            f"Masked Array size for tile {self.tile_id} when read: {masked_array.nbytes / 1000000} MB"
+        source = Source(vrt=vrt, crs=self.src.crs)
+
+        destination = Destination(
+            transform=self.dst[self.default_format].transform,
+            crs=self.dst[self.default_format].crs,
+            count=self.dst[self.default_format].profile["count"],
+            no_data=self.dst[self.default_format].nodata,
+            datatype=self.dst[self.default_format].dtype,
+            profile=self.dst[self.default_format].profile,
+            tmp_dir=self.tmp_dir,
+            uri=self.local_dst[self.default_format].uri,
+            write_to_separate_files=write_to_seperate_files,
         )
-        if self._block_has_data(masked_array):
-            LOGGER.debug(f"{window} of tile {self.tile_id} has data - continue")
-            masked_array = self._calc(masked_array, window)
-            LOGGER.debug(
-                f"Masked Array size for tile {self.tile_id} after calc: {masked_array.nbytes / 1000000} MB"
-            )
-            array: np.ndarray = self._set_dtype(masked_array, window)
-            LOGGER.debug(
-                f"Array size for tile {self.tile_id} after set dtype: {masked_array.nbytes / 1000000} MB"
-            )
-            del masked_array
-            out_file: Optional[str] = self._write_window(
-                array, window, write_to_seperate_files
-            )
-            del array
 
-        else:
-            LOGGER.debug(f"{window} of tile {self.tile_id} has no data - skip")
-            del masked_array
-            out_file = None
-        return out_file
+        return transform(self.tile_id, window, layer, source, destination)
 
     def windows(self) -> List[Window]:
         """Creates local output file and returns list of size optimized windows
@@ -393,46 +376,6 @@ class RasterSrcTile(Tile):
                         )
                     else:
                         raise
-
-    def _block_has_data(self, band_arrays: MaskedArray) -> bool:
-        """Check if current block has any data."""
-        size = 0
-        for i, masked_array in enumerate(band_arrays):
-            msk = np.invert(masked_array.mask.astype(bool))
-            data_pixels = msk[msk].size
-            size += data_pixels
-            LOGGER.debug(
-                f"Block of tile {self.tile_id}, band {i+1} has {data_pixels} data pixels"
-            )
-        return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
-
-    def _calc(self, array: MaskedArray, dst_window: Window) -> MaskedArray:
-        """Apply user defined calculation on array."""
-        if self.layer.calc:
-            # Assign a variable name to each band
-            band_names = ", ".join(enumerate_bands(len(array)))
-            funcstr = (
-                f"def f({band_names}) -> MaskedArray:\n    return {self.layer.calc}"
-            )
-            LOGGER.debug(
-                f"Apply function {funcstr} on block {dst_window} of tile {self.tile_id}"
-            )
-            exec(funcstr, globals())
-            array = f(*array)  # type: ignore # noqa: F821
-
-            # assign band index
-            if len(array.shape) == 2:
-                array = array.reshape(1, *array.shape)
-            else:
-                if array.shape[0] != self.dst[self.default_format].profile["count"]:
-                    raise RuntimeError(
-                        "Output band count does not match desired count. Calc function must be wrong."
-                    )
-        else:
-            LOGGER.debug(
-                f"No user defined formula provided. Skip calculating values for {dst_window} of tile {self.tile_id}"
-            )
-        return array
 
     def _max_blocks(self) -> int:
         """Calculate the maximum amount of blocks we can fit into memory,
@@ -492,7 +435,6 @@ class RasterSrcTile(Tile):
         return max_blocks
 
     def _block_byte_size(self):
-
         shape = (
             len(self.layer.input_bands),
             self.dst[self.default_format].blockxsize,
@@ -507,57 +449,6 @@ class RasterSrcTile(Tile):
         LOGGER.debug(f"Block byte size is {max_block_byte_size/ 1000000} MB")
 
         return max_block_byte_size
-
-    @retry(
-        retry_on_exception=retry_if_rasterio_io_error,
-        stop_max_attempt_number=7,
-        wait_exponential_multiplier=1000,
-        wait_exponential_max=300000,
-    )  # Wait 2^x * 1000 ms between retries by to 300 sec, then 300 sec afterwards.
-    def _read_window(self, vrt: WarpedVRT, dst_window: Window) -> MaskedArray:
-        """Read window of input raster."""
-        dst_bounds: Bounds = bounds(dst_window, self.dst[self.default_format].transform)
-        window = vrt.window(*dst_bounds)
-
-        src_bounds = transform_bounds(
-            self.dst[self.default_format].crs, self.src.crs, *dst_bounds
-        )
-
-        LOGGER.debug(
-            f"Read {dst_window} for Tile {self.tile_id} - this corresponds to bounds {src_bounds} in source"
-        )
-
-        shape = (
-            len(self.layer.input_bands),
-            int(round(dst_window.height)),
-            int(round(dst_window.width)),
-        )
-
-        try:
-            return vrt.read(
-                window=window,
-                out_shape=shape,
-                masked=True,
-            )
-        except rasterio.RasterioIOError as e:
-            if "Access window out of range" in str(e) and (
-                shape[1] == 1 or shape[2] == 1
-            ):
-                LOGGER.warning(
-                    f"Access window out of range while reading {dst_window} for Tile {self.tile_id}. "
-                    "This is most likely due to subpixel misalignment. "
-                    "Returning empty array instead."
-                )
-                return np.ma.array(
-                    data=np.zeros(shape=shape), mask=np.ones(shape=shape)
-                )
-
-            else:
-                LOGGER.warning(
-                    f"RasterioIO error while reading {dst_window} for Tile {self.tile_id}. "
-                    "Will make attempt to retry."
-                )
-                raise
 
     def _reproject_dst_window(self, dst_window: Window) -> Window:
         """Reproject window into same projection as source raster."""
@@ -577,33 +468,6 @@ class RasterSrcTile(Tile):
             f"Source window for {dst_window} of tile {self.tile_id} is {src_window}"
         )
         return src_window
-
-    def _set_dtype(self, array: MaskedArray, dst_window) -> np.ndarray:
-        """Update data type to desired output datatype Update nodata value to
-        desired nodata value (current no data values will be updated and any
-        values which already has new no data value will stay as is)"""
-        if self.dst[self.default_format].nodata is None:
-            LOGGER.debug(f"Set datatype for {dst_window} of tile {self.tile_id}")
-            array = array.data.astype(self.dst[self.default_format].dtype)
-        elif isinstance(self.dst[self.default_format].nodata, list):
-            LOGGER.debug(
-                f"Set datatype for entire array and no data value for each band for {dst_window} of tile {self.tile_id}"
-            )
-            # make mypy happy. not sure why the isinstance check above alone doesn't do it
-            nodata_list = cast(list, self.dst[self.default_format].nodata)
-            array = np.array(
-                [np.ma.filled(array[i], nodata) for i, nodata in enumerate(nodata_list)]
-            ).astype(self.dst[self.default_format].dtype)
-
-        else:
-            LOGGER.debug(
-                f"Set datatype and no data value for {dst_window} of tile {self.tile_id}"
-            )
-            array = np.ma.filled(array, self.dst[self.default_format].nodata).astype(
-                self.dst[self.default_format].dtype
-            )
-
-        return array
 
     def _vrt_transform(
         self, west: float, south: float, east: float, north: float
@@ -637,52 +501,13 @@ class RasterSrcTile(Tile):
                 windows.append(dst.block_window(1, i, j))
         return union(*windows)
 
-    def _write_window(
-        self, array: np.ndarray, dst_window: Window, write_to_separate_files: bool
-    ) -> str:
-        if write_to_separate_files:
-            out_file: str = self._write_window_to_separate_file(array, dst_window)
-        else:
-            out_file = self._write_window_to_shared_file(array, dst_window)
-        return out_file
+    def make_local_copy(self, path: Union[Path, str]) -> str:
+        """Make a hardlink to a source file in this tile's work directory."""
 
-    def _write_window_to_shared_file(
-        self, array: np.ndarray, dst_window: Window
-    ) -> str:
-        """Write blocks into output raster."""
-        with rasterio.Env(**GDAL_ENV):
-            with rasterio.open(
-                self.local_dst[self.default_format].uri,
-                "r+",
-                **self.dst[self.default_format].profile,
-            ) as dst:
-                LOGGER.debug(f"Write {dst_window} of tile {self.tile_id}")
-                dst.write(array, window=dst_window)
-                del array
-        return self.local_dst[self.default_format].uri
+        new_path: str = os.path.join(self.work_dir, str(path).lstrip("/"))
+        create_dir(os.path.dirname(new_path))
 
-    def _write_window_to_separate_file(
-        self, array: np.ndarray, dst_window: Window
-    ) -> str:
+        LOGGER.debug(f"Linking file {path} to {new_path}")
+        os.link(path, new_path)
 
-        file_name = f"{self.tile_id}_{dst_window.col_off}_{dst_window.row_off}.tif"
-        file_path = os.path.join(self.tmp_dir, file_name)
-
-        profile = deepcopy(self.dst[self.default_format].profile)
-        transform = rasterio.windows.transform(dst_window, profile["transform"])
-        profile.update(
-            width=dst_window.width, height=dst_window.height, transform=transform
-        )
-
-        with rasterio.Env(**GDAL_ENV):
-            with rasterio.open(
-                file_path,
-                "w",
-                **profile,
-            ) as dst:
-                LOGGER.debug(
-                    f"Write {dst_window} of tile {self.tile_id} to separate file {file_path}"
-                )
-                dst.write(array)
-                del array
-        return file_path
+        return new_path
