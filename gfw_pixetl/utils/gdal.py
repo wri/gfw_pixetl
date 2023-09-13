@@ -133,14 +133,21 @@ def run_gdal_subcommand(
         o = str(o_byte)
         e = str(e_byte)
 
-    # Sometimes GDAL returns exit code 0 even though there was actually an error
-    # It's hard to tell what is and what isn't though, so log as a warning
+    # Sometimes GDAL returns exit code 0 even though there was actually an error.
+    # Raise a hard error if it is an SSL SYSCALL error, since that possibly means a
+    # database connection was dropped (and so a tile rasterization might be
+    # incomplete).
+    if p.returncode == 0 and "ERROR 1: SSL SYSCALL error" in e:
+        raise PGConnectionInterruptedError(e)
+
+    # Otherwise, log a warning, but don't raise an error.
     if p.returncode == 0 and "error" in e.lower():
         LOGGER.warning(
             'Word "error" found in stderr but exit code was 0. '
             f'command: {cmd} '
             f'stderr: {e}'
         )
+    # Raise an error if the exit code is non-zero.
     elif p.returncode != 0:
         if p.returncode < 0:
             raise SubprocessKilledError()
