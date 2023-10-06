@@ -1,3 +1,5 @@
+import csv
+import os
 from typing import List
 
 import psycopg2
@@ -73,7 +75,6 @@ class VectorSrcTile(Tile):
         return src_table
 
     def src_vector_intersects(self) -> bool:
-
         try:
             logger.debug(f"Check if tile {self.tile_id} intersects with postgis table")
             conn = psycopg2.connect(
@@ -91,7 +92,6 @@ class VectorSrcTile(Tile):
                 .select_from(self.src_table())
                 .where(self.intersect_filter())
             )
-            # exists_query = select([literal_column("exists")]).select_from(select_1)
 
             logger.debug(str(sql))
 
@@ -110,26 +110,28 @@ class VectorSrcTile(Tile):
             )
             raise
 
-        logger.debug(f"EXISTS: {exists}")
-
-        if exists:
-            logger.info(
-                f"Tile id {self.tile_id} exists in database table {self.src.schema}.{self.src.table}"
-            )
-        else:
-            logger.info(
-                f"Tile id {self.tile_id} does not exists in database table {self.src.schema}.{self.src.table}"
-            )
+        logger.info(
+            f"Tile id {self.tile_id} "
+            f"{'exists' if exists else 'does not exist'} "
+            f"in database table {self.src.schema}.{self.src.table}"
+        )
         return exists
 
-    def rasterize(self) -> None:
+    def fetch_data(self) -> None:
+        prefix = f"{self.work_dir}"
+        logger.debug(f"Attempt to create local folder {prefix} if not already exists")
+        os.makedirs(f"{prefix}", exist_ok=True)
 
-        # stage = "rasterize"
+        dst = os.path.join(prefix, f"{self.tile_id}.csv")
 
-        dst = self.get_local_dst_uri(self.default_format)
-        logger.info(f"Create raster {dst}")
-
-        cmd: List[str] = ["gdal_rasterize"]
+        conn = psycopg2.connect(
+            dbname=self.src.conn.db_name,
+            user=self.src.conn.db_user,
+            password=self.src.conn.db_password,
+            host=self.src.conn.db_host,
+            port=self.src.conn.db_port,
+        )
+        cursor = conn.cursor()
 
         val_column = literal_column(str(self.layer.calc))
         geom_column = literal_column(str(self.intersection_geom()))
@@ -143,6 +145,23 @@ class VectorSrcTile(Tile):
 
         logger.debug(str(sql))
 
+        with open(dst, "w") as f:
+            outcsv = csv.writer(f)
+
+            results = cursor.execute(str(sql))
+
+            outcsv.writerow(field[0] for field in results.description)
+            outcsv.writerows(cursor.fetchall())
+
+        logger.debug(f"Query results written to {dst}!")
+
+    def rasterize(self) -> None:
+        src = f"{self.work_dir}/{self.tile_id}.csv"
+        dst = self.get_local_dst_uri(self.default_format)
+        logger.info(f"Rasterizing {src} to {dst}")
+
+        cmd: List[str] = ["gdal_rasterize"]
+
         if self.layer.rasterize_method == "count":
             cmd += ["-burn", "1", "-add"]
         else:
@@ -152,8 +171,6 @@ class VectorSrcTile(Tile):
             cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
 
         cmd += [
-            "-sql",
-            str(sql),
             "-te",
             str(self.bounds.left),
             str(self.bounds.bottom),
@@ -174,8 +191,10 @@ class VectorSrcTile(Tile):
             f"BLOCKXSIZE={self.grid.blockxsize}",
             "-co",
             f"BLOCKYSIZE={self.grid.blockxsize}",
+            "-l",
+            self.layer.field,
             "-q",
-            self.src.conn.pg_conn(),
+            src,
             dst,
         ]
 

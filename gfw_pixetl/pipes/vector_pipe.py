@@ -24,6 +24,7 @@ class VectorPipe(Pipe):
             | self.filter_subset_tiles
             | self.filter_src_tiles
             | self.filter_target_tiles(overwrite=overwrite)
+            | self.fetch_tile_data
             | self.rasterize
             | self.upload_file
             | self.delete_work_dir
@@ -43,10 +44,6 @@ class VectorPipe(Pipe):
         for tile_id in self.grid.get_tile_ids():
             tiles.add(self._get_grid_tile(tile_id))
 
-        # tile_ids = self.grid.get_tile_ids()
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
-        #     tiles: Set[VectorSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
-
         tile_count: int = len(tiles)
         LOGGER.info(f"Found {tile_count} tiles inside grid")
 
@@ -57,12 +54,21 @@ class VectorPipe(Pipe):
         return VectorSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
     @staticmethod
-    @stage(workers=GLOBALS.workers)
+    @stage(workers=min(GLOBALS.num_processes, 8))
     def filter_src_tiles(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
-        """Only include tiles which intersect which input vector extent."""
+        """Only include tiles which intersect input vector extent."""
         for tile in tiles:
             if tile.status == "pending" and not tile.src_vector_intersects():
                 tile.status = "skipped (does not intersect)"
+            yield tile
+
+    @staticmethod
+    @stage(workers=min(GLOBALS.num_processes, 8))
+    def fetch_tile_data(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
+        """Download vector data from the database."""
+        for tile in tiles:
+            if tile.status == "pending":
+                tile.fetch_data()
             yield tile
 
     @staticmethod
