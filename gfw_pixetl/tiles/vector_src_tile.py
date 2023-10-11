@@ -2,9 +2,9 @@ import csv
 import os
 from typing import List
 
-import psycopg2
-from psycopg2._psycopg import ProgrammingError
 from sqlalchemy import Column, Table, select, table, text
+from sqlalchemy.engine import ResultProxy, create_engine
+from sqlalchemy.engine.url import URL
 from sqlalchemy.sql.elements import TextClause, literal_column
 
 from gfw_pixetl import get_module_logger
@@ -12,6 +12,7 @@ from gfw_pixetl.data_type import to_gdal_data_type
 from gfw_pixetl.errors import GDALError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import VectorSrcLayer
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.gdal import run_gdal_subcommand
@@ -75,40 +76,30 @@ class VectorSrcTile(Tile):
         return src_table
 
     def src_vector_intersects(self) -> bool:
-        try:
-            logger.debug(f"Check if tile {self.tile_id} intersects with postgis table")
-            conn = psycopg2.connect(
-                dbname=self.src.conn.db_name,
-                user=self.src.conn.db_user,
-                password=self.src.conn.db_password,
-                host=self.src.conn.db_host,
-                port=self.src.conn.db_port,
-            )
+        db_url: URL = URL(
+            "postgresql+psycopg2",
+            host=GLOBALS.db_host,
+            port=GLOBALS.db_port,
+            username=GLOBALS.db_username,
+            password=GLOBALS.db_password,
+            database=GLOBALS.db_name,
+        )
+        engine = create_engine(
+            db_url,
+            echo=True,
+        )
 
-            cursor = conn.cursor()
+        sql = (
+            # FIXME: Select another field, geom might be really big
+            select([literal_column("geom")])
+            .select_from(self.src_table())
+            .where(self.intersect_filter())
+            .limit(1)
+        )
 
-            sql = (
-                select([literal_column("1")])
-                .select_from(self.src_table())
-                .where(self.intersect_filter())
-            )
-
-            logger.debug(str(sql))
-
-            cursor.execute(str(sql))
-
-            try:
-                exists = bool(cursor.fetchone()[0])
-            except (ProgrammingError, TypeError):
-                exists = False
-
-            cursor.close()
-            conn.close()
-        except psycopg2.Error:
-            logger.exception(
-                "There was an issue when trying to connect to the database"
-            )
-            raise
+        with engine.begin() as conn:
+            result: ResultProxy = conn.execute(sql)
+            exists: bool = False if result.fetchone() is None else True
 
         logger.info(
             f"Tile id {self.tile_id} "
@@ -119,19 +110,22 @@ class VectorSrcTile(Tile):
 
     def fetch_data(self) -> None:
         prefix = f"{self.work_dir}"
-        logger.debug(f"Attempt to create local folder {prefix} if not already exists")
         os.makedirs(f"{prefix}", exist_ok=True)
 
         dst = os.path.join(prefix, f"{self.tile_id}.csv")
 
-        conn = psycopg2.connect(
-            dbname=self.src.conn.db_name,
-            user=self.src.conn.db_user,
-            password=self.src.conn.db_password,
-            host=self.src.conn.db_host,
-            port=self.src.conn.db_port,
+        db_url: URL = URL(
+            "postgresql+psycopg2",
+            host=GLOBALS.db_host,
+            port=GLOBALS.db_port,
+            username=GLOBALS.db_username,
+            password=GLOBALS.db_password,
+            database=GLOBALS.db_name,
         )
-        cursor = conn.cursor()
+        engine = create_engine(
+            db_url,
+            echo=True,
+        )
 
         val_column = literal_column(str(self.layer.calc))
         geom_column = literal_column(str(self.intersection_geom()))
@@ -143,17 +137,14 @@ class VectorSrcTile(Tile):
             .order_by(self.order_column(val_column))
         )
 
-        logger.debug(str(sql))
+        with engine.begin() as conn:
+            with open(dst, "w") as f:
+                outcsv = csv.writer(f)
 
-        with open(dst, "w") as f:
-            outcsv = csv.writer(f)
+                results: ResultProxy = conn.execute(sql)
 
-            results = cursor.execute(str(sql))
-
-            outcsv.writerow(field[0] for field in results.description)
-            outcsv.writerows(cursor.fetchall())
-
-        logger.debug(f"Query results written to {dst}!")
+                outcsv.writerow(field for field in results.keys())
+                outcsv.writerows(results.fetchall())
 
     def rasterize(self) -> None:
         src = f"{self.work_dir}/{self.tile_id}.csv"
@@ -191,8 +182,6 @@ class VectorSrcTile(Tile):
             f"BLOCKXSIZE={self.grid.blockxsize}",
             "-co",
             f"BLOCKYSIZE={self.grid.blockxsize}",
-            "-l",
-            self.layer.field,
             "-q",
             src,
             dst,
