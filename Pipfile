@@ -18,13 +18,13 @@ google-cloud-storage = "*"
 parallelpipe = "*"
 psutil = "*"
 psycopg2 = "*"
-pydantic = "*"
+pydantic = "<2"
 pyproj = "*"
 rasterio = "==1.3.4"  # Upgrade carefully
 retrying = "*"
 PyYAML = "*"
 Shapely = "*"
-SQLAlchemy = "*"
+SQLAlchemy = "<1.4"
 typer = "*"
 
 [requires]
