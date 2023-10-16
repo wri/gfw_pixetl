@@ -90,8 +90,7 @@ class VectorSrcTile(Tile):
         )
 
         sql = (
-            # FIXME: Select another field, geom might be really big
-            select([literal_column("geom")])
+            select([literal_column("gfw_fid")])
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .limit(1)
@@ -130,8 +129,14 @@ class VectorSrcTile(Tile):
         val_column = literal_column(str(self.layer.calc))
         geom_column = literal_column(str(self.intersection_geom()))
 
+        # Rename "geom" column to "WKT" as that's what gdal_rasterize
+        # looks for.
+        # gdal_rasterize can take "-oo GEOM_POSSIBLE_NAMES=geom"
+        # in GDAL 3.7+, which we're not on yet. We can use the column
+        # names as-is once we are and instead modify the
+        # gdal_rasterize command in self.rasterize()
         sql = (
-            select([val_column.label(self.layer.field), geom_column.label("geom")])
+            select([val_column.label(self.layer.field), geom_column.label("WKT")])
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .order_by(self.order_column(val_column))
