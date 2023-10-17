@@ -85,7 +85,7 @@ def test_vector_src_tile_intersects_surrounding_tiles(rw_db):
         assert not tile.src_vector_intersects()
 
 
-def test_vector_src_tile_fetch_data(rw_db):
+def test_vector_src_tile_fetch_data_creates_csv(rw_db):
     layer_dict = {**base_vector_layer_dict}
 
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
@@ -100,7 +100,7 @@ def test_vector_src_tile_fetch_data(rw_db):
     assert os.path.isfile(csv_path)
 
 
-def test_vector_src_tile_rasterize(rw_db):
+def test_vector_src_tile_rasterize_creates_tiff(rw_db):
     layer_dict = {**base_vector_layer_dict}
 
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
