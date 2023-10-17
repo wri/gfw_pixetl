@@ -84,10 +84,7 @@ class VectorSrcTile(Tile):
             password=GLOBALS.db_password,
             database=GLOBALS.db_name,
         )
-        engine = create_engine(
-            db_url,
-            echo=True,
-        )
+        engine = create_engine(db_url)
 
         sql = (
             select([literal_column("gfw_fid")])
@@ -121,10 +118,7 @@ class VectorSrcTile(Tile):
             password=GLOBALS.db_password,
             database=GLOBALS.db_name,
         )
-        engine = create_engine(
-            db_url,
-            echo=True,
-        )
+        engine = create_engine(db_url)
 
         val_column = literal_column(str(self.layer.calc))
         geom_column = literal_column(str(self.intersection_geom()))
@@ -149,6 +143,7 @@ class VectorSrcTile(Tile):
                 results: ResultProxy = conn.execute(sql)
 
                 outcsv.writerow(field for field in results.keys())
+                # FIXME: Consider using fetchmany to batch
                 outcsv.writerows(results.fetchall())
 
     def rasterize(self) -> None:
@@ -191,8 +186,6 @@ class VectorSrcTile(Tile):
             src,
             dst,
         ]
-
-        logger.info("Rasterize tile " + self.tile_id)
 
         try:
             run_gdal_subcommand(cmd)
