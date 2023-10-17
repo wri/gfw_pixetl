@@ -21,7 +21,7 @@ class VectorPipe(Pipe):
         tiles = self.collect_tiles(overwrite=overwrite)
         pipe = (
             tiles
-            | self.filter_subset_tiles
+            | self.filter_subset_tiles(self.subset)
             | self.filter_src_tiles
             | self.filter_target_tiles(overwrite=overwrite)
             | self.fetch_tile_data
