@@ -7,9 +7,8 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import text
 
-from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid, grid_factory
-from gfw_pixetl.layers import VectorSrcLayer
+from gfw_pixetl.layers import VectorSrcLayer, layer_factory
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import VectorSrcTile
@@ -68,17 +67,15 @@ def rw_db():
 def test_vector_src_tile_intersects_data(rw_db):
     layer_dict = {**base_vector_layer_dict}
 
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
-    assert isinstance(layer, layers.VectorSrcLayer)
+    layer = layer_factory(LayerModel.parse_obj(layer_dict))
+    assert isinstance(layer, VectorSrcLayer)
 
     tile: VectorSrcTile = VectorSrcTile("60N_010E", layer.grid, layer)
     assert tile.src_vector_intersects()
 
 
 def test_vector_src_tile_intersects_surrounding_tiles(rw_db):
-    layer_dict = {**base_vector_layer_dict}
-
-    layer: VectorSrcLayer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer: VectorSrcLayer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
 
     for tile_id in [
         "70N_000E", "70N_010E", "70N_020E",  # NOQA
@@ -90,9 +87,7 @@ def test_vector_src_tile_intersects_surrounding_tiles(rw_db):
 
 
 def test_vector_src_tile_fetch_data_creates_csv(rw_db):
-    layer_dict = {**base_vector_layer_dict}
-
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
     tile: VectorSrcTile = VectorSrcTile("60N_010E", layer.grid, layer)
 
     csv_path = os.path.join(tile.work_dir, f"{tile.tile_id}.csv")
@@ -109,7 +104,7 @@ def test_vector_src_tile_rasterize_creates_tiff(rw_db):
     some_grid: LatLngGrid = grid_factory(grid_name)
 
     layer_dict = {**base_vector_layer_dict, "grid": grid_name}
-    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+    layer = layer_factory(LayerModel.parse_obj(layer_dict))
 
     tile = VectorSrcTile("54N_010E", some_grid, layer)
     assert tile.src_vector_intersects()
