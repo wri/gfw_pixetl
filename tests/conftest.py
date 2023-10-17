@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 from copy import deepcopy
 
 import numpy as np
@@ -11,8 +12,13 @@ from rasterio.crs import CRS
 from gfw_pixetl.layers import layer_factory
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import RasterPipe
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.aws import get_s3_client
+import pytest
+from sqlalchemy.sql import text
+from sqlalchemy.engine import create_engine
+from sqlalchemy.engine.url import URL
 
 BUCKET = "gfw-data-lake-test"
 GEOJSON_NAME = "tiles.geojson"
@@ -189,3 +195,41 @@ def PIPE_10x10(LAYER):
 @pytest.fixture()
 def TILE(LAYER):
     yield Tile("10N_010E", LAYER.grid, LAYER)
+
+
+@pytest.fixture(scope="module")
+def sample_vector_data():
+    dataset = "public"
+    version = "v4"
+
+    proc_args = [
+        "ogr2ogr",
+        "-f",
+        "PostgreSQL",
+        f"PG:password={GLOBALS.db_password} host={GLOBALS.db_host} port={GLOBALS.db_port} dbname={GLOBALS.db_name} user={GLOBALS.db_username}",
+        os.path.join(os.path.dirname(__file__), "fixtures", "sample_data.csv"),
+        "-nln",
+        f"{dataset}.{version}",
+        "-t_srs",
+        "EPSG:4326",
+        "-s_srs",
+        "EPSG:4326",
+    ]
+    p = subprocess.run(proc_args, capture_output=True, check=True)
+    assert p.stderr == b""
+
+    yield dataset, version
+
+    db_url = URL(
+        "postgresql+psycopg2",
+        host=GLOBALS.db_host,
+        port=GLOBALS.db_port,
+        username=GLOBALS.db_username,
+        password=GLOBALS.db_password,
+        database=GLOBALS.db_name,
+    )
+
+    sql = text(f"DROP TABLE IF EXISTS {dataset}.{version};")
+
+    with create_engine(db_url).begin() as conn:
+        conn.execute(sql)

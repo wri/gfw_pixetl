@@ -1,16 +1,10 @@
 import os
-import subprocess
 
-import pytest
-from sqlalchemy.engine import create_engine
-from sqlalchemy.engine.url import URL
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import text
 
 from gfw_pixetl.grids import LatLngGrid, grid_factory
 from gfw_pixetl.layers import VectorSrcLayer, layer_factory
 from gfw_pixetl.models.pydantic import LayerModel
-from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import VectorSrcTile
 
 Base = declarative_base()
@@ -29,42 +23,7 @@ base_vector_layer_dict = {
 }
 
 
-@pytest.fixture(scope="module")
-def rw_db():
-    proc_args = [
-        "ogr2ogr",
-        "-f",
-        "PostgreSQL",
-        f"PG:password={GLOBALS.db_password} host={GLOBALS.db_host} port={GLOBALS.db_port} dbname={GLOBALS.db_name} user={GLOBALS.db_username}",
-        os.path.join(os.path.dirname(__file__), "fixtures", "sample_data.csv"),
-        "-nln",
-        f"{dataset}.{version}",
-        "-t_srs",
-        "EPSG:4326",
-        "-s_srs",
-        "EPSG:4326",
-    ]
-    p = subprocess.run(proc_args, capture_output=True, check=True)
-    assert p.stderr == b""
-
-    yield
-
-    db_url = URL(
-        "postgresql+psycopg2",
-        host=GLOBALS.db_host,
-        port=GLOBALS.db_port,
-        username=GLOBALS.db_username,
-        password=GLOBALS.db_password,
-        database=GLOBALS.db_name,
-    )
-
-    sql = text(f"DROP TABLE IF EXISTS {dataset}.{version};")
-
-    with create_engine(db_url).begin() as conn:
-        conn.execute(sql)
-
-
-def test_vector_src_tile_intersects_data(rw_db):
+def test_vector_src_tile_intersects_data(sample_vector_data):
     layer_dict = {**base_vector_layer_dict}
 
     layer = layer_factory(LayerModel.parse_obj(layer_dict))
@@ -74,7 +33,7 @@ def test_vector_src_tile_intersects_data(rw_db):
     assert tile.src_vector_intersects()
 
 
-def test_vector_src_tile_intersects_surrounding_tiles(rw_db):
+def test_vector_src_tile_intersects_surrounding_tiles(sample_vector_data):
     layer: VectorSrcLayer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
 
     for tile_id in [
@@ -86,7 +45,7 @@ def test_vector_src_tile_intersects_surrounding_tiles(rw_db):
         assert not tile.src_vector_intersects()
 
 
-def test_vector_src_tile_fetch_data_creates_csv(rw_db):
+def test_vector_src_tile_fetch_data_creates_csv(sample_vector_data):
     layer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
     tile: VectorSrcTile = VectorSrcTile("60N_010E", layer.grid, layer)
 
@@ -99,7 +58,7 @@ def test_vector_src_tile_fetch_data_creates_csv(rw_db):
     assert os.path.isfile(csv_path)
 
 
-def test_vector_src_tile_rasterize_creates_tiff(rw_db):
+def test_vector_src_tile_rasterize_creates_tiff(sample_vector_data):
     grid_name: str = "1/4000"
     some_grid: LatLngGrid = grid_factory(grid_name)
 
