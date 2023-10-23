@@ -97,7 +97,7 @@ class VectorSrcTile(Tile):
             result: ResultProxy = conn.execute(sql)
             exists: bool = False if result.fetchone() is None else True
 
-        logger.info(
+        logger.debug(
             f"Tile id {self.tile_id} "
             f"{'exists' if exists else 'does not exist'} "
             f"in database table {self.src.schema}.{self.src.table}"
@@ -105,6 +105,7 @@ class VectorSrcTile(Tile):
         return exists
 
     def fetch_data(self) -> None:
+        """Download all intersecting features to a local CSV."""
         prefix = f"{self.work_dir}"
         os.makedirs(f"{prefix}", exist_ok=True)
 
@@ -138,15 +139,23 @@ class VectorSrcTile(Tile):
 
         with engine.begin() as conn:
             with open(dst, "w") as f:
+                # FIXME: See if this (fetching to and reading from a CSV)
+                # actually works for WDPA, whose gigantic geom values cause
+                # issues for at least the Python CSV reader and shapely
                 outcsv = csv.writer(f)
 
                 results: ResultProxy = conn.execute(sql)
 
                 outcsv.writerow(field for field in results.keys())
-                # FIXME: Consider using fetchmany to batch
+                # FIXME: fetchall() will fetch ALL the intersecting features.
+                # That's probably not a lot of rows BUT some features have
+                # absurdly large geom values (WDPA, for example).
+                # Perhaps we should fetch only a few rows at a time to limit
+                # memory usage?
                 outcsv.writerows(results.fetchall())
 
     def rasterize(self) -> None:
+        """Rasterize all features from data previously fetched to CSV."""
         src = f"{self.work_dir}/{self.tile_id}.csv"
         dst = self.get_local_dst_uri(self.default_format)
         logger.info(f"Rasterizing {src} to {dst}")
