@@ -1,7 +1,7 @@
-import csv
 import os
 from typing import List
 
+import pandas as pd
 from retrying import retry
 from sqlalchemy import Column, Table, select, table, text
 from sqlalchemy.engine import ResultProxy, create_engine
@@ -79,9 +79,9 @@ class VectorSrcTile(Tile):
     @retry(
         retry_on_exception=retry_if_db_fell_over,
         stop_max_attempt_number=7,
-        wait_random_min=10000,
+        wait_random_min=60000,
         wait_random_max=180000,
-    )  # Wait 20-180s between retries
+    )  # Wait 60-180s between retries
     def src_vector_intersects(self) -> bool:
         db_url: URL = URL(
             "postgresql+psycopg2",
@@ -122,7 +122,7 @@ class VectorSrcTile(Tile):
         prefix = f"{self.work_dir}"
         os.makedirs(f"{prefix}", exist_ok=True)
 
-        dst = os.path.join(prefix, f"{self.tile_id}.csv")
+        dst = os.path.join(prefix, f"{self.tile_id}.parquet")
 
         db_url: URL = URL(
             "postgresql+psycopg2",
@@ -150,26 +150,13 @@ class VectorSrcTile(Tile):
             .order_by(self.order_column(val_column))
         )
 
-        with engine.begin() as conn:
-            with open(dst, "w") as f:
-                # FIXME: See if this (fetching to and reading from a CSV)
-                # actually works for WDPA, whose gigantic geom values cause
-                # issues for at least the Python CSV reader and shapely
-                outcsv = csv.writer(f)
-
-                results: ResultProxy = conn.execute(sql)
-
-                outcsv.writerow(field for field in results.keys())
-                # FIXME: fetchall() will fetch ALL the intersecting features.
-                # That's probably not a lot of rows BUT some features have
-                # absurdly large geom values (WDPA, for example).
-                # Perhaps we should fetch only a few rows at a time to limit
-                # memory usage?
-                outcsv.writerows(results.fetchall())
+        dataframe = pd.read_sql(sql, engine)
+        dataframe.to_parquet(dst, compression="snappy")
 
     def rasterize(self) -> None:
-        """Rasterize all features from data previously fetched to CSV."""
-        src = f"{self.work_dir}/{self.tile_id}.csv"
+        """Rasterize all features from data previously fetched to parquet
+        file."""
+        src = f"{self.work_dir}/{self.tile_id}.parquet"
         dst = self.get_local_dst_uri(self.default_format)
         logger.info(f"Rasterizing {src} to {dst}")
 
