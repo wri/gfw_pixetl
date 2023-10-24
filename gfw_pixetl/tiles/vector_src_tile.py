@@ -2,6 +2,7 @@ import csv
 import os
 from typing import List
 
+from retrying import retry
 from sqlalchemy import Column, Table, select, table, text
 from sqlalchemy.engine import ResultProxy, create_engine
 from sqlalchemy.engine.url import URL
@@ -9,7 +10,7 @@ from sqlalchemy.sql.elements import TextClause, literal_column
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import to_gdal_data_type
-from gfw_pixetl.errors import GDALError
+from gfw_pixetl.errors import GDALError, retry_if_db_fell_over
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.settings.globals import GLOBALS
@@ -75,6 +76,12 @@ class VectorSrcTile(Tile):
         src_table.schema = self.src.schema
         return src_table
 
+    @retry(
+        retry_on_exception=retry_if_db_fell_over,
+        stop_max_attempt_number=7,
+        wait_random_min=10000,
+        wait_random_max=180000,
+    )  # Wait 20-180s between retries
     def src_vector_intersects(self) -> bool:
         db_url: URL = URL(
             "postgresql+psycopg2",
@@ -104,6 +111,12 @@ class VectorSrcTile(Tile):
         )
         return exists
 
+    @retry(
+        retry_on_exception=retry_if_db_fell_over,
+        stop_max_attempt_number=7,
+        wait_random_min=60000,
+        wait_random_max=180000,
+    )  # Wait 60-180s between retries
     def fetch_data(self) -> None:
         """Download all intersecting features to a local CSV."""
         prefix = f"{self.work_dir}"

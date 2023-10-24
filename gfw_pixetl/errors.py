@@ -1,4 +1,6 @@
+from psycopg2 import OperationalError as PsycoOperationalError
 from rasterio import RasterioIOError
+from sqlalchemy.exc import OperationalError as SQLAOperationalError
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -37,8 +39,8 @@ class PGConnectionInterruptedError(Exception):
 
 
 def retry_on_gdal_errors(exception) -> bool:
-    """Return True if we should retry (in this case when it's an IOError or connection error),
-    False otherwise."""
+    """Return True if we should retry (in this case when it's an IOError or
+    connection error), False otherwise."""
     is_none_type_error: bool = isinstance(exception, GDALNoneTypeError)
     is_connection_error: bool = isinstance(exception, PGConnectionInterruptedError)
 
@@ -73,6 +75,16 @@ def retry_if_rasterio_io_error(exception) -> bool:
     if is_rasterio_io_error:
         LOGGER.warning("RasterioIO Error - RETRY")
     return is_rasterio_io_error
+
+
+def retry_if_db_fell_over(exception) -> bool:
+    if isinstance(exception, (PsycoOperationalError, SQLAOperationalError)) and (
+        "SSL SYSCALL error: EOF detected" in str(exception)
+        or "Connection refused" in str(exception)
+    ):
+        LOGGER.warning("SQLA error (suspect the DB fell over) - RETRY")
+        return True  # i.e. retry
+    return False  # i.e. don't retry
 
 
 def retry_if_missing_gcs_key_error(exception) -> bool:
