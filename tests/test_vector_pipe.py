@@ -9,7 +9,7 @@ from gfw_pixetl.tiles import VectorSrcTile
 from tests.utils import get_subset_tile_ids
 
 base_vector_layer_dict = {
-    "dataset": "public",
+    "dataset": "some_dataset",
     "version": "v4",
     "grid": "1/4000",
     "pixel_meaning": "gfw_fid",
