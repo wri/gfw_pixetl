@@ -37,25 +37,30 @@ def test_vector_src_tile_intersects_surrounding_tiles(sample_vector_data):
     layer: VectorSrcLayer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
 
     for tile_id in [
-        "70N_000E", "70N_010E", "70N_020E",  # NOQA
-        "60N_000E", "60N_020E",              # NOQA
-        "50N_000E", "50N_010E", "50N_020E"   # NOQA
+        "70N_000E",
+        "70N_010E",
+        "70N_020E",  # NOQA
+        "60N_000E",
+        "60N_020E",  # NOQA
+        "50N_000E",
+        "50N_010E",
+        "50N_020E",  # NOQA
     ]:
         tile: VectorSrcTile = VectorSrcTile(tile_id, layer.grid, layer)
         assert not tile.src_vector_intersects()
 
 
-def test_vector_src_tile_fetch_data_creates_csv(sample_vector_data):
+def test_vector_src_tile_fetch_data_creates_parquet(sample_vector_data):
     layer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
     tile: VectorSrcTile = VectorSrcTile("60N_010E", layer.grid, layer)
 
-    csv_path = os.path.join(tile.work_dir, f"{tile.tile_id}.csv")
+    parquet_path = os.path.join(tile.work_dir, f"{tile.tile_id}.parquet")
     tile.remove_work_dir()
-    assert not os.path.isfile(csv_path)
+    assert not os.path.isfile(parquet_path)
 
     tile.fetch_data()
 
-    assert os.path.isfile(csv_path)
+    assert os.path.isfile(parquet_path)
 
 
 def test_vector_src_tile_rasterize_creates_tiff(sample_vector_data):
