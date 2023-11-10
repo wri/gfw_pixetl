@@ -9,12 +9,7 @@ from gfw_pixetl.tiles import VectorSrcTile
 
 Base = declarative_base()
 
-dataset = "public"
-version = "v4"
-
 base_vector_layer_dict = {
-    "dataset": dataset,
-    "version": version,
     "grid": "10/40000",
     "pixel_meaning": "gfw_fid",
     "source_type": "vector",
@@ -24,9 +19,13 @@ base_vector_layer_dict = {
 
 
 def test_vector_src_tile_intersects_data(sample_vector_data):
-    layer_dict = {**base_vector_layer_dict}
+    dataset, version = sample_vector_data
+    layer: VectorSrcLayer = layer_factory(
+        LayerModel.parse_obj(
+            base_vector_layer_dict | {"dataset": dataset, "version": version}
+        )
+    )
 
-    layer = layer_factory(LayerModel.parse_obj(layer_dict))
     assert isinstance(layer, VectorSrcLayer)
 
     tile: VectorSrcTile = VectorSrcTile("60N_010E", layer.grid, layer)
@@ -34,7 +33,12 @@ def test_vector_src_tile_intersects_data(sample_vector_data):
 
 
 def test_vector_src_tile_intersects_surrounding_tiles(sample_vector_data):
-    layer: VectorSrcLayer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
+    dataset, version = sample_vector_data
+    layer: VectorSrcLayer = layer_factory(
+        LayerModel.parse_obj(
+            base_vector_layer_dict | {"dataset": dataset, "version": version}
+        )
+    )
 
     for tile_id in [
         "70N_000E",
@@ -51,7 +55,13 @@ def test_vector_src_tile_intersects_surrounding_tiles(sample_vector_data):
 
 
 def test_vector_src_tile_fetch_data_creates_parquet(sample_vector_data):
-    layer = layer_factory(LayerModel.parse_obj(base_vector_layer_dict))
+    dataset, version = sample_vector_data
+    layer: VectorSrcLayer = layer_factory(
+        LayerModel.parse_obj(
+            base_vector_layer_dict | {"dataset": dataset, "version": version}
+        )
+    )
+
     tile: VectorSrcTile = VectorSrcTile("60N_010E", layer.grid, layer)
 
     parquet_path = os.path.join(tile.work_dir, f"{tile.tile_id}.parquet")
@@ -67,8 +77,13 @@ def test_vector_src_tile_rasterize_creates_tiff(sample_vector_data):
     grid_name: str = "1/4000"
     some_grid: LatLngGrid = grid_factory(grid_name)
 
-    layer_dict = {**base_vector_layer_dict, "grid": grid_name}
-    layer = layer_factory(LayerModel.parse_obj(layer_dict))
+    dataset, version = sample_vector_data
+    layer: VectorSrcLayer = layer_factory(
+        LayerModel.parse_obj(
+            base_vector_layer_dict
+            | {"dataset": dataset, "version": version, "grid": grid_name}
+        )
+    )
 
     tile = VectorSrcTile("54N_010E", some_grid, layer)
     assert tile.src_vector_intersects()
