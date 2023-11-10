@@ -54,7 +54,7 @@ class VectorPipe(Pipe):
         return VectorSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
     @staticmethod
-    @stage(workers=min(GLOBALS.num_processes, 16))
+    @stage(workers=min(GLOBALS.num_processes, 4))  # Limited to be nice to DB
     def filter_src_tiles(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """Only include tiles which intersect input vector extent."""
         for tile in tiles:
@@ -63,7 +63,7 @@ class VectorPipe(Pipe):
             yield tile
 
     @staticmethod
-    @stage(workers=min(GLOBALS.num_processes, 16))
+    @stage(workers=min(GLOBALS.num_processes, 4))  # Limited to be nice to DB
     def fetch_tile_data(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """Download vector data from the database."""
         for tile in tiles:
