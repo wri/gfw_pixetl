@@ -1,15 +1,19 @@
+import os
 from typing import List
 
-import psycopg2
-from psycopg2._psycopg import ProgrammingError
+import pandas as pd
+from retrying import retry
 from sqlalchemy import Column, Table, select, table, text
+from sqlalchemy.engine import ResultProxy, create_engine
+from sqlalchemy.engine.url import URL
 from sqlalchemy.sql.elements import TextClause, literal_column
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import to_gdal_data_type
-from gfw_pixetl.errors import GDALError
+from gfw_pixetl.errors import GDALError, retry_if_db_fell_over
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import VectorSrcLayer
+from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.gdal import run_gdal_subcommand
@@ -72,76 +76,91 @@ class VectorSrcTile(Tile):
         src_table.schema = self.src.schema
         return src_table
 
+    @retry(
+        retry_on_exception=retry_if_db_fell_over,
+        stop_max_attempt_number=7,
+        wait_random_min=60000,
+        wait_random_max=180000,
+    )  # Wait 60-180s between retries
     def src_vector_intersects(self) -> bool:
+        db_url: URL = URL(
+            "postgresql+psycopg2",
+            host=GLOBALS.db_host,
+            port=GLOBALS.db_port,
+            username=GLOBALS.db_username,
+            password=GLOBALS.db_password,
+            database=GLOBALS.db_name,
+        )
+        engine = create_engine(db_url)
 
-        try:
-            logger.debug(f"Check if tile {self.tile_id} intersects with postgis table")
-            conn = psycopg2.connect(
-                dbname=self.src.conn.db_name,
-                user=self.src.conn.db_user,
-                password=self.src.conn.db_password,
-                host=self.src.conn.db_host,
-                port=self.src.conn.db_port,
-            )
+        sql = (
+            select([literal_column("gfw_fid")])
+            .select_from(self.src_table())
+            .where(self.intersect_filter())
+            .limit(1)
+        )
 
-            cursor = conn.cursor()
+        with engine.begin() as conn:
+            result: ResultProxy = conn.execute(sql)
+            exists: bool = False if result.fetchone() is None else True
 
-            sql = (
-                select([literal_column("1")])
-                .select_from(self.src_table())
-                .where(self.intersect_filter())
-            )
-            # exists_query = select([literal_column("exists")]).select_from(select_1)
-
-            logger.debug(str(sql))
-
-            cursor.execute(str(sql))
-
-            try:
-                exists = bool(cursor.fetchone()[0])
-            except (ProgrammingError, TypeError):
-                exists = False
-
-            cursor.close()
-            conn.close()
-        except psycopg2.Error:
-            logger.exception(
-                "There was an issue when trying to connect to the database"
-            )
-            raise
-
-        logger.debug(f"EXISTS: {exists}")
-
-        if exists:
-            logger.info(
-                f"Tile id {self.tile_id} exists in database table {self.src.schema}.{self.src.table}"
-            )
-        else:
-            logger.info(
-                f"Tile id {self.tile_id} does not exists in database table {self.src.schema}.{self.src.table}"
-            )
+        logger.debug(
+            f"Tile id {self.tile_id} "
+            f"{'exists' if exists else 'does not exist'} "
+            f"in database table {self.src.schema}.{self.src.table}"
+        )
         return exists
 
-    def rasterize(self) -> None:
+    @retry(
+        retry_on_exception=retry_if_db_fell_over,
+        stop_max_attempt_number=7,
+        wait_random_min=60000,
+        wait_random_max=180000,
+    )  # Wait 60-180s between retries
+    def fetch_data(self) -> None:
+        """Download all intersecting features to a local CSV."""
+        prefix = f"{self.work_dir}"
+        os.makedirs(f"{prefix}", exist_ok=True)
 
-        # stage = "rasterize"
+        dst = os.path.join(prefix, f"{self.tile_id}.parquet")
 
-        dst = self.get_local_dst_uri(self.default_format)
-        logger.info(f"Create raster {dst}")
-
-        cmd: List[str] = ["gdal_rasterize"]
+        db_url: URL = URL(
+            "postgresql+psycopg2",
+            host=GLOBALS.db_host,
+            port=GLOBALS.db_port,
+            username=GLOBALS.db_username,
+            password=GLOBALS.db_password,
+            database=GLOBALS.db_name,
+        )
+        engine = create_engine(db_url)
 
         val_column = literal_column(str(self.layer.calc))
         geom_column = literal_column(str(self.intersection_geom()))
 
+        # Rename "geom" column to "WKT" as that's what gdal_rasterize
+        # looks for.
+        # gdal_rasterize can take "-oo GEOM_POSSIBLE_NAMES=geom"
+        # in GDAL 3.7+, which we're not on yet. We can use the column
+        # names as-is once we are and instead modify the
+        # gdal_rasterize command in self.rasterize()
         sql = (
-            select([val_column.label(self.layer.field), geom_column.label("geom")])
+            select([val_column.label(self.layer.field), geom_column.label("WKT")])
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .order_by(self.order_column(val_column))
         )
 
-        logger.debug(str(sql))
+        dataframe = pd.read_sql(sql, engine)
+        dataframe.to_parquet(dst, compression="snappy")
+
+    def rasterize(self) -> None:
+        """Rasterize all features from data previously fetched to parquet
+        file."""
+        src = f"{self.work_dir}/{self.tile_id}.parquet"
+        dst = self.get_local_dst_uri(self.default_format)
+        logger.info(f"Rasterizing {src} to {dst}")
+
+        cmd: List[str] = ["gdal_rasterize"]
 
         if self.layer.rasterize_method == "count":
             cmd += ["-burn", "1", "-add"]
@@ -152,8 +171,6 @@ class VectorSrcTile(Tile):
             cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
 
         cmd += [
-            "-sql",
-            str(sql),
             "-te",
             str(self.bounds.left),
             str(self.bounds.bottom),
@@ -175,11 +192,9 @@ class VectorSrcTile(Tile):
             "-co",
             f"BLOCKYSIZE={self.grid.blockxsize}",
             "-q",
-            self.src.conn.pg_conn(),
+            src,
             dst,
         ]
-
-        logger.info("Rasterize tile " + self.tile_id)
 
         try:
             run_gdal_subcommand(cmd)

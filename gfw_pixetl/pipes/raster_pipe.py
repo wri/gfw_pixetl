@@ -24,11 +24,6 @@ class RasterPipe(Pipe):
         for tile_id in self.grid.get_tile_ids():
             tiles.add(self._get_grid_tile(tile_id))
 
-        # tile_ids = self.grid.get_tile_ids()
-        #
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
-        #     tiles: Set[RasterSrcTile] = set(pool.map(self._get_grid_tile, tile_ids))
-
         tile_count: int = len(tiles)
         LOGGER.info(f"Found {tile_count} tile(s) inside grid")
 

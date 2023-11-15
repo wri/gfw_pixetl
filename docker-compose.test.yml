@@ -16,9 +16,10 @@ services:
     environment:
       - ENV=test
       - PGPASSWORD=postgres  # pragma: allowlist secret
-      - PGHOST=test_database
+      - PGHOST=pixetl_test_database
       - PGUSER=gfw
       - PGDATABASE=_test
+      - PGPORT=5432
       - AWS_ACCESS_KEY_ID=testing  # pragma: allowlist secret
       - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
       - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret
@@ -33,13 +34,13 @@ services:
     working_dir: /tmp
     entrypoint: /usr/local/app/tests/run_tests.sh
     depends_on:
-      - test_database
+      - pixetl_test_database
       - motoserver-s3
 #      - motoserver-secretsmanager
 
-  test_database:
-    container_name: pixetl-test-database
-    image: postgis/postgis:11-3.0-alpine
+  pixetl_test_database:
+    container_name: pixetl-test-database-container
+    image: postgis/postgis:12-2.5-alpine
     ports:
       - "54323:5432"
     environment:
