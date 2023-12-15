@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-import pandas as pd
+import geopandas
 from retrying import retry
 from sqlalchemy import Column, Table, select, table, text
 from sqlalchemy.engine import ResultProxy, create_engine
@@ -20,6 +20,8 @@ from gfw_pixetl.utils.gdal import run_gdal_subcommand
 
 logger = get_module_logger(__name__)
 
+GEOMETRY_COLUMN = "geom"
+
 
 class VectorSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
@@ -29,7 +31,7 @@ class VectorSrcTile(Tile):
     def intersect_filter(self) -> TextClause:
         return text(
             f"""ST_Intersects(
-                        geom,
+                        {GEOMETRY_COLUMN},
                         ST_MakeEnvelope(
                             {self.bounds.left},
                             {self.bounds.bottom},
@@ -43,7 +45,7 @@ class VectorSrcTile(Tile):
         return text(
             f"""
             st_intersection(
-                geom,
+                {GEOMETRY_COLUMN},
                 ST_MakeEnvelope(
                     {self.bounds.left},
                     {self.bounds.bottom},
@@ -135,23 +137,19 @@ class VectorSrcTile(Tile):
         engine = create_engine(db_url)
 
         val_column = literal_column(str(self.layer.calc))
+        # geom_column = literal_column(GEOMETRY_COLUMN)
         geom_column = literal_column(str(self.intersection_geom()))
 
-        # Rename "geom" column to "WKT" as that's what gdal_rasterize
-        # looks for.
-        # gdal_rasterize can take "-oo GEOM_POSSIBLE_NAMES=geom"
-        # in GDAL 3.7+, which we're not on yet. We can use the column
-        # names as-is once we are and instead modify the
-        # gdal_rasterize command in self.rasterize()
         sql = (
-            select([val_column.label(self.layer.field), geom_column.label("WKT")])
+            select([val_column.label(self.layer.field), geom_column.label(GEOMETRY_COLUMN)])
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .order_by(self.order_column(val_column))
         )
 
-        dataframe = pd.read_sql(sql, engine)
-        dataframe.to_parquet(dst, compression="snappy")
+        geodataframe = geopandas.read_postgis(sql, engine)
+        geodataframe.set_crs("EPSG:4326")
+        geodataframe.to_parquet(dst, compression="snappy")
 
     def rasterize(self) -> None:
         """Rasterize all features from data previously fetched to parquet
@@ -179,8 +177,6 @@ class VectorSrcTile(Tile):
             "-tr",
             str(self.grid.xres),
             str(self.grid.yres),
-            "-a_srs",
-            "EPSG:4326",
             "-ot",
             to_gdal_data_type(self.dst[self.default_format].dtype),
             "-co",
@@ -192,6 +188,8 @@ class VectorSrcTile(Tile):
             "-co",
             f"BLOCKYSIZE={self.grid.blockxsize}",
             "-q",
+            "-oo",
+            f"GEOM_POSSIBLE_NAMES={GEOMETRY_COLUMN}",
             src,
             dst,
         ]
