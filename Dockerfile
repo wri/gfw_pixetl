@@ -1,4 +1,4 @@
-FROM osgeo/gdal:ubuntu-full-3.6.1
+FROM ghcr.io/osgeo/gdal:ubuntu-full-3.8.1
 
 ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
@@ -8,7 +8,7 @@ ARG ENV
 
 RUN apt-get update -y \
      && apt-get install --no-install-recommends -y python3-pip libpq-dev \
-      ca-certificates postgresql-client-14 gcc python3-dev curl git \
+      ca-certificates postgresql-client-14 gcc g++ python3-dev curl git \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
