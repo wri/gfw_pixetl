@@ -11,11 +11,10 @@ Base = declarative_base()
 
 base_vector_layer_dict = {
     "grid": "10/40000",
-    "pixel_meaning": "is",
+    "pixel_meaning": "gfw_fid",
     "source_type": "vector",
-    "no_data": None,
-    "data_type": "uint8",
-    "calc": "1"
+    "no_data": 0,
+    "data_type": "uint32",
 }
 
 
