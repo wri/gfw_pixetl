@@ -60,7 +60,7 @@ class VectorSrcTile(Tile):
             f"""CASE
                         WHEN st_geometrytype({str(self.intersection())}) = 'ST_GeometryCollection'::text
                         THEN st_collectionextract({str(self.intersection())}, 3)
-                        ELSE st_intersection(geom, {str(self.intersection())})
+                        ELSE st_intersection({GEOMETRY_COLUMN}, {str(self.intersection())})
                 END"""
         )
 
@@ -137,7 +137,6 @@ class VectorSrcTile(Tile):
         engine = create_engine(db_url)
 
         val_column = literal_column(str(self.layer.calc))
-        # geom_column = literal_column(GEOMETRY_COLUMN)
         geom_column = literal_column(str(self.intersection_geom()))
 
         sql = (
