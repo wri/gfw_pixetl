@@ -120,7 +120,7 @@ class VectorSrcTile(Tile):
         wait_random_max=180000,
     )  # Wait 60-180s between retries
     def fetch_data(self) -> None:
-        """Download all intersecting features to a local CSV."""
+        """Download all intersecting features to a local file."""
         prefix = f"{self.work_dir}"
         os.makedirs(f"{prefix}", exist_ok=True)
 
@@ -147,13 +147,17 @@ class VectorSrcTile(Tile):
             .order_by(self.order_column(val_column))
         )
 
+        # Read the rows into memory and then dump them into a local file
+        # for processing in the next stage
+        # Why store as GeoParquet? Could be almost anything, but
+        # GeoParquet is both faster and more compact (without extra
+        # processing) than GeoPackage, Shapefiles, GeoJSON, CSV.
         geodataframe = geopandas.read_postgis(sql, engine)
         geodataframe.set_crs("EPSG:4326")
         geodataframe.to_parquet(dst, compression="snappy")
 
     def rasterize(self) -> None:
-        """Rasterize all features from data previously fetched to parquet
-        file."""
+        """Rasterize all features from data fetched in previous stage."""
         src = f"{self.work_dir}/{self.tile_id}.parquet"
         dst = self.get_local_dst_uri(self.default_format)
         logger.info(f"Rasterizing {src} to {dst}")
