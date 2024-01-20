@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from urllib.parse import urlparse
 
 from geojson import FeatureCollection
@@ -258,9 +258,11 @@ class RasterSrcLayer(Layer):
         return geom
 
 
-def layer_factory(layer_def: LayerModel) -> Layer:
-
-    layer_constructor = {"vector": VectorSrcLayer, "raster": RasterSrcLayer}
+def layer_factory(layer_def: LayerModel) -> Union[RasterSrcLayer, VectorSrcLayer]:
+    layer_constructor: Dict[str, Union[Type[RasterSrcLayer], Type[VectorSrcLayer]]] = {
+        "vector": VectorSrcLayer,
+        "raster": RasterSrcLayer,
+    }
 
     source_type: str = layer_def.source_type
     grid: Grid = grid_factory(layer_def.grid)
