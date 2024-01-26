@@ -47,7 +47,10 @@ class Pipe(ABC):
 
     @abstractmethod
     def create_tiles(
-        self, overwrite
+        self,
+        overwrite: bool,
+        remove_work: bool = True,
+        upload: bool = True,
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Override this method when implementing pipes."""
         ...
@@ -135,7 +138,7 @@ class Pipe(ABC):
             yield tile
 
     def _process_pipe(
-        self, pipe
+        self, pipe, upload: bool = True
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Fetching all tiles which ran through the pipe.
 
@@ -160,7 +163,7 @@ class Pipe(ABC):
             else:
                 skipped_tiles.append(tile)
 
-        if not failed_tiles:
+        if upload and not failed_tiles:
             upload_geometries.upload_geojsons(
                 processed_tiles, existing_tiles, self.layer.prefix
             )

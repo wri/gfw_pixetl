@@ -1,6 +1,8 @@
 from typing import Set
 from unittest import mock
 
+import pytest
+
 from gfw_pixetl import layers
 from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.grids import LatLngGrid, grid_factory
@@ -43,7 +45,7 @@ def test_create_tiles_subset(PIPE_10x10):
             RasterSrcTile, "rm_local_src", return_value=None
         ), mock.patch(
             "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
-        ):
+        ) as mock_upload_geojsons:
             (
                 tiles,
                 skipped_tiles,
@@ -54,9 +56,12 @@ def test_create_tiles_subset(PIPE_10x10):
             assert len(skipped_tiles) == 3
             assert len(failed_tiles) == 0
             assert len(existing_tiles) == 0
+            mock_upload_geojsons.assert_called_once()
 
 
-def test_create_tiles_all(LAYER):
+@pytest.mark.parametrize("upload", [True, False])
+@pytest.mark.parametrize("delete", [True, False])
+def test_create_tiles_all(LAYER, upload, delete):
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
     ), mock.patch(
@@ -75,15 +80,28 @@ def test_create_tiles_all(LAYER):
         RasterSrcTile, "rm_local_src", return_value=None
     ), mock.patch(
         "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
-    ):
+    ) as mock_upload_geojsons, mock.patch(
+        "gfw_pixetl.pipes.raster_pipe.LOGGER.debug"
+    ) as mock_debug:
         pipe = RasterPipe(LAYER)
         (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
-            overwrite=False
+            overwrite=False, upload=upload, remove_work=delete
         )
         assert len(tiles) == 4
         assert len(skipped_tiles) == 0
         assert len(failed_tiles) == 0
         assert len(existing_tiles) == 0
+        assert mock_upload_geojsons.call_count == (0 if upload is False else 1)
+        debug_statements = [
+            (upload, "upload_file added to pipe"),
+            (delete, "delete_work_dir added to pipe"),
+        ]
+        for (bool_var, statement) in debug_statements:
+            if bool_var:
+                mock_debug.assert_any_call(statement)
+            else:
+                with pytest.raises(AssertionError):
+                    mock_debug.assert_any_call(statement)
 
 
 def test_create_tiles_existing(LAYER):
