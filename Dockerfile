@@ -1,4 +1,4 @@
-FROM ghcr.io/osgeo/gdal:ubuntu-full-3.8.3
+FROM ghcr.io/osgeo/gdal:ubuntu-full-3.9.0
 
 ENV DIR=/usr/local/app
 ENV LC_ALL=C.UTF-8
@@ -7,8 +7,8 @@ ENV LANG=C.UTF-8
 ARG ENV
 
 RUN apt-get update -y \
-     && apt-get install --no-install-recommends -y python3-pip libpq-dev \
-      ca-certificates postgresql-client gcc g++ python3-dev curl git \
+     && apt-get install --no-install-recommends -y python3-pip python3-venv libpq-dev \
+      ca-certificates postgresql-client gcc g++ python3-dev curl git pipenv \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
@@ -21,17 +21,19 @@ WORKDIR ${DIR}
 
 COPY . .
 
-RUN pip3 install pipenv==v2022.11.30
+RUN python3 -m venv .venv
 
 RUN if [ "$ENV" = "dev" ] || [ "$ENV" = "test" ]; then \
 	     echo "Install all dependencies" && \
-	     pipenv install --system --deploy --ignore-pipfile --dev;  \
+         . .venv/bin/activate && \
+	     pipenv install --deploy --ignore-pipfile --dev;  \
 	else \
 	     echo "Install production dependencies only" && \
-	     pipenv install --system --deploy; \
+         . .venv/bin/activate && \
+	     pipenv install --deploy; \
 	fi
 
-RUN pip3 install -e .
+RUN . .venv/bin/activate && pip install -e .
 
 # Set current work directory to /tmp. This is important when running as an
 # AWS Batch job. When using the ephemeral-storage launch template /tmp will
@@ -41,4 +43,4 @@ WORKDIR /tmp
 
 ENV PYTHONPATH=/usr/local/app
 
-ENTRYPOINT ["pixetl"]
+ENTRYPOINT [". .venv/bin/activate && pipenv run pixetl"]
