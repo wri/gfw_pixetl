@@ -24,7 +24,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
       - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret
       - AWS_SESSION_TOKEN=testing  # pragma: allowlist secret
-      - AWS_ENDPOINT_URL=http://motoserver-s3:5000
+      - AWS_ENDPOINT_URL=http://motoserver-s3:50000
 #      - AWS_SECRETSMANAGER_URL=http://motoserver-secretsmanager:5001
       - AWS_HTTPS=NO
       - AWS_VIRTUAL_HOSTING=FALSE
@@ -54,10 +54,10 @@ services:
 
   motoserver-s3:
     container_name: motoserver-s3
-    image: motoserver/moto:latest
+    image: motoserver/moto:4.0.11
     ports:
-      - "${MOTO_PORT-5000}:5000"
-    entrypoint: moto_server s3 -p 5000 -H 0.0.0.0
+      - "${MOTO_PORT-50000}:50000"
+    entrypoint: moto_server s3 -p 50000 -H 0.0.0.0
     restart: on-failure
 #
 #  motoserver-secretsmanager:
