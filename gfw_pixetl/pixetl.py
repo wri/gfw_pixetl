@@ -46,12 +46,11 @@ def cli(
     overwrite: bool,
     layer_json: str,
 ):
-
     layer_dict = json.loads(layer_json)
     layer_dict.update({"dataset": dataset, "version": version})
     layer_def = LayerModel.parse_obj(layer_dict)
 
-    # Raster sources must have an source URI
+    # Raster sources must have a source URI
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
@@ -73,8 +72,6 @@ def cli(
     LOGGER.info(f"{nb_failed_tiles} tiles failed.")
     if nb_tiles:
         LOGGER.info(f"Processed tiles: {tiles}")
-    if nb_skipped_tiles:
-        LOGGER.info(f"Skipped tiles: {skipped_tiles}")
     if nb_existing_tiles:
         LOGGER.info(f"Existing tiles: {existing_tiles}")
     if nb_failed_tiles:
