@@ -20,12 +20,11 @@ services:
       - PGUSER=gfw
       - PGDATABASE=_test
       - PGPORT=5432
-      - AWS_ACCESS_KEY_ID=testing  # pragma: allowlist secret
+      - AWS_ACCESS_KEY_ID=testing      # pragma: allowlist secret
       - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret
-      - AWS_SECURITY_TOKEN=testing  # pragma: allowlist secret
-      - AWS_SESSION_TOKEN=testing  # pragma: allowlist secret
+      - AWS_SECURITY_TOKEN=testing     # pragma: allowlist secret
+      - AWS_SESSION_TOKEN=testing      # pragma: allowlist secret
       - AWS_ENDPOINT_URL=http://motoserver-s3:50000
-#      - AWS_SECRETSMANAGER_URL=http://motoserver-secretsmanager:5001
       - AWS_HTTPS=NO
       - AWS_VIRTUAL_HOSTING=FALSE
       - GDAL_DISABLE_READDIR_ON_OPEN=YES
@@ -36,7 +35,6 @@ services:
     depends_on:
       - pixetl_test_database
       - motoserver-s3
-#      - motoserver-secretsmanager
 
   pixetl_test_database:
     container_name: pixetl-test-database-container
@@ -59,14 +57,6 @@ services:
       - "${MOTO_PORT-50000}:50000"
     entrypoint: moto_server s3 -p 50000 -H 0.0.0.0
     restart: on-failure
-#
-#  motoserver-secretsmanager:
-#    container_name: motoserver-secretsmanager
-#    image: motoserver/moto:latest
-#    ports:
-#      - 5001:5001
-#    entrypoint: moto_server secretsmanager -p 5001 -H 0.0.0.0
-#    restart: on-failure
 
 volumes:
   test_database_data:
