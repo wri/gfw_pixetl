@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-moto = "*"
+moto = {version = "<5", extras = ["s3", "secretsmanager"]}
 pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
@@ -14,16 +14,16 @@ aenum = "*"
 boto3 = "*"
 click = "*"
 geojson = "*"
-geopandas = "*"
+geopandas = "<1"
 google-cloud-storage = "*"
-pandas = "*"
+pandas = "<2.2"
 parallelpipe = "*"
 psutil = "*"
 pyarrow = "*"
-psycopg2 = "*"
+psycopg2 = "<3"
 pydantic = "<2"
 pyproj = "*"
-rasterio = "==1.3.9"  # Upgrade carefully
+rasterio = "==1.3.10"  # Upgrade carefully
 retrying = "*"
 PyYAML = "*"
 Shapely = "*"
@@ -31,4 +31,4 @@ SQLAlchemy = "<1.4"
 typer = "*"
 
 [requires]
-python_version = "3.10"
+python_version = "3.12"

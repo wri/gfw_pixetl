@@ -38,7 +38,7 @@ services:
 #      - motoserver
   dev_database:
     container_name: pixetl-dev-database
-    image: postgis/postgis:11-3.0-alpine
+    image: postgis/postgis:12-3.3-alpine
     ports:
       - 54323:5432
     environment:
