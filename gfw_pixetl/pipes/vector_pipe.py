@@ -13,7 +13,7 @@ LOGGER = get_module_logger(__name__)
 
 class VectorPipe(Pipe):
     def create_tiles(
-        self, overwrite
+        self, overwrite: bool, remove_work: bool = True, upload: bool = True
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Vector Pipe."""
 
@@ -26,11 +26,13 @@ class VectorPipe(Pipe):
             | self.filter_target_tiles(overwrite=overwrite)
             | self.fetch_tile_data
             | self.rasterize
-            | self.upload_file
-            | self.delete_work_dir
         )
+        if upload:
+            pipe = pipe | self.upload_file
+        if remove_work:
+            pipe = pipe | self.delete_work_dir
 
-        return self._process_pipe(pipe)
+        return self._process_pipe(pipe, upload=upload)
 
     def get_grid_tiles(self) -> Set[VectorSrcTile]:  # type: ignore
         """Seed all available tiles within given grid.
