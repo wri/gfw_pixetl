@@ -36,6 +36,7 @@ from gfw_pixetl.utils.google import download_gcs
 from gfw_pixetl.utils.path import create_dir, from_vsi
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
+
 LOGGER = get_module_logger(__name__)
 
 Windows = Tuple[Window, Window]
