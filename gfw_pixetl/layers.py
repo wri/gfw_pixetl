@@ -1,11 +1,9 @@
-import json
 import os
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 from urllib.parse import urlparse
 
-from geojson import FeatureCollection
 from rasterio.warp import Resampling
-from shapely.geometry import MultiPolygon, shape
+from shapely.geometry import MultiPolygon
 from shapely.ops import unary_union
 
 from gfw_pixetl import get_module_logger
@@ -13,15 +11,16 @@ from gfw_pixetl.data_type import DataType, data_type_factory
 from gfw_pixetl.grids import Grid, grid_factory
 from gfw_pixetl.models.pydantic import LayerModel, Symbology
 from gfw_pixetl.resampling import resampling_factory
-from gfw_pixetl.sources import RasterSource, VectorSource, fetch_metadata
+from gfw_pixetl.sources import VectorSource, fetch_metadata
 
-from .models.enums import DstFormat, PhotometricType
+from .models.enums import PhotometricType
 from .models.named_tuples import InputBandElement
 from .settings.globals import GLOBALS
-from .utils.aws import get_aws_files, get_s3_client
-from .utils.geometry import generate_feature_collection
-from .utils.google import get_gs_files
-from .utils.utils import DummyTile, enumerate_bands, intersection, union
+from .utils.sources import (
+    get_input_files_from_folder,
+    get_input_files_from_tiles_geojson,
+)
+from .utils.utils import enumerate_bands, intersection, union
 
 LOGGER = get_module_logger(__name__)
 
@@ -109,56 +108,6 @@ class VectorSrcLayer(Layer):
         self.src: VectorSource = VectorSource(name=self.name, version=self.version)
         if not self.calc:
             self.calc = self.field
-
-
-def get_input_files_from_tiles_geojson(
-    bucket: str, prefix: str
-) -> List[Tuple[Any, str]]:
-    s3_client = get_s3_client()
-    response = s3_client.get_object(Bucket=bucket, Key=prefix)
-    body = response["Body"].read()
-
-    features = json.loads(body.decode("utf-8"))["features"]
-
-    input_files = list()
-
-    for feature in features:
-        LOGGER.debug(f"Found feature: {feature}")
-        input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
-    return input_files
-
-
-def get_input_files_from_folder(
-    provider: str, bucket: str, prefix: str
-) -> List[Tuple[Any, str]]:
-    # Allow pseudo-globbing: If the prefix doesn't end in *, assume the user
-    # meant for the prefix to specify a "folder" and add a "/" to enforce
-    # that behavior.
-    new_prefix: str = prefix
-    if new_prefix.endswith("*"):
-        new_prefix = new_prefix[:-1]
-    elif not new_prefix.endswith("/"):
-        new_prefix += "/"
-
-    get_files = {"s3": get_aws_files, "gs": get_gs_files}
-
-    file_list = get_files[provider](bucket, new_prefix)
-    tiles: List[DummyTile] = list()
-    for uri in file_list:
-        LOGGER.debug(f"Adding file {uri}")
-        src = RasterSource(uri)
-        tiles.append(DummyTile({"geotiff": src}))
-
-    fc: FeatureCollection = generate_feature_collection(
-        tiles, DstFormat(GLOBALS.default_dst_format)
-    )
-
-    input_files = list()
-
-    for feature in fc["features"]:
-        LOGGER.debug(f"Found feature: {feature}")
-        input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
-    return input_files
 
 
 class RasterSrcLayer(Layer):
