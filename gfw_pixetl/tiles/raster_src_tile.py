@@ -3,7 +3,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import floor, sqrt
 from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union
-from urllib.parse import urlparse
 
 import numpy as np
 import rasterio
@@ -30,10 +29,7 @@ from gfw_pixetl.utils import (
     get_co_workers,
     snapped_window,
 )
-from gfw_pixetl.utils.aws import download_s3
 from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
-from gfw_pixetl.utils.google import download_gcs
-from gfw_pixetl.utils.path import create_dir, from_vsi
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -51,27 +47,22 @@ class RasterSrcTile(Tile):
         LOGGER.debug(f"Finding input files for tile {self.tile_id}")
 
         input_bands: List[List[InputBandElement]] = list()
+
         for i, band in enumerate(self.layer.input_bands):
             input_elements: List[InputBandElement] = list()
             for f in band:
-                if self.dst[self.default_format].geom.intersects(
-                    f.geometry
-                ) and not self.dst[self.default_format].geom.touches(f.geometry):
-                    LOGGER.debug(
-                        f"Adding {f.uri} to input files for tile {self.tile_id}"
-                    )
+                # if self.dst[self.default_format].geom.intersects(
+                #     f.geometry
+                # ) and not self.dst[self.default_format].geom.touches(f.geometry):
+                LOGGER.debug(
+                    f"In src() Adding {f.uri} to input files for tile {self.tile_id}"
+                )
+                assert os.path.exists(f.uri), f"In src, {f.uri} does not exist!"
 
-                    if self.layer.process_locally:
-                        uri = self._download_source_file(f.uri)
-                        input_file = InputBandElement(
-                            uri=uri, geometry=f.geometry, band=f.band
-                        )
-                    else:
-                        input_file = InputBandElement(
-                            uri=f.uri, geometry=f.geometry, band=f.band
-                        )
+                uri = self.make_local_copy(f.uri)
+                input_file = InputBandElement(uri=uri, geometry=f.geometry, band=f.band)
 
-                    input_elements.append(input_file)
+                input_elements.append(input_file)
             if band and not input_elements:
                 LOGGER.debug(
                     f"No input files found for tile {self.tile_id} "
@@ -90,30 +81,9 @@ class RasterSrcTile(Tile):
             raise Exception(
                 f"Did not find any intersecting files for tile {self.tile_id}"
             )
-
         return RasterSource(
             create_multiband_vrt(input_bands, vrt=self.tile_id + ".vrt")
         )
-
-    def _download_source_file(self, remote_file: str) -> str:
-        """Download remote files."""
-
-        download_constructor = {"gs": download_gcs, "s3": download_s3}
-
-        path = from_vsi(remote_file)
-        parts = urlparse(path)
-
-        local_file = os.path.join(self.work_dir, "input", parts.netloc, parts.path[1:])
-        create_dir(os.path.dirname(local_file))
-
-        LOGGER.debug(
-            f"Downloading remote file {remote_file} to {local_file} using {parts.scheme}"
-        )
-        download_constructor[parts.scheme](
-            bucket=parts.netloc, key=parts.path[1:], dst=local_file
-        )
-
-        return local_file
 
     @lazy_property
     def intersecting_window(self) -> Window:
@@ -503,9 +473,17 @@ class RasterSrcTile(Tile):
 
     def make_local_copy(self, path: Union[Path, str]) -> str:
         """Make a hardlink to a source file in this tile's work directory."""
+        LOGGER.debug(f"In make_local_copy. Og file path: {path}")
 
-        new_path: str = os.path.join(self.work_dir, str(path).lstrip("/"))
-        create_dir(os.path.dirname(new_path))
+        assert os.path.exists(path), f"In make_local_copy. {path} does not exist!"
+
+        new_path: str = os.path.join(self.work_dir, str(path).lstrip("/tmp/"))
+        LOGGER.debug(f"In make_local_copy. New path: {new_path}")
+
+        dir_name = os.path.dirname(new_path)
+        LOGGER.debug(f"In make_local_copy. Dir name: {dir_name}")
+
+        os.makedirs(dir_name, exist_ok=True)
 
         LOGGER.debug(f"Linking file {path} to {new_path}")
         os.link(path, new_path)

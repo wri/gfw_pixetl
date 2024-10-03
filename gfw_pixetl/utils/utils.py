@@ -102,11 +102,10 @@ def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
 
     try:
         with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
-            LOGGER.info(f"File {src_uri} exists")
+            LOGGER.info(f"In fetch_metadata. File {src_uri} exists")
             return src.bounds, src.profile
 
     except Exception as e:
-
         if _file_does_not_exist(e):
             LOGGER.info(f"File does not exist {src_uri}")
             raise FileNotFoundError(f"File does not exist: {src_uri}")

@@ -1,6 +1,5 @@
 import os
 from typing import Any, Dict, List, Optional, Type, Union
-from urllib.parse import urlparse
 
 from rasterio.warp import Resampling
 from shapely.geometry import MultiPolygon
@@ -15,11 +14,8 @@ from gfw_pixetl.sources import VectorSource, fetch_metadata
 
 from .models.enums import PhotometricType
 from .models.named_tuples import InputBandElement
-from .settings.globals import GLOBALS
-from .utils.sources import (
-    get_input_files_from_folder,
-    get_input_files_from_tiles_geojson,
-)
+from .models.types import ShapePathPair
+from .utils.sources import download_sources, get_shape_path_pairs_under_directory
 from .utils.utils import enumerate_bands, intersection, union
 
 LOGGER = get_module_logger(__name__)
@@ -114,74 +110,78 @@ class RasterSrcLayer(Layer):
     def __init__(self, layer_def: LayerModel, grid: Grid) -> None:
         super().__init__(layer_def, grid)
 
-        self._src_uri = layer_def.source_uri
-        self.input_bands: List[List[InputBandElement]] = self._input_bands()
+        assert isinstance(layer_def.source_uri, List)
 
-    def _input_bands(self) -> List[List[InputBandElement]]:
-        assert isinstance(self._src_uri, list)
+        _source_paths: List[str] = download_sources(layer_def.source_uri)
+
+        LOGGER.info(f"SOURCE PATHS AFTER DOWNLOADING: {_source_paths}")
+
+        self.input_bands: List[List[InputBandElement]] = self._input_bands(
+            _source_paths
+        )
+
+    def _input_bands(self, source_paths: List[str]) -> List[List[InputBandElement]]:
+        assert isinstance(source_paths, list)
 
         input_bands: List[List[InputBandElement]] = list()
 
-        for src_uri in self._src_uri:
-            o = urlparse(src_uri, allow_fragments=False)
-            bucket: str = str(o.netloc)
-            prefix: str = str(o.path).lstrip("/")
-
-            LOGGER.debug(
-                f"Get input files for layer {self.name} using {str(bucket)} {prefix}"
+        for source_path in source_paths:
+            shape_path_pairs: List[
+                ShapePathPair
+            ] = get_shape_path_pairs_under_directory(source_path)
+            LOGGER.info(
+                f"Found {[path for _, path in shape_path_pairs]} in source {source_path}"
             )
 
-            if prefix.endswith(".geojson"):
-                LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
-                src_files = get_input_files_from_tiles_geojson(bucket, prefix)
-            else:
-                LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
-                src_files = get_input_files_from_folder(str(o.scheme), bucket, prefix)
-
-            # Make sure band count of all files at a src_uri is consistent
+            # Make sure the band count of all files at a src_uri is consistent
             src_band_count: Optional[int] = None
             src_band_elements: List[List[InputBandElement]] = list()
 
-            for geometry, file_uri in src_files:
-                _, file_profile = fetch_metadata(file_uri)
+            for shape, file_path in shape_path_pairs:
+                _, file_profile = fetch_metadata(file_path)
                 file_band_count: int = file_profile["count"]
 
-                LOGGER.info(
-                    f"Found {file_band_count} data band(s) in file {file_uri} of source {src_uri}"
-                )
+                assert os.path.exists(
+                    file_path
+                ), f"In _input_bands(), file {file_path} does not exist!"
+
+                # LOGGER.info(
+                #     f"Found {file_band_count} data band(s) in file {file_path} of source {source_path}"
+                # )
 
                 if file_band_count == 0:
                     raise Exception(
-                        f"Input file {file_uri} from src_uri {src_uri} has 0 data bands!"
+                        f"Input file {file_path} from src_uri {source_path} has 0 data bands!"
                     )
                 elif src_band_count is None:
-                    LOGGER.info(
-                        f"Setting band count for src_uri {src_uri} to {file_band_count}"
-                    )
+                    # LOGGER.info(
+                    #     f"Setting band count for source_path {source_path} to {file_band_count}"
+                    # )
                     src_band_count = file_band_count
                     for i in range(file_band_count):
                         src_band_elements.append(list())
                 elif file_band_count != src_band_count:
                     raise Exception(
-                        f"Inconsistent band count! Previous files of src_uri {src_uri} had band count of {src_band_count}, but {file_uri} has band count of {file_band_count}"
+                        f"Inconsistent band count! Previous files of {source_path} "
+                        f"had band count of {src_band_count}, but {file_path} has "
+                        f"band count of {file_band_count}"
                     )
 
                 for i in range(file_band_count):
                     band_name: str = enumerate_bands(i + 1)[-1]
                     LOGGER.info(
-                        f"Adding {file_uri} (band {i+1}) as input band {band_name}"
+                        f"Adding {file_path} (band {i+1}) to input band {band_name}"
                     )
                     element = InputBandElement(
-                        geometry=geometry, uri=file_uri, band=i + 1
+                        geometry=shape, uri=file_path, band=i + 1
                     )
                     src_band_elements[i].append(element)
 
             for band in src_band_elements:
                 input_bands.append(band)
 
-        LOGGER.info(
-            f"Found {len(input_bands)} total input band(s). Divisor set to {GLOBALS.divisor}."
-        )
+        LOGGER.info(f"Found {len(input_bands)} total input band(s).")
+        LOGGER.info(f"All the inputs: {input_bands}")
 
         return input_bands
 
