@@ -7,6 +7,7 @@ import rasterio
 from rasterio.enums import ColorInterp
 
 from gfw_pixetl import get_module_logger, layers
+from gfw_pixetl.layers import layer_factory
 from gfw_pixetl.models.enums import PhotometricType
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -253,20 +254,25 @@ def test__vrt_transform(LAYER):
     assert isclose(height, 400)
 
 
-def test_download_files(LAYER):
-    layer = deepcopy(LAYER)
+def test_download_files():
+    layer_def = LayerModel.parse_obj(LAYER_DICT)
+    layer = layer_factory(layer_def)
 
-    try:
-        os.remove("/tmp/input/source0/gfw-data-lake-test/10N_010E.tif")
-    except FileNotFoundError:
-        pass
+    # try:
+    #     os.remove("/tmp/input/source0/gfw-data-lake-test/10N_010E.tif")
+    # except FileNotFoundError:
+    #     pass
 
     # assert os.path.isfile("/tmp/input/source0/gfw-data-lake-test/10N_010E.tif") is False
 
     rst = RasterSrcTile("10N_010E", layer.grid, layer)
     print(f"Here's src! {rst.src}")
 
-    # assert os.path.isfile("/tmp/input/source0/gfw-data-lake-test/10N_010E.tif") is True
+    assert os.path.isfile("/tmp/input/source0/gfw-data-lake-test/10N_010E.tif") is True
+    assert (
+        os.path.isfile("/tmp/10N_010E/input/source0/gfw-data-lake-test/10N_010W.tif")
+        is True
+    )
 
 
 def test__block_byte_size_single(LAYER):
