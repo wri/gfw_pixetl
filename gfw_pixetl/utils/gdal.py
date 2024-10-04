@@ -143,8 +143,8 @@ def run_gdal_subcommand(
         elif "error" in e.lower():
             LOGGER.warning(
                 'Word "error" found in stderr but exit code was 0. '
-                f'command: {cmd} '
-                f'stderr: {e}'
+                f"command: {cmd} "
+                f"stderr: {e}"
             )
     # Raise an error if the exit code is non-zero.
     else:
@@ -205,7 +205,6 @@ def get_metadata(
     )
 
     for band in meta["bands"]:
-
         band_metadata = Band(
             no_data=band.get("noDataValue", None),
             data_type=DataTypeEnum(from_gdal_data_type(band["type"])),
@@ -246,5 +245,5 @@ def _check_crs_equal(input_vrts: List[str]) -> None:
         if i > 0:
             assert (
                 crs == other_crs
-            ), "Input layers must have same coordinate reference system."
+            ), f"Input layers must have same coordinate reference system. {crs} != {other_crs}"
         other_crs = crs

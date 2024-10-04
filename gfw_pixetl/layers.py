@@ -112,7 +112,7 @@ class RasterSrcLayer(Layer):
 
         assert isinstance(layer_def.source_uri, List)
 
-        _source_paths: List[str] = download_sources(layer_def.source_uri)
+        _source_paths: List[str] = download_sources(layer_def.source_uri, os.getcwd())
 
         LOGGER.info(f"SOURCE PATHS AFTER DOWNLOADING: {_source_paths}")
 

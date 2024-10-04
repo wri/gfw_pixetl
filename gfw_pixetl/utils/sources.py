@@ -90,7 +90,7 @@ def download_source_file(args: Tuple[str, str]) -> Path:
     return local_file
 
 
-def download_sources(source_uris: List[str]) -> List[str]:
+def download_sources(source_uris: List[str], work_dir: str) -> List[str]:
     """Given a list of source URIs (pointing to any combination of
     tiles.geojsons and cloud storage folders), download all indicated files to
     the local filesystem and return a new list of source_uris pointing to those
@@ -106,7 +106,7 @@ def download_sources(source_uris: List[str]) -> List[str]:
         bucket: str = str(o.netloc)
         prefix: str = (str(o.path)).lstrip("/").rstrip("*")
 
-        local_source_dir = f"/tmp/input/source{i}"
+        local_source_dir = f"{work_dir}/input/source{i}"
 
         if prefix.endswith(".geojson"):
             file_uris += [
