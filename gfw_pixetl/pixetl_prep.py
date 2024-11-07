@@ -3,12 +3,15 @@ from urllib.parse import urlparse
 
 import click
 
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.utils import get_bucket, upload_geometries
 from gfw_pixetl.utils.aws import get_aws_files
 from gfw_pixetl.utils.google import get_gs_files
 from gfw_pixetl.utils.utils import DummyTile
 
+
+LOGGER = get_module_logger(__name__)
 
 def get_key_from_vsi(vsi_path: str) -> str:
     key = vsi_path.split("/")[3:]
@@ -26,15 +29,26 @@ def create_geojsons(
 
     tiles: List[DummyTile] = list()
 
-    for provider, bucket, key in resources:
-        files = get_files[provider](bucket, key)
-
-        for uri in files:
-            src = RasterSource(uri)
-            tiles.append(DummyTile({"geotiff": src}))
-
+    # Assume the geojson files have been created correctly already, if an
+    # even number already exist.  This is to allow progress when there are a
+    # very large number of tiles, typically zoom_14 (see GTC-3035).
     data_lake_bucket = get_bucket()
     target_prefix = f"{dataset}/{version}/{prefix.strip('/')}/"
+    geojsons = get_aws_files(data_lake_bucket, target_prefix, (".geojson"))
+    if len(geojsons) >= 2 and len(geojsons) % 2 == 0:
+        LOGGER.info(f"tiles.geojson and extent.geojson already exist, skipping creation of geojsons:\n{geojsons}")
+        return
+
+    for provider, bucket, key in resources:
+        files = get_files[provider](bucket, key)
+        count = 0
+        total = len(files)
+
+        for uri in files:
+            LOGGER.info(f"Reading tile {count} of {total}")
+            count += 1
+            src = RasterSource(uri)
+            tiles.append(DummyTile({"geotiff": src}))
 
     # Don't bother checking for existing tiles unless we're going to use them
     existing_tiles = list()
@@ -52,6 +66,10 @@ def create_geojsons(
         ignore_existing_tiles=not merge_existing,
     )
 
+
+# Example command that could be run locally to complete processing:
+#
+# ENV=production python ./gfw_pixetl/pixetl_prep.py --dataset jrc_global_forest_cover --version v2020 --prefix raster/epsg-3857/zoom_14/is_default2 s3://gfw-data-lake/jrc_global_forest_cover/v2020/raster/epsg-3857/zoom_14/is_default2/geotiff
 
 @click.command()
 @click.argument("urls", type=str)
@@ -98,3 +116,6 @@ def cli(
         resources.append((provider, bucket, key))
 
     create_geojsons(resources, dataset, version, prefix, merge_existing)
+
+if __name__ == "__main__":
+    cli()
