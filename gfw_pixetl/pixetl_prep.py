@@ -3,17 +3,43 @@ from urllib.parse import urlparse
 
 import click
 
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.utils import get_bucket, upload_geometries
 from gfw_pixetl.utils.aws import get_aws_files
 from gfw_pixetl.utils.google import get_gs_files
 from gfw_pixetl.utils.utils import DummyTile
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
+LOGGER = get_module_logger(__name__)
 
 
 def get_key_from_vsi(vsi_path: str) -> str:
     key = vsi_path.split("/")[3:]
     return "/".join(key)
 
+
+def parallel_raster_source(uri) -> RasterSource:
+    return RasterSource(uri)
+
+
+def parallel_get_tiles(files) -> List[DummyTile]:
+    '''Given a potentially large list of tiles files, return the list of
+    DummyTile/RasterSource objects associated with each tile. Creating the
+    RasterSource objects can be slow, since it requires fetching meta-data for
+    each tile file (on S3).
+    '''
+
+    future_tiles = {}
+    tiles: List[DummyTile] = list()
+
+    with ProcessPoolExecutor(max_workers=16) as executor:
+        for uri in files:
+            future_tiles[executor.submit(parallel_raster_source, uri)] = uri
+    for future in as_completed(future_tiles):
+        src = future.result()
+        tiles.append(DummyTile({"geotiff": src}))
+    return tiles
 
 def create_geojsons(
     resources: List[Tuple[str, str, str]],
@@ -22,16 +48,21 @@ def create_geojsons(
     prefix: str,
     merge_existing: bool,
 ) -> None:
+    '''Create the tiles.geojson and extent.geojson associated with the TIF files in
+    the paths in resources list. If merge_existing is Ture, also look at the tiles
+    already under data-lake/{dataset}/{version}/{prefix}.
+    '''
     get_files = {"s3": get_aws_files, "gs": get_gs_files}
 
     tiles: List[DummyTile] = list()
 
     for provider, bucket, key in resources:
+        LOGGER.info(f"Fetch file names for {bucket}, {key}")
         files = get_files[provider](bucket, key)
 
-        for uri in files:
-            src = RasterSource(uri)
-            tiles.append(DummyTile({"geotiff": src}))
+        LOGGER.info("Fetching tile meta-data")
+        tiles.extend(parallel_get_tiles(files))
+        LOGGER.info("Done fetching tile meta-data")
 
     data_lake_bucket = get_bucket()
     target_prefix = f"{dataset}/{version}/{prefix.strip('/')}/"
@@ -40,9 +71,7 @@ def create_geojsons(
     existing_tiles = list()
     if merge_existing:
         existing_uris = get_aws_files(data_lake_bucket, target_prefix)
-        for uri in existing_uris:
-            src = RasterSource(uri)
-            existing_tiles.append(DummyTile({"geotiff": src}))
+        existing_tiles = parallel_get_tiles(existing_uris)
 
     upload_geometries.upload_geojsons(
         tiles,  # type: ignore
@@ -52,6 +81,10 @@ def create_geojsons(
         ignore_existing_tiles=not merge_existing,
     )
 
+
+# Example command that could be run locally to complete processing:
+#
+# ENV=production python ./gfw_pixetl/pixetl_prep.py --dataset jrc_global_forest_cover --version v2020 --prefix raster/epsg-3857/zoom_14/is_default2 s3://gfw-data-lake/jrc_global_forest_cover/v2020/raster/epsg-3857/zoom_14/is_default2/geotiff
 
 @click.command()
 @click.argument("urls", type=str)
@@ -98,3 +131,7 @@ def cli(
         resources.append((provider, bucket, key))
 
     create_geojsons(resources, dataset, version, prefix, merge_existing)
+
+
+if __name__ == "__main__":
+    cli()
