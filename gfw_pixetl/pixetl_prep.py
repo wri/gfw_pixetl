@@ -9,6 +9,7 @@ from gfw_pixetl.utils import get_bucket, upload_geometries
 from gfw_pixetl.utils.aws import get_aws_files
 from gfw_pixetl.utils.google import get_gs_files
 from gfw_pixetl.utils.utils import DummyTile
+from gfw_pixetl.settings.globals import GLOBALS
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 LOGGER = get_module_logger(__name__)
@@ -33,7 +34,7 @@ def parallel_get_tiles(files) -> List[DummyTile]:
     future_tiles = {}
     tiles: List[DummyTile] = list()
 
-    with ProcessPoolExecutor(max_workers=16) as executor:
+    with ProcessPoolExecutor(max_workers=min(16, GLOBALS.num_processes)) as executor:
         for uri in files:
             future_tiles[executor.submit(parallel_raster_source, uri)] = uri
     for future in as_completed(future_tiles):
