@@ -48,6 +48,7 @@ def get_aws_files(
     s3_client = get_s3_client()
     paginator = s3_client.get_paginator("list_objects_v2")
 
+    print("get_aws_files")
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
         try:
             contents = page["Contents"]
@@ -59,4 +60,5 @@ def get_aws_files(
             if any(key.endswith(ext) for ext in extensions):
                 files.append(f"/vsis3/{bucket}/{key}")
 
+    print("done get_aws_files")
     return files

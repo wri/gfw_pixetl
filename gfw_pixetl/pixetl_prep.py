@@ -34,6 +34,7 @@ def parallel_get_tiles(files) -> List[DummyTile]:
     future_tiles = {}
     tiles: List[DummyTile] = list()
 
+    print("In parallel_get_tiles, # files:", len(files))
     with ProcessPoolExecutor(max_workers=min(16, GLOBALS.num_processes)) as executor:
         for uri in files:
             future_tiles[executor.submit(parallel_raster_source, uri)] = uri
@@ -57,12 +58,16 @@ def create_geojsons(
 
     tiles: List[DummyTile] = list()
 
+    print("In create_geojsons")
     for provider, bucket, key in resources:
+        print(f"Fetch file names for {bucket}, {key}")
         LOGGER.info(f"Fetch file names for {bucket}, {key}")
         files = get_files[provider](bucket, key)
 
+        print("Fetching tile meta-data")
         LOGGER.info("Fetching tile meta-data")
         tiles.extend(parallel_get_tiles(files))
+        print("Done fetching tile meta-data")
         LOGGER.info("Done fetching tile meta-data")
 
     data_lake_bucket = get_bucket()
@@ -74,6 +79,7 @@ def create_geojsons(
         existing_uris = get_aws_files(data_lake_bucket, target_prefix)
         existing_tiles = parallel_get_tiles(existing_uris)
 
+    print("Starting upload_geojsons")
     upload_geometries.upload_geojsons(
         tiles,  # type: ignore
         existing_tiles,  # type: ignore
@@ -81,6 +87,7 @@ def create_geojsons(
         prefix=target_prefix,
         ignore_existing_tiles=not merge_existing,
     )
+    print("Done upload_geojsons")
 
 
 # Example command that could be run locally to complete processing:
