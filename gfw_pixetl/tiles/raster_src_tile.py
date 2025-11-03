@@ -473,19 +473,40 @@ class RasterSrcTile(Tile):
 
     def make_local_copy(self, path: Union[Path, str]) -> str:
         """Make a hardlink to a source file in this tile's work directory."""
-        LOGGER.debug(f"In make_local_copy. Og file path: {path}")
+        LOGGER.debug(f"In make_local_copy. Original file path: {path}")
 
         assert os.path.exists(path), f"In make_local_copy. {path} does not exist!"
 
-        new_path: str = os.path.join(self.work_dir, str(path).lstrip("/tmp/"))
+        # Convert to Path object for cleaner manipulation
+        path_obj = Path(path)
+
+        # If the path is absolute and starts with /tmp, make it relative
+        if path_obj.is_absolute():
+            try:
+                # Try to make relative to /tmp
+                relative_path = path_obj.relative_to("/tmp")
+            except ValueError:
+                # If not under /tmp, just use the name parts
+                relative_path = Path(*path_obj.parts[1:])  # Skip the root /
+        else:
+            relative_path = path_obj
+
+        new_path = Path(self.work_dir) / relative_path
         LOGGER.debug(f"In make_local_copy. New path: {new_path}")
 
-        dir_name = os.path.dirname(new_path)
-        LOGGER.debug(f"In make_local_copy. Dir name: {dir_name}")
+        # Create parent directory
+        new_path.parent.mkdir(parents=True, exist_ok=True)
 
-        os.makedirs(dir_name, exist_ok=True)
+        # Check if link already exists (from a previous process/attempt)
+        if new_path.exists():
+            if new_path.samefile(path):
+                LOGGER.debug(f"Link already exists: {new_path}")
+                return str(new_path)
+            else:
+                LOGGER.warning(f"File exists but is not the same: {new_path}")
+                new_path.unlink()  # Remove and recreate
 
         LOGGER.debug(f"Linking file {path} to {new_path}")
         os.link(path, new_path)
 
-        return new_path
+        return str(new_path)
