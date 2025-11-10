@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import json
+import logging
 import os
 import sys
 from typing import List, Optional, Tuple
@@ -15,6 +16,7 @@ from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
 )
+from gfw_pixetl.telemetry import ReporterConfig, ResourceReporter
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
 
@@ -54,12 +56,28 @@ def cli(
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
-    # Finally, actually process the layer
-    tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
-        layer_def,
-        subset,
-        overwrite,
+    # Start up a resource reporting thread
+    reporter = ResourceReporter(
+        logger=logging.getLogger("pixetl.telemetry"),
+        cfg=ReporterConfig(
+            interval=4.0,
+            warmup=0.3,
+            workdir=os.environ.get("PIXETL_WORKDIR", os.getcwd()),
+            emit_emf=True,  # set False if you only want human logs
+            namespace="Pixetl/Batch",  # customize if you like
+        ),
     )
+    reporter.start()
+
+    # Process the layer
+    try:
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
+            layer_def,
+            subset,
+            overwrite,
+        )
+    finally:
+        reporter.stop()
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
