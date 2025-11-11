@@ -2,6 +2,7 @@
 
 import json
 import logging
+import multiprocessing as mp
 import os
 import sys
 from typing import List, Optional, Tuple
@@ -56,28 +57,12 @@ def cli(
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
-    # Start up a resource reporting thread
-    reporter = ResourceReporter(
-        logger=logging.getLogger("pixetl.telemetry"),
-        cfg=ReporterConfig(
-            interval=4.0,
-            warmup=0.3,
-            workdir=os.environ.get("PIXETL_WORKDIR", os.getcwd()),
-            emit_emf=True,  # set False if you only want human logs
-            namespace="Pixetl/Batch",  # customize if you like
-        ),
-    )
-    reporter.start()
-
     # Process the layer
-    try:
-        tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
-            layer_def,
-            subset,
-            overwrite,
-        )
-    finally:
-        reporter.stop()
+    tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
+        layer_def,
+        subset,
+        overwrite,
+    )
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
@@ -152,4 +137,29 @@ def pixetl(
 
 
 if __name__ == "__main__":
-    cli()
+    # Before we do anything, make sure we're using spawn to avoid trouble
+    # with the thread below
+    if mp.get_start_method(allow_none=True) is None:
+        LOGGER.info("Using spawn for processes...")
+        mp.set_start_method("spawn")
+    else:
+        LOGGER.info(f"Using {mp.get_start_method(allow_none=True)} for processes...")
+        raise Exception("Someone already set process start method?")
+
+    # Start up a resource reporting thread
+    reporter = ResourceReporter(
+        logger=logging.getLogger("pixetl.telemetry"),
+        cfg=ReporterConfig(
+            interval=4.0,
+            warmup=0.3,
+            workdir=os.environ.get("PIXETL_WORKDIR", os.getcwd()),
+            emit_emf=True,  # set False if you only want human logs
+            namespace="Pixetl/Batch",  # customize if you like
+        ),
+    )
+    reporter.start()
+
+    try:
+        cli()
+    finally:
+        reporter.stop()
