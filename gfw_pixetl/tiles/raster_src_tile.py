@@ -49,7 +49,7 @@ class RasterSrcTile(Tile):
 
     @lazy_property
     def src(self) -> RasterSource:
-        LOGGER.debug(f"Finding input files for tile {self.tile_id}")
+        # LOGGER.debug(f"Finding input files for tile {self.tile_id}")
 
         input_bands: List[List[InputBandElement]] = list()
         for i, band in enumerate(self.layer.input_bands):
@@ -58,9 +58,9 @@ class RasterSrcTile(Tile):
                 if self.dst[self.default_format].geom.intersects(
                     f.geometry
                 ) and not self.dst[self.default_format].geom.touches(f.geometry):
-                    LOGGER.debug(
-                        f"Adding {f.uri} to input files for tile {self.tile_id}"
-                    )
+                    # LOGGER.debug(
+                    #     f"Adding {f.uri} to input files for tile {self.tile_id}"
+                    # )
 
                     if self.layer.process_locally:
                         uri = self._download_source_file(f.uri)
