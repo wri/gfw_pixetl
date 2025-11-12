@@ -1,15 +1,13 @@
 import json
-import logging
 import os
 import signal
 import threading
 import time
 from dataclasses import dataclass
+from logging import Logger
 from typing import Dict, Optional, Tuple
 
 import psutil
-
-LOGGER = logging.getLogger("pixetl.telemetry")
 
 # ---------- helpers to read container limits (cgroup v1 & v2) ----------
 
@@ -114,7 +112,7 @@ class ReporterConfig:
 
 
 class ResourceReporter:
-    def __init__(self, logger: logging.Logger, cfg: ReporterConfig):
+    def __init__(self, logger: Logger, cfg: ReporterConfig):
         self.log = logger
         self.cfg = cfg
         self._stop = threading.Event()

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import json
-import logging
 import multiprocessing as mp
 import os
 import sys
@@ -148,7 +147,7 @@ if __name__ == "__main__":
 
     # Start up a resource reporting thread
     reporter = ResourceReporter(
-        logger=logging.getLogger("pixetl.telemetry"),
+        logger=LOGGER,
         cfg=ReporterConfig(
             interval=4.0,
             warmup=0.3,
