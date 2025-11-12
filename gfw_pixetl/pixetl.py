@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import json
+import logging
 import multiprocessing as mp
 import os
 import sys
@@ -147,7 +148,6 @@ if __name__ == "__main__":
 
     # Start up a resource reporting thread
     reporter = ResourceReporter(
-        logger=LOGGER,
         cfg=ReporterConfig(
             interval=4.0,
             warmup=0.3,
@@ -161,4 +161,9 @@ if __name__ == "__main__":
     try:
         cli()
     finally:
+        for h in logging.getLogger().handlers:
+            try:
+                h.flush()
+            except Exception:
+                pass
         reporter.stop()

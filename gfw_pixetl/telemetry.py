@@ -4,10 +4,13 @@ import signal
 import threading
 import time
 from dataclasses import dataclass
-from logging import Logger
 from typing import Dict, Optional, Tuple
 
 import psutil
+
+from gfw_pixetl import get_module_logger
+
+LOGGER = get_module_logger(__name__)
 
 # ---------- helpers to read container limits (cgroup v1 & v2) ----------
 
@@ -112,8 +115,8 @@ class ReporterConfig:
 
 
 class ResourceReporter:
-    def __init__(self, logger: Logger, cfg: ReporterConfig):
-        self.log = logger
+    def __init__(self, cfg: ReporterConfig):
+        # self.log = logger
         self.cfg = cfg
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -143,7 +146,7 @@ class ResourceReporter:
             self._thread.join(timeout=self.cfg.interval + 1.0)
 
     def _handle_sigterm(self, signum, frame):
-        self.log.info("ResourceReporter received SIGTERM; stopping.")
+        LOGGER.info("ResourceReporter received SIGTERM; stopping.")
         self.stop()
 
     def _collect_snapshot(self) -> Dict[str, float]:
@@ -198,7 +201,7 @@ class ResourceReporter:
         return snapshot
 
     def _log_human(self, snap: Dict[str, float]) -> None:
-        self.log.info(
+        LOGGER.info(
             "TS:%d CPU:%.1f%% MEM:%.1f%% SWAP:%.1f%% DISK:%.1f%% "
             "RSS(proc):%dB RSS(children):%dB cgrpMem:%d/%dB(%.1f%%) cgrpCPU:%.2f",
             int(snap["timestamp"]),
@@ -272,4 +275,4 @@ class ResourceReporter:
                 to_sleep = max(0.1, next_tick - time.monotonic())
                 self._stop.wait(timeout=to_sleep)
         except Exception as e:
-            self.log.exception("ResourceReporter crashed: %s", e)
+            LOGGER.exception("ResourceReporter crashed: %s", e)
