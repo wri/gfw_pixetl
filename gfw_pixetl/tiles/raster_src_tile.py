@@ -107,9 +107,9 @@ class RasterSrcTile(Tile):
         local_file = os.path.join(self.work_dir, "input", parts.netloc, parts.path[1:])
         create_dir(os.path.dirname(local_file))
 
-        LOGGER.debug(
-            f"Downloading remote file {remote_file} to {local_file} using {parts.scheme}"
-        )
+        # LOGGER.debug(
+        #     f"Downloading remote file {remote_file} to {local_file} using {parts.scheme}"
+        # )
         download_constructor[parts.scheme](
             bucket=parts.netloc, key=parts.path[1:], dst=local_file
         )
@@ -129,10 +129,10 @@ class RasterSrcTile(Tile):
         right = min(dst_right, src_right)
         top = min(dst_top, src_top)
 
-        LOGGER.debug(
-            f"Final bounds for window for tile {self.tile_id}: "
-            f"Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
-        )
+        # LOGGER.debug(
+        #     f"Final bounds for window for tile {self.tile_id}: "
+        #     f"Left: {left} Bottom: {bottom} Right: {right} Top: {top}"
+        # )
 
         try:
             window: Window = rasterio.windows.from_bounds(
@@ -163,7 +163,7 @@ class RasterSrcTile(Tile):
 
     def transform(self) -> bool:
         """Write input data to output tile."""
-        LOGGER.debug(f"Transform tile {self.tile_id}")
+        # LOGGER.debug(f"Transform tile {self.tile_id}")
 
         try:
             has_data: bool = self._process_windows()
@@ -230,7 +230,7 @@ class RasterSrcTile(Tile):
 
         Create VRT of output files and copy results into final GTIFF
         """
-        LOGGER.info(f"Processing tile {self.tile_id} with {co_workers} co_workers")
+        # LOGGER.info(f"Processing tile {self.tile_id} with {co_workers} co_workers")
 
         has_data = False
         out_files: List[str] = list()
@@ -257,7 +257,7 @@ class RasterSrcTile(Tile):
             )
             # Clean up tmp files
             for f in out_files:
-                LOGGER.debug(f"Delete temporary file {f}")
+                # LOGGER.debug(f"Delete temporary file {f}")
                 os.remove(f)
             has_data = True
 
@@ -265,7 +265,7 @@ class RasterSrcTile(Tile):
 
     def _process_windows_sequential(self) -> bool:
         """Read one window after another and update target file."""
-        LOGGER.info(f"Processing tile {self.tile_id} with a single worker")
+        # LOGGER.info(f"Processing tile {self.tile_id} with a single worker")
 
         src: DatasetReader
         vrt: WarpedVRT
@@ -330,7 +330,7 @@ class RasterSrcTile(Tile):
     def windows(self) -> List[Window]:
         """Creates local output file and returns list of size optimized windows
         to process."""
-        LOGGER.debug(f"Create local output file for tile {self.tile_id}")
+        # LOGGER.debug(f"Create local output file for tile {self.tile_id}")
         with rasterio.Env(**GDAL_ENV):
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
@@ -466,9 +466,9 @@ class RasterSrcTile(Tile):
         )
 
         src_window: Window = from_bounds(*src_bounds, transform=self.src.transform)
-        LOGGER.debug(
-            f"Source window for {dst_window} of tile {self.tile_id} is {src_window}"
-        )
+        # LOGGER.debug(
+        #     f"Source window for {dst_window} of tile {self.tile_id} is {src_window}"
+        # )
         return src_window
 
     def _vrt_transform(
@@ -477,7 +477,7 @@ class RasterSrcTile(Tile):
         """Compute Affine transformation, width and height for WarpedVRT using
         output CRS and pixel size."""
 
-        LOGGER.debug(f"Output Bounds {west, south, east, north}")
+        # LOGGER.debug(f"Output Bounds {west, south, east, north}")
         north, west = self.grid.snap_coordinates(north, west)
         south, east = self.grid.snap_coordinates(south, east)
 
@@ -487,7 +487,7 @@ class RasterSrcTile(Tile):
         width = round((east - west) / self.grid.xres)
         height = round((north - south) / self.grid.yres)
 
-        LOGGER.debug(f"Output Affine and dimensions {transform}, {width}, {height}")
+        # LOGGER.debug(f"Output Affine and dimensions {transform}, {width}, {height}")
         return transform, width, height
 
     @staticmethod
@@ -509,7 +509,7 @@ class RasterSrcTile(Tile):
         new_path: str = os.path.join(self.work_dir, str(path).lstrip("/"))
         create_dir(os.path.dirname(new_path))
 
-        LOGGER.debug(f"Linking file {path} to {new_path}")
+        # LOGGER.debug(f"Linking file {path} to {new_path}")
         os.link(path, new_path)
 
         return new_path

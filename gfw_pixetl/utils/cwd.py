@@ -29,7 +29,7 @@ def set_cwd() -> str:
 def remove_work_directory(old_cwd, cwd) -> None:
     os.chdir(old_cwd)
     if os.path.exists(cwd):
-        LOGGER.info("Delete temporary work directory")
+        # LOGGER.info("Delete temporary work directory")
         shutil.rmtree(cwd)
 
 

@@ -31,29 +31,29 @@ def transform(
         layer.input_bands,
         tile_id,
     )
-    LOGGER.debug(
-        f"Masked Array size for tile {tile_id} when read: {m_bytes(masked_array)} MB"
-    )
+    # LOGGER.debug(
+    #     f"Masked Array size for tile {tile_id} when read: {m_bytes(masked_array)} MB"
+    # )
 
     if not block_has_data(masked_array, tile_id):
-        LOGGER.debug(f"{window} of tile {tile_id} has no data - skip")
+        # LOGGER.debug(f"{window} of tile {tile_id} has no data - skip")
         del masked_array
         return out_file
 
-    LOGGER.debug(f"{window} of tile {tile_id} has data - continue")
+    # LOGGER.debug(f"{window} of tile {tile_id} has data - continue")
 
     masked_array = calc(
         masked_array, window, layer.calc_string, destination.count, tile_id
     )
-    LOGGER.debug(
-        f"Masked Array size for tile {tile_id} after calc: {m_bytes(masked_array)} MB"
-    )
+    # LOGGER.debug(
+    #     f"Masked Array size for tile {tile_id} after calc: {m_bytes(masked_array)} MB"
+    # )
     array: np.ndarray = set_datatype(
         masked_array, window, destination.no_data, destination.datatype, tile_id
     )
-    LOGGER.debug(
-        f"Array size for tile {tile_id} after set dtype: {m_bytes(masked_array)} MB"
-    )
+    # LOGGER.debug(
+    #     f"Array size for tile {tile_id} after set dtype: {m_bytes(masked_array)} MB"
+    # )
     del masked_array
     out_file = write_window(
         tile_id,

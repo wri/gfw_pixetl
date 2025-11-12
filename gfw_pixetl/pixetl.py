@@ -69,14 +69,14 @@ def cli(
     nb_failed_tiles = len(failed_tiles)
     nb_existing_tiles = len(existing_tiles)
 
-    LOGGER.info(f"Successfully processed {len(tiles)} tiles")
+    LOGGER.info(f"Successfully processed {nb_tiles} tiles")
     LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
     LOGGER.info(f"{nb_existing_tiles} tiles already existed.")
     LOGGER.info(f"{nb_failed_tiles} tiles failed.")
-    if nb_tiles:
-        LOGGER.info(f"Processed tiles: {tiles}")
-    if nb_existing_tiles:
-        LOGGER.info(f"Existing tiles: {existing_tiles}")
+    # if nb_tiles:
+    #     LOGGER.info(f"Processed tiles: {tiles}")
+    # if nb_existing_tiles:
+    #     LOGGER.info(f"Existing tiles: {existing_tiles}")
     if nb_failed_tiles:
         LOGGER.info(f"Failed tiles: {failed_tiles}")
         if any(

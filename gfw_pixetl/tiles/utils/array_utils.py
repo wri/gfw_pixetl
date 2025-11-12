@@ -23,9 +23,9 @@ def set_datatype(
         LOGGER.debug(f"Set datatype for {dst_window} of tile {tile_id}")
         array = array.data.astype(datatype)
     elif isinstance(nodata_value, list):
-        LOGGER.debug(
-            f"Set datatype for entire array and no data value for each band for {dst_window} of tile {tile_id}"
-        )
+        # LOGGER.debug(
+        #     f"Set datatype for entire array and no data value for each band for {dst_window} of tile {tile_id}"
+        # )
         # make mypy happy. not sure why the isinstance check above alone doesn't do it
         nodata_list = cast(list, nodata_value)
         array = np.array(
@@ -33,9 +33,9 @@ def set_datatype(
         ).astype(datatype)
 
     else:
-        LOGGER.debug(
-            f"Set datatype and no data value for {dst_window} of tile {tile_id}"
-        )
+        # LOGGER.debug(
+        #     f"Set datatype and no data value for {dst_window} of tile {tile_id}"
+        # )
         array = np.ma.filled(array, nodata_value).astype(datatype)
 
     return array
@@ -52,9 +52,9 @@ def block_has_data(band_arrays: MaskedArray, tile_id) -> bool:
         data_pixels = msk[msk].size
 
         size += data_pixels
-        LOGGER.debug(
-            f"Block of tile {tile_id}, band {i+1} has {data_pixels} data pixels"
-        )
+        # LOGGER.debug(
+        #     f"Block of tile {tile_id}, band {i+1} has {data_pixels} data pixels"
+        # )
     return band_arrays.shape[1] > 0 and band_arrays.shape[2] > 0 and size != 0
 
 
@@ -64,9 +64,9 @@ def calc(array: MaskedArray, dst_window: str, calc, count, tile_id) -> MaskedArr
         # Assign a variable name to each band
         band_names = ", ".join(enumerate_bands(len(array)))
         funcstr = f"def f({band_names}) -> MaskedArray:\n    return {calc}"
-        LOGGER.debug(
-            f"Apply function {funcstr} on block {dst_window} of tile {tile_id}"
-        )
+        # LOGGER.debug(
+        #     f"Apply function {funcstr} on block {dst_window} of tile {tile_id}"
+        # )
         exec(funcstr, globals())
         array = f(*array)  # type: ignore # noqa: F821
 
