@@ -201,7 +201,7 @@ class ResourceReporter:
         return snapshot
 
     def _log_human(self, snap: Dict[str, float]) -> None:
-        LOGGER.info(
+        LOGGER.debug(
             "TS:%d CPU:%.1f%% MEM:%.1f%% SWAP:%.1f%% DISK:%.1f%% "
             "RSS(proc):%dB RSS(children):%dB cgrpMem:%d/%dB(%.1f%%) cgrpCPU:%.2f",
             int(snap["timestamp"]),

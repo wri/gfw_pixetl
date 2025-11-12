@@ -178,7 +178,7 @@ def world_bounds(crs: CRS) -> Bounds:
     bottom = proj.transform(0, _bottom)[1]
     right = proj.transform(_right, 0)[0]
 
-    LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
+    # LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
 
     return left, bottom, right, top
 

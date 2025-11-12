@@ -123,7 +123,7 @@ def get_input_files_from_tiles_geojson(
     input_files = list()
 
     for feature in features:
-        LOGGER.debug(f"Found feature: {feature}")
+        # LOGGER.debug(f"Found feature: {feature}")
         input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
     return input_files
 
@@ -145,7 +145,7 @@ def get_input_files_from_folder(
     file_list = get_files[provider](bucket, new_prefix)
     tiles: List[DummyTile] = list()
     for uri in file_list:
-        LOGGER.debug(f"Adding file {uri}")
+        # LOGGER.debug(f"Adding file {uri}")
         src = RasterSource(uri)
         tiles.append(DummyTile({"geotiff": src}))
 
@@ -156,7 +156,7 @@ def get_input_files_from_folder(
     input_files = list()
 
     for feature in fc["features"]:
-        LOGGER.debug(f"Found feature: {feature}")
+        # LOGGER.debug(f"Found feature: {feature}")
         input_files.append((shape(feature["geometry"]), feature["properties"]["name"]))
     return input_files
 
@@ -183,10 +183,10 @@ class RasterSrcLayer(Layer):
             # )
 
             if prefix.endswith(".geojson"):
-                LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
+                # LOGGER.debug("Prefix ends with .geojson, assumed to be a geojson file")
                 src_files = get_input_files_from_tiles_geojson(bucket, prefix)
             else:
-                LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
+                # LOGGER.debug("Prefix does NOT end with .geojson, assumed to be folder")
                 src_files = get_input_files_from_folder(str(o.scheme), bucket, prefix)
 
             # Make sure band count of all files at a src_uri is consistent
