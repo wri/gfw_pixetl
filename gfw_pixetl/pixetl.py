@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
 import json
-import logging
 import multiprocessing as mp
 import os
 import sys
+from logging import getLogger
 from typing import List, Optional, Tuple
 
 import click
 
+from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer, layer_factory
-from gfw_pixetl.logging import setup_logging
 from gfw_pixetl.logo import logo
+from gfw_pixetl.logs import setup_logging
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
@@ -50,7 +51,7 @@ def cli(
     overwrite: bool,
     layer_json: str,
 ):
-    LOGGER = logging.getLogger(__name__)
+    LOGGER = get_module_logger(__name__)
 
     layer_dict = json.loads(layer_json)
     layer_dict.update({"dataset": dataset, "version": version})
@@ -140,7 +141,7 @@ def pixetl(
 
 
 if __name__ == "__main__":
-    LOGGER = logging.getLogger(__name__)
+    LOGGER = get_module_logger(__name__)
 
     # Before we do anything, make sure we're using spawn
     if mp.get_start_method(allow_none=True) is None:
@@ -165,7 +166,7 @@ if __name__ == "__main__":
     try:
         cli()
     finally:
-        for h in logging.getLogger().handlers:
+        for h in getLogger().handlers:
             try:
                 h.flush()
             except Exception:
