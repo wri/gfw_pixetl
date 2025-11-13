@@ -192,10 +192,10 @@ def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> MultiPolygon:
         # includes things like LineStrings (like when two polygons both share
         # an edge and overlap elsewhere), which we don't care about. Filter
         # that stuff out to return a MultiPolygon.
-        if _geom.type == "GeometryCollection":
+        if _geom.geom_type == "GeometryCollection":
             geom_pieces: List[Union[MultiPolygon, Polygon]] = list()
             for g in _geom.geoms:
-                if g.type == "MultiPolygon" or g.type == "Polygon":
+                if g.geom_type == "MultiPolygon" or g.geom_type == "Polygon":
                     geom_pieces.append(g)
             geom = unary_union(geom_pieces)
         else:
