@@ -141,35 +141,41 @@ def pixetl(
         raise
 
 
-if __name__ == "__main__":
+def main() -> None:
     LOGGER = get_module_logger(__name__)
 
-    # Before we do anything, make sure we're using spawn
+    # Ensure we use spawn before any multiprocessing starts
     if mp.get_start_method(allow_none=True) is None:
         LOGGER.info("Using spawn for processes...")
         mp.set_start_method("spawn")
     else:
         LOGGER.info(f"Using {mp.get_start_method(allow_none=True)} for processes...")
-        raise Exception("Someone already set process start method?")
+        # You probably *don't* want to raise here in production, just log:
+        # LOGGER.warning("Process start method already set; skipping change.")
 
     reporter = ResourceReporter(
         logger=get_module_logger("pixetl.telemetry"),
         cfg=ReporterConfig(
             interval=4.0,
-            warmup=0.3,
-            workdir=os.environ.get("PIXETL_WORKDIR", os.getcwd()),
-            emit_emf=True,  # set False if you only want human logs
-            namespace="Pixetl/Batch",  # customize if you like
+            warmup=0.5,
+            workdir=".",
+            emit_emf=True,
+            namespace="Pixetl/Batch",
         ),
     )
     reporter.start()
 
     try:
-        cli()
+        cli()  # click CLI
     finally:
+        # best-effort flush of handlers
         for h in getLogger().handlers:
             try:
                 h.flush()
             except Exception:
                 pass
         reporter.stop()
+
+
+if __name__ == "__main__":
+    main()
