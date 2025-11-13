@@ -18,8 +18,7 @@ from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
 )
-from gfw_pixetl.telemetry import ReporterConfig
-from gfw_pixetl.telemetry_runner import ReporterManager
+from gfw_pixetl.telemetry import ReporterConfig, ResourceReporter
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
 
@@ -102,6 +101,8 @@ def pixetl(
 ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
 
+    LOGGER = get_module_logger(__name__)
+
     LOGGER.info(
         f"Start tile preparation for dataset {layer_def.dataset}, "
         f"version {layer_def.version}, grid {layer_def.grid}, "
@@ -151,17 +152,17 @@ if __name__ == "__main__":
         LOGGER.info(f"Using {mp.get_start_method(allow_none=True)} for processes...")
         raise Exception("Someone already set process start method?")
 
-    # Start telemetry process
-    cfg = ReporterConfig(
-        interval=4.0,
-        warmup=0.3,
-        workdir=os.environ.get("PIXETL_WORKDIR", os.getcwd()),
-        emit_emf=True,
-        namespace="Pixetl/Batch",
-        dimensions=("JobId", "Attempt"),  # add more if you want (keep low cardinality)
+    reporter = ResourceReporter(
+        logger=get_module_logger("pixetl.telemetry"),
+        cfg=ReporterConfig(
+            interval=4.0,
+            warmup=0.3,
+            workdir=os.environ.get("PIXETL_WORKDIR", os.getcwd()),
+            emit_emf=True,  # set False if you only want human logs
+            namespace="Pixetl/Batch",  # customize if you like
+        ),
     )
-    telemetry = ReporterManager(cfg)
-    telemetry.start()
+    reporter.start()
 
     try:
         cli()
@@ -171,4 +172,4 @@ if __name__ == "__main__":
                 h.flush()
             except Exception:
                 pass
-        telemetry.stop()
+        reporter.stop()
