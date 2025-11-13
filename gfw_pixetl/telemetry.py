@@ -10,6 +10,7 @@ from typing import Dict, Optional, Tuple
 import psutil
 
 from gfw_pixetl import get_module_logger
+from gfw_pixetl.logs import setup_logging
 
 # LOGGER = get_module_logger("pixetl.telemetry")
 
@@ -277,3 +278,48 @@ class ResourceReporter:
                 self._stop.wait(timeout=to_sleep)
         except Exception as e:
             self.log.exception("ResourceReporter crashed: %s", e)
+
+
+def telemetry_process_main(cfg: ReporterConfig) -> None:
+    """Entry point for the dedicated telemetry process.
+
+    This is what we run in a spawned child so it does not mess with
+    pixetl's own multiprocessing workers.
+    """
+    # Ensure logs from this process also go through your JSON/text formatter
+    setup_logging("INFO")
+    log = get_module_logger("pixetl.telemetry.proc")
+
+    reporter = ResourceReporter(logger=log, cfg=cfg)
+
+    # Handle SIGTERM nicely inside this process
+    stop = threading.Event()
+
+    def _handle_term(signum, frame):
+        log.info("Telemetry process received SIGTERM, stopping...")
+        stop.set()
+
+    signal.signal(signal.SIGTERM, _handle_term)
+    signal.signal(signal.SIGINT, _handle_term)
+
+    log.info(
+        "Telemetry process starting (interval=%.2fs, workdir=%s, namespace=%s)",
+        cfg.interval,
+        cfg.workdir,
+        cfg.namespace,
+    )
+
+    try:
+        reporter.start()
+        # Simple loop: sleep until we’re told to stop
+        while not stop.is_set():
+            time.sleep(1.0)
+    finally:
+        reporter.stop()
+        log.info("Telemetry process exiting")
+        # Best-effort flush
+        for h in logging.getLogger().handlers:
+            try:
+                h.flush()
+            except Exception:
+                pass

@@ -1,6 +1,5 @@
-import multiprocessing as mp
 import os
-from concurrent.futures import as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import floor, sqrt
 from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union
@@ -235,8 +234,7 @@ class RasterSrcTile(Tile):
         has_data = False
         out_files: List[str] = list()
 
-        ctx = mp.get_context("spawn")
-        with ctx.ProcessPoolExecutor(max_workers=co_workers) as executor:
+        with ProcessPoolExecutor(max_workers=co_workers) as executor:
             future_to_window = {
                 executor.submit(self._parallel_transform, window): window
                 for window in self.windows()

@@ -18,7 +18,7 @@ from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
 )
-from gfw_pixetl.telemetry import ReporterConfig, ResourceReporter
+from gfw_pixetl.telemetry import ReporterConfig, telemetry_process_main
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
 
@@ -144,37 +144,44 @@ def pixetl(
 def main() -> None:
     LOGGER = get_module_logger(__name__)
 
-    # Ensure we use spawn before any multiprocessing starts
-    if mp.get_start_method(allow_none=True) is None:
-        LOGGER.info("Using spawn for processes...")
-        mp.set_start_method("spawn")
-    else:
-        LOGGER.info(f"Using {mp.get_start_method(allow_none=True)} for processes...")
-        # You probably *don't* want to raise here in production, just log:
-        # LOGGER.warning("Process start method already set; skipping change.")
+    # NOTE: we are *not* changing the global start method anymore.
+    # That avoids forcing all existing multiprocess code to use spawn
+    # (and thus avoids the pickling error you’re seeing).
 
-    reporter = ResourceReporter(
-        logger=get_module_logger("pixetl.telemetry"),
-        cfg=ReporterConfig(
-            interval=4.0,
-            warmup=0.5,
-            workdir=".",
-            emit_emf=True,
-            namespace="Pixetl/Batch",
-        ),
+    # Start telemetry in its own *spawned* process
+    cfg = ReporterConfig(
+        interval=4.0,
+        warmup=0.5,
+        workdir=".",
+        emit_emf=True,
+        namespace="Pixetl/Batch",
     )
-    reporter.start()
+
+    ctx = mp.get_context("spawn")
+    telemetry_proc = ctx.Process(
+        target=telemetry_process_main,
+        args=(cfg,),
+        name="pixetl-telemetry",
+        daemon=True,  # safe for a one-way logging process
+    )
+    telemetry_proc.start()
+    LOGGER.info("Started telemetry process with PID %s", telemetry_proc.pid)
 
     try:
-        cli()  # click CLI
+        # Run the existing Click CLI
+        cli()
     finally:
-        # best-effort flush of handlers
+        LOGGER.info("Shutting down telemetry process...")
+        if telemetry_proc.is_alive():
+            telemetry_proc.terminate()
+            telemetry_proc.join(timeout=5.0)
+
+        # Flush all log handlers before the container exits
         for h in getLogger().handlers:
             try:
                 h.flush()
             except Exception:
                 pass
-        reporter.stop()
 
 
 if __name__ == "__main__":
