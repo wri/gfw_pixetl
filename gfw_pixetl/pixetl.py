@@ -9,8 +9,8 @@ from typing import List, Optional, Tuple
 
 import click
 
-from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer, layer_factory
+from gfw_pixetl.logging import setup_logging
 from gfw_pixetl.logo import logo
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
@@ -22,7 +22,7 @@ from gfw_pixetl.telemetry_runner import ReporterManager
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
 
-LOGGER = get_module_logger(__name__)
+_qh = setup_logging("INFO")  # configure logging immediately for the main proc
 
 
 @click.command()
@@ -50,6 +50,8 @@ def cli(
     overwrite: bool,
     layer_json: str,
 ):
+    LOGGER = logging.getLogger(__name__)
+
     layer_dict = json.loads(layer_json)
     layer_dict.update({"dataset": dataset, "version": version})
     layer_def = LayerModel.parse_obj(layer_dict)
@@ -138,6 +140,8 @@ def pixetl(
 
 
 if __name__ == "__main__":
+    LOGGER = logging.getLogger(__name__)
+
     # Before we do anything, make sure we're using spawn
     if mp.get_start_method(allow_none=True) is None:
         LOGGER.info("Using spawn for processes...")

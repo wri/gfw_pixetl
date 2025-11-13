@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import signal
-import sys
 import time
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
@@ -115,25 +114,6 @@ class _StopFlag:
 
     def is_set(self) -> bool:
         return self._stop
-
-
-def _configure_logging():
-    # Unbuffer Python I/O for prompt CloudWatch visibility
-    os.environ.setdefault("PYTHONUNBUFFERED", "1")
-    if hasattr(sys.stdout, "reconfigure"):
-        try:
-            sys.stdout.reconfigure(line_buffering=True)
-            sys.stderr.reconfigure(line_buffering=True)
-        except Exception:
-            pass
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)sZ %(levelname)s %(name)s: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S",
-        handlers=[logging.StreamHandler(sys.stdout)],
-        force=True,
-    )
 
 
 def _collect_snapshot(
@@ -249,8 +229,7 @@ def reporter_process_main(cfg: ReporterConfig) -> None:
 
     Never call in the parent—spawn this.
     """
-    _configure_logging()
-    log = logging.getLogger("pixetl.telemetry.proc")
+    log = logging.getLogger("telemetry")
 
     # Discover Batch context (safe defaults when running locally)
     dims = {

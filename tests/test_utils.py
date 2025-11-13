@@ -143,7 +143,7 @@ def test_run_gdal_subcommand_zero_exit_with_stderr():
     cmd = ["/bin/bash", "-c", "echo test"]
     assert run_gdal_subcommand(cmd) == ("test\n", "")
 
-    logger = logging.getLogger()
+    logger = logging.getLogger("test")
     logger.warning = Mock()
     MonkeyPatch().setattr(gfw_pixetl.utils.gdal, "LOGGER", logger)
 
