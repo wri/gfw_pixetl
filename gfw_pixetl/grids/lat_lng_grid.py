@@ -5,10 +5,7 @@ from typing import Iterable, Set, Tuple
 from rasterio.coords import BoundingBox
 from shapely.geometry import Point
 
-from gfw_pixetl import get_module_logger
 from gfw_pixetl.grids import Grid
-
-LOGGER = get_module_logger(__name__)
 
 
 class LatLngGrid(Grid):
@@ -76,7 +73,7 @@ class LatLngGrid(Grid):
 
     def xy_to_tile_id(self, x: float, y: float) -> str:
         """Wrapper function, in case you want to pass points as x/y
-        coordiantes."""
+        coordinates."""
 
         p = self.xy_to_tile_origin(x, y)
         x = p.x
@@ -106,7 +103,6 @@ class LatLngGrid(Grid):
         return Point(lng, lat)
 
     def get_tile_bounds(self, grid_id) -> BoundingBox:
-
         origin = self.tile_id_to_point(grid_id)
 
         return BoundingBox(
@@ -117,7 +113,6 @@ class LatLngGrid(Grid):
         )
 
     def get_tile_ids(self) -> Set[str]:
-
         lat_offset = self.lat_offset if 180 % self.height else 0
         lng_offset = self.lng_offset if 360 % self.width else 0
 

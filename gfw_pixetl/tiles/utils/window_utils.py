@@ -27,7 +27,7 @@ def _write_window_to_shared_file(
             "r+",
             **profile,
         ) as dst:
-            LOGGER.debug(f"Write {dst_window} of tile {tile_id}")
+            # LOGGER.debug(f"Write {dst_window} of tile {tile_id}")
             dst.write(array, window=dst_window)
             del array
     return uri
@@ -51,9 +51,9 @@ def _write_window_to_separate_file(
             "w",
             **profile,
         ) as dst:
-            LOGGER.debug(
-                f"Write {dst_window} of tile {tile_id} to separate file {file_path}"
-            )
+            # LOGGER.debug(
+            #     f"Write {dst_window} of tile {tile_id} to separate file {file_path}"
+            # )
             dst.write(array)
             del array
     return file_path
@@ -100,9 +100,9 @@ def read_window(
 
     src_bounds = transform_bounds(destination_crs, source_crs, *dst_bounds)
 
-    LOGGER.debug(
-        f"Read {dst_window} for Tile {tile_id} - this corresponds to bounds {src_bounds} in source"
-    )
+    # LOGGER.debug(
+    #     f"Read {dst_window} for Tile {tile_id} - this corresponds to bounds {src_bounds} in source"
+    # )
 
     shape = (
         len(input_bands),

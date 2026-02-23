@@ -9,7 +9,8 @@ setup(
     license="MIT",
     entry_points="""
             [console_scripts]
-            pixetl=gfw_pixetl.pixetl:cli
+            pixetl=gfw_pixetl.pixetl:main
             pixetl_prep=gfw_pixetl.pixetl_prep:cli
             """,
 )
+

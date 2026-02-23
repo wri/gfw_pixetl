@@ -144,7 +144,7 @@ class Raster(Source):
 
         left, bottom, right, top = self.bounds
 
-        LOGGER.debug(f"SRC Extent: {left}, {bottom}, {right}, {top}")
+        # LOGGER.debug(f"SRC Extent: {left}, {bottom}, {right}, {top}")
 
         min_lng, min_lat, max_lng, max_lat = utils.world_bounds(crs)
 
@@ -159,17 +159,17 @@ class Raster(Source):
             round(proj.transform(right, 0)[0], 8), max_lng
         )
 
-        LOGGER.debug(
-            "Reprojected, cropped Extent: {}, {}, {}, {}".format(
-                reproject_left, reproject_bottom, reproject_right, reproject_top
-            )
-        )
+        # LOGGER.debug(
+        #     "Reprojected, cropped Extent: {}, {}, {}, {}".format(
+        #         reproject_left, reproject_bottom, reproject_right, reproject_top
+        #     )
+        # )
 
         return reproject_left, reproject_bottom, reproject_right, reproject_top
 
     def fetch_meta(self) -> Tuple[BoundingBox, Dict[str, Any]]:
         """Open file to fetch metadata."""
-        LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
+        # LOGGER.debug(f"Fetch metadata data for file {self.url} if exists")
         return fetch_metadata(self.url)
 
     def metadata(self, compute_stats: bool, compute_histogram: bool) -> Dict[str, Any]:
@@ -178,7 +178,6 @@ class Raster(Source):
 
 class RasterSource(Raster):
     def __init__(self, uri: str) -> None:
-
         self.uri: str = uri
 
     @lazy_property
@@ -256,8 +255,8 @@ class Destination(Raster):
             raise Exception("Tile URL is not set")
         try:
             _ = self.fetch_meta()
-            LOGGER.debug(f"File {self.url} exists")
+            # LOGGER.debug(f"File {self.url} exists")
             return True
         except FileNotFoundError:
-            LOGGER.debug(f"File {self.url} does not exist")
+            # LOGGER.debug(f"File {self.url} does not exist")
             return False

@@ -98,17 +98,16 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
 )
 def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
     """Open file to fetch metadata."""
-    LOGGER.debug(f"Fetch metadata for file {src_uri} if exists")
+    # LOGGER.debug(f"Fetch metadata for file {src_uri} if exists")
 
     try:
         with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
-            LOGGER.info(f"File {src_uri} exists")
+            # LOGGER.info(f"File {src_uri} exists")
             return src.bounds, src.profile
 
     except Exception as e:
-
         if _file_does_not_exist(e):
-            LOGGER.info(f"File does not exist {src_uri}")
+            # LOGGER.info(f"File does not exist {src_uri}")
             raise FileNotFoundError(f"File does not exist: {src_uri}")
         elif isinstance(e, rasterio.RasterioIOError):
             LOGGER.warning(
@@ -179,7 +178,7 @@ def world_bounds(crs: CRS) -> Bounds:
     bottom = proj.transform(0, _bottom)[1]
     right = proj.transform(_right, 0)[0]
 
-    LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
+    # LOGGER.debug(f"World Extent of CRS {crs}: {left}, {bottom}, {right}, {top}")
 
     return left, bottom, right, top
 
@@ -193,10 +192,10 @@ def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> MultiPolygon:
         # includes things like LineStrings (like when two polygons both share
         # an edge and overlap elsewhere), which we don't care about. Filter
         # that stuff out to return a MultiPolygon.
-        if _geom.type == "GeometryCollection":
+        if _geom.geom_type == "GeometryCollection":
             geom_pieces: List[Union[MultiPolygon, Polygon]] = list()
             for g in _geom.geoms:
-                if g.type == "MultiPolygon" or g.type == "Polygon":
+                if g.geom_type == "MultiPolygon" or g.geom_type == "Polygon":
                     geom_pieces.append(g)
             geom = unary_union(geom_pieces)
         else:

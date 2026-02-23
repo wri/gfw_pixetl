@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import json
+import multiprocessing as mp
 import os
 import sys
+from logging import getLogger
 from typing import List, Optional, Tuple
 
 import click
@@ -10,15 +12,17 @@ import click
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
+from gfw_pixetl.logs import setup_logging
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
 )
+from gfw_pixetl.telemetry import ReporterConfig, telemetry_process_main
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
 
-LOGGER = get_module_logger(__name__)
+_qh = setup_logging("INFO")  # configure logging immediately for the main proc
 
 
 @click.command()
@@ -46,6 +50,8 @@ def cli(
     overwrite: bool,
     layer_json: str,
 ):
+    LOGGER = get_module_logger(__name__)
+
     layer_dict = json.loads(layer_json)
     layer_dict.update({"dataset": dataset, "version": version})
     layer_def = LayerModel.parse_obj(layer_dict)
@@ -54,7 +60,7 @@ def cli(
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
-    # Finally, actually process the layer
+    # Process the layer
     tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
         layer_def,
         subset,
@@ -66,14 +72,14 @@ def cli(
     nb_failed_tiles = len(failed_tiles)
     nb_existing_tiles = len(existing_tiles)
 
-    LOGGER.info(f"Successfully processed {len(tiles)} tiles")
+    LOGGER.info(f"Successfully processed {nb_tiles} tiles")
     LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
     LOGGER.info(f"{nb_existing_tiles} tiles already existed.")
     LOGGER.info(f"{nb_failed_tiles} tiles failed.")
-    if nb_tiles:
-        LOGGER.info(f"Processed tiles: {tiles}")
-    if nb_existing_tiles:
-        LOGGER.info(f"Existing tiles: {existing_tiles}")
+    # if nb_tiles:
+    #     LOGGER.info(f"Processed tiles: {tiles}")
+    # if nb_existing_tiles:
+    #     LOGGER.info(f"Existing tiles: {existing_tiles}")
     if nb_failed_tiles:
         LOGGER.info(f"Failed tiles: {failed_tiles}")
         if any(
@@ -94,6 +100,8 @@ def pixetl(
     overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
+
+    LOGGER = get_module_logger(__name__)
 
     LOGGER.info(
         f"Start tile preparation for dataset {layer_def.dataset}, "
@@ -133,5 +141,48 @@ def pixetl(
         raise
 
 
+def main() -> None:
+    LOGGER = get_module_logger(__name__)
+
+    # NOTE: we are *not* changing the global start method anymore.
+    # That avoids forcing all existing multiprocess code to use spawn
+    # (and thus avoids the pickling error you’re seeing).
+
+    # Start telemetry in its own *spawned* process
+    cfg = ReporterConfig(
+        interval=4.0,
+        warmup=0.5,
+        workdir=".",
+        emit_emf=True,
+        namespace="Pixetl/Batch",
+    )
+
+    ctx = mp.get_context("spawn")
+    telemetry_proc = ctx.Process(
+        target=telemetry_process_main,
+        args=(cfg,),
+        name="pixetl-telemetry",
+        daemon=True,  # safe for a one-way logging process
+    )
+    telemetry_proc.start()
+    LOGGER.info("Started telemetry process with PID %s", telemetry_proc.pid)
+
+    try:
+        # Run the existing Click CLI
+        cli()
+    finally:
+        LOGGER.info("Shutting down telemetry process...")
+        if telemetry_proc.is_alive():
+            telemetry_proc.terminate()
+            telemetry_proc.join(timeout=5.0)
+
+        # Flush all log handlers before the container exits
+        for h in getLogger().handlers:
+            try:
+                h.flush()
+            except Exception:
+                pass
+
+
 if __name__ == "__main__":
-    cli()
+    main()

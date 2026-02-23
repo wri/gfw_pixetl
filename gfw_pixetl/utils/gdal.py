@@ -120,7 +120,7 @@ def run_gdal_subcommand(
     if env:
         gdal_env.update(**env)
 
-    LOGGER.debug(f"RUN subcommand {cmd}, using env {gdal_env}")
+    # LOGGER.debug(f"RUN subcommand {cmd}, using env {gdal_env}")
     p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=gdal_env)
 
     o_byte, e_byte = p.communicate()
@@ -143,8 +143,8 @@ def run_gdal_subcommand(
         elif "error" in e.lower():
             LOGGER.warning(
                 'Word "error" found in stderr but exit code was 0. '
-                f'command: {cmd} '
-                f'stderr: {e}'
+                f"command: {cmd} "
+                f"stderr: {e}"
             )
     # Raise an error if the exit code is non-zero.
     else:
@@ -205,7 +205,6 @@ def get_metadata(
     )
 
     for band in meta["bands"]:
-
         band_metadata = Band(
             no_data=band.get("noDataValue", None),
             data_type=DataTypeEnum(from_gdal_data_type(band["type"])),

@@ -62,9 +62,9 @@ class RasterPipe(Pipe):
         """Only process tiles which intersect with source raster."""
         for tile in tiles:
             if tile.status == "pending" and not tile.within():
-                LOGGER.info(
-                    f"Tile {tile.tile_id} does not intersect with source raster - skip"
-                )
+                # LOGGER.info(
+                #     f"Tile {tile.tile_id} does not intersect with source raster - skip"
+                # )
                 tile.status = "skipped (does not intersect)"
             yield tile
 
@@ -78,5 +78,5 @@ class RasterPipe(Pipe):
         for tile in tiles:
             if tile.status == "pending" and not tile.transform():
                 tile.status = "skipped (has no data)"
-                LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
+                # LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
             yield tile
