@@ -31,15 +31,15 @@ RUN apt-get update -y \
 # Update this version intentionally when you want to upgrade UV.
 COPY --from=ghcr.io/astral-sh/uv:0.10.2 /uv /usr/local/bin/uv
 
-# ── Install UV-managed Python 3.12 ────────────────────────────────────────────
-RUN uv python install 3.12
+# ── Install UV-managed Python 3.11 ────────────────────────────────────────────
+RUN uv python install 3.11
 
 # ── Create venv with access to the GDAL Python bindings ───────────────────────
 # --system-site-packages propagates the GDAL Python libs installed by the
 # base image into our venv, exactly as the previous Pipenv setup did.
 # UV 0.10+ requires --clear to replace an existing venv; we pass it here so
 # the build is safe to re-run even if the layer cache is partially warm.
-RUN uv venv ${VENV_DIR} --python 3.12 --system-site-packages --clear
+RUN uv venv ${VENV_DIR} --python 3.11 --system-site-packages --clear
 
 # ── Install Python dependencies ────────────────────────────────────────────────
 RUN mkdir -p ${DIR}
