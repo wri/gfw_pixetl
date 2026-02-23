@@ -1,4 +1,4 @@
-FROM ghcr.io/osgeo/gdal:ubuntu-full-3.10.3
+FROM ghcr.io/osgeo/gdal:ubuntu-full-3.9.3
 
 ENV DIR=/usr/local/app \
     LC_ALL=C.UTF-8 \
