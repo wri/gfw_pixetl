@@ -67,4 +67,4 @@ WORKDIR /tmp
 
 ENV PYTHONPATH=/usr/local/app
 
-ENTRYPOINT ["pixetl"]
+CMD ["pixetl"]
