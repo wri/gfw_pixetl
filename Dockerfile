@@ -26,11 +26,6 @@ RUN apt-get update -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# CA certificates – required for TLS connections to AWS / GCS
-RUN update-ca-certificates \
-    && mkdir -p /etc/pki/tls/certs \
-    && cp /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
-
 # ── Install UV ─────────────────────────────────────────────────────────────────
 # Pin to a specific UV release for reproducible builds.
 # Update this version intentionally when you want to upgrade UV.
