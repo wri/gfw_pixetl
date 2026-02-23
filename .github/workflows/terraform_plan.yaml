@@ -4,10 +4,10 @@ on: [pull_request]
 
 jobs:
   plan:
-    runs-on: ubuntu-latest
-
+    runs-on: "ubuntu-24.04"
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v5
+
     - name: Plan production
       if: success() && contains(github.base_ref, 'master')
       env:
@@ -16,6 +16,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret_production }}
         AWS_REGION: ${{ secrets.aws_region_production }}
       run: ./scripts/infra plan -w ${{ github.base_ref }}
+
     - name: Plan staging
       if: success() && contains(github.base_ref, 'develop')
       env:
