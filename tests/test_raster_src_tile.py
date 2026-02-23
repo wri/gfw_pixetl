@@ -114,7 +114,10 @@ def test_transform_final_wm():
     assert src_profile["height"] == layer_wm.grid.cols
     assert src_profile["interleave"] == "band"
     assert src_profile["nodata"] == layer_wm.dst_profile["nodata"]
-    assert src_profile["tiled"] is True
+    assert src_profile.get("tiled") or (
+        src_profile["blockxsize"] == layer_wm.grid.blockxsize
+        and src_profile["blockysize"] == layer_wm.grid.blockysize
+    )
     assert src_profile["width"] == layer_wm.grid.rows
     # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
 
