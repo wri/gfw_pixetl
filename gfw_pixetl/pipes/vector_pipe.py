@@ -1,9 +1,8 @@
 from typing import Iterator, List, Set, Tuple
 
-from parallelpipe import stage
-
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import VectorSrcLayer
+from gfw_pixetl.parallelpipe import Pipeline, Stage, stage
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile, VectorSrcTile
@@ -19,18 +18,35 @@ class VectorPipe(Pipe):
 
         LOGGER.debug("Start Vector Pipe")
         tiles = self.collect_tiles(overwrite=overwrite)
-        pipe = (
+
+        initial_workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
+
+        result = self._process_pipe_with_oom_retry(
+            tiles=tiles,
+            workers=initial_workers,
+            build_pipe=self._build_pipe,
+        )
+
+        LOGGER.debug("Finished Vector Pipe")
+        return result
+
+    def _build_pipe(self, tiles: List[Tile], workers: int) -> Pipeline:
+        """Construct the vector pipeline for a given tile list and worker
+        count.
+
+        ``workers`` controls the parallelism of the memory-intensive
+        ``rasterize`` stage.
+        """
+        return (
             tiles
             | self.filter_subset_tiles(self.subset)
             | self.filter_src_tiles
-            | self.filter_target_tiles(overwrite=overwrite)
+            | self.filter_target_tiles(overwrite=False)
             | self.fetch_tile_data
-            | self.rasterize
+            | Stage(self.rasterize).setup(workers=workers)
             | self.upload_file
             | self.delete_work_dir
         )
-
-        return self._process_pipe(pipe)
 
     def get_grid_tiles(self) -> Set[VectorSrcTile]:  # type: ignore
         """Seed all available tiles within given grid.
@@ -72,7 +88,6 @@ class VectorPipe(Pipe):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.workers)
     def rasterize(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """Convert vector source to raster tiles."""
         for tile in tiles:

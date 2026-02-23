@@ -1,6 +1,6 @@
 import sys
 import traceback
-from functools import wraps
+from functools import cached_property, wraps
 from multiprocessing import Process, Queue
 
 
@@ -9,19 +9,25 @@ class SubprocessKilledError(Exception):
 
 
 def lazy_property(fn):
-    """Decorator that makes a property lazy-evaluated.
+    """Lazy-evaluated property backed by functools.cached_property.
 
-    Credits: https://stevenloria.com/lazy-properties/
+    Behaves identically to the old hand-rolled version but delegates to
+    the stdlib implementation, which is well-tested and supports cache
+    invalidation via ``del obj.<name>``.  This is important for the OOM
+    retry path, where we need to clear cached state that references files
+    inside a tile's work directory before that directory is recreated.
+
+    The ``cached_property`` descriptor stores its value in the instance
+    ``__dict__`` under the function's own name, so deletion is simply:
+
+        del tile.src               # clears RasterSrcTile.src cache
+        del tile.intersecting_window
+
+    Note: ``cached_property`` is not re-entrant; if two threads access the
+    same unset property simultaneously they may both compute it.  That is
+    fine here because each tile is only ever touched by one worker at a time.
     """
-    attr_name = "_lazy_" + fn.__name__
-
-    @property
-    def _lazy_property(self):
-        if not hasattr(self, attr_name):
-            setattr(self, attr_name, fn(self))
-        return getattr(self, attr_name)
-
-    return _lazy_property
+    return cached_property(fn)
 
 
 def processify(func):

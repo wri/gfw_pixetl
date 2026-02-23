@@ -122,6 +122,25 @@ class RasterSrcTile(Tile):
 
         return snapped_window(window)
 
+    def reset_for_retry(self) -> None:
+        """Clear all cached properties that reference files in work_dir.
+
+        ``src`` creates hardlinks into ``work_dir`` and a VRT file on disk.
+        ``intersecting_window`` is derived from ``src``.  Both are stored by
+        ``cached_property`` (via ``lazy_property``) in the instance
+        ``__dict__``, so deleting the key is all that is needed to force
+        recomputation on next access.
+
+        We must clear these *before* calling super(), which recreates
+        ``work_dir``, because the old cached ``src`` holds a ``RasterSource``
+        whose ``uri`` points to a VRT file that was deleted along with the
+        previous ``work_dir``.
+        """
+        for attr in ("src", "intersecting_window"):
+            self.__dict__.pop(attr, None)
+
+        super().reset_for_retry()
+
     def within(self) -> bool:
         """Check if target tile extent intersects with source extent."""
         return (
