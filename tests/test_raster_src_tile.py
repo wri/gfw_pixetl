@@ -63,7 +63,7 @@ def test_transform_final(LAYER):
     assert src_profile["blockysize"] == LAYER.grid.blockysize
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
-    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
@@ -107,7 +107,7 @@ def test_transform_final_wm():
     assert src_profile["blockysize"] == layer_wm.grid.blockysize
     assert src_profile["compress"].lower() == layer_wm.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
-    assert src_profile["crs"] == {"init": layer_wm.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == layer_wm.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == layer_wm.dst_profile["dtype"]
@@ -157,7 +157,7 @@ def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     assert src_profile["blockysize"] == LAYER.grid.blockysize
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
-    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
@@ -211,7 +211,7 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
     assert src_profile["blockysize"] == LAYER.grid.blockysize
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 3
-    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]

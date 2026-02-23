@@ -20,7 +20,7 @@ from shapely.ops import unary_union
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import _file_does_not_exist, retry_if_rasterio_error
 from gfw_pixetl.models.types import Bounds
-from gfw_pixetl.settings.gdal import GDAL_ENV
+from gfw_pixetl.settings.gdal import get_gdal_env
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.path import create_dir
 
@@ -83,7 +83,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
 
     create_dir(os.path.join(work_dir, "input"))
 
-    with rasterio.Env(**GDAL_ENV):
+    with rasterio.Env(**get_gdal_env()):
         with rasterio.open(local_file_path, "w", **profile) as dst:
             dst.write(data)
 
@@ -101,7 +101,7 @@ def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
     LOGGER.debug(f"Fetch metadata for file {src_uri} if exists")
 
     try:
-        with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
+        with rasterio.Env(**get_gdal_env()), rasterio.open(src_uri) as src:
             LOGGER.info(f"In fetch_metadata. File {src_uri} exists")
             return src.bounds, src.profile
 

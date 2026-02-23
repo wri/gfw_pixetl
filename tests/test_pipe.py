@@ -6,13 +6,27 @@ import pytest
 
 from gfw_pixetl import layers
 from gfw_pixetl.grids import LatLngGrid
-from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.models.pydantic import LayerModel, Metadata
 from gfw_pixetl.pipes import Pipe, RasterPipe
 from gfw_pixetl.sources import Destination
 from gfw_pixetl.tiles.tile import Tile
 from gfw_pixetl.utils.aws import get_s3_client
 from tests.conftest import BUCKET, LAYER_DICT, TILE_1_PATH, SUBSET_1x1
 from tests.utils import delete_s3_files
+
+# Minimal Metadata stub returned by the get_metadata mock in tests that trigger
+# the "existing tile" branch of filter_target_tiles.  The values are never
+# validated beyond being stored; we only need the object to be dict-serialisable.
+_STUB_METADATA = Metadata(
+    extent=(10.0, 10.0, 11.0, 11.0),
+    width=4000,
+    height=4000,
+    pixelxsize=0.00025,
+    pixelysize=0.00025,
+    crs="EPSG:4326",
+    driver="GTiff",
+    compression="DEFLATE",
+)
 
 
 def test_pipe(PIPE):
@@ -49,7 +63,9 @@ def test_filter_subset_tiles(PIPE):
 
 def test_filter_target_tiles_all_existing_no_overwrite(PIPE, _upload_pipe_fixtures):
     tiles = _get_subset_tiles(PIPE)
-    with mock.patch.object(Destination, "exists", return_value=True):
+    with mock.patch.object(Destination, "exists", return_value=True), mock.patch(
+        "gfw_pixetl.pipes.pipe.get_metadata", return_value=_STUB_METADATA
+    ):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
         for tile in pipe.results():
@@ -95,9 +111,13 @@ def test_filter_target_tiles_no_existing_overwrite(PIPE, _upload_pipe_fixtures):
         assert i == 4
 
 
-def test_filter_target_tiles_all_existing_no_overwrite_positive(PIPE, _upload_pipe_fixtures):
+def test_filter_target_tiles_all_existing_no_overwrite_positive(
+    PIPE, _upload_pipe_fixtures
+):
     tiles = _get_subset_tiles(PIPE)
-    with mock.patch.object(Destination, "exists", return_value=True):
+    with mock.patch.object(Destination, "exists", return_value=True), mock.patch(
+        "gfw_pixetl.pipes.pipe.get_metadata", return_value=_STUB_METADATA
+    ):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
         for tile in pipe.results():
