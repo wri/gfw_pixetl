@@ -1,0 +1,60 @@
+[project]
+name = "gfw_pixetl"
+version = "1.7.8"
+description = "Tool to preprocess GFW tiles"
+authors = [{ name = "Thomas Maschler" }]
+license = { text = "MIT" }
+requires-python = "==3.12.*"
+
+# Production dependencies (formerly [packages] in Pipfile)
+dependencies = [
+    "aenum",
+    "boto3",
+    "click",
+    "geojson",
+    "geopandas<1",
+    "google-cloud-storage",
+    "numpy<2",
+    "pandas<2.2",
+    "parallelpipe",
+    "psutil",
+    "pyarrow",
+    "psycopg2<3",
+    "pydantic<2",
+    "pyproj",
+    "rasterio==1.4.3",  # Upgrade carefully – tightly coupled to GDAL version
+    "retrying",
+    "PyYAML",
+    "Shapely",
+    "SQLAlchemy<1.4",
+    "typer",
+]
+
+[project.optional-dependencies]
+# Dev/test dependencies (formerly [dev-packages] in Pipfile)
+dev = [
+    "moto[s3,secretsmanager]<5",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+]
+
+[project.scripts]
+pixetl      = "gfw_pixetl.pixetl:cli"
+pixetl_prep = "gfw_pixetl.pixetl_prep:cli"
+
+[build-system]
+requires      = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
+
+# ── UV configuration ───────────────────────────────────────────────────────────
+[tool.uv]
+# Packages that must be provided by the base image's system site-packages
+# (i.e. the GDAL Python bindings). UV will not attempt to install these.
+no-binary-package = []
+
+[tool.uv.sources]
+# No custom index sources needed; everything comes from PyPI.
