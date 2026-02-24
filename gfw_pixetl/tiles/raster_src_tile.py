@@ -430,12 +430,13 @@ class RasterSrcTile(Tile):
             self.dst[self.default_format].blockysize,
         )
 
-        dst_block_byte_size = np.zeros(
-            shape, dtype=self.dst[self.default_format].dtype
-        ).nbytes
-        src_block_byte_size = np.zeros(shape, dtype=self.src.dtype).nbytes
+        dst_block_byte_size = np.dtype(
+            self.dst[self.default_format].dtype
+        ).itemsize * np.prod(shape)
+        src_block_byte_size = np.dtype(self.src.dtype).itemsize * np.prod(shape)
+
         max_block_byte_size = max(dst_block_byte_size, src_block_byte_size)
-        LOGGER.debug(f"Block byte size is {max_block_byte_size/ 1000000} MB")
+        LOGGER.debug(f"Block byte size is {max_block_byte_size / 1000000} MB")
 
         return max_block_byte_size
 
