@@ -122,6 +122,25 @@ class RasterSrcTile(Tile):
 
         return snapped_window(window)
 
+    def reset_for_retry(self) -> None:
+        """Clear all cached properties that reference files in work_dir.
+
+        ``src`` creates hardlinks into ``work_dir`` and a VRT file on disk.
+        ``intersecting_window`` is derived from ``src``.  Both are stored by
+        ``cached_property`` (via ``lazy_property``) in the instance
+        ``__dict__``, so deleting the key is all that is needed to force
+        recomputation on next access.
+
+        We must clear these *before* calling super(), which recreates
+        ``work_dir``, because the old cached ``src`` holds a ``RasterSource``
+        whose ``uri`` points to a VRT file that was deleted along with the
+        previous ``work_dir``.
+        """
+        for attr in ("src", "intersecting_window"):
+            self.__dict__.pop(attr, None)
+
+        super().reset_for_retry()
+
     def within(self) -> bool:
         """Check if target tile extent intersects with source extent."""
         return (
@@ -411,12 +430,13 @@ class RasterSrcTile(Tile):
             self.dst[self.default_format].blockysize,
         )
 
-        dst_block_byte_size = np.zeros(
-            shape, dtype=self.dst[self.default_format].dtype
-        ).nbytes
-        src_block_byte_size = np.zeros(shape, dtype=self.src.dtype).nbytes
+        dst_block_byte_size = np.dtype(
+            self.dst[self.default_format].dtype
+        ).itemsize * np.prod(shape)
+        src_block_byte_size = np.dtype(self.src.dtype).itemsize * np.prod(shape)
+
         max_block_byte_size = max(dst_block_byte_size, src_block_byte_size)
-        LOGGER.debug(f"Block byte size is {max_block_byte_size/ 1000000} MB")
+        LOGGER.debug(f"Block byte size is {max_block_byte_size / 1000000} MB")
 
         return max_block_byte_size
 
