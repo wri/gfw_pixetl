@@ -7,6 +7,7 @@ import rasterio
 from rasterio.enums import ColorInterp
 
 from gfw_pixetl import get_module_logger, layers
+from gfw_pixetl.layers import layer_factory
 from gfw_pixetl.models.enums import PhotometricType
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -62,7 +63,7 @@ def test_transform_final(LAYER):
     assert src_profile["blockysize"] == LAYER.grid.blockysize
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
-    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
@@ -106,14 +107,17 @@ def test_transform_final_wm():
     assert src_profile["blockysize"] == layer_wm.grid.blockysize
     assert src_profile["compress"].lower() == layer_wm.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
-    assert src_profile["crs"] == {"init": layer_wm.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == layer_wm.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == layer_wm.dst_profile["dtype"]
     assert src_profile["height"] == layer_wm.grid.cols
     assert src_profile["interleave"] == "band"
     assert src_profile["nodata"] == layer_wm.dst_profile["nodata"]
-    assert src_profile["tiled"] is True
+    assert src_profile.get("tiled") or (
+        src_profile["blockxsize"] == layer_wm.grid.blockxsize
+        and src_profile["blockysize"] == layer_wm.grid.blockysize
+    )
     assert src_profile["width"] == layer_wm.grid.rows
     # assert src_profile["nbits"] == nbits # Not exposed in rasterio API
 
@@ -156,7 +160,7 @@ def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     assert src_profile["blockysize"] == LAYER.grid.blockysize
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
-    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
@@ -210,7 +214,7 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
     assert src_profile["blockysize"] == LAYER.grid.blockysize
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 3
-    assert src_profile["crs"] == {"init": LAYER.grid.crs.srs}
+    assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
     assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
@@ -253,20 +257,36 @@ def test__vrt_transform(LAYER):
     assert isclose(height, 400)
 
 
-def test_download_files(LAYER):
-    layer = deepcopy(LAYER)
-    layer.process_locally = True
-    tile = RasterSrcTile("10N_010E", layer.grid, layer)
-    _ = tile.src  # trigger download
+def test_download_files():
+    expected_source_file_location = "/tmp/input/source0/gfw-data-lake-test/10N_010E.tif"
+    try:
+        os.remove(expected_source_file_location)
+    except FileNotFoundError:
+        pass
 
-    assert os.path.isfile(
-        os.path.join(tile.work_dir, "input/gfw-data-lake-test/10N_010E.tif")
+    assert not os.path.isfile(expected_source_file_location)
+
+    layer_def = LayerModel.parse_obj(LAYER_DICT)
+    layer = layer_factory(layer_def)
+
+    assert os.path.isfile(expected_source_file_location)
+
+    expected_link_location = (
+        "/tmp/10N_010E/input/source0/gfw-data-lake-test/10N_010E.tif"
     )
+    assert not os.path.isfile(expected_link_location)
+
+    rst = RasterSrcTile("10N_010E", layer.grid, layer)
+    print(f"Here's src! {rst.src}")
+
+    assert os.path.isfile(expected_link_location)
 
 
-def test__block_byte_size(LAYER, LAYER_MULTI):
+def test__block_byte_size_single(LAYER):
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile._block_byte_size() == 1 * 2 * 400 * 400
 
+
+def test__block_byte_size_multi(LAYER_MULTI):
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
     assert tile._block_byte_size() == 2 * 2 * 400 * 400

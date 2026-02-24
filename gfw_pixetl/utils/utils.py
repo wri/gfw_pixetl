@@ -20,7 +20,7 @@ from shapely.ops import unary_union
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.errors import _file_does_not_exist, retry_if_rasterio_error
 from gfw_pixetl.models.types import Bounds
-from gfw_pixetl.settings.gdal import GDAL_ENV
+from gfw_pixetl.settings.gdal import get_gdal_env
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.path import create_dir
 
@@ -83,7 +83,7 @@ def create_empty_file(work_dir, src_profile: Dict[str, Any]):
 
     create_dir(os.path.join(work_dir, "input"))
 
-    with rasterio.Env(**GDAL_ENV):
+    with rasterio.Env(**get_gdal_env()):
         with rasterio.open(local_file_path, "w", **profile) as dst:
             dst.write(data)
 
@@ -101,12 +101,11 @@ def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
     LOGGER.debug(f"Fetch metadata for file {src_uri} if exists")
 
     try:
-        with rasterio.Env(**GDAL_ENV), rasterio.open(src_uri) as src:
-            LOGGER.info(f"File {src_uri} exists")
+        with rasterio.Env(**get_gdal_env()), rasterio.open(src_uri) as src:
+            LOGGER.info(f"In fetch_metadata. File {src_uri} exists")
             return src.bounds, src.profile
 
     except Exception as e:
-
         if _file_does_not_exist(e):
             LOGGER.info(f"File does not exist {src_uri}")
             raise FileNotFoundError(f"File does not exist: {src_uri}")
@@ -193,16 +192,16 @@ def intersection(a: MultiPolygon, b: Optional[MultiPolygon]) -> MultiPolygon:
         # includes things like LineStrings (like when two polygons both share
         # an edge and overlap elsewhere), which we don't care about. Filter
         # that stuff out to return a MultiPolygon.
-        if _geom.type == "GeometryCollection":
+        if _geom.geom_type == "GeometryCollection":
             geom_pieces: List[Union[MultiPolygon, Polygon]] = list()
             for g in _geom.geoms:
-                if g.type == "MultiPolygon" or g.type == "Polygon":
+                if g.geom_type == "MultiPolygon" or g.geom_type == "Polygon":
                     geom_pieces.append(g)
             geom = unary_union(geom_pieces)
         else:
             geom = _geom
 
-    if geom.type == "Polygon":
+    if geom.geom_type == "Polygon":
         geom = MultiPolygon([geom])
 
     return geom
@@ -219,7 +218,7 @@ def union(
         geom = a
     else:
         geom = unary_union([a, b])
-        if geom.type == "Polygon":
+        if geom.geom_type == "Polygon":
             geom = MultiPolygon([geom])
 
     return geom

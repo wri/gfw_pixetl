@@ -1,9 +1,8 @@
 from typing import Iterator, List, Set, Tuple
 
-from parallelpipe import Stage, stage
-
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.parallelpipe import Pipeline, Stage, stage
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import RasterSrcTile, Tile
@@ -33,6 +32,22 @@ class RasterPipe(Pipe):
         assert isinstance(self.layer, RasterSrcLayer)
         return RasterSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
+    def _build_pipe(self, tiles: List[Tile], workers: int) -> Pipeline:
+        """Construct the raster pipeline for a given tile list and worker
+        count.
+
+        ``workers`` controls the parallelism of the memory-intensive
+        ``transform`` stage.  The upload/delete stages always run at
+        ``GLOBALS.num_processes`` workers since they are I/O-bound and
+        much lighter on memory.
+        """
+        return (
+            tiles
+            | Stage(self.transform).setup(workers=workers)
+            | self.upload_file
+            | self.delete_work_dir
+        )
+
     def create_tiles(
         self, overwrite: bool
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
@@ -42,19 +57,19 @@ class RasterPipe(Pipe):
 
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        GLOBALS.workers = max(self.tiles_to_process, 1)
+        # Start with as many workers as there are tiles to process, capped at
+        # GLOBALS.workers.  The retry logic will halve this on each OOM kill.
+        initial_workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
+        GLOBALS.workers = initial_workers
 
-        pipe = (
-            tiles
-            | Stage(self.transform).setup(workers=GLOBALS.workers)
-            | self.upload_file
-            | self.delete_work_dir
+        result = self._process_pipe_with_oom_retry(
+            tiles=tiles,
+            workers=initial_workers,
+            build_pipe=self._build_pipe,
         )
 
-        tiles, skipped_tiles, failed_tiles, existing_tiles = self._process_pipe(pipe)
-
         LOGGER.info("Finished Raster Pipe")
-        return tiles, skipped_tiles, failed_tiles, existing_tiles
+        return result
 
     @staticmethod
     @stage(workers=GLOBALS.num_processes)
@@ -68,10 +83,10 @@ class RasterPipe(Pipe):
                 tile.status = "skipped (does not intersect)"
             yield tile
 
-    # We cannot use the @stage decorate here
+    # We cannot use the @stage decorator here
     # but need to create a Stage instance directly in the pipe.
     # When using the decorator, number of workers get set during RasterPipe class instantiation
-    # and cannot be changed afterwards anymore. The Stage class gives us more flexibility.
+    # and cannot be changed anymore. The Stage class gives us more flexibility.
     @staticmethod
     def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """Transform input raster to match new tile grid and projection."""

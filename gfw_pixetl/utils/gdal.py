@@ -23,7 +23,7 @@ from gfw_pixetl.errors import (
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.pydantic import Band, BandStats, Histogram, Metadata
 from gfw_pixetl.models.types import Bounds
-from gfw_pixetl.settings.gdal import GDAL_ENV
+from gfw_pixetl.settings.gdal import get_gdal_env
 
 LOGGER = get_module_logger(__name__)
 
@@ -97,7 +97,7 @@ def create_vrt(
 
 @processify
 def just_copy_geotiff(src_uri, dst_uri, profile):
-    with rasterio.Env(**GDAL_ENV):
+    with rasterio.Env(**get_gdal_env()):
         raster_copy(
             src_uri,
             dst_uri,
@@ -111,14 +111,13 @@ def just_copy_geotiff(src_uri, dst_uri, profile):
     stop_max_attempt_number=7,
     wait_fixed=2000,
 )
-def run_gdal_subcommand(
-    cmd: List[str], env: Optional[Dict] = GDAL_ENV
-) -> Tuple[str, str]:
+def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str, str]:
     """Run GDAL as sub command and catch common errors."""
 
     gdal_env = os.environ.copy()
-    if env:
-        gdal_env.update(**env)
+    resolved_env = env if env is not None else get_gdal_env()
+    if resolved_env:
+        gdal_env.update(**resolved_env)
 
     LOGGER.debug(f"RUN subcommand {cmd}, using env {gdal_env}")
     p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, env=gdal_env)
@@ -143,8 +142,8 @@ def run_gdal_subcommand(
         elif "error" in e.lower():
             LOGGER.warning(
                 'Word "error" found in stderr but exit code was 0. '
-                f'command: {cmd} '
-                f'stderr: {e}'
+                f"command: {cmd} "
+                f"stderr: {e}"
             )
     # Raise an error if the exit code is non-zero.
     else:
@@ -205,7 +204,6 @@ def get_metadata(
     )
 
     for band in meta["bands"]:
-
         band_metadata = Band(
             no_data=band.get("noDataValue", None),
             data_type=DataTypeEnum(from_gdal_data_type(band["type"])),
@@ -246,5 +244,5 @@ def _check_crs_equal(input_vrts: List[str]) -> None:
         if i > 0:
             assert (
                 crs == other_crs
-            ), "Input layers must have same coordinate reference system."
+            ), f"Input layers must have same coordinate reference system. {crs} != {other_crs}"
         other_crs = crs

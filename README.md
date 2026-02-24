@@ -59,22 +59,22 @@ Supported Options:
 
 ### Raster Sources:
 
-| Option            | Mandatory | Description |
-|-------------------|-----------|-------------|
-| source_type       | yes       | Always "raster" |
-| pixel_meaning     | yes       | A string indicating the value represented by pixel. This can either be a field name or a unit. Always use lower caps, unless when specifying a unit that uses capital letters |
-| data_type         | yes       | Data type of output file (boolean, uint8, int8, uint16, int16, uint32, int32, float32, float64) |
-| grid              | yes       | Grid size of output dataset
-| no_data           | no        | Integer value, for float datatype use `NAN`. If left out or set to `null` output dataset will have no `no_data` value |
-| nbits             | no        | Max number of bits used for given datatype |
-| source_uri        | yes       | List of URIs of source folders or tiles.geojson file(s) |
-| resampling        | no        | Resampling method (nearest, mod, avg, etc), default `nearest |
+| Option            | Mandatory | Description                                                                                                                                                                                                                                                                                               |
+|-------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| source_type       | yes       | Always "raster"                                                                                                                                                                                                                                                                                           |
+| pixel_meaning     | yes       | A string indicating the value represented by pixel. This can either be a field name or a unit. Always use lower caps, unless when specifying a unit that uses capital letters                                                                                                                             |
+| data_type         | yes       | Data type of output file (boolean, uint8, int8, uint16, int16, uint32, int32, float32, float64)                                                                                                                                                                                                           |
+| grid              | yes       | Grid size of output dataset                                                                                                                                                                                                                                                                               
+| no_data           | no        | Integer value, for float datatype use `NAN`. If left out or set to `null` output dataset will have no `no_data` value                                                                                                                                                                                     |
+| nbits             | no        | Max number of bits used for given datatype                                                                                                                                                                                                                                                                |
+| source_uri        | yes       | List of URIs of source folders or tiles.geojson file(s)                                                                                                                                                                                                                                                   |
+| resampling        | no        | Resampling method (nearest, mod, avg, etc), default `nearest                                                                                                                                                                                                                                              |
 | calc              | no        | Numpy expression to transform array. Use namespace `np`, not `numpy` when using numpy functions. When using multiple input bands, reference each band with uppercase letter in alphabetic order (A,B,C,..). To output multiband raster, wrap list of bands in a masked array ie `np.ma.array([A, B, C])`. |
-| symbology         | no        | Add optional symbology to the output raster |
-| compute_stats     | no        | Compute band statistics and add to tiles.geojson |
-| compute_histogram | no        | Compute band histograms and add to tile.geojson |
-| process_locally   | no        | When set to True, forces PixETL to download all source files prior to processing. Default `False` |
-| photometric       | no        | Color interpretations of bands |
+| symbology         | no        | Add optional symbology to the output raster                                                                                                                                                                                                                                                               |
+| compute_stats     | no        | Compute band statistics and add to tiles.geojson                                                                                                                                                                                                                                                          |
+| compute_histogram | no        | Compute band histograms and add to tile.geojson                                                                                                                                                                                                                                                           |
+| process_locally   | no        | When set to True, forces PixETL to download all source files prior to processing. Default `True`                                                                                                                                                                                                          |
+| photometric       | no        | Color interpretations of bands                                                                                                                                                                                                                                                                            |
 
 _NOTE:_
 

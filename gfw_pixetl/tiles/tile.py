@@ -66,9 +66,9 @@ class Tile(ABC):
             "interleave": "BAND",
         }
         if layer.photometric:
-            gdal_profile[
-                "photometric"
-            ] = layer.photometric.value  # need value, not just Enum!
+            gdal_profile["photometric"] = (
+                layer.photometric.value
+            )  # need value, not just Enum!
 
         gdal_profile.update(self.layer.dst_profile)
 
@@ -105,6 +105,24 @@ class Tile(ABC):
 
     def remove_work_dir(self):
         shutil.rmtree(self.work_dir, ignore_errors=True)
+
+    def reset_for_retry(self) -> None:
+        """Prepare this tile to be processed again after an OOM kill.
+
+        Resets all mutable state that accumulates during a pipeline run
+        so that the tile can safely pass through the full pipeline a
+        second time.  Subclasses should call
+        ``super().reset_for_retry()`` and then clear any additional
+        cached properties they own.
+        """
+        self.status = "pending"
+        self.metadata = {}
+        self.local_dst = {}
+
+        # Recreate work directories in case delete_work_dir already ran
+        # for tiles that completed before the OOM kill hit.
+        create_dir(self.work_dir)
+        create_dir(self.tmp_dir)
 
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):

@@ -34,7 +34,7 @@ class GdalEnv(EnvSettings):
     vsi_cache: str = "YES"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
     aws_https: Optional[str] = None
     aws_virtual_hosting: Optional[str] = None
-    aws_s3_endpoint: Optional[str] = set_aws_s3_endpoint()
+    aws_s3_endpoint: Optional[str] = None  # Populated at call time via get_gdal_env()
     aws_request_payer: str = "requester"
     google_application_credentials: str = Field(
         "/root/.gcs/private_key.json",
@@ -51,4 +51,20 @@ class GdalEnv(EnvSettings):
         return v
 
 
-GDAL_ENV = GdalEnv().env_dict()
+def get_gdal_env() -> dict:
+    """Return a fresh GDAL environment dict, re-reading AWS_ENDPOINT_URL each
+    time.
+
+    Must be a function rather than a module-level constant so that the
+    moto test endpoint URL (injected via AWS_ENDPOINT_URL after module
+    import) is always picked up.  In production the value is stable so
+    calling this on each rasterio.Env / subprocess invocation is cheap.
+    """
+    return GdalEnv(aws_s3_endpoint=set_aws_s3_endpoint()).env_dict()
+
+
+# Backwards-compatible module-level constant for code paths that import GDAL_ENV
+# directly and are not sensitive to late-bound environment changes (e.g. static
+# config reads at startup).  S3-sensitive paths (fetch_metadata, run_gdal_subcommand)
+# should call get_gdal_env() instead.
+GDAL_ENV = get_gdal_env()

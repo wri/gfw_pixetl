@@ -2,7 +2,6 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import boto3
 
-from gfw_pixetl.decorators import processify
 from gfw_pixetl.settings.globals import GLOBALS
 
 
@@ -26,19 +25,16 @@ get_secret_client = client_constructor(
 )
 
 
-@processify
 def download_s3(bucket: str, key: str, dst: str) -> Dict[str, Any]:
     s3_client = get_s3_client()
     return s3_client.download_file(bucket, key, dst)
 
 
-@processify
 def upload_s3(path: str, bucket: str, dst: str) -> Dict[str, Any]:
     s3_client = get_s3_client()
     return s3_client.upload_file(path, bucket, dst)
 
 
-@processify
 def get_aws_files(
     bucket: str, prefix: str, extensions: Sequence[str] = (".tif",)
 ) -> List[str]:
