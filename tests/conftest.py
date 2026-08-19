@@ -200,12 +200,12 @@ def sample_vector_data():
     dataset = "some_dataset"
     version = "v4"
 
-    db_url = URL(
+    db_url = URL.create(
         "postgresql+psycopg2",
         host=GLOBALS.db_host,
         port=GLOBALS.db_port,
         username=GLOBALS.db_username,
-        password=GLOBALS.db_password,
+        password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
         database=GLOBALS.db_name,
     )
 
