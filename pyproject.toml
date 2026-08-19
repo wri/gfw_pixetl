@@ -4,7 +4,7 @@ version = "1.7.8"
 description = "Tool to preprocess GFW tiles"
 authors = [{ name = "Thomas Maschler" }]
 license = { text = "MIT" }
-requires-python = "~=3.11.0"
+requires-python = "~=3.12.0"
 
 # Production dependencies (formerly [packages] in Pipfile)
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
     "geojson",
     "geopandas<1",
     "google-cloud-storage",
-    "numpy<2",
+    "numpy<3",
     "pandas<2.2",
     "parallelpipe",
     "psutil",
@@ -22,7 +22,7 @@ dependencies = [
     "psycopg2<3",
     "pydantic<2",
     "pyproj",
-    "rasterio==1.4.3",  # Upgrade carefully – tightly coupled to GDAL version
+    "rasterio==1.5.1",  # Upgrade carefully – tightly coupled to GDAL version
     "retrying",
     "PyYAML",
     "Shapely",
