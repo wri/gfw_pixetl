@@ -104,7 +104,7 @@ def download_sources(source_uris: List[str], work_dir: str) -> List[str]:
         o = urlparse(source_uri, allow_fragments=False)
 
         bucket: str = str(o.netloc)
-        prefix: str = (str(o.path)).lstrip("/").rstrip("*")
+        prefix: str = (str(o.path)).lstrip("/")
 
         local_source_dir = f"{work_dir}/input/source{i}"
 
