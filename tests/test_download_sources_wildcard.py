@@ -36,6 +36,8 @@ double-stripping is fixed (e.g. by not stripping "*" in
 """
 
 import os
+import shutil
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -48,11 +50,32 @@ from gfw_pixetl.utils.sources import (  # noqa: E402
 )
 
 
+@pytest.fixture
+def work_dir():
+    """A scratch directory under /tmp, created and torn down by hand.
+
+    We deliberately avoid pytest's built-in ``tmp_path`` fixture here: this
+    repo's ``tests/conftest.py`` has an autouse ``cleanup_tmp`` fixture that
+    ``shutil.rmtree``s every directory under /tmp after each test (since
+    pixetl itself uses /tmp as its working directory). That wipes out
+    pytest's own ``/tmp/pytest-of-<user>`` bookkeeping directory too, which
+    breaks ``tmp_path`` for any later test in the same session
+    (``FileNotFoundError`` at fixture setup). A plain, self-managed temp dir
+    sidesteps that entirely -- it's fine if ``cleanup_tmp`` deletes it
+    afterward, since we're done with it by then.
+    """
+    d = tempfile.mkdtemp(prefix="test_download_sources_wildcard_")
+    try:
+        yield d
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 @pytest.mark.parametrize(
     "provider,mocked_func", [("gs", "get_gs_files"), ("s3", "get_aws_files")]
 )
 def test_download_sources_preserves_wildcard_filename_prefix(
-    tmp_path, provider, mocked_func
+    work_dir, provider, mocked_func
 ):
     """A source_uri ending in '*' should be treated as a filename prefix (no
     trailing slash), not as a subfolder, no matter which provider is used."""
@@ -61,7 +84,7 @@ def test_download_sources_preserves_wildcard_filename_prefix(
     source_uri = f"{provider}://{bucket}/{key_prefix}*"
 
     with patch(f"gfw_pixetl.utils.sources.{mocked_func}", return_value=[]) as mock_list:
-        download_sources([source_uri], str(tmp_path))
+        download_sources([source_uri], work_dir)
 
     assert mock_list.called, f"{mocked_func} was never called"
     called_bucket, called_prefix = mock_list.call_args.args
@@ -76,7 +99,7 @@ def test_download_sources_preserves_wildcard_filename_prefix(
     assert not called_prefix.endswith("/")
 
 
-def test_download_sources_finds_files_with_shared_filename_prefix(tmp_path):
+def test_download_sources_finds_files_with_shared_filename_prefix(work_dir):
     """End-to-end check: files that share a filename prefix (rather than
     living in a same-named subfolder) must be discovered and queued for
     download when the source_uri uses a trailing '*'."""
@@ -104,8 +127,8 @@ def test_download_sources_finds_files_with_shared_filename_prefix(tmp_path):
         # create a placeholder file rather than mocking os.path.exists
         # globally (which would also mask real directory-creation bugs).
         _, basedir = args
-        downloaded = tmp_path / "downloaded.tif"
-        downloaded.touch()
+        downloaded = os.path.join(work_dir, "downloaded.tif")
+        open(downloaded, "a").close()
         return downloaded
 
     with (
@@ -115,7 +138,7 @@ def test_download_sources_finds_files_with_shared_filename_prefix(tmp_path):
             side_effect=fake_download_source_file,
         ) as mock_download,
     ):
-        download_sources([source_uri], str(tmp_path))
+        download_sources([source_uri], work_dir)
 
     downloaded_uris = [call.args[0][0] for call in mock_download.call_args_list]
     assert downloaded_uris, (
