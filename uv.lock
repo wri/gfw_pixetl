@@ -314,18 +314,18 @@ wheels = [
 
 [[package]]
 name = "gfw-pixetl"
-version = "1.8.0"
+version = "1.8.1"
 source = { editable = "." }
 dependencies = [
     { name = "aenum" },
     { name = "boto3" },
     { name = "click" },
+    { name = "dill" },
     { name = "geojson" },
     { name = "geopandas" },
     { name = "google-cloud-storage" },
     { name = "numpy" },
     { name = "pandas" },
-    { name = "parallelpipe" },
     { name = "psutil" },
     { name = "psycopg2" },
     { name = "pyarrow" },
@@ -352,13 +352,13 @@ requires-dist = [
     { name = "aenum" },
     { name = "boto3" },
     { name = "click" },
+    { name = "dill" },
     { name = "geojson" },
     { name = "geopandas", specifier = "<1" },
     { name = "google-cloud-storage" },
     { name = "moto", extras = ["s3", "secretsmanager"], marker = "extra == 'dev'", specifier = "<5" },
     { name = "numpy", specifier = "<3" },
     { name = "pandas", specifier = "==2.3.2" },
-    { name = "parallelpipe" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "psutil" },
     { name = "psycopg2", specifier = "<3" },
@@ -659,17 +659,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f6/61/1bce4129f93ab66f1c68b7ed1c12bac6a70b1b56c5dab359c6bbcd480b52/pandas-2.3.2-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:df4df0b9d02bb873a106971bb85d448378ef14b86ba96f035f50bbd3688456b4", size = 12766345, upload-time = "2025-08-21T10:27:26.6Z" },
     { url = "https://files.pythonhosted.org/packages/8e/46/80d53de70fee835531da3a1dae827a1e76e77a43ad22a8cd0f8142b61587/pandas-2.3.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:213a5adf93d020b74327cb2c1b842884dbdd37f895f42dcc2f09d451d949f811", size = 13439314, upload-time = "2025-08-21T10:27:29.213Z" },
     { url = "https://files.pythonhosted.org/packages/28/30/8114832daff7489f179971dbc1d854109b7f4365a546e3ea75b6516cea95/pandas-2.3.2-cp312-cp312-win_amd64.whl", hash = "sha256:8c13b81a9347eb8c7548f53fd9a4f08d4dfe996836543f805c987bafa03317ae", size = 10983326, upload-time = "2025-08-21T10:27:31.901Z" },
-]
-
-[[package]]
-name = "parallelpipe"
-version = "0.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "dill" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/16/2f/dc7696698c454bc5d41b1e45c09e848aebb37e55a066c0b6f9178689d468/parallelpipe-0.3.1-py3-none-any.whl", hash = "sha256:e0e2836c987604539ab9dd986edc7fab29049f18117220bf41d8b8dbead76719", size = 7169, upload-time = "2025-09-26T16:18:45.833Z" },
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 [project]
 name = "gfw_pixetl"
-version = "1.8.0"
+version = "1.8.1"
 description = "Tool to preprocess GFW tiles"
 authors = [{ name = "Thomas Maschler" }]
 license = { text = "MIT" }
@@ -11,12 +11,12 @@ dependencies = [
     "aenum",
     "boto3",
     "click",
+    "dill",
     "geojson",
     "geopandas<1",
     "google-cloud-storage",
     "numpy<3",
     "pandas==2.3.2",
-    "parallelpipe",
     "psutil",
     "pyarrow",
     "psycopg2<3",
