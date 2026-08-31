@@ -1,5 +1,3 @@
-import pytest
-from pydantic import ValidationError
 from rasterio.warp import Resampling
 from shapely.geometry import MultiPolygon, Polygon
 
@@ -116,7 +114,7 @@ def test_vector_layer():
     assert layer.order == "desc"
 
 
-def test_multi_source_layer():
+def test_multi_source_layer_intersection():
     layer_dict = {
         **minimal_layer_dict,
         "source_uri": [
@@ -124,6 +122,7 @@ def test_multi_source_layer():
             f"s3://{BUCKET}/{GEOJSON_2_NAME}",
         ],
         "calc": "A + B",
+        "union_bands": False,
     }
     layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
 
@@ -139,6 +138,7 @@ def test_multi_source_layer():
     assert layer.calc == "A + B"
     assert layer.rasterize_method is None
     assert layer.order is None
+
     compare_multipolygons(
         layer.geom,
         MultiPolygon(
@@ -155,6 +155,41 @@ def test_multi_source_layer():
                         [-10.0, 10.0],
                     ]
                 ),
+            ]
+        ),
+    )
+
+
+def test_multi_source_layer_union():
+    layer_dict = {
+        **minimal_layer_dict,
+        "source_uri": [
+            f"s3://{BUCKET}/{GEOJSON_NAME}",
+            f"s3://{BUCKET}/{GEOJSON_2_NAME}",
+        ],
+        "calc": "A + B",
+        "union_bands": True,
+    }
+    layer = layers.layer_factory(LayerModel.parse_obj(layer_dict))
+
+    assert isinstance(layer, layers.RasterSrcLayer)
+    assert layer.__class__.__name__ == "RasterSrcLayer"
+    assert layer.dst_profile["dtype"] == "uint16"
+    assert layer.dst_profile["compress"] == "DEFLATE"
+    assert layer.dst_profile["tiled"] is True
+    assert layer.dst_profile["blockxsize"] == 400
+    assert layer.dst_profile["blockysize"] == 400
+    assert layer.dst_profile["pixeltype"] == "DEFAULT"
+    assert layer.resampling == Resampling.nearest
+    assert layer.calc == "A + B"
+    assert layer.rasterize_method is None
+    assert layer.order is None
+
+    compare_multipolygons(
+        layer.geom,
+        MultiPolygon(
+            [
+                Polygon([[180, 90], [180, -90], [-180, -90], [-180, 90], [180, 90]]),
             ]
         ),
     )

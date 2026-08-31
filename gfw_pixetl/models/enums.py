@@ -1,34 +1,34 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Order(str, Enum):
+class Order(StrEnum):
     asc = "asc"
     desc = "desc"
 
 
-class RasterizeMethod(str, Enum):
+class RasterizeMethod(StrEnum):
     _count = "count"
     value = "value"
 
 
-class SourceType(str, Enum):
+class SourceType(StrEnum):
     raster = "raster"
     vector = "vector"
 
 
-class ColorMapType(str, Enum):
+class ColorMapType(StrEnum):
     discrete = "discrete"
     discrete_intensity = "discrete_intensity"
     gradient = "gradient"
     gradient_intensity = "gradient_intensity"
 
 
-class DstFormat(str, Enum):
+class DstFormat(StrEnum):
     geotiff = "geotiff"
     gdal_geotiff = "gdal-geotiff"
 
 
-class PhotometricType(str, Enum):
+class PhotometricType(StrEnum):
     minisblack = "MINISBLACK"
     miniswhite = "MINISWHITE"
     rgb = "RGB"

@@ -1,5 +1,5 @@
 import math
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -11,7 +11,7 @@ from gfw_pixetl.models.types import NoData
 LOGGER = get_module_logger(__name__)
 
 
-class DataTypeEnum(str, Enum):
+class DataTypeEnum(StrEnum):
     boolean = "boolean"
     uint8 = "uint8"
     int8 = "int8"

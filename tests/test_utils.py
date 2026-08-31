@@ -41,7 +41,7 @@ class Client(object):
             "Credentials": {
                 "Expiration": datetime.now(tz=tzutc()),
                 "AccessKeyId": "test",
-                "SecretAccessKey": "test",
+                "SecretAccessKey": "test",  # pragma: allowlist secret
                 "SessionToken": "test",
             }
         }
@@ -201,8 +201,8 @@ def test_intersection():
 
     # This doesn't test OUR code, just making sure it does what I think it does
     geo_col = multi6.intersection(multi7)
-    assert geo_col.type == "GeometryCollection"
-    assert any(geo.type == "LineString" for geo in geo_col.geoms)
+    assert geo_col.geom_type == "GeometryCollection"
+    assert any(geo.geom_type == "LineString" for geo in geo_col.geoms)
 
     # Now test our function
     inters3 = intersection(multi6, multi7)
