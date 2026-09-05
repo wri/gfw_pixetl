@@ -79,12 +79,12 @@ def download_source_file(args: Tuple[str, str]) -> Path:
 
     parts = urlparse(remote_file)
 
-    local_file = Path(os.path.join(basedir, parts.netloc, parts.path[1:]))
+    local_file = Path(os.path.join(basedir, str(parts.netloc), str(parts.path[1:])))
     os.makedirs(os.path.dirname(local_file), exist_ok=True)
 
     LOGGER.debug(f"Downloading remote file {remote_file} to {local_file}")
     download_constructor[parts.scheme](
-        bucket=parts.netloc, key=parts.path[1:], dst=str(local_file)
+        bucket=str(parts.netloc), key=str(parts.path[1:]), dst=str(local_file)
     )
 
     return local_file
