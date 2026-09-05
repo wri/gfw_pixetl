@@ -4,7 +4,7 @@ from typing import List
 import geopandas
 from retrying import retry
 from sqlalchemy import Column, Table, select, table, text
-from sqlalchemy.engine import ResultProxy, create_engine
+from sqlalchemy.engine import CursorResult, create_engine
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql.elements import TextClause, literal_column
 
@@ -29,8 +29,7 @@ class VectorSrcTile(Tile):
         self.src: VectorSource = layer.src
 
     def intersect_filter(self) -> TextClause:
-        return text(
-            f"""ST_Intersects(
+        return text(f"""ST_Intersects(
                         {GEOMETRY_COLUMN},
                         ST_MakeEnvelope(
                             {self.bounds.left},
@@ -38,12 +37,10 @@ class VectorSrcTile(Tile):
                             {self.bounds.right},
                             {self.bounds.top},
                             4326)
-                    )"""
-        )
+                    )""")
 
     def intersection(self) -> TextClause:
-        return text(
-            f"""
+        return text(f"""
             st_intersection(
                 {GEOMETRY_COLUMN},
                 ST_MakeEnvelope(
@@ -52,17 +49,14 @@ class VectorSrcTile(Tile):
                     {self.bounds.right},
                     {self.bounds.top},
                     4326)
-            )"""
-        )
+            )""")
 
     def intersection_geom(self) -> TextClause:
-        return text(
-            f"""CASE
+        return text(f"""CASE
                         WHEN st_geometrytype({str(self.intersection())}) = 'ST_GeometryCollection'::text
                         THEN st_collectionextract({str(self.intersection())}, 3)
                         ELSE st_intersection({GEOMETRY_COLUMN}, {str(self.intersection())})
-                END"""
-        )
+                END""")
 
     def order_column(self, val) -> Column:
         if self.layer.order == "desc":
@@ -85,25 +79,25 @@ class VectorSrcTile(Tile):
         wait_random_max=180000,
     )  # Wait 60-180s between retries
     def src_vector_intersects(self) -> bool:
-        db_url: URL = URL(
+        db_url: URL = URL.create(
             "postgresql+psycopg2",
             host=GLOBALS.db_host,
             port=GLOBALS.db_port,
             username=GLOBALS.db_username,
-            password=GLOBALS.db_password,
+            password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
             database=GLOBALS.db_name,
         )
         engine = create_engine(db_url)
 
         sql = (
-            select([literal_column("gfw_fid")])
+            select(literal_column("gfw_fid"))
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .limit(1)
         )
 
         with engine.begin() as conn:
-            result: ResultProxy = conn.execute(sql)
+            result: CursorResult = conn.execute(sql)
             exists: bool = False if result.fetchone() is None else True
 
         logger.debug(
@@ -126,12 +120,12 @@ class VectorSrcTile(Tile):
 
         dst = os.path.join(prefix, f"{self.tile_id}.parquet")
 
-        db_url: URL = URL(
+        db_url: URL = URL.create(
             "postgresql+psycopg2",
             host=GLOBALS.db_host,
             port=GLOBALS.db_port,
             username=GLOBALS.db_username,
-            password=GLOBALS.db_password,
+            password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
             database=GLOBALS.db_name,
         )
         engine = create_engine(db_url)
@@ -140,7 +134,9 @@ class VectorSrcTile(Tile):
         geom_column = literal_column(str(self.intersection_geom()))
 
         sql = (
-            select([val_column.label(self.layer.field), geom_column.label(GEOMETRY_COLUMN)])
+            select(
+                val_column.label(self.layer.field), geom_column.label(GEOMETRY_COLUMN)
+            )
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .order_by(self.order_column(val_column))
