@@ -132,6 +132,9 @@ def download_source_file(args: Tuple[str, str]) -> Path:
     os.makedirs(os.path.dirname(local_file), exist_ok=True)
 
     LOGGER.debug(f"Downloading remote file {remote_file} to {local_file}")
+    download_constructor[parts.scheme](
+        bucket=str(parts.netloc), key=str(parts.path[1:]), dst=str(local_file)
+    )
 
     delay = DOWNLOAD_INITIAL_BACKOFF_SECONDS
     for attempt in range(1, DOWNLOAD_MAX_ATTEMPTS + 1):
