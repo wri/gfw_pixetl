@@ -22,11 +22,7 @@ def _write_window_to_shared_file(
 ) -> str:
     """Write blocks into output raster."""
     with rasterio.Env(**GDAL_ENV):
-        with rasterio.open(
-            uri,
-            "r+",
-            **profile,
-        ) as dst:
+        with rasterio.open(uri, "r+") as dst:
             LOGGER.debug(f"Write {dst_window} of tile {tile_id}")
             dst.write(array, window=dst_window)
             del array

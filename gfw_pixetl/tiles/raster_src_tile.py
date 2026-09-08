@@ -37,6 +37,11 @@ LOGGER = get_module_logger(__name__)
 Windows = Tuple[Window, Window]
 
 
+def _gdal_cache_size(block_byte_size, max_blocks: int) -> int:
+    """Return a plain Python integer suitable for GDAL config options."""
+    return int(block_byte_size * max_blocks)
+
+
 class RasterSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: RasterSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
@@ -125,16 +130,16 @@ class RasterSrcTile(Tile):
     def reset_for_retry(self) -> None:
         """Clear all cached properties that reference files in work_dir.
 
-        ``src`` creates hardlinks into ``work_dir`` and a VRT file on disk.
-        ``intersecting_window`` is derived from ``src``.  Both are stored by
-        ``cached_property`` (via ``lazy_property``) in the instance
-        ``__dict__``, so deleting the key is all that is needed to force
-        recomputation on next access.
+        ``src`` creates hardlinks into ``work_dir`` and a VRT file on
+        disk. ``intersecting_window`` is derived from ``src``.  Both are
+        stored by ``cached_property`` (via ``lazy_property``) in the
+        instance ``__dict__``, so deleting the key is all that is needed
+        to force recomputation on next access.
 
         We must clear these *before* calling super(), which recreates
-        ``work_dir``, because the old cached ``src`` holds a ``RasterSource``
-        whose ``uri`` points to a VRT file that was deleted along with the
-        previous ``work_dir``.
+        ``work_dir``, because the old cached ``src`` holds a
+        ``RasterSource`` whose ``uri`` points to a VRT file that was
+        deleted along with the previous ``work_dir``.
         """
         for attr in ("src", "intersecting_window"):
             self.__dict__.pop(attr, None)
@@ -175,7 +180,7 @@ class RasterSrcTile(Tile):
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
-        chunk_size = (self._block_byte_size() * self._max_blocks(),)
+        chunk_size = _gdal_cache_size(self._block_byte_size(), self._max_blocks())
         with rasterio.Env(
             **GDAL_ENV,
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
@@ -332,7 +337,6 @@ class RasterSrcTile(Tile):
     def _windows(self, dst: DatasetWriter) -> Iterator[Window]:
         """Divides raster source into larger windows which will still fit into
         memory."""
-
         block_count: int = int(sqrt(self._max_blocks()))
         x_blocks: int = int(dst.width / dst.block_shapes[0][0])
         y_blocks: int = int(dst.height / dst.block_shapes[0][1])
@@ -375,7 +379,6 @@ class RasterSrcTile(Tile):
         same time. Using a divisor of 8 leads to max memory usage of
         about 75%.
         """
-
         # Adjust divisor to band count
         divisor = GLOBALS.divisor
 
@@ -442,7 +445,6 @@ class RasterSrcTile(Tile):
 
     def _reproject_dst_window(self, dst_window: Window) -> Window:
         """Reproject window into same projection as source raster."""
-
         dst_bounds: Bounds = bounds(
             window=dst_window,
             transform=self.dst[self.default_format].transform,
@@ -464,7 +466,6 @@ class RasterSrcTile(Tile):
     ) -> Tuple[rasterio.Affine, float, float]:
         """Compute Affine transformation, width and height for WarpedVRT using
         output CRS and pixel size."""
-
         LOGGER.debug(f"Output Bounds {west, south, east, north}")
         north, west = self.grid.snap_coordinates(north, west)
         south, east = self.grid.snap_coordinates(south, east)
