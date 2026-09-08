@@ -2,7 +2,9 @@
 
 import json
 import os
+import signal
 import sys
+from logging import getLogger
 from typing import List, Optional, Tuple
 
 import click
@@ -10,15 +12,16 @@ import click
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
+from gfw_pixetl.logs import setup_logging
 from gfw_pixetl.models.pydantic import LayerModel
 from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
 )
+from gfw_pixetl.telemetry import ReporterConfig
+from gfw_pixetl.telemetry_runner import ReporterManager
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.utils.cwd import remove_work_directory, set_cwd
-
-LOGGER = get_module_logger(__name__)
 
 
 @click.command()
@@ -46,6 +49,8 @@ def cli(
     overwrite: bool,
     layer_json: str,
 ):
+    LOGGER = get_module_logger(__name__)
+
     layer_dict = json.loads(layer_json)
     layer_dict.update({"dataset": dataset, "version": version})
     layer_def = LayerModel.parse_obj(layer_dict)
@@ -54,7 +59,7 @@ def cli(
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
-    # Finally, actually process the layer
+    # Process the layer
     tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
         layer_def,
         subset,
@@ -66,7 +71,7 @@ def cli(
     nb_failed_tiles = len(failed_tiles)
     nb_existing_tiles = len(existing_tiles)
 
-    LOGGER.info(f"Successfully processed {len(tiles)} tiles")
+    LOGGER.info(f"Successfully processed {nb_tiles} tiles")
     LOGGER.info(f"{nb_skipped_tiles} tiles skipped.")
     LOGGER.info(f"{nb_existing_tiles} tiles already existed.")
     LOGGER.info(f"{nb_failed_tiles} tiles failed.")
@@ -94,6 +99,8 @@ def pixetl(
     overwrite: bool = False,
 ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
     click.echo(logo)
+
+    LOGGER = get_module_logger(__name__)
 
     LOGGER.info(
         f"Start tile preparation for dataset {layer_def.dataset}, "
@@ -133,5 +140,47 @@ def pixetl(
         raise
 
 
+def main() -> None:
+    setup_logging("INFO")
+    LOGGER = get_module_logger(__name__)
+
+    cfg = ReporterConfig(
+        interval=4.0,
+        workdir=".",
+        emit_emf=True,
+        namespace="Pixetl/Batch",
+    )
+
+    reporter = ReporterManager(cfg, logger=LOGGER)
+
+    previous_sigterm_handler = signal.getsignal(signal.SIGTERM)
+
+    def _handle_sigterm(signum, frame):
+        LOGGER.warning("pixetl received SIGTERM; beginning graceful shutdown")
+        # A second SIGTERM should use the OS default rather than repeatedly
+        # re-entering Python cleanup code.
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, _handle_sigterm)
+
+    try:
+        reporter.start(os.getpid())
+        cli()
+    finally:
+        LOGGER.info("pixetl main() shutting down telemetry process")
+        reporter.stop()
+
+        signal.signal(signal.SIGTERM, previous_sigterm_handler)
+
+        for handler in getLogger().handlers:
+            try:
+                handler.flush()
+            except Exception:
+                pass
+
+        LOGGER.info("pixetl main() exiting")
+
+
 if __name__ == "__main__":
-    cli()
+    main()
