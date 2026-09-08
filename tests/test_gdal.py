@@ -1,7 +1,7 @@
 import pytest
 
 from gfw_pixetl.data_type import DataTypeEnum
-from gfw_pixetl.utils.gdal import get_metadata
+from gfw_pixetl.utils.gdal import _copy_creation_profile, get_metadata
 from tests.conftest import TILE_4_PATH
 
 
@@ -38,3 +38,38 @@ def test_get_metadata():
     assert (
         sum(metadata.bands[0].histogram.buckets) > 12000000
     )  # no data values are not included in histogram and we hence don't know the exact number of data pixels
+
+
+def test_copy_creation_profile_drops_rasterio_dataset_fields():
+    profile = {
+        "driver": "GTiff",
+        "width": 40000,
+        "height": 40000,
+        "count": 1,
+        "transform": "transform",
+        "crs": "EPSG:4326",
+        "dtype": "uint8",
+        "nodata": 0,
+        "compress": "DEFLATE",
+        "tiled": True,
+        "blockxsize": 400,
+        "blockysize": 400,
+        "pixeltype": "DEFAULT",
+        "nbits": 7,
+        "sparse_ok": "TRUE",
+        "interleave": "BAND",
+    }
+
+    creation_profile = _copy_creation_profile(profile)
+
+    assert creation_profile == {
+        "driver": "GTiff",
+        "compress": "DEFLATE",
+        "tiled": True,
+        "blockxsize": 400,
+        "blockysize": 400,
+        "pixeltype": "DEFAULT",
+        "nbits": 7,
+        "sparse_ok": "TRUE",
+        "interleave": "BAND",
+    }

@@ -37,11 +37,6 @@ LOGGER = get_module_logger(__name__)
 Windows = Tuple[Window, Window]
 
 
-def _gdal_cache_size(block_byte_size, max_blocks: int) -> int:
-    """Return a plain Python integer suitable for GDAL config options."""
-    return int(block_byte_size * max_blocks)
-
-
 class RasterSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: RasterSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
@@ -180,7 +175,7 @@ class RasterSrcTile(Tile):
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
-        chunk_size = _gdal_cache_size(self._block_byte_size(), self._max_blocks())
+        chunk_size = int(self._block_byte_size() * self._max_blocks())
         with rasterio.Env(
             **GDAL_ENV,
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.

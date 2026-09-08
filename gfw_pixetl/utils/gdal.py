@@ -39,7 +39,7 @@ def create_multiband_vrt(
             [element.uri for element in band],
             band[0].band,
             extent,
-            f"{vrt_name}_band_{i+1}.vrt",
+            f"{vrt_name}_band_{i + 1}.vrt",
         )
         for i, band in enumerate(bands)
     ]
@@ -95,14 +95,41 @@ def create_vrt(
     return vrt
 
 
+RASTERIO_DATASET_PROFILE_KEYS = {
+    "width",
+    "height",
+    "count",
+    "transform",
+    "crs",
+    "dtype",
+    "nodata",
+}
+
+
+def _copy_creation_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
+    """Return only options valid when copying an existing raster.
+
+    ``rasterio.shutil.copy`` derives dataset shape, georeferencing,
+    dtype, and nodata from the source dataset. Extra keyword arguments
+    are forwarded to GDAL as driver creation options, so Rasterio
+    dataset-profile fields must not be passed through here.
+    """
+    return {
+        key: value
+        for key, value in profile.items()
+        if key not in RASTERIO_DATASET_PROFILE_KEYS
+    }
+
+
 @processify
 def just_copy_geotiff(src_uri, dst_uri, profile):
+    creation_profile = _copy_creation_profile(profile)
     with rasterio.Env(**get_gdal_env()):
         raster_copy(
             src_uri,
             dst_uri,
             strict=False,
-            **profile,
+            **creation_profile,
         )
 
 
@@ -113,7 +140,6 @@ def just_copy_geotiff(src_uri, dst_uri, profile):
 )
 def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str, str]:
     """Run GDAL as sub command and catch common errors."""
-
     gdal_env = os.environ.copy()
     resolved_env = env if env is not None else get_gdal_env()
     if resolved_env:
@@ -173,7 +199,6 @@ def get_metadata(
 
     Parse statistics as Stats object
     """
-
     cmd: List[str] = ["gdalinfo", "-json"]
 
     if compute_stats:
