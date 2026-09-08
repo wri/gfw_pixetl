@@ -13,6 +13,8 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.logs import configure_worker_logging
 
 CGROUP_ROOT = "/sys/fs/cgroup"
+TELEMETRY_EVENT = "pixetl.telemetry"
+TELEMETRY_SCHEMA_VERSION = 1
 Number = Union[int, float]
 Snapshot = Dict[str, Optional[Number]]
 
@@ -54,35 +56,41 @@ def _read_cpu_max(path: str) -> Tuple[Optional[int], Optional[int]]:
     return quota, period
 
 
-def _read_cpu_usage_usec(path: str) -> Optional[int]:
+def _read_keyed_int(path: str, key: str) -> Optional[int]:
     raw = _read_text(path)
     if raw is None:
         return None
 
     for line in raw.splitlines():
-        key, _, value = line.partition(" ")
-        if key == "usage_usec":
-            try:
-                return int(value)
-            except ValueError:
-                return None
+        item_key, _, value = line.partition(" ")
+        if item_key != key:
+            continue
+        try:
+            return int(value)
+        except ValueError:
+            return None
     return None
 
 
 def read_cgroup_stats(cgroup_root: str = CGROUP_ROOT) -> Dict[str, Optional[int]]:
-    """Read resource accounting from a cgroups v2 hierarchy.
+    """Read resource accounting from the pixetl cgroups v2 hierarchy.
 
-    pixetl's Batch runtime is expected to use cgroups v2.  Local
+    pixetl's Batch runtime is expected to use cgroups v2. Local
     environments without a mounted v2 hierarchy simply return
     unavailable values.
     """
     quota, period = _read_cpu_max(os.path.join(cgroup_root, "cpu.max"))
+    cpu_stat = os.path.join(cgroup_root, "cpu.stat")
+    memory_events = os.path.join(cgroup_root, "memory.events")
     return {
         "memory_limit_bytes": _read_int(os.path.join(cgroup_root, "memory.max")),
         "memory_usage_bytes": _read_int(os.path.join(cgroup_root, "memory.current")),
+        "memory_peak_bytes": _read_int(os.path.join(cgroup_root, "memory.peak")),
+        "memory_oom_events": _read_keyed_int(memory_events, "oom"),
+        "memory_oom_kills": _read_keyed_int(memory_events, "oom_kill"),
         "cpu_quota_us": quota,
         "cpu_period_us": period,
-        "cpu_usage_usec": _read_cpu_usage_usec(os.path.join(cgroup_root, "cpu.stat")),
+        "cpu_usage_usec": _read_keyed_int(cpu_stat, "usage_usec"),
     }
 
 
@@ -135,13 +143,21 @@ class ResourceReporter:
         if self._thread:
             self._thread.join(timeout=self.cfg.interval + 1.0)
 
-    def _process_memory(self) -> Tuple[Optional[int], Optional[int]]:
+    def _process_stats(
+        self,
+    ) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+        """Return parent RSS, child RSS, and live child count.
+
+        The dedicated telemetry process is itself a child of pixetl, so
+        it is explicitly excluded from workload child accounting.
+        """
         try:
             rss_self = self._proc.memory_info().rss
         except (psutil.NoSuchProcess, psutil.AccessDenied):
-            return None, None
+            return None, None, None
 
         rss_children = 0
+        child_count = 0
         try:
             children = self._proc.children(recursive=True)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -150,44 +166,45 @@ class ResourceReporter:
         reporter_pid = os.getpid()
         for child in children:
             try:
-                if child.pid == reporter_pid:
+                if child.pid == reporter_pid or not child.is_running():
                     continue
-                if child.is_running():
-                    rss_children += child.memory_info().rss
+                child_count += 1
+                rss_children += child.memory_info().rss
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-        return rss_self, rss_children
+        return rss_self, rss_children, child_count
 
-    def _cgroup_cpu_percent(
+    def _cgroup_cpu_usage(
         self, cpu_usage_usec: Optional[int], cpu_limit: Optional[float], now: float
-    ) -> Optional[float]:
+    ) -> Tuple[Optional[float], Optional[float]]:
+        """Return CPU cores consumed and percent of the configured CPU
+        quota."""
         previous_usage = self._previous_cpu_usage_usec
         previous_time = self._previous_cpu_sample_monotonic
         self._previous_cpu_usage_usec = cpu_usage_usec
         self._previous_cpu_sample_monotonic = now
 
-        if (
-            cpu_usage_usec is None
-            or cpu_limit is None
-            or cpu_limit <= 0
-            or previous_usage is None
-            or previous_time is None
-        ):
-            return None
+        if cpu_usage_usec is None or previous_usage is None or previous_time is None:
+            return None, None
 
         elapsed = now - previous_time
         delta_usage_usec = cpu_usage_usec - previous_usage
         if elapsed <= 0 or delta_usage_usec < 0:
-            return None
+            return None, None
 
         used_cpu_seconds = delta_usage_usec / 1_000_000.0
-        return (used_cpu_seconds / elapsed / cpu_limit) * 100.0
+        cores_used = used_cpu_seconds / elapsed
+        cpu_percent = None
+        if cpu_limit is not None and cpu_limit > 0:
+            cpu_percent = (cores_used / cpu_limit) * 100.0
+
+        return cores_used, cpu_percent
 
     def _collect_snapshot(self) -> Snapshot:
         now_monotonic = time.monotonic()
         timestamp = time.time()
-        rss_self, rss_children = self._process_memory()
+        rss_self, rss_children, child_count = self._process_stats()
 
         try:
             disk_percent: Optional[float] = float(
@@ -206,17 +223,33 @@ class ResourceReporter:
         if mem_limit is not None and mem_limit > 0 and mem_usage is not None:
             mem_percent = (mem_usage / float(mem_limit)) * 100.0
 
-        cpu_percent = self._cgroup_cpu_percent(cpu_usage_usec, cpu_limit, now_monotonic)
+        cpu_cores_used, cpu_percent = self._cgroup_cpu_usage(
+            cpu_usage_usec, cpu_limit, now_monotonic
+        )
+
+        total_process_rss = None
+        process_count = None
+        if rss_self is not None and rss_children is not None:
+            total_process_rss = rss_self + rss_children
+        if rss_self is not None and child_count is not None:
+            process_count = child_count + 1
 
         return {
             "timestamp": timestamp,
             "disk_percent": disk_percent,
             "proc_rss_bytes": rss_self,
             "children_rss_bytes": rss_children,
+            "total_process_rss_bytes": total_process_rss,
+            "child_process_count": child_count,
+            "process_count": process_count,
             "cgroup_mem_used_bytes": mem_usage,
+            "cgroup_mem_peak_bytes": stats.get("memory_peak_bytes"),
             "cgroup_mem_limit_bytes": mem_limit,
             "cgroup_mem_percent": mem_percent,
+            "cgroup_oom_events": stats.get("memory_oom_events"),
+            "cgroup_oom_kills": stats.get("memory_oom_kills"),
             "cgroup_cpu_usage_usec": cpu_usage_usec,
+            "cgroup_cpu_cores_used": cpu_cores_used,
             "cgroup_cpu_limit": cpu_limit,
             "cgroup_cpu_percent": cpu_percent,
         }
@@ -229,28 +262,40 @@ class ResourceReporter:
 
     def _log_human(self, snap: Snapshot) -> None:
         self.log.info(
-            "TS:%d cgrpCPU:%s%%/%s-vCPU cgrpMem:%s/%sB(%s%%) "
-            "RSS(proc):%sB RSS(children):%sB DISK:%s%%",
+            "TS:%d procs:%s CPU:%s/%s-vCPU(%s%%) "
+            "cgrpMem:%s/%sB(%s%%) peak:%sB "
+            "RSS(total):%sB DISK:%s%% OOM:%s kills:%s",
             int(snap["timestamp"] or 0),
-            self._display(snap["cgroup_cpu_percent"]),
+            self._display(snap["process_count"], ".0f"),
+            self._display(snap["cgroup_cpu_cores_used"], ".2f"),
             self._display(snap["cgroup_cpu_limit"], ".2f"),
+            self._display(snap["cgroup_cpu_percent"]),
             self._display(snap["cgroup_mem_used_bytes"], ".0f"),
             self._display(snap["cgroup_mem_limit_bytes"], ".0f"),
             self._display(snap["cgroup_mem_percent"]),
-            self._display(snap["proc_rss_bytes"], ".0f"),
-            self._display(snap["children_rss_bytes"], ".0f"),
+            self._display(snap["cgroup_mem_peak_bytes"], ".0f"),
+            self._display(snap["total_process_rss_bytes"], ".0f"),
             self._display(snap["disk_percent"]),
+            self._display(snap["cgroup_oom_events"], ".0f"),
+            self._display(snap["cgroup_oom_kills"], ".0f"),
         )
 
     def _log_emf(self, snap: Snapshot) -> None:
         definitions = {
             "DiskPercent": ("disk_percent", "Percent"),
+            "ProcessCount": ("process_count", "Count"),
+            "ChildProcessCount": ("child_process_count", "Count"),
             "ProcRSS": ("proc_rss_bytes", "Bytes"),
             "ChildrenRSS": ("children_rss_bytes", "Bytes"),
+            "TotalProcessRSS": ("total_process_rss_bytes", "Bytes"),
             "CgroupMemUsed": ("cgroup_mem_used_bytes", "Bytes"),
+            "CgroupMemPeak": ("cgroup_mem_peak_bytes", "Bytes"),
             "CgroupMemLimit": ("cgroup_mem_limit_bytes", "Bytes"),
             "CgroupMemPercent": ("cgroup_mem_percent", "Percent"),
+            "CgroupOOMEvents": ("cgroup_oom_events", "Count"),
+            "CgroupOOMKills": ("cgroup_oom_kills", "Count"),
             "CgroupCPUUsage": ("cgroup_cpu_usage_usec", "Microseconds"),
+            "CgroupCPUCoresUsed": ("cgroup_cpu_cores_used", "Count"),
             "CgroupCPULimit": ("cgroup_cpu_limit", "Count"),
             "CgroupCPUPercent": ("cgroup_cpu_percent", "Percent"),
         }
@@ -268,6 +313,8 @@ class ResourceReporter:
             return
 
         emf = {
+            "event": TELEMETRY_EVENT,
+            "schema_version": TELEMETRY_SCHEMA_VERSION,
             "_aws": {
                 "Timestamp": int((snap["timestamp"] or 0) * 1000),
                 "CloudWatchMetrics": [
@@ -280,6 +327,7 @@ class ResourceReporter:
             },
             "JobId": self.job_id,
             "Attempt": self.attempt,
+            "ParentPid": self.parent_pid,
             **values,
         }
         print(json.dumps(emf, allow_nan=False), flush=True)
@@ -295,8 +343,8 @@ class ResourceReporter:
                     self._log_emf(snap)
                 next_tick += interval
                 self._stop.wait(timeout=max(0.1, next_tick - time.monotonic()))
-        except Exception as exc:
-            self.log.exception("ResourceReporter crashed: %s", exc)
+        except Exception:
+            self.log.exception("Resource reporter failed")
 
 
 def telemetry_worker(stop_evt, parent_pid: int, cfg_dict: Dict) -> None:
