@@ -1,9 +1,11 @@
 import json
 import logging
 import os
+import tempfile
 from pathlib import Path
 from unittest import mock
 
+import psutil
 import pytest
 
 from gfw_pixetl.telemetry import (
@@ -18,16 +20,24 @@ def _write(path: Path, value: str) -> None:
     path.write_text(value)
 
 
-def test_read_cgroup_v2_stats(tmp_path):
-    _write(tmp_path / "memory.max", "1073741824\n")
-    _write(tmp_path / "memory.current", "536870912\n")
-    _write(tmp_path / "cpu.max", "200000 100000\n")
+@pytest.fixture
+def cgroup_tmp_path():
+    repo_tmp = Path(__file__).resolve().parents[1] / "tmp"
+    repo_tmp.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=repo_tmp) as directory:
+        yield Path(directory)
+
+
+def test_read_cgroup_v2_stats(cgroup_tmp_path):
+    _write(cgroup_tmp_path / "memory.max", "1073741824\n")
+    _write(cgroup_tmp_path / "memory.current", "536870912\n")
+    _write(cgroup_tmp_path / "cpu.max", "200000 100000\n")
     _write(
-        tmp_path / "cpu.stat",
+        cgroup_tmp_path / "cpu.stat",
         "usage_usec 123456\nuser_usec 100000\nsystem_usec 23456\n",
     )
 
-    stats = read_cgroup_stats(str(tmp_path))
+    stats = read_cgroup_stats(str(cgroup_tmp_path))
 
     assert stats == {
         "memory_limit_bytes": 1073741824,
@@ -39,13 +49,13 @@ def test_read_cgroup_v2_stats(tmp_path):
     assert effective_cpu_count(stats) == 2.0
 
 
-def test_read_cgroup_v2_unlimited_values(tmp_path):
-    _write(tmp_path / "memory.max", "max\n")
-    _write(tmp_path / "memory.current", "123\n")
-    _write(tmp_path / "cpu.max", "max 100000\n")
-    _write(tmp_path / "cpu.stat", "usage_usec 456\n")
+def test_read_cgroup_v2_unlimited_values(cgroup_tmp_path):
+    _write(cgroup_tmp_path / "memory.max", "max\n")
+    _write(cgroup_tmp_path / "memory.current", "123\n")
+    _write(cgroup_tmp_path / "cpu.max", "max 100000\n")
+    _write(cgroup_tmp_path / "cpu.stat", "usage_usec 456\n")
 
-    stats = read_cgroup_stats(str(tmp_path))
+    stats = read_cgroup_stats(str(cgroup_tmp_path))
 
     assert stats["memory_limit_bytes"] is None
     assert stats["cpu_quota_us"] is None
@@ -93,11 +103,11 @@ def test_cgroup_cpu_percent_uses_usage_delta_and_cpu_quota():
     assert reporter._cgroup_cpu_percent(2_000_000, 2.0, 12.0) == pytest.approx(25.0)
 
 
-def test_collect_snapshot_reports_parent_and_children_memory(tmp_path):
-    _write(tmp_path / "memory.max", "1000\n")
-    _write(tmp_path / "memory.current", "250\n")
-    _write(tmp_path / "cpu.max", "100000 100000\n")
-    _write(tmp_path / "cpu.stat", "usage_usec 1000000\n")
+def test_collect_snapshot_reports_parent_and_children_memory(cgroup_tmp_path):
+    _write(cgroup_tmp_path / "memory.max", "1000\n")
+    _write(cgroup_tmp_path / "memory.current", "250\n")
+    _write(cgroup_tmp_path / "cpu.max", "100000 100000\n")
+    _write(cgroup_tmp_path / "cpu.stat", "usage_usec 1000000\n")
 
     proc = mock.Mock()
     proc.memory_info.return_value.rss = 100
@@ -114,7 +124,7 @@ def test_collect_snapshot_reports_parent_and_children_memory(tmp_path):
         disk_usage.return_value.percent = 12.5
         reporter = ResourceReporter(
             logging.getLogger("test.telemetry"),
-            ReporterConfig(emit_emf=False, cgroup_root=str(tmp_path)),
+            ReporterConfig(emit_emf=False, cgroup_root=str(cgroup_tmp_path)),
             4242,
         )
         snap = reporter._collect_snapshot()
