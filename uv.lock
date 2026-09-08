@@ -312,7 +312,7 @@ wheels = [
 
 [[package]]
 name = "gfw-pixetl"
-version = "1.8.4"
+version = "1.8.3b4"
 source = { editable = "." }
 dependencies = [
     { name = "aenum" },
