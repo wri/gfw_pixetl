@@ -56,6 +56,10 @@ class Globals(EnvSettings):
     workers: PositiveInt = Field(
         cpu_count(), description="Number of workers to use to execute job."
     )
+    download_workers: PositiveInt = Field(
+        8,
+        description="Maximum number of source files to download concurrently.",
+    )
 
     ########################
     # PostgreSQL authentication

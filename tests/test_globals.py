@@ -37,3 +37,11 @@ def test_global_workers():
         assert config.workers == 1
 
     os.environ = vars
+
+
+def test_download_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("DOWNLOAD_WORKERS", raising=False)
+    assert Globals().download_workers == 8
+
+    monkeypatch.setenv("DOWNLOAD_WORKERS", "12")
+    assert Globals().download_workers == 12
