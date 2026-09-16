@@ -148,7 +148,7 @@ class VectorSrcTile(Tile):
         # GeoParquet is both faster and more compact (without extra
         # processing) than GeoPackage, Shapefiles, GeoJSON, CSV.
         geodataframe = geopandas.read_postgis(sql, engine)
-        geodataframe.set_crs("EPSG:4326")
+        geodataframe = geodataframe.set_crs("EPSG:4326")
         geodataframe.to_parquet(dst, compression="snappy")
 
     def rasterize(self) -> None:
