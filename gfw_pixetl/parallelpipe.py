@@ -350,18 +350,10 @@ class Pipeline(list):
         total_workers = sum(t.workers for t in self)
 
         # ------------------------------------------------------------------ #
-        # Start watchdogs (one per stage, before workers so they're ready)
+        # Build watchdogs now that stages have been wired. Do not start their
+        # threads until after all worker processes have been started: forking a
+        # multithreaded parent is deprecated on Python 3.12 and can deadlock.
         # ------------------------------------------------------------------ #
-        watchdogs = []
-        for stg in self:
-            wd = _StageWatchdog(
-                stg, stg._processes[0]._que_out if stg.processes else out_q, err_q
-            )
-            # Reconstruct: the watchdog needs the actual queue and follower count
-            # We'll set these properly below after the stages have been wired.
-            watchdogs.append((wd, stg))
-
-        # Rebuild watchdogs now that wiring is done (processes have their queues set)
         watchdogs = []
         for stg in self:
             # The output queue for this stage is stored on its processes
@@ -374,13 +366,15 @@ class Pipeline(list):
         for stg in self:
             stg.set_err(err_q)
 
-        # Start watchdogs first so they're ready before any worker can die
-        for wd in watchdogs:
-            wd.start()
-
-        # Start worker processes
+        # Start worker processes while the parent is still single-threaded.
+        # A worker that exits before its watchdog starts still retains its
+        # exitcode, so the watchdog can detect an OOM kill on its first pass.
         for stg in self:
             stg._start()
+
+        # Only start watchdog threads after all worker processes have forked.
+        for wd in watchdogs:
+            wd.start()
 
         # ------------------------------------------------------------------ #
         # Yield results from the final output queue
