@@ -2,7 +2,8 @@ import json
 import os
 import subprocess
 
-from sqlalchemy.ext.declarative import declarative_base
+import geopandas
+from sqlalchemy.orm import declarative_base
 
 from gfw_pixetl.grids import LatLngGrid, grid_factory
 from gfw_pixetl.layers import VectorSrcLayer, layer_factory
@@ -74,6 +75,13 @@ def test_vector_src_tile_fetch_data_creates_parquet(sample_vector_data):
     tile.fetch_data()
 
     assert os.path.isfile(parquet_path)
+
+    geodataframe = geopandas.read_parquet(parquet_path)
+    assert len(geodataframe) == 1
+    assert geodataframe.geometry.name == "geom"
+    assert geodataframe.crs.to_epsg() == 4326
+    assert not geodataframe.geometry.is_empty.any()
+    assert geodataframe.geometry.notna().all()
 
 
 def test_vector_src_tile_rasterize_creates_tiff(sample_vector_data):

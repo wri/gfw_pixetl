@@ -27,9 +27,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install UV ─────────────────────────────────────────────────────────────────
-# Pin to a specific UV release for reproducible builds.
-# Update this version intentionally when you want to upgrade UV.
-COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.15 /uv /usr/local/bin/uv
 
 # ── Install UV-managed Python 3.12 ────────────────────────────────────────────
 RUN uv python install 3.12
