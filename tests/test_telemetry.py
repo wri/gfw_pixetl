@@ -176,6 +176,37 @@ def test_collect_snapshot_reports_analysis_metrics(cgroup_tmp_path):
     assert snap["disk_percent"] == 12.5
 
 
+def test_snapshot_uses_cpu_affinity_when_cgroup_cpu_is_unlimited(
+    monkeypatch, cgroup_tmp_path
+):
+    _write(cgroup_tmp_path / "memory.max", "1000\n")
+    _write(cgroup_tmp_path / "memory.current", "250\n")
+    _write(cgroup_tmp_path / "cpu.max", "max 100000\n")
+    _write(cgroup_tmp_path / "cpu.stat", "usage_usec 1000000\n")
+
+    monkeypatch.setattr(
+        "gfw_pixetl.telemetry.os.sched_getaffinity", lambda pid: set(range(96))
+    )
+    monkeypatch.setattr("gfw_pixetl.telemetry.os.cpu_count", lambda: 96)
+    monkeypatch.setattr(
+        "gfw_pixetl.telemetry.psutil.disk_usage",
+        lambda path: mock.Mock(percent=12.5),
+    )
+
+    reporter = ResourceReporter(
+        logging.getLogger("test.telemetry"),
+        ReporterConfig(emit_emf=False, cgroup_root=str(cgroup_tmp_path)),
+        os.getpid(),
+    )
+    monkeypatch.setattr(reporter, "_process_stats", lambda: (100, 50, 1))
+    snap = reporter._collect_snapshot()
+
+    assert snap["cgroup_cpu_limit"] is None
+    assert snap["cpu_affinity_count"] == 96
+    assert snap["host_cpu_count"] == 96
+    assert snap["cpu_capacity"] == 96.0
+
+
 def test_emf_has_stable_analysis_schema_and_strict_json(capsys):
     reporter = ResourceReporter(
         logging.getLogger("test.telemetry"), ReporterConfig(), os.getpid()
@@ -198,6 +229,10 @@ def test_emf_has_stable_analysis_schema_and_strict_json(capsys):
         "cgroup_cpu_cores_used": 1.5,
         "cgroup_cpu_limit": 2.0,
         "cgroup_cpu_percent": 75.0,
+        "cpu_affinity_count": 96,
+        "host_cpu_count": 96,
+        "cpu_capacity": 96.0,
+        "cpu_capacity_percent": 1.5625,
     }
 
     reporter._log_emf(snap)
@@ -212,6 +247,8 @@ def test_emf_has_stable_analysis_schema_and_strict_json(capsys):
     assert payload["TotalProcessRSS"] == 30
     assert payload["CgroupMemPeak"] == 35
     assert payload["CgroupCPUCoresUsed"] == 1.5
+    assert payload["CPUCapacity"] == 96.0
+    assert payload["CPUAffinityCount"] == 96
     assert payload["CgroupOOMEvents"] == 1
     assert payload["CgroupOOMKills"] == 0
 
@@ -235,6 +272,10 @@ def test_emf_has_stable_analysis_schema_and_strict_json(capsys):
         "CgroupCPUCoresUsed",
         "CgroupCPULimit",
         "CgroupCPUPercent",
+        "CPUAffinityCount",
+        "HostCPUCount",
+        "CPUCapacity",
+        "CPUCapacityPercent",
     }
 
 
@@ -260,6 +301,10 @@ def test_emf_omits_unavailable_values(capsys):
         "cgroup_cpu_cores_used": None,
         "cgroup_cpu_limit": None,
         "cgroup_cpu_percent": None,
+        "cpu_affinity_count": 96,
+        "host_cpu_count": 96,
+        "cpu_capacity": 96.0,
+        "cpu_capacity_percent": None,
     }
 
     reporter._log_emf(snap)

@@ -218,6 +218,16 @@ class ResourceReporter:
         mem_usage = stats.get("memory_usage_bytes")
         cpu_usage_usec = stats.get("cpu_usage_usec")
         cpu_limit = effective_cpu_count(stats)
+        try:
+            cpu_affinity_count: Optional[int] = len(os.sched_getaffinity(0))  # type: ignore[attr-defined]
+        except (AttributeError, OSError, ProcessLookupError):
+            cpu_affinity_count = None
+        host_cpu_count = os.cpu_count()
+        cpu_capacity: Optional[float] = cpu_limit
+        if cpu_capacity is None and cpu_affinity_count is not None:
+            cpu_capacity = float(cpu_affinity_count)
+        if cpu_capacity is None and host_cpu_count is not None:
+            cpu_capacity = float(host_cpu_count)
 
         mem_percent = None
         if mem_limit is not None and mem_limit > 0 and mem_usage is not None:
@@ -226,6 +236,9 @@ class ResourceReporter:
         cpu_cores_used, cpu_percent = self._cgroup_cpu_usage(
             cpu_usage_usec, cpu_limit, now_monotonic
         )
+        cpu_capacity_percent = None
+        if cpu_cores_used is not None and cpu_capacity is not None and cpu_capacity > 0:
+            cpu_capacity_percent = (cpu_cores_used / cpu_capacity) * 100.0
 
         total_process_rss = None
         process_count = None
@@ -252,6 +265,10 @@ class ResourceReporter:
             "cgroup_cpu_cores_used": cpu_cores_used,
             "cgroup_cpu_limit": cpu_limit,
             "cgroup_cpu_percent": cpu_percent,
+            "cpu_affinity_count": cpu_affinity_count,
+            "host_cpu_count": host_cpu_count,
+            "cpu_capacity": cpu_capacity,
+            "cpu_capacity_percent": cpu_capacity_percent,
         }
 
     @staticmethod
@@ -268,8 +285,8 @@ class ResourceReporter:
             int(snap["timestamp"] or 0),
             self._display(snap["process_count"], ".0f"),
             self._display(snap["cgroup_cpu_cores_used"], ".2f"),
-            self._display(snap["cgroup_cpu_limit"], ".2f"),
-            self._display(snap["cgroup_cpu_percent"]),
+            self._display(snap["cpu_capacity"], ".2f"),
+            self._display(snap["cpu_capacity_percent"]),
             self._display(snap["cgroup_mem_used_bytes"], ".0f"),
             self._display(snap["cgroup_mem_limit_bytes"], ".0f"),
             self._display(snap["cgroup_mem_percent"]),
@@ -298,6 +315,10 @@ class ResourceReporter:
             "CgroupCPUCoresUsed": ("cgroup_cpu_cores_used", "Count"),
             "CgroupCPULimit": ("cgroup_cpu_limit", "Count"),
             "CgroupCPUPercent": ("cgroup_cpu_percent", "Percent"),
+            "CPUAffinityCount": ("cpu_affinity_count", "Count"),
+            "HostCPUCount": ("host_cpu_count", "Count"),
+            "CPUCapacity": ("cpu_capacity", "Count"),
+            "CPUCapacityPercent": ("cpu_capacity_percent", "Percent"),
         }
 
         metrics: List[Dict[str, str]] = []
