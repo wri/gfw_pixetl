@@ -409,6 +409,9 @@ class Pipeline(list):
 
         # ------------------------------------------------------------------ #
         # Build watchdogs now; start their threads after worker processes.
+        # Build watchdogs now that stages have been wired. Do not start their
+        # threads until after all worker processes have been started: forking a
+        # multithreaded parent is deprecated on Python 3.12 and can deadlock.
         # ------------------------------------------------------------------ #
         watchdogs = []
         for stg in self:
@@ -428,6 +431,13 @@ class Pipeline(list):
             stg._start()
 
         # Start watchdog threads after all worker processes are running.
+        # Start worker processes while the parent is still single-threaded.
+        # A worker that exits before its watchdog starts still retains its
+        # exitcode, so the watchdog can detect an OOM kill on its first pass.
+        for stg in self:
+            stg._start()
+
+        # Only start watchdog threads after all worker processes have forked.
         for wd in watchdogs:
             wd.start()
 
