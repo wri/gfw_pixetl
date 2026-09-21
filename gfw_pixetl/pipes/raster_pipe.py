@@ -2,6 +2,7 @@ from typing import Iterator, List, Set, Tuple
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.memory_admission import GIB, MEMORY_ADMISSION
 from gfw_pixetl.parallelpipe import Pipeline, Stage, stage
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.settings.globals import GLOBALS
@@ -40,6 +41,21 @@ class RasterPipe(Pipe):
         worker counts so they do not each reserve a full
         ``num_processes`` pool.
         """
+        # Configure/reset the shared controller before ParallelPipe forks this
+        # attempt's workers. This also clears stale reservations after an OOM
+        # retry where a killed worker could not run its ``finally`` block.
+        MEMORY_ADMISSION.configure(
+            enabled=GLOBALS.memory_admission_enabled,
+            high_watermark=GLOBALS.memory_admission_high_watermark,
+            resume_watermark=GLOBALS.memory_admission_resume_watermark,
+            critical_watermark=GLOBALS.memory_admission_critical_watermark,
+            critical_resume_watermark=(
+                GLOBALS.memory_admission_critical_resume_watermark
+            ),
+            reservation_bytes=int(GLOBALS.memory_admission_reservation_gib * GIB),
+            poll_seconds=GLOBALS.memory_admission_poll_seconds,
+        )
+
         return (
             tiles
             | Stage(self.transform).setup(workers=workers)
@@ -89,7 +105,9 @@ class RasterPipe(Pipe):
     def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """Transform input raster to match new tile grid and projection."""
         for tile in tiles:
-            if tile.status == "pending" and not tile.transform():
-                tile.status = "skipped (has no data)"
-                LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
+            if tile.status == "pending":
+                with MEMORY_ADMISSION.transform_slot(tile.tile_id):
+                    if not tile.transform():
+                        tile.status = "skipped (has no data)"
+                        LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
             yield tile

@@ -2,6 +2,7 @@ import copy
 import os
 import shutil
 from abc import ABC
+from time import perf_counter
 from typing import Dict
 
 import rasterio
@@ -12,6 +13,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION
 from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
@@ -199,14 +201,30 @@ class Tile(ABC):
                     os.remove(local_file)
 
     def postprocessing(self):
-        """Once we have the final geotiff, all postprocessing steps should be
-        the same no matter the source format and grid type."""
+        """Finalize a tile and report coarse copy/statistics timings."""
+        total_started = perf_counter()
 
-        # Add superior compression, which only works with GDAL drivers
+        # Avoid spawning additional native GDAL work while the cgroup is
+        # already at critical memory pressure. Existing transforms continue;
+        # this gate only delays the next expensive transition.
+        MEMORY_ADMISSION.wait_for_postprocessing(self.tile_id)
+
+        # Add superior compression, which only works with GDAL drivers.
+        phase_started = perf_counter()
         self.create_gdal_geotiff()
+        copy_seconds = perf_counter() - phase_started
 
-        # Compute stats and histogram
+        # Compute stats and histogram.
+        phase_started = perf_counter()
         for dst_format in self.local_dst.keys():
             self.metadata[dst_format] = self.local_dst[dst_format].metadata(
                 self.layer.compute_stats, self.layer.compute_histogram
             )
+        metadata_seconds = perf_counter() - phase_started
+
+        LOGGER.info(
+            "PERF postprocess "
+            f"tile={self.tile_id} copy_s={copy_seconds:.3f} "
+            f"metadata_s={metadata_seconds:.3f} "
+            f"total_s={perf_counter() - total_started:.3f}"
+        )

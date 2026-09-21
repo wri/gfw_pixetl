@@ -68,6 +68,28 @@ class Globals(EnvSettings):
         4,
         description="Maximum number of tile work directories to clean up concurrently.",
     )
+    memory_admission_enabled: bool = Field(
+        True, description="Throttle new raster transforms under cgroup memory pressure."
+    )
+    memory_admission_high_watermark: float = Field(
+        0.80, description="Stop admitting new transforms at this memory fraction."
+    )
+    memory_admission_resume_watermark: float = Field(
+        0.75, description="Resume transform admission below this memory fraction."
+    )
+    memory_admission_critical_watermark: float = Field(
+        0.90, description="Block GDAL postprocessing at this memory fraction."
+    )
+    memory_admission_critical_resume_watermark: float = Field(
+        0.85, description="Resume blocked GDAL postprocessing below this fraction."
+    )
+    memory_admission_reservation_gib: float = Field(
+        8.0,
+        description="Temporary memory reservation for each newly admitted transform.",
+    )
+    memory_admission_poll_seconds: float = Field(
+        1.0, description="Polling interval while memory admission is throttled."
+    )
 
     ########################
     # PostgreSQL authentication

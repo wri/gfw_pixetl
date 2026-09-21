@@ -58,3 +58,14 @@ def test_pipeline_io_worker_defaults_and_env_overrides(monkeypatch):
     config = Globals()
     assert config.upload_workers == 12
     assert config.cleanup_workers == 3
+
+
+def test_memory_admission_defaults():
+    config = Globals()
+    assert config.memory_admission_enabled is True
+    assert config.memory_admission_high_watermark == 0.80
+    assert config.memory_admission_resume_watermark == 0.75
+    assert config.memory_admission_critical_watermark == 0.90
+    assert config.memory_admission_critical_resume_watermark == 0.85
+    assert config.memory_admission_reservation_gib == 8.0
+    assert config.memory_admission_poll_seconds == 1.0

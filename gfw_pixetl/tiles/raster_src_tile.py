@@ -1,6 +1,7 @@
 import os
 from math import floor, sqrt
 from pathlib import Path
+from time import perf_counter
 from typing import Iterator, List, Optional, Tuple, Union
 
 import numpy as np
@@ -14,6 +15,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -27,7 +29,7 @@ from gfw_pixetl.utils import (
     available_memory_per_process_mb,
     snapped_window,
 )
-from gfw_pixetl.utils.gdal import create_multiband_vrt
+from gfw_pixetl.utils.gdal import create_multiband_vrt, just_copy_geotiff
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -153,18 +155,25 @@ class RasterSrcTile(Tile):
         )
 
     def transform(self) -> bool:
-        """Write input data to output tile."""
+        """Write input data to output tile and report coarse phase timings."""
         LOGGER.debug(f"Transform tile {self.tile_id}")
+        total_started = perf_counter()
+        windows_seconds = 0.0
+        postprocess_seconds = 0.0
 
         try:
+            phase_started = perf_counter()
             has_data: bool = self._process_windows()
+            windows_seconds = perf_counter() - phase_started
 
             # creating gdal-geotiff and computing stats here
             # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
             if has_data:
+                phase_started = perf_counter()
                 self.postprocessing()
+                postprocess_seconds = perf_counter() - phase_started
 
         except SubprocessKilledError as e:
             LOGGER.exception(e)
@@ -175,6 +184,12 @@ class RasterSrcTile(Tile):
             self.status = "failed"
             has_data = True
 
+        LOGGER.info(
+            "PERF tile "
+            f"tile={self.tile_id} windows_s={windows_seconds:.3f} "
+            f"postprocess_s={postprocess_seconds:.3f} "
+            f"total_s={perf_counter() - total_started:.3f} status={self.status}"
+        )
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
@@ -224,9 +239,18 @@ class RasterSrcTile(Tile):
         src, vrt = self._src_to_vrt()
         out_files = list()
         try:
+            first_window = True
             for window in self.windows():
                 out_files.append(self._processified_transform(vrt, window))
+                if first_window:
+                    # The first window has now materialized the transform's
+                    # native working set in cgroup memory, so the temporary
+                    # admission reservation is no longer needed.
+                    MEMORY_ADMISSION.commit_transform_reservation()
+                    first_window = False
         finally:
+            # Also release the startup reservation for empty/error paths.
+            MEMORY_ADMISSION.commit_transform_reservation()
             vrt.close()
             src.close()
 
