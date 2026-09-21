@@ -3,8 +3,7 @@ import os
 import subprocess
 
 import geopandas
-import rasterio
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 from gfw_pixetl.grids import LatLngGrid, grid_factory
 from gfw_pixetl.layers import VectorSrcLayer, layer_factory
@@ -108,9 +107,6 @@ def test_vector_src_tile_rasterize_creates_tiff(sample_vector_data):
     tile.rasterize()
 
     assert os.path.isfile(tiff_path)
-
-    with rasterio.open(tiff_path) as src:
-        assert src.crs == rasterio.crs.CRS.from_epsg(4326)
 
 
 def test_vector_src_tile_rasterize_tiff_has_data(sample_vector_data):

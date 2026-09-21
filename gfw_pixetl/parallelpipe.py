@@ -1,7 +1,7 @@
 # This file is a modified version of https://github.com/gtsystem/parallelpipe
 # intended to add awareness of whether or not a task has been killed
 # by the OOM killer.
-"""This class provide a transparent way to use multi step map reduce task.
+r"""This class provide a transparent way to use multi step map reduce task.
 
          / map - map2 - reduce
 producer - map - map2 /
