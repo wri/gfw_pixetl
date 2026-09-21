@@ -37,6 +37,7 @@ class MemoryAdmissionController:
         self._reserved_bytes = mp.Value("q", 0, lock=False)
         self._waiting = mp.Value("i", 0, lock=False)
         self._throttled = mp.Value("b", 0, lock=False)
+        self._stats_semaphore = mp.BoundedSemaphore(4)
 
         # Per-process state. Each transform worker handles one tile at a time.
         self._local_reservation_held = False
@@ -45,8 +46,9 @@ class MemoryAdmissionController:
         self.cgroup_root = CGROUP_ROOT
         self.high_watermark = 0.80
         self.resume_watermark = 0.75
-        self.critical_watermark = 0.90
-        self.critical_resume_watermark = 0.85
+        self.critical_watermark = 0.80
+        self.critical_resume_watermark = 0.75
+        self.stats_workers = 4
         self.reservation_bytes = 8 * GIB
         self.poll_seconds = 1.0
 
@@ -57,8 +59,9 @@ class MemoryAdmissionController:
         cgroup_root: str = CGROUP_ROOT,
         high_watermark: float = 0.80,
         resume_watermark: float = 0.75,
-        critical_watermark: float = 0.90,
-        critical_resume_watermark: float = 0.85,
+        critical_watermark: float = 0.80,
+        critical_resume_watermark: float = 0.75,
+        stats_workers: int = 4,
         reservation_bytes: int = 8 * GIB,
         poll_seconds: float = 1.0,
     ) -> None:
@@ -68,8 +71,10 @@ class MemoryAdmissionController:
             raise ValueError(
                 "memory admission requires 0 < critical_resume < critical < 1"
             )
-        if high_watermark >= critical_watermark:
-            raise ValueError("high watermark must be below critical watermark")
+        if high_watermark > critical_watermark:
+            raise ValueError("high watermark must not exceed stats watermark")
+        if stats_workers <= 0:
+            raise ValueError("stats_workers must be positive")
         if reservation_bytes < 0:
             raise ValueError("reservation_bytes must not be negative")
         if poll_seconds <= 0:
@@ -82,6 +87,10 @@ class MemoryAdmissionController:
             self.resume_watermark = resume_watermark
             self.critical_watermark = critical_watermark
             self.critical_resume_watermark = critical_resume_watermark
+            self.stats_workers = stats_workers
+            # Recreated before transform workers are forked, so all workers
+            # inherit the same process-shared stats concurrency limit.
+            self._stats_semaphore = mp.BoundedSemaphore(stats_workers)
             self.reservation_bytes = reservation_bytes
             self.poll_seconds = poll_seconds
             self._reserved_bytes.value = 0
@@ -93,11 +102,13 @@ class MemoryAdmissionController:
         if enabled:
             LOGGER.info(
                 "Memory admission enabled: high=%.0f%% resume=%.0f%% "
-                "critical=%.0f%% critical_resume=%.0f%% reservation=%.1fGiB",
+                "stats_high=%.0f%% stats_resume=%.0f%% stats_workers=%d "
+                "reservation=%.1fGiB",
                 high_watermark * 100,
                 resume_watermark * 100,
                 critical_watermark * 100,
                 critical_resume_watermark * 100,
+                stats_workers,
                 reservation_bytes / GIB,
             )
 
@@ -157,11 +168,10 @@ class MemoryAdmissionController:
     def acquire_transform(self, tile_id: str) -> None:
         """Wait until another transform can safely begin.
 
-        A fixed reservation is held for the lifetime of the admitted
-        tile. Keeping the reservation through window processing and
-        postprocessing prevents long-lived transforms from disappearing
-        from the controller's projected-memory accounting before they
-        actually finish.
+        A fixed reservation covers only startup, before the new worker's
+        memory is visible in ``memory.current``. The transform worker
+        releases that reservation after its first window completes;
+        actual cgroup memory is authoritative after that point.
         """
         if not self.enabled:
             return
@@ -209,8 +219,8 @@ class MemoryAdmissionController:
 
             time.sleep(self.poll_seconds)
 
-    def release_transform(self) -> None:
-        """Release the reservation when the admitted tile has finished."""
+    def commit_transform_reservation(self) -> None:
+        """Release startup reservation once the working set is observable."""
         if not self.enabled or not self._local_reservation_held:
             return
         with self._lock:
@@ -220,6 +230,10 @@ class MemoryAdmissionController:
             self._local_reservation_held = False
             self._write_status_locked()
 
+    def release_transform(self) -> None:
+        """Release a reservation if transform exited before committing it."""
+        self.commit_transform_reservation()
+
     @contextmanager
     def transform_slot(self, tile_id: str) -> Iterator[None]:
         self.acquire_transform(tile_id)
@@ -228,9 +242,8 @@ class MemoryAdmissionController:
         finally:
             self.release_transform()
 
-    def wait_for_postprocessing(self, tile_id: str) -> None:
-        """Do not launch memory-heavy GDAL postprocessing at critical
-        pressure."""
+    def wait_for_stats(self, tile_id: str) -> None:
+        """Do not launch GDAL statistics while cgroup memory is pressured."""
         if not self.enabled:
             return
 
@@ -251,7 +264,7 @@ class MemoryAdmissionController:
                         self._waiting.value = max(0, self._waiting.value - 1)
                         self._write_status_locked()
                         LOGGER.info(
-                            "Memory postprocess gate resumed: tile=%s current=%.1f%%",
+                            "Memory stats gate resumed: tile=%s current=%.1f%%",
                             tile_id,
                             fraction * 100,
                         )
@@ -261,11 +274,22 @@ class MemoryAdmissionController:
                     self._waiting.value += 1
                     self._write_status_locked()
                     LOGGER.warning(
-                        "Memory postprocess gate waiting: tile=%s current=%.1f%%",
+                        "Memory stats gate waiting: tile=%s current=%.1f%%",
                         tile_id,
                         fraction * 100,
                     )
             time.sleep(self.poll_seconds)
+
+    @contextmanager
+    def stats_slot(self, tile_id: str) -> Iterator[None]:
+        """Limit concurrent stats scans and gate them on actual memory."""
+        self._stats_semaphore.acquire()
+        try:
+            if self.enabled:
+                self.wait_for_stats(tile_id)
+            yield
+        finally:
+            self._stats_semaphore.release()
 
 
 MEMORY_ADMISSION = MemoryAdmissionController()

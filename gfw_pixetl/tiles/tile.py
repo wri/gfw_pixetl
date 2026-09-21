@@ -204,22 +204,26 @@ class Tile(ABC):
         """Finalize a tile and report coarse copy/statistics timings."""
         total_started = perf_counter()
 
-        # Avoid spawning additional native GDAL work while the cgroup is
-        # already at critical memory pressure. Existing transforms continue;
-        # this gate only delays the next expensive transition.
-        MEMORY_ADMISSION.wait_for_postprocessing(self.tile_id)
-
         # Add superior compression, which only works with GDAL drivers.
         phase_started = perf_counter()
         self.create_gdal_geotiff()
         copy_seconds = perf_counter() - phase_started
 
-        # Compute stats and histogram.
+        # Structural metadata is cheap. Stats/histograms require full raster
+        # scans, so only those opt-in paths are memory- and concurrency-gated.
         phase_started = perf_counter()
-        for dst_format in self.local_dst.keys():
-            self.metadata[dst_format] = self.local_dst[dst_format].metadata(
-                self.layer.compute_stats, self.layer.compute_histogram
-            )
+        needs_stats_gate = self.layer.compute_stats or self.layer.compute_histogram
+        if needs_stats_gate:
+            with MEMORY_ADMISSION.stats_slot(self.tile_id):
+                for dst_format in self.local_dst.keys():
+                    self.metadata[dst_format] = self.local_dst[dst_format].metadata(
+                        self.layer.compute_stats, self.layer.compute_histogram
+                    )
+        else:
+            for dst_format in self.local_dst.keys():
+                self.metadata[dst_format] = self.local_dst[dst_format].metadata(
+                    False, False
+                )
         metadata_seconds = perf_counter() - phase_started
 
         LOGGER.info(

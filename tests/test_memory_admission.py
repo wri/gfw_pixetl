@@ -25,15 +25,15 @@ def _controller(tmp_path, monkeypatch, *, current_gib=60, limit_gib=100):
     return controller
 
 
-def test_transform_reservation_is_held_until_transform_finishes(tmp_path, monkeypatch):
+def test_transform_reservation_is_released_after_startup_commit(tmp_path, monkeypatch):
     controller = _controller(tmp_path, monkeypatch)
 
     controller.acquire_transform("00N_000E")
     assert controller._reserved_bytes.value == 8 * GIB
 
-    # V2 keeps the reservation for the entire tile transform. It is released
-    # only when the transform slot exits, after postprocessing has completed.
-    controller.release_transform()
+    # Reservation only protects startup; the first completed transform window
+    # commits it once memory.current reflects the real working set.
+    controller.commit_transform_reservation()
     assert controller._reserved_bytes.value == 0
 
     # release_transform remains idempotent for cleanup/error paths.
@@ -41,11 +41,13 @@ def test_transform_reservation_is_held_until_transform_finishes(tmp_path, monkey
     assert controller._reserved_bytes.value == 0
 
 
-def test_transform_slot_holds_reservation_for_entire_context(tmp_path, monkeypatch):
+def test_transform_slot_cleans_up_uncommitted_reservation(tmp_path, monkeypatch):
     controller = _controller(tmp_path, monkeypatch)
 
     with controller.transform_slot("00N_000E"):
         assert controller._reserved_bytes.value == 8 * GIB
+        controller.commit_transform_reservation()
+        assert controller._reserved_bytes.value == 0
 
     assert controller._reserved_bytes.value == 0
 
@@ -75,22 +77,22 @@ def test_transform_waits_for_resume_watermark(tmp_path, monkeypatch):
     controller.release_transform()
 
 
-def test_postprocessing_uses_critical_hysteresis(tmp_path, monkeypatch):
-    controller = _controller(tmp_path, monkeypatch, current_gib=91)
+def test_stats_gate_uses_80_75_hysteresis(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch, current_gib=81)
     passed = threading.Event()
 
     thread = threading.Thread(
-        target=lambda: (controller.wait_for_postprocessing("00N_000E"), passed.set())
+        target=lambda: (controller.wait_for_stats("00N_000E"), passed.set())
     )
     thread.start()
     time.sleep(0.05)
     assert not passed.is_set()
 
-    # It must fall below the 85% critical resume threshold, not merely 90%.
-    _write(tmp_path / "memory.current", 87 * GIB)
+    # It must fall below the 75% resume threshold, not merely 80%.
+    _write(tmp_path / "memory.current", 77 * GIB)
     time.sleep(0.05)
     assert not passed.is_set()
 
-    _write(tmp_path / "memory.current", 84 * GIB)
+    _write(tmp_path / "memory.current", 74 * GIB)
     thread.join(timeout=1)
     assert passed.is_set()

@@ -52,6 +52,7 @@ class RasterPipe(Pipe):
             critical_resume_watermark=(
                 GLOBALS.memory_admission_critical_resume_watermark
             ),
+            stats_workers=GLOBALS.memory_admission_stats_workers,
             reservation_bytes=int(GLOBALS.memory_admission_reservation_gib * GIB),
             poll_seconds=GLOBALS.memory_admission_poll_seconds,
         )

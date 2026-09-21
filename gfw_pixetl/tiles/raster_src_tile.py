@@ -238,10 +238,18 @@ class RasterSrcTile(Tile):
 
         src, vrt = self._src_to_vrt()
         out_files = list()
+        first_window = True
         try:
             for window in self.windows():
                 out_files.append(self._processified_transform(vrt, window))
+                if first_window:
+                    # Startup reservation only covers the interval before the
+                    # transform working set becomes visible in memory.current.
+                    MEMORY_ADMISSION.commit_transform_reservation()
+                    first_window = False
         finally:
+            # Empty/error paths may never complete a first window.
+            MEMORY_ADMISSION.commit_transform_reservation()
             vrt.close()
             src.close()
 

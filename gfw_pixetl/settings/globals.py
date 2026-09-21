@@ -78,10 +78,14 @@ class Globals(EnvSettings):
         0.75, description="Resume transform admission below this memory fraction."
     )
     memory_admission_critical_watermark: float = Field(
-        0.90, description="Block GDAL postprocessing at this memory fraction."
+        0.80, description="Block GDAL stats/histogram scans at this memory fraction."
     )
     memory_admission_critical_resume_watermark: float = Field(
-        0.85, description="Resume blocked GDAL postprocessing below this fraction."
+        0.75,
+        description="Resume blocked GDAL stats/histogram scans below this fraction.",
+    )
+    memory_admission_stats_workers: PositiveInt = Field(
+        4, description="Maximum concurrent GDAL stats/histogram scans."
     )
     memory_admission_reservation_gib: float = Field(
         8.0,
