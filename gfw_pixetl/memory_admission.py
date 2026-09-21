@@ -37,6 +37,8 @@ class MemoryAdmissionController:
         self._reserved_bytes = mp.Value("q", 0, lock=False)
         self._waiting = mp.Value("i", 0, lock=False)
         self._throttled = mp.Value("b", 0, lock=False)
+        self._stats_active = mp.Value("i", 0, lock=False)
+        self._stats_waiting = mp.Value("i", 0, lock=False)
         self._stats_semaphore = mp.BoundedSemaphore(4)
 
         # Per-process state. Each transform worker handles one tile at a time.
@@ -46,8 +48,6 @@ class MemoryAdmissionController:
         self.cgroup_root = CGROUP_ROOT
         self.high_watermark = 0.80
         self.resume_watermark = 0.75
-        self.critical_watermark = 0.80
-        self.critical_resume_watermark = 0.75
         self.stats_workers = 4
         self.reservation_bytes = 8 * GIB
         self.poll_seconds = 1.0
@@ -59,20 +59,12 @@ class MemoryAdmissionController:
         cgroup_root: str = CGROUP_ROOT,
         high_watermark: float = 0.80,
         resume_watermark: float = 0.75,
-        critical_watermark: float = 0.80,
-        critical_resume_watermark: float = 0.75,
         stats_workers: int = 4,
         reservation_bytes: int = 8 * GIB,
         poll_seconds: float = 1.0,
     ) -> None:
         if not 0 < resume_watermark < high_watermark < 1:
             raise ValueError("memory admission requires 0 < resume < high < 1")
-        if not 0 < critical_resume_watermark < critical_watermark < 1:
-            raise ValueError(
-                "memory admission requires 0 < critical_resume < critical < 1"
-            )
-        if high_watermark > critical_watermark:
-            raise ValueError("high watermark must not exceed stats watermark")
         if stats_workers <= 0:
             raise ValueError("stats_workers must be positive")
         if reservation_bytes < 0:
@@ -85,8 +77,6 @@ class MemoryAdmissionController:
             self.cgroup_root = cgroup_root
             self.high_watermark = high_watermark
             self.resume_watermark = resume_watermark
-            self.critical_watermark = critical_watermark
-            self.critical_resume_watermark = critical_resume_watermark
             self.stats_workers = stats_workers
             # Recreated before transform workers are forked, so all workers
             # inherit the same process-shared stats concurrency limit.
@@ -96,18 +86,17 @@ class MemoryAdmissionController:
             self._reserved_bytes.value = 0
             self._waiting.value = 0
             self._throttled.value = 0
+            self._stats_active.value = 0
+            self._stats_waiting.value = 0
             self._local_reservation_held = False
             self._write_status_locked()
 
         if enabled:
             LOGGER.info(
                 "Memory admission enabled: high=%.0f%% resume=%.0f%% "
-                "stats_high=%.0f%% stats_resume=%.0f%% stats_workers=%d "
-                "reservation=%.1fGiB",
+                "stats_workers=%d reservation=%.1fGiB",
                 high_watermark * 100,
                 resume_watermark * 100,
-                critical_watermark * 100,
-                critical_resume_watermark * 100,
                 stats_workers,
                 reservation_bytes / GIB,
             )
@@ -123,6 +112,8 @@ class MemoryAdmissionController:
             "waiting": int(self._waiting.value),
             "reserved_bytes": int(self._reserved_bytes.value),
             "throttled": bool(self._throttled.value),
+            "stats_active": int(self._stats_active.value),
+            "stats_waiting": int(self._stats_waiting.value),
         }
         tmp = f"{STATUS_PATH}.{os.getpid()}.tmp"
         try:
@@ -254,15 +245,9 @@ class MemoryAdmissionController:
                 if current is None or limit is None or limit <= 0:
                     return
                 fraction = current / float(limit)
-                threshold = (
-                    self.critical_resume_watermark
-                    if waiting
-                    else self.critical_watermark
-                )
+                threshold = self.resume_watermark if waiting else self.high_watermark
                 if fraction < threshold:
                     if waiting:
-                        self._waiting.value = max(0, self._waiting.value - 1)
-                        self._write_status_locked()
                         LOGGER.info(
                             "Memory stats gate resumed: tile=%s current=%.1f%%",
                             tile_id,
@@ -271,8 +256,6 @@ class MemoryAdmissionController:
                     return
                 if not waiting:
                     waiting = True
-                    self._waiting.value += 1
-                    self._write_status_locked()
                     LOGGER.warning(
                         "Memory stats gate waiting: tile=%s current=%.1f%%",
                         tile_id,
@@ -283,12 +266,29 @@ class MemoryAdmissionController:
     @contextmanager
     def stats_slot(self, tile_id: str) -> Iterator[None]:
         """Limit concurrent stats scans and gate them on actual memory."""
+        with self._lock:
+            self._stats_waiting.value += 1
+            self._write_status_locked()
         self._stats_semaphore.acquire()
+        active = False
         try:
             if self.enabled:
                 self.wait_for_stats(tile_id)
+            with self._lock:
+                self._stats_waiting.value = max(0, self._stats_waiting.value - 1)
+                self._stats_active.value += 1
+                active = True
+                self._write_status_locked()
             yield
         finally:
+            if active:
+                with self._lock:
+                    self._stats_active.value = max(0, self._stats_active.value - 1)
+                    self._write_status_locked()
+            else:
+                with self._lock:
+                    self._stats_waiting.value = max(0, self._stats_waiting.value - 1)
+                    self._write_status_locked()
             self._stats_semaphore.release()
 
 

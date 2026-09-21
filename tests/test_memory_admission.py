@@ -96,3 +96,44 @@ def test_stats_gate_uses_80_75_hysteresis(tmp_path, monkeypatch):
     _write(tmp_path / "memory.current", 74 * GIB)
     thread.join(timeout=1)
     assert passed.is_set()
+
+
+def test_stats_slot_tracks_active_and_waiting(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch)
+    controller.configure(
+        enabled=True,
+        cgroup_root=str(tmp_path),
+        stats_workers=1,
+        reservation_bytes=8 * GIB,
+        poll_seconds=0.01,
+    )
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    second_entered = threading.Event()
+
+    def first():
+        with controller.stats_slot("first"):
+            first_entered.set()
+            release_first.wait(timeout=1)
+
+    def second():
+        with controller.stats_slot("second"):
+            second_entered.set()
+
+    first_thread = threading.Thread(target=first)
+    second_thread = threading.Thread(target=second)
+    first_thread.start()
+    assert first_entered.wait(timeout=1)
+    second_thread.start()
+    time.sleep(0.05)
+
+    assert controller._stats_active.value == 1
+    assert controller._stats_waiting.value == 1
+    assert not second_entered.is_set()
+
+    release_first.set()
+    first_thread.join(timeout=1)
+    second_thread.join(timeout=1)
+    assert second_entered.is_set()
+    assert controller._stats_active.value == 0
+    assert controller._stats_waiting.value == 0

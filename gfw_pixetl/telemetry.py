@@ -261,6 +261,12 @@ class ResourceReporter:
         admission_throttled_value = (
             int(bool(admission_throttled)) if admission else None
         )
+        stats_active = admission.get("stats_active")
+        if not isinstance(stats_active, (int, float)):
+            stats_active = None
+        stats_waiting = admission.get("stats_waiting")
+        if not isinstance(stats_waiting, (int, float)):
+            stats_waiting = None
 
         return {
             "timestamp": timestamp,
@@ -287,6 +293,8 @@ class ResourceReporter:
             "memory_admission_waiting": admission_waiting,
             "memory_admission_reserved_bytes": admission_reserved,
             "memory_admission_throttled": admission_throttled_value,
+            "memory_admission_stats_active": stats_active,
+            "memory_admission_stats_waiting": stats_waiting,
         }
 
     @staticmethod
@@ -300,7 +308,7 @@ class ResourceReporter:
             "TS:%d procs:%s CPU:%s/%s-vCPU(%s%%) "
             "cgrpMem:%s/%sB(%s%%) peak:%sB "
             "RSS(total):%sB DISK:%s%% OOM:%s kills:%s "
-            "admit(wait/reserved/throttled):%s/%sB/%s",
+            "admit(wait/reserved/throttled):%s/%sB/%s stats(active/wait):%s/%s",
             int(snap["timestamp"] or 0),
             self._display(snap["process_count"], ".0f"),
             self._display(snap["cgroup_cpu_cores_used"], ".2f"),
@@ -317,6 +325,8 @@ class ResourceReporter:
             self._display(snap["memory_admission_waiting"], ".0f"),
             self._display(snap["memory_admission_reserved_bytes"], ".0f"),
             self._display(snap["memory_admission_throttled"], ".0f"),
+            self._display(snap["memory_admission_stats_active"], ".0f"),
+            self._display(snap["memory_admission_stats_waiting"], ".0f"),
         )
 
     def _log_emf(self, snap: Snapshot) -> None:
@@ -347,6 +357,14 @@ class ResourceReporter:
                 "Bytes",
             ),
             "MemoryAdmissionThrottled": ("memory_admission_throttled", "Count"),
+            "MemoryAdmissionStatsActive": (
+                "memory_admission_stats_active",
+                "Count",
+            ),
+            "MemoryAdmissionStatsWaiting": (
+                "memory_admission_stats_waiting",
+                "Count",
+            ),
         }
 
         metrics: List[Dict[str, str]] = []

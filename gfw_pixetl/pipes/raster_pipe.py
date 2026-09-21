@@ -48,10 +48,6 @@ class RasterPipe(Pipe):
             enabled=GLOBALS.memory_admission_enabled,
             high_watermark=GLOBALS.memory_admission_high_watermark,
             resume_watermark=GLOBALS.memory_admission_resume_watermark,
-            critical_watermark=GLOBALS.memory_admission_critical_watermark,
-            critical_resume_watermark=(
-                GLOBALS.memory_admission_critical_resume_watermark
-            ),
             stats_workers=GLOBALS.memory_admission_stats_workers,
             reservation_bytes=int(GLOBALS.memory_admission_reservation_gib * GIB),
             poll_seconds=GLOBALS.memory_admission_poll_seconds,
