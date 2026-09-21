@@ -239,18 +239,9 @@ class RasterSrcTile(Tile):
         src, vrt = self._src_to_vrt()
         out_files = list()
         try:
-            first_window = True
             for window in self.windows():
                 out_files.append(self._processified_transform(vrt, window))
-                if first_window:
-                    # The first window has now materialized the transform's
-                    # native working set in cgroup memory, so the temporary
-                    # admission reservation is no longer needed.
-                    MEMORY_ADMISSION.commit_transform_reservation()
-                    first_window = False
         finally:
-            # Also release the startup reservation for empty/error paths.
-            MEMORY_ADMISSION.commit_transform_reservation()
             vrt.close()
             src.close()
 
