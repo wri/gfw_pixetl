@@ -18,7 +18,6 @@ class RasterPipe(Pipe):
         Then see in which target grid cell it would fall. Remove
         duplicated grid cells.
         """
-
         tiles: Set[RasterSrcTile] = set()
         for tile_id in self.grid.get_tile_ids():
             tiles.add(self._get_grid_tile(tile_id))
@@ -37,9 +36,9 @@ class RasterPipe(Pipe):
         count.
 
         ``workers`` controls the parallelism of the memory-intensive
-        ``transform`` stage.  The upload/delete stages always run at
-        ``GLOBALS.num_processes`` workers since they are I/O-bound and
-        much lighter on memory.
+        ``transform`` stage. Upload and cleanup use their own bounded
+        worker counts so they do not each reserve a full
+        ``num_processes`` pool.
         """
         return (
             tiles
@@ -52,7 +51,6 @@ class RasterPipe(Pipe):
         self, overwrite: bool
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Raster Pipe."""
-
         LOGGER.info("Start Raster Pipe")
 
         tiles = self.collect_tiles(overwrite=overwrite)

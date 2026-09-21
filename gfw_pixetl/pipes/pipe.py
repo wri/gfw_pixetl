@@ -120,7 +120,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.upload_workers)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Upload tile to target location."""
         for tile in tiles:
@@ -129,7 +129,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.cleanup_workers)
     def delete_work_dir(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Delete local files."""
         for tile in tiles:
@@ -140,8 +140,8 @@ class Pipe(ABC):
         """Build the pipeline for a given list of tiles and worker count.
 
         Subclasses must override this to support OOM retry.  ``workers``
-        controls the parallelism of the most memory-intensive stage;
-        the retry loop halves it on each OOM kill.
+        controls the parallelism of the most memory-intensive stage; the
+        retry loop halves it on each OOM kill.
         """
         raise NotImplementedError(
             "Subclasses must implement _build_pipe() to support OOM retry, "
@@ -155,8 +155,9 @@ class Pipe(ABC):
     def _collect_pipe_results(
         self, pipe
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
-        """Drain *pipe* and bucket tiles by status.  Does NOT upload
-        geometries.
+        """Drain *pipe* and bucket tiles by status.
+
+        Does NOT upload geometries.
 
         Returns (processed, skipped, failed, existing).
         """

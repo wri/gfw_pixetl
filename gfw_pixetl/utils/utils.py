@@ -4,7 +4,6 @@ import os
 import string
 import uuid
 from functools import lru_cache
-from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -140,10 +139,6 @@ def available_memory_per_process_mb() -> float:
     mem = GLOBALS.max_mem / GLOBALS.workers
     LOGGER.info(f"Available memory per worker set to {mem} MB")
     return mem
-
-
-def get_co_workers() -> int:
-    return max(1, floor(GLOBALS.num_processes / GLOBALS.workers))
 
 
 def snapped_window(window: Window):

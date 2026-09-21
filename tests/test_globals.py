@@ -45,3 +45,16 @@ def test_download_workers_default_and_env_override(monkeypatch):
 
     monkeypatch.setenv("DOWNLOAD_WORKERS", "12")
     assert Globals().download_workers == 12
+
+
+def test_pipeline_io_worker_defaults_and_env_overrides(monkeypatch):
+    monkeypatch.delenv("UPLOAD_WORKERS", raising=False)
+    monkeypatch.delenv("CLEANUP_WORKERS", raising=False)
+    assert Globals().upload_workers == 8
+    assert Globals().cleanup_workers == 4
+
+    monkeypatch.setenv("UPLOAD_WORKERS", "12")
+    monkeypatch.setenv("CLEANUP_WORKERS", "3")
+    config = Globals()
+    assert config.upload_workers == 12
+    assert config.cleanup_workers == 3

@@ -1,5 +1,4 @@
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import floor, sqrt
 from pathlib import Path
 from typing import Iterator, List, Optional, Tuple, Union
@@ -26,15 +25,19 @@ from gfw_pixetl.tiles.utils.transform import transform
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
-    get_co_workers,
     snapped_window,
 )
-from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
+from gfw_pixetl.utils.gdal import create_multiband_vrt
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
 
 Windows = Tuple[Window, Window]
+
+
+def _gdal_cache_size(block_byte_size: int, max_blocks: int) -> int:
+    """Return a GDAL cache size as a plain Python integer."""
+    return int(block_byte_size * max_blocks)
 
 
 class RasterSrcTile(Tile):
@@ -175,7 +178,7 @@ class RasterSrcTile(Tile):
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
-        chunk_size = int(self._block_byte_size() * self._max_blocks())
+        chunk_size = _gdal_cache_size(self._block_byte_size(), self._max_blocks())
         with rasterio.Env(
             **GDAL_ENV,
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
@@ -199,56 +202,17 @@ class RasterSrcTile(Tile):
         return src, vrt
 
     def _process_windows(self) -> bool:
-        # In case we have more workers than cores we can further subdivide the read process.
-        # In that case we will need to write the windows into separate files
-        # and merging them into one file at the end of the write process
-        co_workers: int = get_co_workers()
-        if co_workers >= 2:
-            has_data: bool = self._process_windows_parallel(co_workers)
+        """Process windows sequentially within this tile worker.
 
-        # Otherwise we just read the entire image in one process
-        # and write directly to target file.
-        else:
-            has_data = self._process_windows_sequential()
-
-        return has_data
-
-    def _process_windows_parallel(self, co_workers) -> bool:
-        """Process windows in parallel and write output into separate files.
-
-        Create VRT of output files and copy results into final GTIFF
+        Tile-level parallelism is owned by the pipeline transform stage.
+        Keeping window processing sequential avoids creating a second
+        process pool inside each transform worker, especially after an
+        OOM retry reduces the number of top-level workers. Individual
+        windows remain process-isolated by ``_processified_transform``
+        so native GDAL/Rasterio memory is reclaimed when each window
+        finishes.
         """
-        LOGGER.info(f"Processing tile {self.tile_id} with {co_workers} co_workers")
-
-        has_data = False
-        out_files: List[str] = list()
-
-        with ProcessPoolExecutor(max_workers=co_workers) as executor:
-            future_to_window = {
-                executor.submit(self._parallel_transform, window): window
-                for window in self.windows()
-            }
-            for future in as_completed(future_to_window):
-                out_file = future.result()
-                if out_file is not None:
-                    out_files.append(out_file)
-
-        if out_files:
-            # merge all data into one VRT and copy to target file
-            vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
-            create_vrt(out_files, extent=self.bounds, vrt=vrt_name)
-            just_copy_geotiff(
-                vrt_name,
-                self.local_dst[self.default_format].uri,
-                self.dst[self.default_format].profile,
-            )
-            # Clean up tmp files
-            for f in out_files:
-                LOGGER.debug(f"Delete temporary file {f}")
-                os.remove(f)
-            has_data = True
-
-        return has_data
+        return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
         """Read one window after another and update target file."""
@@ -393,13 +357,6 @@ class RasterSrcTile(Tile):
 
         # Multiple layers need more memory
         divisor *= self.layer.band_count
-
-        # Decrease block size if we have co-workers.
-        # This way we can process more blocks in parallel.
-        co_workers = get_co_workers()
-        if co_workers >= 2:
-            divisor *= co_workers
-            LOGGER.debug("Divisor multiplied for multiple workers")
 
         # further reduce block size in case we need to perform additional computations
         if self.layer.calc is not None:
