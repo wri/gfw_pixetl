@@ -168,6 +168,8 @@ class VectorSrcTile(Tile):
             cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
 
         cmd += [
+            "-a_srs",
+            "EPSG:4326",
             "-te",
             str(self.bounds.left),
             str(self.bounds.bottom),
