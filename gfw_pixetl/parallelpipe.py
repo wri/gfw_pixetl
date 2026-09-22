@@ -157,6 +157,10 @@ class Task(SpawnProcess):
         self._que_in = None
         self._que_out = None
         self._que_err = None
+        # Wall-clock timestamp is intentionally stored on the Process object:
+        # spawn serializes it into the child, letting us measure the complete
+        # parent start -> child target-entry bootstrap interval.
+        self._perf_start_ns = None
 
     def set_in(self, que_in, num_senders):
         self._que_in = que_in
@@ -174,10 +178,27 @@ class Task(SpawnProcess):
             return iterqueue(self._que_in, self._num_senders)
         return None
 
+    def start(self):
+        # Capture this immediately before multiprocessing starts the child.
+        # time.time_ns(), rather than a process-local timer, makes the value
+        # directly comparable after the Process object is serialized by spawn.
+        self._perf_start_ns = time.time_ns()
+        super().start()
+
     def run(self):
         input = self._consume()
         put_item = self._que_out.put
         func = dill.loads(self._callable)
+        target_enter_ns = time.time_ns()
+        start_ns = self._perf_start_ns or target_enter_ns
+        bootstrap_s = (target_enter_ns - start_ns) / 1_000_000_000
+        LOGGER.info(
+            "PERF process task=%s phase=target_enter pid=%d bootstrap_s=%.6f",
+            self.name,
+            os.getpid(),
+            bootstrap_s,
+        )
+        status = "ok"
         try:
             if input is None:  # producer
                 res = func(*self._args, **self._kwargs)
@@ -188,6 +209,7 @@ class Task(SpawnProcess):
                     put_item(item)
 
         except Exception as e:
+            status = "error"
             self._que_err.put((self.name, e))
             if input is not None:
                 for _ in input:
@@ -195,6 +217,19 @@ class Task(SpawnProcess):
             raise
 
         finally:
+            target_finished_ns = time.time_ns()
+            run_s = (target_finished_ns - target_enter_ns) / 1_000_000_000
+            total_s = (target_finished_ns - start_ns) / 1_000_000_000
+            LOGGER.info(
+                "PERF process task=%s phase=complete pid=%d "
+                "bootstrap_s=%.6f run_s=%.6f total_s=%.6f status=%s",
+                self.name,
+                os.getpid(),
+                bootstrap_s,
+                run_s,
+                total_s,
+                status,
+            )
             for _ in range(self._num_followers):
                 put_item(EXIT)
             self._que_err.put(EXIT)
