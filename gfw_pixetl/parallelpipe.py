@@ -22,9 +22,9 @@ This version adds two things:
      b. Records an OomKillEvent on the error queue so the caller knows
         which stage was affected.
 
-2. OomKillEvent / OomKillException types that let callers (e.g. PixETL's
-   _process_pipe) distinguish an OOM kill from an ordinary exception and
-   react accordingly (typically: retry with fewer workers).
+2. OomKillEvent / OomKillException types that let callers distinguish an
+   involuntarily killed worker from an ordinary task exception and fail the
+   job without hanging the pipeline.
 """
 
 import threading
@@ -63,8 +63,7 @@ class OomKillException(Exception):
         self.events = events  # list[OomKillEvent]
         names = ", ".join(e.stage_name for e in events)
         super().__init__(
-            f"{len(events)} worker(s) were OOM-killed in stage(s): {names}. "
-            "Retry with fewer workers."
+            f"{len(events)} worker(s) were OOM-killed in stage(s): {names}."
         )
 
 

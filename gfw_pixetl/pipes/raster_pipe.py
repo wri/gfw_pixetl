@@ -41,9 +41,8 @@ class RasterPipe(Pipe):
         worker counts so they do not each reserve a full
         ``num_processes`` pool.
         """
-        # Configure/reset the shared controller before ParallelPipe forks this
-        # attempt's workers. This also clears stale reservations after an OOM
-        # retry where a killed worker could not run its ``finally`` block.
+        # Configure/reset the shared controller before ParallelPipe forks the
+        # transform workers.
         MEMORY_ADMISSION.configure(
             enabled=GLOBALS.memory_admission_enabled,
             high_watermark=GLOBALS.memory_admission_high_watermark,
@@ -68,16 +67,11 @@ class RasterPipe(Pipe):
 
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        # Start with as many workers as there are tiles to process, capped at
-        # GLOBALS.workers.  The retry logic will halve this on each OOM kill.
-        initial_workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
-        GLOBALS.workers = initial_workers
-
-        result = self._process_pipe_with_oom_retry(
-            tiles=tiles,
-            workers=initial_workers,
-            build_pipe=self._build_pipe,
-        )
+        # Use as many transform workers as there are tiles to process, capped
+        # at the configured maximum. Memory admission controls how much of that
+        # capacity may be active under pressure.
+        workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
+        result = self._process_pipe(self._build_pipe(tiles, workers))
 
         LOGGER.info("Finished Raster Pipe")
         return result

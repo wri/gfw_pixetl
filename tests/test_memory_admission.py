@@ -9,11 +9,17 @@ def _write(path, value):
 
 
 def _controller(tmp_path, monkeypatch, *, current_gib=60, limit_gib=100):
-    import gfw_pixetl.memory_admission as module
+    # These tests exercise admission state, synchronization, and hysteresis,
+    # not publication of the diagnostic status file. Avoid pointing the
+    # process-global STATUS_PATH at a pytest-owned temporary directory.
+    monkeypatch.setattr(
+        MemoryAdmissionController,
+        "_write_status_locked",
+        lambda self: None,
+    )
 
     _write(tmp_path / "memory.current", current_gib * GIB)
     _write(tmp_path / "memory.max", limit_gib * GIB)
-    monkeypatch.setattr(module, "STATUS_PATH", str(tmp_path / "admission.json"))
 
     controller = MemoryAdmissionController()
     controller.configure(
@@ -62,19 +68,25 @@ def test_transform_waits_for_resume_watermark(tmp_path, monkeypatch):
 
     thread = threading.Thread(target=acquire)
     thread.start()
-    time.sleep(0.05)
 
-    assert not admitted.is_set()
-    assert controller._throttled.value == 1
-    assert controller._waiting.value == 1
+    try:
+        time.sleep(0.05)
 
-    _write(tmp_path / "memory.current", 70 * GIB)
-    thread.join(timeout=1)
+        assert not admitted.is_set()
+        assert controller._throttled.value == 1
+        assert controller._waiting.value == 1
 
-    assert admitted.is_set()
-    assert controller._throttled.value == 0
-    assert controller._waiting.value == 0
-    controller.release_transform()
+        _write(tmp_path / "memory.current", 70 * GIB)
+        thread.join(timeout=1)
+
+        assert admitted.is_set()
+        assert controller._throttled.value == 0
+        assert controller._waiting.value == 0
+        controller.release_transform()
+    finally:
+        # Never leave a polling thread alive after pytest removes tmp_path.
+        _write(tmp_path / "memory.current", 0)
+        thread.join(timeout=1)
 
 
 def test_stats_gate_uses_80_75_hysteresis(tmp_path, monkeypatch):
@@ -85,17 +97,23 @@ def test_stats_gate_uses_80_75_hysteresis(tmp_path, monkeypatch):
         target=lambda: (controller.wait_for_stats("00N_000E"), passed.set())
     )
     thread.start()
-    time.sleep(0.05)
-    assert not passed.is_set()
 
-    # It must fall below the 75% resume threshold, not merely 80%.
-    _write(tmp_path / "memory.current", 77 * GIB)
-    time.sleep(0.05)
-    assert not passed.is_set()
+    try:
+        time.sleep(0.05)
+        assert not passed.is_set()
 
-    _write(tmp_path / "memory.current", 74 * GIB)
-    thread.join(timeout=1)
-    assert passed.is_set()
+        # It must fall below the 75% resume threshold, not merely 80%.
+        _write(tmp_path / "memory.current", 77 * GIB)
+        time.sleep(0.05)
+        assert not passed.is_set()
+
+        _write(tmp_path / "memory.current", 74 * GIB)
+        thread.join(timeout=1)
+        assert passed.is_set()
+    finally:
+        # Ensure wait_for_stats can escape even if an assertion above fails.
+        _write(tmp_path / "memory.current", 0)
+        thread.join(timeout=1)
 
 
 def test_stats_slot_tracks_active_and_waiting(tmp_path, monkeypatch):
@@ -123,17 +141,27 @@ def test_stats_slot_tracks_active_and_waiting(tmp_path, monkeypatch):
     first_thread = threading.Thread(target=first)
     second_thread = threading.Thread(target=second)
     first_thread.start()
-    assert first_entered.wait(timeout=1)
-    second_thread.start()
-    time.sleep(0.05)
 
-    assert controller._stats_active.value == 1
-    assert controller._stats_waiting.value == 1
-    assert not second_entered.is_set()
+    try:
+        assert first_entered.wait(timeout=1)
+        second_thread.start()
+        time.sleep(0.05)
 
-    release_first.set()
-    first_thread.join(timeout=1)
-    second_thread.join(timeout=1)
-    assert second_entered.is_set()
-    assert controller._stats_active.value == 0
-    assert controller._stats_waiting.value == 0
+        assert controller._stats_active.value == 1
+        assert controller._stats_waiting.value == 1
+        assert not second_entered.is_set()
+
+        release_first.set()
+        first_thread.join(timeout=1)
+        second_thread.join(timeout=1)
+
+        assert second_entered.is_set()
+        assert controller._stats_active.value == 0
+        assert controller._stats_waiting.value == 0
+    finally:
+        # Never strand either thread if an assertion fails.
+        release_first.set()
+        _write(tmp_path / "memory.current", 0)
+        first_thread.join(timeout=1)
+        if second_thread.ident is not None:
+            second_thread.join(timeout=1)

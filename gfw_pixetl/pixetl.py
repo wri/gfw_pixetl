@@ -14,6 +14,7 @@ from gfw_pixetl.layers import Layer, layer_factory
 from gfw_pixetl.logo import logo
 from gfw_pixetl.logs import setup_logging
 from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.parallelpipe import OomKillException
 from gfw_pixetl.pipes import Pipe, pipe_factory
 from gfw_pixetl.settings.gdal import (  # noqa: F401, import vars to assure they are initialize right in the beginning
     GDAL_ENV,
@@ -59,12 +60,19 @@ def cli(
     if layer_def.source_type == "raster" and layer_def.source_uri is None:
         raise ValueError("URI specification is required for raster sources")
 
-    # Process the layer
-    tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
-        layer_def,
-        subset,
-        overwrite,
-    )
+    # Process the layer. ParallelPipe's watchdog raises OomKillException if a
+    # stage worker is killed; preserve the Batch convention of exit code 137.
+    try:
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pixetl(
+            layer_def,
+            subset,
+            overwrite,
+        )
+    except OomKillException:
+        LOGGER.exception(
+            "Pipeline worker was involuntarily terminated; exiting with code 137"
+        )
+        raise SystemExit(137)
 
     nb_tiles = len(tiles)
     nb_skipped_tiles = len(skipped_tiles)
