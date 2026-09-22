@@ -5,8 +5,9 @@ from gfw_pixetl.memory_admission import GIB, MemoryAdmissionController
 
 
 def _write(path, value):
-    path.write_text(str(value))
-
+    tmp = path.with_name(f".{path.name}.{threading.get_ident()}.tmp")
+    tmp.write_text(str(value))
+    tmp.replace(path)
 
 def _controller(tmp_path, monkeypatch, *, current_gib=60, limit_gib=100):
     # These tests exercise admission state, synchronization, and hysteresis,
