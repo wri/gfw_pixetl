@@ -114,6 +114,11 @@ def cleanup_tmp():
 
     folder = "/tmp"
     for filename in os.listdir(folder):
+        # pytest owns this directory. Its tmp_path_factory expects it to
+        # survive for the duration of the test session.
+        if filename == "pytest-of-root":
+            continue
+
         file_path = os.path.join(folder, filename)
         try:
             if (
@@ -124,6 +129,7 @@ def cleanup_tmp():
                 shutil.rmtree(file_path)
         except Exception as e:
             print("Failed to delete %s. Reason: %s" % (file_path, e))
+
     open("/tmp/.gitkeep", "a").close()
 
 

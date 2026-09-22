@@ -15,7 +15,7 @@ import gfw_pixetl.utils.gdal
 from gfw_pixetl.errors import GDALNoneTypeError
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
-from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
+from gfw_pixetl.utils.gdal import _run_gdal_subcommand, create_vrt, run_gdal_subcommand
 from gfw_pixetl.utils.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
@@ -129,11 +129,11 @@ def test_world_bounds():
 
 def test_run_gdal_subcommand_nonzero_exit():
     cmd = ["/bin/bash", "-c", "echo test"]
-    assert run_gdal_subcommand(cmd) == ("test\n", "")
+    assert _run_gdal_subcommand(cmd) == ("test\n", "")
 
     try:
         cmd = ["/bin/bash", "-c", "exit 1"]
-        run_gdal_subcommand(cmd)
+        _run_gdal_subcommand(cmd)
         assert False
     except GDALNoneTypeError as e:
         assert str(e) == ""

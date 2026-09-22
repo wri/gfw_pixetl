@@ -133,13 +133,8 @@ def just_copy_geotiff(src_uri, dst_uri, profile):
         )
 
 
-@retry(
-    retry_on_exception=retry_on_gdal_errors,
-    stop_max_attempt_number=7,
-    wait_fixed=2000,
-)
-def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str, str]:
-    """Run GDAL as sub command and catch common errors."""
+def _run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str, str]:
+    """Run a GDAL subprocess once and translate common failures."""
     gdal_env = os.environ.copy()
     resolved_env = env if env is not None else get_gdal_env()
     if resolved_env:
@@ -178,8 +173,9 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
         elif not e:
             raise GDALNoneTypeError(e)
         elif (
-            e
-            == b"ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
+            e == "ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST "
+            "configuration options not defined, and /root/.aws/credentials "
+            "not filled\n"
         ):
             raise GDALAWSConfigError(e)
         elif "ERROR 3: Load json file" in e or "GOOGLE_APPLICATION_CREDENTIALS" in e:
@@ -190,6 +186,16 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
             raise GDALError(e)
 
     return o, e
+
+
+@retry(
+    retry_on_exception=retry_on_gdal_errors,
+    stop_max_attempt_number=7,
+    wait_fixed=2000,
+)
+def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str, str]:
+    """Run GDAL as a subprocess, retrying transient GDAL failures."""
+    return _run_gdal_subcommand(cmd, env)
 
 
 def get_metadata(
