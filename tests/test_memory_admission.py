@@ -9,6 +9,7 @@ def _write(path, value):
     tmp.write_text(str(value))
     tmp.replace(path)
 
+
 def _controller(tmp_path, monkeypatch, *, current_gib=60, limit_gib=100):
     # These tests exercise admission state, synchronization, and hysteresis,
     # not publication of the diagnostic status file.
