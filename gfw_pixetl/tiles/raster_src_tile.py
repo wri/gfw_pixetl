@@ -29,7 +29,7 @@ from gfw_pixetl.utils import (
     available_memory_per_process_mb,
     snapped_window,
 )
-from gfw_pixetl.utils.gdal import create_multiband_vrt, just_copy_geotiff
+from gfw_pixetl.utils.gdal import create_multiband_vrt
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -212,15 +212,15 @@ class RasterSrcTile(Tile):
         """Read one window after another and update target file."""
         LOGGER.info(f"Processing tile {self.tile_id} with a single worker")
 
-        src: DatasetReader
-        vrt: WarpedVRT
-
-        src, vrt = self._src_to_vrt()
         out_files = list()
         first_window = True
         try:
             for window in self.windows():
-                out_files.append(self._processified_transform(vrt, window))
+                # Open the Rasterio/GDAL datasets inside the spawned child.
+                # Live GDAL handles (including WarpedVRT) are intentionally
+                # never sent across the multiprocessing boundary: they are not
+                # picklable and must not be shared between processes.
+                out_files.append(self._processified_transform(window))
                 if first_window:
                     # Startup reservation only covers the interval before the
                     # transform working set becomes visible in memory.current.
@@ -229,32 +229,18 @@ class RasterSrcTile(Tile):
         finally:
             # Empty/error paths may never complete a first window.
             MEMORY_ADMISSION.commit_transform_reservation()
-            vrt.close()
-            src.close()
 
         has_data = any(value is not None for value in out_files)
 
         return has_data
 
     def _parallel_transform(self, window) -> Optional[str]:
-        """When transforming in parallel, we need to read SRC and create VRT in
-        every process."""
-        src: DatasetReader
-        vrt: WarpedVRT
-
-        src, vrt = self._src_to_vrt()
-
-        try:
-            out_file: Optional[str] = self._processified_transform(vrt, window, True)
-        finally:
-            vrt.close()
-            src.close()
-
-        return out_file
+        """Transform one window in an isolated spawned process."""
+        return self._processified_transform(window, True)
 
     @processify
     def _processified_transform(
-        self, vrt: WarpedVRT, window: Window, write_to_seperate_files=False
+        self, window: Window, write_to_seperate_files=False
     ) -> Optional[str]:
         """Wrapper to run _transform in a separate process.
 
@@ -262,23 +248,33 @@ class RasterSrcTile(Tile):
         window is processed. Without this, we might experience memory
         leakage, in particular for float data types.
         """
-        layer = Layer(input_bands=self.layer.input_bands, calc_string=self.layer.calc)
+        # With the spawn start method, only serializable Python state may cross
+        # into this function. Create and close all GDAL-backed objects here in
+        # the child process instead of attempting to pickle a live WarpedVRT.
+        src, vrt = self._src_to_vrt()
+        try:
+            layer = Layer(
+                input_bands=self.layer.input_bands, calc_string=self.layer.calc
+            )
 
-        source = Source(vrt=vrt, crs=self.src.crs)
+            source = Source(vrt=vrt, crs=self.src.crs)
 
-        destination = Destination(
-            transform=self.dst[self.default_format].transform,
-            crs=self.dst[self.default_format].crs,
-            count=self.dst[self.default_format].profile["count"],
-            no_data=self.dst[self.default_format].nodata,
-            datatype=self.dst[self.default_format].dtype,
-            profile=self.dst[self.default_format].profile,
-            tmp_dir=self.tmp_dir,
-            uri=self.local_dst[self.default_format].uri,
-            write_to_separate_files=write_to_seperate_files,
-        )
+            destination = Destination(
+                transform=self.dst[self.default_format].transform,
+                crs=self.dst[self.default_format].crs,
+                count=self.dst[self.default_format].profile["count"],
+                no_data=self.dst[self.default_format].nodata,
+                datatype=self.dst[self.default_format].dtype,
+                profile=self.dst[self.default_format].profile,
+                tmp_dir=self.tmp_dir,
+                uri=self.local_dst[self.default_format].uri,
+                write_to_separate_files=write_to_seperate_files,
+            )
 
-        return transform(self.tile_id, window, layer, source, destination)
+            return transform(self.tile_id, window, layer, source, destination)
+        finally:
+            vrt.close()
+            src.close()
 
     def windows(self) -> List[Window]:
         """Creates local output file and returns list of size optimized windows

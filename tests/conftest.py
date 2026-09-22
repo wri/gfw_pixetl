@@ -1,9 +1,6 @@
 import os
 import shutil
 import subprocess
-import sys
-import threading
-import traceback
 from copy import deepcopy
 
 import numpy as np
@@ -17,6 +14,7 @@ from sqlalchemy.sql import text
 
 from gfw_pixetl.layers import layer_factory
 from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.parallelpipe import Pipeline
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile
@@ -35,6 +33,29 @@ TILE_3_NAME = "world.tif"
 TILE_3_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_3_NAME)
 TILE_4_NAME = "01N_001E.tif"
 TILE_4_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_4_NAME)
+
+
+@pytest.fixture
+def in_process_pipeline(monkeypatch):
+    """Execute ParallelPipe stages inline for mock-heavy Pipe unit tests.
+
+    Spawned workers intentionally do not inherit parent-process
+    monkeypatches. These tests exercise Pipe stage/status logic rather
+    than multiprocessing, so running the stages inline keeps their mocks
+    meaningful.
+    """
+
+    def results(self):
+        result = None
+        for index, stage in enumerate(self):
+            if index == 0:
+                result = stage._target(*stage._args, **stage._kwargs)
+            else:
+                result = stage._target(result, *stage._args, **stage._kwargs)
+        if result is not None:
+            yield from result
+
+    monkeypatch.setattr(Pipeline, "results", results)
 
 
 ########### World.tif
@@ -134,34 +155,6 @@ def cleanup_tmp():
             print("Failed to delete %s. Reason: %s" % (file_path, e))
 
     open("/tmp/.gitkeep", "a").close()
-
-
-@pytest.fixture(autouse=True)
-def report_thread_leaks(request):
-    before = {t.ident for t in threading.enumerate()}
-
-    yield
-
-    leaked = [
-        t for t in threading.enumerate() if t.ident not in before and t.is_alive()
-    ]
-
-    if leaked:
-        frames = sys._current_frames()
-        for thread in leaked:
-            frame = frames.get(thread.ident)
-            stack = (
-                "".join(traceback.format_stack(frame))
-                if frame is not None
-                else "<stack unavailable>"
-            )
-            print(
-                f"\nTHREAD LEAK after {request.node.nodeid}: "
-                f"name={thread.name!r} "
-                f"ident={thread.ident} "
-                f"daemon={thread.daemon}\n"
-                f"{stack}"
-            )
 
 
 #########

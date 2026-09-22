@@ -27,19 +27,28 @@ This version adds two things:
    job without hanging the pipeline.
 """
 
+import multiprocessing as mp
 import os
 import sys
 import threading
 import time
 import traceback
 from collections.abc import Iterable
-from multiprocessing import Process, Queue
+from multiprocessing.context import SpawnProcess
+from multiprocessing.process import BaseProcess
+from multiprocessing.queues import Queue
 
 import dill
 
 from gfw_pixetl import get_module_logger
 
 LOGGER = get_module_logger(__name__)
+
+# Use a local spawn context rather than the platform default.  In particular,
+# Linux defaults to fork, which is unsafe once libraries such as GDAL have
+# created native threads in the parent process.  Keeping the context local to
+# ParallelPipe avoids changing multiprocessing semantics for callers.
+_MP_CONTEXT = mp.get_context("spawn")
 
 # ---------------------------------------------------------------------------
 # Public exception types
@@ -137,7 +146,7 @@ def iterqueue(queue, expected):
         expected -= 1
 
 
-class Task(Process):
+class Task(SpawnProcess):
     """One worker process that runs a callable in a subprocess."""
 
     def __init__(self, callable, args=(), kwargs={}):
@@ -202,7 +211,7 @@ class Task(Process):
 # ---------------------------------------------------------------------------
 
 
-def _is_oom_killed(process: Process) -> bool:
+def _is_oom_killed(process: BaseProcess) -> bool:
     """Return True if *process* was killed by SIGKILL / OOM killer."""
     ec = process.exitcode
     # exitcode is None while the process is still alive.
@@ -379,7 +388,7 @@ class Pipeline(list):
         tt = None
         for i, tf in enumerate(self[:-1]):
             tt = self[i + 1]
-            q = Queue(tf.qsize)
+            q = _MP_CONTEXT.Queue(tf.qsize)
             tf.set_out(q, tt.workers)
             tt.set_in(q, tf.workers)
 
@@ -387,8 +396,8 @@ class Pipeline(list):
             tt = self[0]
 
         # Final output queue (feeds the main thread)
-        out_q = Queue(tt.qsize)
-        err_q = Queue()
+        out_q = _MP_CONTEXT.Queue(tt.qsize)
+        err_q = _MP_CONTEXT.Queue()
         tt.set_out(out_q, 1)
 
         # Total number of EXIT tokens we expect on err_q:
@@ -413,9 +422,11 @@ class Pipeline(list):
         for stg in self:
             stg.set_err(err_q)
 
-        # Start worker processes while the parent is still single-threaded.
-        # A worker that exits before its watchdog starts still retains its
-        # exitcode, so the watchdog can detect an OOM kill on its first pass.
+        # Start worker processes before the watchdog threads. Workers use the
+        # explicit spawn context above, so this is safe even if GDAL or another
+        # native library has already created threads in the parent. A worker
+        # that exits before its watchdog starts still retains its exitcode, so
+        # the watchdog can detect an OOM kill on its first pass.
         for stg in self:
             stg._start()
 

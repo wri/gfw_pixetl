@@ -25,7 +25,7 @@ EMPTY_METADATA = Metadata(
 )
 
 
-def test_create_tiles_subset(PIPE_10x10):
+def test_create_tiles_subset(PIPE_10x10, in_process_pipeline):
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
     ):
@@ -52,7 +52,7 @@ def test_create_tiles_subset(PIPE_10x10):
             assert len(existing_tiles) == 0
 
 
-def test_create_tiles_all(LAYER):
+def test_create_tiles_all(LAYER, in_process_pipeline):
     with (
         mock.patch.object(
             RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
@@ -78,10 +78,10 @@ def test_create_tiles_all(LAYER):
         assert len(existing_tiles) == 0
 
 
-def test_create_tiles_existing(LAYER):
+def test_create_tiles_existing(LAYER, in_process_pipeline):
     with (
         mock.patch.object(
-            RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
+            RasterPipe, "get_grid_tiles", side_effect=lambda: _get_subset_tiles()
         ),
         mock.patch("gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA),
         mock.patch.object(RasterSrcTile, "within", return_value=True),
@@ -115,7 +115,7 @@ def test_create_tiles_existing(LAYER):
         assert len(existing_tiles) == 0
 
 
-def test_create_tiles_fail(LAYER):
+def test_create_tiles_fail(LAYER, in_process_pipeline):
     with (
         mock.patch.object(
             RasterPipe,
@@ -143,7 +143,7 @@ def test_create_tiles_fail(LAYER):
         assert all(tile.status == "failed" for tile in failed_tiles)
 
 
-def test_create_tiles_subprocess_oom(LAYER):
+def test_create_tiles_subprocess_oom(LAYER, in_process_pipeline):
     with (
         mock.patch.object(
             RasterPipe,
@@ -175,7 +175,7 @@ def test_create_tiles_subprocess_oom(LAYER):
         )
 
 
-def test_filter_src_tiles(PIPE_10x10):
+def test_filter_src_tiles(PIPE_10x10, in_process_pipeline):
     tiles = _get_subset_tiles()
 
     with mock.patch.object(RasterSrcTile, "within", return_value=False):
@@ -187,6 +187,10 @@ def test_filter_src_tiles(PIPE_10x10):
                 assert isinstance(tile, RasterSrcTile)
         assert i == 0
 
+    # The in-process test pipeline mutates the input objects directly, unlike
+    # multiprocessing where each stage receives deserialized copies. Use fresh
+    # tiles for this independent case.
+    tiles = _get_subset_tiles()
     with mock.patch.object(RasterSrcTile, "within", return_value=True):
         pipe = tiles | PIPE_10x10.filter_src_tiles
         i = 0

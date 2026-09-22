@@ -1,6 +1,6 @@
 [project]
 name = "gfw_pixetl"
-version = "1.9.0b8"
+version = "1.9.0b10"
 description = "Tool to preprocess GFW tiles"
 authors = [{ name = "Thomas Maschler" }]
 license = { text = "MIT" }
