@@ -10,7 +10,7 @@ from retrying import retry
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.data_type import DataTypeEnum, from_gdal_data_type
-from gfw_pixetl.decorators import SubprocessKilledError, processify
+from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.errors import (
     GDALAWSConfigError,
     GDALError,
@@ -121,7 +121,6 @@ def _copy_creation_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-@processify
 def just_copy_geotiff(src_uri, dst_uri, profile):
     creation_profile = _copy_creation_profile(profile)
     with rasterio.Env(**get_gdal_env()):

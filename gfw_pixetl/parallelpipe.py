@@ -27,16 +27,63 @@ This version adds two things:
    job without hanging the pipeline.
 """
 
+import os
+import sys
 import threading
 import time
+import traceback
 from collections.abc import Iterable
 from multiprocessing import Process, Queue
 
 import dill
 
+from gfw_pixetl import get_module_logger
+
+LOGGER = get_module_logger(__name__)
+
 # ---------------------------------------------------------------------------
 # Public exception types
 # ---------------------------------------------------------------------------
+
+
+def _log_unsafe_fork(kind, target):
+    """Log live non-current thread stacks immediately before a fork."""
+    threads = threading.enumerate()
+    if len(threads) <= 1:
+        return
+
+    current_ident = threading.get_ident()
+    frames = sys._current_frames()
+    details = []
+
+    for thread in threads:
+        if thread.ident == current_ident:
+            continue
+
+        frame = frames.get(thread.ident)
+        stack = (
+            "".join(traceback.format_stack(frame)).strip()
+            if frame is not None
+            else "<stack unavailable>"
+        )
+        details.append(
+            {
+                "name": thread.name,
+                "ident": thread.ident,
+                "daemon": thread.daemon,
+                "stack": stack,
+            }
+        )
+
+    LOGGER.warning(
+        "Unsafe multiprocessing fork: kind=%s target=%s pid=%d "
+        "current_thread=%s non_current_threads=%r",
+        kind,
+        target,
+        os.getpid(),
+        threading.current_thread().name,
+        details,
+    )
 
 
 class OomKillEvent:
@@ -276,6 +323,7 @@ class Stage(object):
 
     def _start(self):
         for p in self.processes:
+            _log_unsafe_fork("parallelpipe", p.name)
             p.start()
 
     def _join(self):
@@ -386,9 +434,14 @@ class Pipeline(list):
         # ------------------------------------------------------------------ #
         raw_errors = list(iterqueue(err_q, total_workers))
 
-        # Stop watchdogs
+        # Stop and join watchdogs before returning from this pipeline.
+        # Merely setting the stop event can leave watchdog threads alive for
+        # up to one polling interval; a subsequent Pipeline may then fork
+        # while those threads still exist.
         for wd in watchdogs:
             wd.stop()
+        for wd in watchdogs:
+            wd.join()
 
         # Join all worker processes
         for stg in self:

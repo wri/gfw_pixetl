@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Set
 from geojson import FeatureCollection, dumps
 
 from gfw_pixetl import get_module_logger, utils
-from gfw_pixetl.decorators import processify
 from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile
@@ -27,7 +26,6 @@ def _uris_per_dst_format(tiles) -> Dict[str, List[str]]:
     return uris
 
 
-@processify
 def upload_geojsons(
     processed_tiles: List[Tile],
     existing_tiles: List[Tile],
@@ -76,7 +74,6 @@ def _upload_extent(
     bucket: str = utils.get_bucket(),
 ) -> Dict[str, Any]:
     """Create geojson file for tileset extent and upload to S3."""
-
     extent_fc = _union_tile_geoms(fc)
     key = os.path.join(prefix, dst_format, "extent.geojson")
 

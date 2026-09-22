@@ -1,4 +1,6 @@
+import os
 import sys
+import threading
 import traceback
 from functools import cached_property, wraps
 from multiprocessing import Process, Queue
@@ -28,6 +30,50 @@ def lazy_property(fn):
     fine here because each tile is only ever touched by one worker at a time.
     """
     return cached_property(fn)
+
+
+def _log_unsafe_fork(kind, target):
+    """Log live non-current thread stacks immediately before a fork."""
+    threads = threading.enumerate()
+    if len(threads) <= 1:
+        return
+
+    current_ident = threading.get_ident()
+    frames = sys._current_frames()
+    details = []
+
+    for thread in threads:
+        if thread.ident == current_ident:
+            continue
+
+        frame = frames.get(thread.ident)
+        stack = (
+            "".join(traceback.format_stack(frame)).strip()
+            if frame is not None
+            else "<stack unavailable>"
+        )
+        details.append(
+            {
+                "name": thread.name,
+                "ident": thread.ident,
+                "daemon": thread.daemon,
+                "stack": stack,
+            }
+        )
+
+    # Import locally to keep the decorator module's existing initialization
+    # behavior unchanged.
+    from gfw_pixetl import get_module_logger
+
+    get_module_logger(__name__).warning(
+        "Unsafe multiprocessing fork: kind=%s target=%s pid=%d "
+        "current_thread=%s non_current_threads=%r",
+        kind,
+        target,
+        os.getpid(),
+        threading.current_thread().name,
+        details,
+    )
 
 
 def processify(func):
@@ -68,6 +114,10 @@ def processify(func):
         ret = None
         untimely_death = False
 
+        _log_unsafe_fork(
+            "processify",
+            f"{func.__module__}.{func.__qualname__}",
+        )
         p.start()
 
         while p.is_alive():
