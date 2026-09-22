@@ -192,11 +192,11 @@ class Task(SpawnProcess):
         target_enter_ns = time.time_ns()
         start_ns = self._perf_start_ns or target_enter_ns
         bootstrap_s = (target_enter_ns - start_ns) / 1_000_000_000
-        LOGGER.info(
-            "PERF process task=%s phase=target_enter pid=%d bootstrap_s=%.6f",
-            self.name,
-            os.getpid(),
-            bootstrap_s,
+        print(
+            f"PIXETL_PERF process task={self.name} phase=target_enter "
+            f"pid={os.getpid()} bootstrap_s={bootstrap_s:.6f}",
+            file=sys.stderr,
+            flush=True,
         )
         status = "ok"
         try:
@@ -220,15 +220,12 @@ class Task(SpawnProcess):
             target_finished_ns = time.time_ns()
             run_s = (target_finished_ns - target_enter_ns) / 1_000_000_000
             total_s = (target_finished_ns - start_ns) / 1_000_000_000
-            LOGGER.info(
-                "PERF process task=%s phase=complete pid=%d "
-                "bootstrap_s=%.6f run_s=%.6f total_s=%.6f status=%s",
-                self.name,
-                os.getpid(),
-                bootstrap_s,
-                run_s,
-                total_s,
-                status,
+            print(
+                f"PIXETL_PERF process task={self.name} phase=complete "
+                f"pid={os.getpid()} bootstrap_s={bootstrap_s:.6f} "
+                f"run_s={run_s:.6f} total_s={total_s:.6f} status={status}",
+                file=sys.stderr,
+                flush=True,
             )
             for _ in range(self._num_followers):
                 put_item(EXIT)
