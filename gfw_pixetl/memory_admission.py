@@ -188,7 +188,7 @@ class MemoryAdmissionController:
                 resume = int(limit * self.resume_watermark)
 
                 throttled = bool(self._throttled.value)
-                if throttled and current + reserved <= resume:
+                if throttled and current + reserved < resume:
                     self._set_throttled_locked(False, current, limit, projected)
                     throttled = False
                 elif not throttled and projected >= high:

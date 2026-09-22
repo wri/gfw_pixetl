@@ -10,8 +10,7 @@ def _write(path, value):
 
 def _controller(tmp_path, monkeypatch, *, current_gib=60, limit_gib=100):
     # These tests exercise admission state, synchronization, and hysteresis,
-    # not publication of the diagnostic status file. Avoid pointing the
-    # process-global STATUS_PATH at a pytest-owned temporary directory.
+    # not publication of the diagnostic status file.
     monkeypatch.setattr(
         MemoryAdmissionController,
         "_write_status_locked",
@@ -76,7 +75,12 @@ def test_transform_waits_for_resume_watermark(tmp_path, monkeypatch):
         assert controller._throttled.value == 1
         assert controller._waiting.value == 1
 
-        _write(tmp_path / "memory.current", 70 * GIB)
+        # Exactly 75% remains throttled; resume requires falling below it.
+        _write(tmp_path / "memory.current", 75 * GIB)
+        time.sleep(0.05)
+        assert not admitted.is_set()
+
+        _write(tmp_path / "memory.current", 74 * GIB)
         thread.join(timeout=1)
 
         assert admitted.is_set()
