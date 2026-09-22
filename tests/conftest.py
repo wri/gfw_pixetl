@@ -1,6 +1,9 @@
 import os
 import shutil
 import subprocess
+import sys
+import threading
+import traceback
 from copy import deepcopy
 
 import numpy as np
@@ -131,6 +134,34 @@ def cleanup_tmp():
             print("Failed to delete %s. Reason: %s" % (file_path, e))
 
     open("/tmp/.gitkeep", "a").close()
+
+
+@pytest.fixture(autouse=True)
+def report_thread_leaks(request):
+    before = {t.ident for t in threading.enumerate()}
+
+    yield
+
+    leaked = [
+        t for t in threading.enumerate() if t.ident not in before and t.is_alive()
+    ]
+
+    if leaked:
+        frames = sys._current_frames()
+        for thread in leaked:
+            frame = frames.get(thread.ident)
+            stack = (
+                "".join(traceback.format_stack(frame))
+                if frame is not None
+                else "<stack unavailable>"
+            )
+            print(
+                f"\nTHREAD LEAK after {request.node.nodeid}: "
+                f"name={thread.name!r} "
+                f"ident={thread.ident} "
+                f"daemon={thread.daemon}\n"
+                f"{stack}"
+            )
 
 
 #########
