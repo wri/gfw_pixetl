@@ -55,7 +55,7 @@ def transform(
     if not has_data:
         LOGGER.debug(f"{window} of tile {tile_id} has no data - skip")
         del masked_array
-        LOGGER.info(
+        LOGGER.debug(
             "PERF window "
             f"tile={tile_id} read_s={read_seconds:.3f} "
             f"data_check_s={data_check_seconds:.3f} calc_s=0.000 "
@@ -108,7 +108,7 @@ def transform(
     write_seconds = perf_counter() - phase_started
     del array
 
-    LOGGER.info(
+    LOGGER.debug(
         "PERF window "
         f"tile={tile_id} read_s={read_seconds:.3f} "
         f"data_check_s={data_check_seconds:.3f} calc_s={calc_seconds:.3f} "

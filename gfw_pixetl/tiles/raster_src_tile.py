@@ -253,10 +253,10 @@ class RasterSrcTile(Tile):
         Tile-level parallelism is owned by the pipeline transform stage.
         Keeping window processing sequential avoids creating a second
         process pool inside each transform worker. All windows run in
-        bounded persistent spawned children, amortizing spawn overhead
-        while periodically reclaiming native GDAL/Rasterio state. A
-        shared atomic memory reservation gates every window before it
-        begins.
+        one persistent spawned child, amortizing spawn overhead while
+        keeping native GDAL/Rasterio state isolated to the tile
+        lifetime. A shared atomic memory reservation gates every window
+        before it begins.
         """
         return self._process_windows_sequential()
 
@@ -293,20 +293,16 @@ class RasterSrcTile(Tile):
         window_reservation_held = False
         dispatch_started = perf_counter()
 
-        LOGGER.info(
+        LOGGER.debug(
             "PERF window_worker_start "
             f"tile={self.tile_id} window_start=1 window_end={len(windows)} "
             f"window_count={len(windows)}"
         )
 
         try:
-            MEMORY_ADMISSION.log_memory_attribution("before_admission", self.tile_id)
             MEMORY_ADMISSION.acquire_window(self.tile_id, 0)
             window_reservation_held = True
             worker.start()
-            MEMORY_ADMISSION.log_memory_attribution(
-                "after_child_spawn", self.tile_id, worker.pid
-            )
 
             for received in range(len(windows)):
                 while True:
@@ -321,15 +317,12 @@ class RasterSrcTile(Tile):
                         )
 
                 window = windows[window_index]
-                MEMORY_ADMISSION.log_memory_attribution(
-                    "after_window", self.tile_id, worker.pid
-                )
                 if window_reservation_held:
                     MEMORY_ADMISSION.release_window()
                     window_reservation_held = False
 
                 dispatch_seconds = perf_counter() - dispatch_started
-                LOGGER.info(
+                LOGGER.debug(
                     "PERF window_dispatch "
                     f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
                     f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
@@ -368,7 +361,6 @@ class RasterSrcTile(Tile):
                 raise SubprocessKilledError(
                     f"Persistent window worker exited with code {worker.exitcode}"
                 )
-            MEMORY_ADMISSION.log_memory_attribution("after_child_reap", self.tile_id)
         finally:
             MEMORY_ADMISSION.commit_transform_reservation()
             if window_reservation_held:
@@ -420,7 +412,7 @@ class RasterSrcTile(Tile):
                 additional_destinations=additional_destinations,
             )
             transform_seconds = perf_counter() - transform_started
-            LOGGER.info(
+            LOGGER.debug(
                 "PERF window_child "
                 f"tile={self.tile_id} col_off={int(window.col_off)} "
                 f"row_off={int(window.row_off)} width={int(window.width)} "
