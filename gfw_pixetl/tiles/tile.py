@@ -143,6 +143,11 @@ class Tile(ABC):
 
     def create_gdal_geotiff(self) -> None:
         dst_format = DstFormat.gdal_geotiff
+        if dst_format in self.local_dst:
+            LOGGER.info(
+                f"Local Gdal Geotiff already exists for tile {self.tile_id}; skip copying"
+            )
+            return
         if self.default_format != dst_format:
             LOGGER.info(
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"

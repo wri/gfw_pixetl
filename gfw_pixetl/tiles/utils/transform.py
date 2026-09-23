@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 from numpy.ma import MaskedArray
@@ -13,7 +13,12 @@ LOGGER = get_module_logger(__name__)
 
 
 def transform(
-    tile_id, window: Window, layer: Layer, source: Source, destination: Destination
+    tile_id,
+    window: Window,
+    layer: Layer,
+    source: Source,
+    destination: Destination,
+    additional_destinations: Sequence[Destination] = (),
 ) -> Optional[str]:
     """Read windows from input VRT, reproject, resample, transform and write to
     destination."""
@@ -64,5 +69,15 @@ def transform(
         window,
         destination.write_to_separate_files,
     )
+    for extra_destination in additional_destinations:
+        write_window(
+            tile_id,
+            extra_destination.tmp_dir,
+            extra_destination.uri,
+            extra_destination.profile,
+            array,
+            window,
+            extra_destination.write_to_separate_files,
+        )
     del array
     return out_file
