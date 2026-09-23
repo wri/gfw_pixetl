@@ -48,3 +48,11 @@ def test_memory_admission_defaults():
     assert config.memory_admission_reservation_gib == 4.0
     assert config.memory_admission_window_reservation_gib == 4.0
     assert config.memory_admission_poll_seconds == 1.0
+
+
+def test_download_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("DOWNLOAD_WORKERS", raising=False)
+    assert Globals().download_workers == 8
+
+    monkeypatch.setenv("DOWNLOAD_WORKERS", "12")
+    assert Globals().download_workers == 12
