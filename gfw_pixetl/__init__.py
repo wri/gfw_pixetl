@@ -1,5 +1,6 @@
 import logging
 import os
+from logging import Logger
 
 if "ENV" in os.environ:
     ENV: str = os.environ["ENV"]
@@ -7,18 +8,6 @@ else:
     ENV = "dev"
 
 
-def get_module_logger(name):
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    sh = logging.StreamHandler()
-    sh.setFormatter(formatter)
-
-    logger = logging.getLogger(name)
-    logger.addHandler(sh)
-    if ENV != "production":
-        logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.INFO)
-    return logger
+def get_module_logger(name) -> Logger:
+    log = logging.getLogger(name)
+    return log
