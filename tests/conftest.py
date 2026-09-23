@@ -14,6 +14,7 @@ from sqlalchemy.sql import text
 
 from gfw_pixetl.layers import layer_factory
 from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.parallelpipe import Pipeline
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile
@@ -32,6 +33,28 @@ TILE_3_NAME = "world.tif"
 TILE_3_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_3_NAME)
 TILE_4_NAME = "01N_001E.tif"
 TILE_4_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_4_NAME)
+
+
+@pytest.fixture
+def in_process_pipeline(monkeypatch):
+    """Execute mock-heavy pipeline unit tests in the parent process.
+
+    Spawned workers intentionally do not inherit parent-process mocks.
+    These tests exercise stage/status logic rather than multiprocessing
+    itself.
+    """
+
+    def results(self):
+        result = None
+        for index, stage in enumerate(self):
+            if index == 0:
+                result = stage._target(*stage._args, **stage._kwargs)
+            else:
+                result = stage._target(result, *stage._args, **stage._kwargs)
+        if result is not None:
+            yield from result
+
+    monkeypatch.setattr(Pipeline, "results", results)
 
 
 ########### World.tif
