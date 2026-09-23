@@ -15,17 +15,11 @@ class VectorPipe(Pipe):
         self, overwrite
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Vector Pipe."""
-
         LOGGER.debug("Start Vector Pipe")
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        initial_workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
-
-        result = self._process_pipe_with_oom_retry(
-            tiles=tiles,
-            workers=initial_workers,
-            build_pipe=self._build_pipe,
-        )
+        workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
+        result = self._process_pipe(self._build_pipe(tiles, workers))
 
         LOGGER.debug("Finished Vector Pipe")
         return result
@@ -55,7 +49,6 @@ class VectorPipe(Pipe):
         Then see in which target grid cell it would fall. Remove
         duplicated grid cells.
         """
-
         tiles: Set[VectorSrcTile] = set()
         for tile_id in self.grid.get_tile_ids():
             tiles.add(self._get_grid_tile(tile_id))
