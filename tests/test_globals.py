@@ -50,14 +50,17 @@ def test_download_workers_default_and_env_override(monkeypatch):
 def test_pipeline_io_worker_defaults_and_env_overrides(monkeypatch):
     monkeypatch.delenv("UPLOAD_WORKERS", raising=False)
     monkeypatch.delenv("CLEANUP_WORKERS", raising=False)
+    monkeypatch.delenv("WINDOW_WORKER_MAX_WINDOWS", raising=False)
     assert Globals().upload_workers == 8
     assert Globals().cleanup_workers == 4
 
     monkeypatch.setenv("UPLOAD_WORKERS", "12")
     monkeypatch.setenv("CLEANUP_WORKERS", "3")
+    monkeypatch.setenv("WINDOW_WORKER_MAX_WINDOWS", "8")
     config = Globals()
     assert config.upload_workers == 12
     assert config.cleanup_workers == 3
+    assert config.window_worker_max_windows == 8
 
 
 def test_memory_admission_defaults():

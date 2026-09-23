@@ -50,15 +50,16 @@ def _persistent_window_worker(
     result_queue,
     tile_bytes: bytes,
     windows: List[Window],
+    window_offset: int,
 ) -> None:
-    """Process all windows for one tile in a single spawned interpreter.
+    """Process a bounded batch of windows in one spawned interpreter.
 
     The tile is serialized with dill by the parent so we do not depend
     on RasterSrcTile and all of its cached state being stdlib-
     pickleable.  GDAL objects are still created only after spawn.  The
-    process exits after the tile, which bounds the lifetime of native
-    allocations while amortizing interpreter startup across all of the
-    tile's windows.
+    process exits after a bounded number of windows, periodically
+    reclaiming native allocations while amortizing interpreter startup
+    across the batch.
     """
     import dill
 
@@ -75,12 +76,12 @@ def _persistent_window_worker(
             result_queue.put(
                 (
                     "error",
-                    window_index,
+                    window_offset + window_index,
                     (ex_type, ex_value, "".join(traceback.format_tb(tb))),
                 )
             )
             return
-        result_queue.put(("result", window_index, result))
+        result_queue.put(("result", window_offset + window_index, result))
 
 
 class RasterSrcTile(Tile):
@@ -251,79 +252,104 @@ class RasterSrcTile(Tile):
         return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
-        """Process all tile windows in one persistent spawned child."""
+        """Process tile windows in bounded, persistent spawned workers."""
         import dill
-
-        LOGGER.info(f"Processing tile {self.tile_id} with a persistent window worker")
 
         windows = self.windows()
         if not windows:
             MEMORY_ADMISSION.commit_transform_reservation()
             return False
 
-        ctx = mp.get_context("spawn")
-        result_queue = ctx.Queue()
-        worker = ctx.Process(
-            target=_persistent_window_worker,
-            args=(result_queue, dill.dumps(self), windows),
-            name=f"window-worker-{self.tile_id}",
+        max_windows = GLOBALS.window_worker_max_windows
+        worker_count = (len(windows) + max_windows - 1) // max_windows
+        LOGGER.info(
+            f"Processing tile {self.tile_id} with persistent window workers "
+            f"(max_windows={max_windows}, workers={worker_count})"
         )
 
+        ctx = mp.get_context("spawn")
+        tile_bytes = dill.dumps(self)
         out_files = []
         first_window = True
-        dispatch_started = perf_counter()
-        received = 0
-        try:
-            worker.start()
-            while received < len(windows):
-                try:
-                    kind, window_index, payload = result_queue.get(timeout=1)
-                except queue.Empty:
-                    if worker.is_alive():
-                        continue
-                    raise SubprocessKilledError(
-                        f"Persistent window worker exited with code {worker.exitcode}"
-                    )
 
-                window = windows[window_index]
-                dispatch_seconds = perf_counter() - dispatch_started
+        try:
+            for batch_number, batch_start in enumerate(
+                range(0, len(windows), max_windows), start=1
+            ):
+                batch_windows = windows[batch_start : batch_start + max_windows]
+                result_queue = ctx.Queue()
+                worker = ctx.Process(
+                    target=_persistent_window_worker,
+                    args=(result_queue, tile_bytes, batch_windows, batch_start),
+                    name=f"window-worker-{self.tile_id}-{batch_number}",
+                )
                 LOGGER.info(
-                    "PERF window_dispatch "
-                    f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
-                    f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
-                    f"width={int(window.width)} height={int(window.height)} "
-                    f"elapsed_s={dispatch_seconds:.3f}"
+                    "PERF window_worker_start "
+                    f"tile={self.tile_id} batch={batch_number}/{worker_count} "
+                    f"window_start={batch_start + 1} "
+                    f"window_end={batch_start + len(batch_windows)} "
+                    f"window_count={len(batch_windows)}"
                 )
                 dispatch_started = perf_counter()
+                received = 0
+                try:
+                    worker.start()
+                    while received < len(batch_windows):
+                        try:
+                            kind, window_index, payload = result_queue.get(timeout=1)
+                        except queue.Empty:
+                            if worker.is_alive():
+                                continue
+                            raise SubprocessKilledError(
+                                f"Persistent window worker exited with code {worker.exitcode}"
+                            )
 
-                if kind == "error":
-                    _, ex_value, _ = payload
-                    raise ex_value
+                        window = windows[window_index]
+                        dispatch_seconds = perf_counter() - dispatch_started
+                        LOGGER.info(
+                            "PERF window_dispatch "
+                            f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
+                            f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
+                            f"width={int(window.width)} height={int(window.height)} "
+                            f"elapsed_s={dispatch_seconds:.3f}"
+                        )
+                        dispatch_started = perf_counter()
 
-                out_files.append(payload)
-                received += 1
-                if first_window:
-                    # Preserve the existing reservation semantics: release the
-                    # startup reservation as soon as the first window completes.
-                    MEMORY_ADMISSION.commit_transform_reservation()
-                    first_window = False
+                        if kind == "error":
+                            _, ex_value, _ = payload
+                            raise ex_value
 
-            worker.join(timeout=60)
-            if worker.is_alive():
-                worker.terminate()
-                worker.join(timeout=10)
-                raise SubprocessKilledError("Persistent window worker did not exit")
-            if worker.exitcode != 0:
-                raise SubprocessKilledError(
-                    f"Persistent window worker exited with code {worker.exitcode}"
+                        out_files.append(payload)
+                        received += 1
+                        if first_window:
+                            MEMORY_ADMISSION.commit_transform_reservation()
+                            first_window = False
+
+                    worker.join(timeout=60)
+                    if worker.is_alive():
+                        worker.terminate()
+                        worker.join(timeout=10)
+                        raise SubprocessKilledError(
+                            "Persistent window worker did not exit"
+                        )
+                    if worker.exitcode != 0:
+                        raise SubprocessKilledError(
+                            f"Persistent window worker exited with code {worker.exitcode}"
+                        )
+                finally:
+                    if worker.is_alive():
+                        worker.terminate()
+                        worker.join(timeout=10)
+                    result_queue.close()
+                    result_queue.join_thread()
+
+                LOGGER.info(
+                    "PERF window_worker_recycle "
+                    f"tile={self.tile_id} batch={batch_number}/{worker_count} "
+                    f"windows_processed={len(batch_windows)}"
                 )
         finally:
             MEMORY_ADMISSION.commit_transform_reservation()
-            if worker.is_alive():
-                worker.terminate()
-                worker.join(timeout=10)
-            result_queue.close()
-            result_queue.join_thread()
 
         return any(value is not None for value in out_files)
 

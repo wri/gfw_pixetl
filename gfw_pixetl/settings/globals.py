@@ -68,6 +68,13 @@ class Globals(EnvSettings):
         4,
         description="Maximum number of tile work directories to clean up concurrently.",
     )
+    window_worker_max_windows: PositiveInt = Field(
+        16,
+        description=(
+            "Maximum number of raster windows processed by one persistent spawned "
+            "window worker before recycling it to reclaim native GDAL/Rasterio memory."
+        ),
+    )
     memory_admission_enabled: bool = Field(
         True, description="Throttle new raster transforms under cgroup memory pressure."
     )
