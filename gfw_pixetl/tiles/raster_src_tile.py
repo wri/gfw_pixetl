@@ -18,6 +18,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError, lazy_property
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -45,7 +46,7 @@ def _gdal_cache_size(block_byte_size: int, max_blocks: int) -> int:
 
 
 def _persistent_window_worker(
-    result_queue, tile_bytes: bytes, windows: List[Window]
+    result_queue, command_queue, tile_bytes: bytes, windows: List[Window]
 ) -> None:
     """Process every window for one tile in a single spawned interpreter."""
     import dill
@@ -69,6 +70,12 @@ def _persistent_window_worker(
             )
             return
         result_queue.put(("result", window_index, result))
+
+        command = command_queue.get()
+        if command == "stop":
+            return
+        if command != "continue":
+            raise RuntimeError(f"Unknown persistent-worker command: {command!r}")
 
 
 class RasterSrcTile(Tile):
@@ -243,6 +250,7 @@ class RasterSrcTile(Tile):
 
         windows = self.windows()
         if not windows:
+            MEMORY_ADMISSION.commit_transform_reservation()
             return False
 
         LOGGER.info(
@@ -252,16 +260,22 @@ class RasterSrcTile(Tile):
 
         ctx = mp.get_context("spawn")
         result_queue = ctx.Queue()
+        command_queue = ctx.Queue()
         worker = ctx.Process(
             target=_persistent_window_worker,
-            args=(result_queue, dill.dumps(self), windows),
+            args=(result_queue, command_queue, dill.dumps(self), windows),
             name=f"window-worker-{self.tile_id}",
         )
         out_files = []
+        first_window = True
+        window_reservation_held = False
 
         try:
+            MEMORY_ADMISSION.acquire_window(self.tile_id, 0)
+            window_reservation_held = True
             worker.start()
-            for _ in windows:
+
+            for received in range(len(windows)):
                 while True:
                     try:
                         kind, window_index, payload = result_queue.get(timeout=1)
@@ -273,7 +287,12 @@ class RasterSrcTile(Tile):
                             f"Persistent window worker exited with code {worker.exitcode}"
                         )
 
+                if window_reservation_held:
+                    MEMORY_ADMISSION.release_window()
+                    window_reservation_held = False
+
                 if kind == "error":
+                    command_queue.put("stop")
                     _, ex_value, child_traceback = payload
                     LOGGER.error(
                         "Persistent window worker failed for tile %s window %s:\n%s",
@@ -284,6 +303,17 @@ class RasterSrcTile(Tile):
                     raise ex_value
 
                 out_files.append(payload)
+                if first_window:
+                    MEMORY_ADMISSION.commit_transform_reservation()
+                    first_window = False
+
+                if received + 1 == len(windows):
+                    command_queue.put("stop")
+                    continue
+
+                MEMORY_ADMISSION.acquire_window(self.tile_id, window_index + 1)
+                window_reservation_held = True
+                command_queue.put("continue")
 
             worker.join(timeout=60)
             if worker.is_alive():
@@ -295,11 +325,16 @@ class RasterSrcTile(Tile):
                     f"Persistent window worker exited with code {worker.exitcode}"
                 )
         finally:
+            MEMORY_ADMISSION.commit_transform_reservation()
+            if window_reservation_held:
+                MEMORY_ADMISSION.release_window()
             if worker.is_alive():
                 worker.terminate()
                 worker.join(timeout=10)
             result_queue.close()
             result_queue.join_thread()
+            command_queue.close()
+            command_queue.join_thread()
 
         return any(value is not None for value in out_files)
 
