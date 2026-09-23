@@ -3,7 +3,6 @@ from copy import deepcopy
 from math import isclose
 
 import numpy as np
-import pytest
 import rasterio
 from rasterio.enums import ColorInterp
 
@@ -16,16 +15,6 @@ from gfw_pixetl.tiles import RasterSrcTile
 from tests.conftest import BUCKET, GEOJSON_2_NAME, LAYER_DICT
 
 LOGGER = get_module_logger(__name__)
-
-
-@pytest.fixture
-def in_process_window_transform(monkeypatch):
-    """Run the processified window transform inline for raster assertions."""
-    monkeypatch.setattr(
-        RasterSrcTile,
-        "_processified_transform",
-        RasterSrcTile._processified_transform.__wrapped__,
-    )
 
 
 def test_src_tile_intersects(LAYER):
@@ -45,7 +34,7 @@ def test_src_tile_intersects_wm(LAYER_WM):
     assert not tile.within()
 
 
-def test_transform_final(LAYER, in_process_window_transform):
+def test_transform_final(LAYER):
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
     assert tile.dst[tile.default_format].crs.is_valid
@@ -91,7 +80,7 @@ def test_transform_final(LAYER, in_process_window_transform):
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test_transform_final_wm(in_process_window_transform):
+def test_transform_final_wm():
     layer_dict_wm = deepcopy(LAYER_DICT)
     layer_dict_wm["grid"] = "zoom_0"
     layer_dict_wm["source_uri"] = [f"s3://{BUCKET}/{GEOJSON_2_NAME}"]
@@ -139,7 +128,7 @@ def test_transform_final_wm(in_process_window_transform):
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test_transform_final_multi_in(LAYER_MULTI, LAYER, in_process_window_transform):
+def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
     assert tile.dst[tile.default_format].crs.is_valid
@@ -190,7 +179,7 @@ def test_transform_final_multi_in(LAYER_MULTI, LAYER, in_process_window_transfor
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
-def test_transform_final_multi_out(LAYER_MULTI, LAYER, in_process_window_transform):
+def test_transform_final_multi_out(LAYER_MULTI, LAYER):
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
     LAYER_MULTI.calc = "np.ma.array([A, B, A+B])"
     LAYER_MULTI.band_count = 3
