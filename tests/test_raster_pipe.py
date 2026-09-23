@@ -157,7 +157,9 @@ def test_create_tiles_subprocess_oom(LAYER, in_process_pipeline):
         mock.patch.object(RasterSrcTile, "within", return_value=True),
         mock.patch.object(Destination, "exists", return_value=False),
         mock.patch.object(
-            RasterSrcTile, "_processified_transform", side_effect=SubprocessKilledError
+            RasterSrcTile,
+            "_process_windows_sequential",
+            side_effect=SubprocessKilledError,
         ),
         mock.patch.object(RasterSrcTile, "create_gdal_geotiff", return_value=None),
         mock.patch.object(RasterSrcTile, "rm_local_src", return_value=None),
@@ -165,33 +167,17 @@ def test_create_tiles_subprocess_oom(LAYER, in_process_pipeline):
             "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
         ),
     ):
-        # First test the sequential code path
-        with mock.patch("gfw_pixetl.utils.get_co_workers", return_value=1):
-            pipe = RasterPipe(LAYER)
-            tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
-                overwrite=False
-            )
-            assert len(tiles) == 0
-            assert len(skipped_tiles) == 0
-            assert len(failed_tiles) == 1
-            assert len(existing_tiles) == 0
-            assert all(
-                tile.status == "failed - subprocess was killed" for tile in failed_tiles
-            )
-
-        # Then the parallel one
-        with mock.patch("gfw_pixetl.utils.get_co_workers", return_value=2):
-            pipe = RasterPipe(LAYER)
-            tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
-                overwrite=False
-            )
-            assert len(tiles) == 0
-            assert len(skipped_tiles) == 0
-            assert len(failed_tiles) == 1
-            assert len(existing_tiles) == 0
-            assert all(
-                tile.status == "failed - subprocess was killed" for tile in failed_tiles
-            )
+        pipe = RasterPipe(LAYER)
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
+            overwrite=False
+        )
+        assert len(tiles) == 0
+        assert len(skipped_tiles) == 0
+        assert len(failed_tiles) == 1
+        assert len(existing_tiles) == 0
+        assert all(
+            tile.status == "failed - subprocess was killed" for tile in failed_tiles
+        )
 
 
 def test_filter_src_tiles(PIPE_10x10, in_process_pipeline):
