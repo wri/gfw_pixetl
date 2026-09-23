@@ -214,6 +214,10 @@ class ResourceReporter:
             disk_percent = None
 
         stats = read_cgroup_stats(self.cfg.cgroup_root)
+        # Imported lazily to avoid a telemetry <-> admission import cycle.
+        from gfw_pixetl.memory_admission import read_admission_status
+
+        admission = read_admission_status()
         mem_limit = stats.get("memory_limit_bytes")
         mem_usage = stats.get("memory_usage_bytes")
         cpu_usage_usec = stats.get("cpu_usage_usec")
@@ -247,6 +251,23 @@ class ResourceReporter:
         if rss_self is not None and child_count is not None:
             process_count = child_count + 1
 
+        admission_waiting = admission.get("waiting")
+        if not isinstance(admission_waiting, (int, float)):
+            admission_waiting = None
+        admission_reserved = admission.get("reserved_bytes")
+        if not isinstance(admission_reserved, (int, float)):
+            admission_reserved = None
+        admission_throttled = admission.get("throttled")
+        admission_throttled_value = (
+            int(bool(admission_throttled)) if admission else None
+        )
+        stats_active = admission.get("stats_active")
+        if not isinstance(stats_active, (int, float)):
+            stats_active = None
+        stats_waiting = admission.get("stats_waiting")
+        if not isinstance(stats_waiting, (int, float)):
+            stats_waiting = None
+
         return {
             "timestamp": timestamp,
             "disk_percent": disk_percent,
@@ -269,6 +290,11 @@ class ResourceReporter:
             "host_cpu_count": host_cpu_count,
             "cpu_capacity": cpu_capacity,
             "cpu_capacity_percent": cpu_capacity_percent,
+            "memory_admission_waiting": admission_waiting,
+            "memory_admission_reserved_bytes": admission_reserved,
+            "memory_admission_throttled": admission_throttled_value,
+            "memory_admission_stats_active": stats_active,
+            "memory_admission_stats_waiting": stats_waiting,
         }
 
     @staticmethod
@@ -281,7 +307,8 @@ class ResourceReporter:
         self.log.info(
             "TS:%d procs:%s CPU:%s/%s-vCPU(%s%%) "
             "cgrpMem:%s/%sB(%s%%) peak:%sB "
-            "RSS(total):%sB DISK:%s%% OOM:%s kills:%s",
+            "RSS(total):%sB DISK:%s%% OOM:%s kills:%s "
+            "admit(wait/reserved/throttled):%s/%sB/%s stats(active/wait):%s/%s",
             int(snap["timestamp"] or 0),
             self._display(snap["process_count"], ".0f"),
             self._display(snap["cgroup_cpu_cores_used"], ".2f"),
@@ -295,6 +322,11 @@ class ResourceReporter:
             self._display(snap["disk_percent"]),
             self._display(snap["cgroup_oom_events"], ".0f"),
             self._display(snap["cgroup_oom_kills"], ".0f"),
+            self._display(snap["memory_admission_waiting"], ".0f"),
+            self._display(snap["memory_admission_reserved_bytes"], ".0f"),
+            self._display(snap["memory_admission_throttled"], ".0f"),
+            self._display(snap["memory_admission_stats_active"], ".0f"),
+            self._display(snap["memory_admission_stats_waiting"], ".0f"),
         )
 
     def _log_emf(self, snap: Snapshot) -> None:
@@ -319,6 +351,20 @@ class ResourceReporter:
             "HostCPUCount": ("host_cpu_count", "Count"),
             "CPUCapacity": ("cpu_capacity", "Count"),
             "CPUCapacityPercent": ("cpu_capacity_percent", "Percent"),
+            "MemoryAdmissionWaiting": ("memory_admission_waiting", "Count"),
+            "MemoryAdmissionReservedBytes": (
+                "memory_admission_reserved_bytes",
+                "Bytes",
+            ),
+            "MemoryAdmissionThrottled": ("memory_admission_throttled", "Count"),
+            "MemoryAdmissionStatsActive": (
+                "memory_admission_stats_active",
+                "Count",
+            ),
+            "MemoryAdmissionStatsWaiting": (
+                "memory_admission_stats_waiting",
+                "Count",
+            ),
         }
 
         metrics: List[Dict[str, str]] = []

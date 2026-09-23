@@ -12,6 +12,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION
 from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
@@ -205,8 +206,17 @@ class Tile(ABC):
         # Add superior compression, which only works with GDAL drivers
         self.create_gdal_geotiff()
 
-        # Compute stats and histogram
-        for dst_format in self.local_dst.keys():
-            self.metadata[dst_format] = self.local_dst[dst_format].metadata(
-                self.layer.compute_stats, self.layer.compute_histogram
-            )
+        # Stats and histograms require full raster scans, so gate those
+        # memory-intensive paths separately from structural metadata.
+        needs_stats_gate = self.layer.compute_stats or self.layer.compute_histogram
+        if needs_stats_gate:
+            with MEMORY_ADMISSION.stats_slot(self.tile_id):
+                for dst_format in self.local_dst.keys():
+                    self.metadata[dst_format] = self.local_dst[dst_format].metadata(
+                        self.layer.compute_stats, self.layer.compute_histogram
+                    )
+        else:
+            for dst_format in self.local_dst.keys():
+                self.metadata[dst_format] = self.local_dst[dst_format].metadata(
+                    False, False
+                )
