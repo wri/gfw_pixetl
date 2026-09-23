@@ -154,7 +154,9 @@ def test_create_tiles_subprocess_oom(LAYER, in_process_pipeline):
         mock.patch.object(RasterSrcTile, "within", return_value=True),
         mock.patch.object(Destination, "exists", return_value=False),
         mock.patch.object(
-            RasterSrcTile, "_processified_transform", side_effect=SubprocessKilledError
+            RasterSrcTile,
+            "_process_windows_sequential",
+            side_effect=SubprocessKilledError,
         ),
         mock.patch.object(RasterSrcTile, "create_gdal_geotiff", return_value=None),
         mock.patch.object(RasterSrcTile, "rm_local_src", return_value=None),

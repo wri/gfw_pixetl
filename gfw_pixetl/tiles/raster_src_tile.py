@@ -1,4 +1,8 @@
+import multiprocessing as mp
 import os
+import queue
+import sys
+import traceback
 from math import floor, sqrt
 from pathlib import Path
 from time import perf_counter
@@ -15,7 +19,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
-from gfw_pixetl.memory_admission import MEMORY_ADMISSION
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION, AdmissionSharedState
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -40,6 +44,45 @@ Windows = Tuple[Window, Window]
 def _gdal_cache_size(block_byte_size: int, max_blocks: int) -> int:
     """Return a GDAL cache size as a plain Python integer."""
     return int(block_byte_size * max_blocks)
+
+
+def _persistent_window_worker(
+    result_queue,
+    tile_bytes: bytes,
+    windows: List[Window],
+    admission_state: AdmissionSharedState,
+) -> None:
+    """Process all windows for one tile in a single spawned interpreter.
+
+    The tile is serialized with dill by the parent so we do not depend
+    on RasterSrcTile and all of its cached state being stdlib-
+    pickleable.  GDAL objects are still created only after spawn.  The
+    process exits after the tile, which bounds the lifetime of native
+    allocations while amortizing interpreter startup across all of the
+    tile's windows.
+    """
+    import dill
+
+    from gfw_pixetl.logs import configure_worker_logging
+
+    configure_worker_logging("INFO")
+    MEMORY_ADMISSION.bind_shared_state(admission_state)
+    tile = dill.loads(tile_bytes)
+
+    for window_index, window in enumerate(windows):
+        try:
+            result = tile._transform_window_in_current_process(window)
+        except Exception:
+            ex_type, ex_value, tb = sys.exc_info()
+            result_queue.put(
+                (
+                    "error",
+                    window_index,
+                    (ex_type, ex_value, "".join(traceback.format_tb(tb))),
+                )
+            )
+            return
+        result_queue.put(("result", window_index, result))
 
 
 class RasterSrcTile(Tile):
@@ -202,51 +245,90 @@ class RasterSrcTile(Tile):
 
         Tile-level parallelism is owned by the pipeline transform stage.
         Keeping window processing sequential avoids creating a second
-        process pool inside each transform worker. Individual windows
-        remain process-isolated by ``_processified_transform`` so native
-        GDAL/Rasterio memory is reclaimed when each window finishes.
+        process pool inside each transform worker. All windows run in
+        one persistent spawned child for the tile, amortizing spawn
+        overhead while still bounding native GDAL/Rasterio state to the
+        tile lifetime.
         """
         return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
-        """Read one window after another and update target file."""
-        LOGGER.info(f"Processing tile {self.tile_id} with a single worker")
+        """Process all tile windows in one persistent spawned child."""
+        import dill
 
-        out_files = list()
+        LOGGER.info(f"Processing tile {self.tile_id} with a persistent window worker")
+
+        windows = self.windows()
+        if not windows:
+            MEMORY_ADMISSION.commit_transform_reservation()
+            return False
+
+        ctx = mp.get_context("spawn")
+        result_queue = ctx.Queue()
+        admission_state = MEMORY_ADMISSION.snapshot_shared_state()
+        worker = ctx.Process(
+            target=_persistent_window_worker,
+            args=(result_queue, dill.dumps(self), windows, admission_state),
+            name=f"window-worker-{self.tile_id}",
+        )
+
+        out_files = []
         first_window = True
+        dispatch_started = perf_counter()
+        received = 0
         try:
-            windows = self.windows()
-            window_count = len(windows)
-            for window_index, window in enumerate(windows):
-                # Measure the complete synchronous processify call in the tile
-                # worker.  Comparing this with PERF window_child separates
-                # child startup/IPC overhead from GDAL setup and transform time.
-                dispatch_started = perf_counter()
-                # Open the Rasterio/GDAL datasets inside the spawned child.
-                # Live GDAL handles (including WarpedVRT) are intentionally
-                # never sent across the multiprocessing boundary: they are not
-                # picklable and must not be shared between processes.
-                out_files.append(self._processified_transform(window))
+            worker.start()
+            while received < len(windows):
+                try:
+                    kind, window_index, payload = result_queue.get(timeout=1)
+                except queue.Empty:
+                    if worker.is_alive():
+                        continue
+                    raise SubprocessKilledError(
+                        f"Persistent window worker exited with code {worker.exitcode}"
+                    )
+
+                window = windows[window_index]
                 dispatch_seconds = perf_counter() - dispatch_started
                 LOGGER.info(
                     "PERF window_dispatch "
-                    f"tile={self.tile_id} window={window_index + 1}/{window_count} "
+                    f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
                     f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
                     f"width={int(window.width)} height={int(window.height)} "
                     f"elapsed_s={dispatch_seconds:.3f}"
                 )
+                dispatch_started = perf_counter()
+
+                if kind == "error":
+                    _, ex_value, _ = payload
+                    raise ex_value
+
+                out_files.append(payload)
+                received += 1
                 if first_window:
-                    # Startup reservation only covers the interval before the
-                    # transform working set becomes visible in memory.current.
+                    # Preserve the existing reservation semantics: release the
+                    # startup reservation as soon as the first window completes.
                     MEMORY_ADMISSION.commit_transform_reservation()
                     first_window = False
+
+            worker.join(timeout=60)
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(timeout=10)
+                raise SubprocessKilledError("Persistent window worker did not exit")
+            if worker.exitcode != 0:
+                raise SubprocessKilledError(
+                    f"Persistent window worker exited with code {worker.exitcode}"
+                )
         finally:
-            # Empty/error paths may never complete a first window.
             MEMORY_ADMISSION.commit_transform_reservation()
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(timeout=10)
+            result_queue.close()
+            result_queue.join_thread()
 
-        has_data = any(value is not None for value in out_files)
-
-        return has_data
+        return any(value is not None for value in out_files)
 
     def _parallel_transform(self, window) -> Optional[str]:
         """Transform one window in an isolated spawned process."""
@@ -256,15 +338,19 @@ class RasterSrcTile(Tile):
     def _processified_transform(
         self, window: Window, write_to_seperate_files=False
     ) -> Optional[str]:
-        """Wrapper to run _transform in a separate process.
+        """Compatibility helper to transform one window in an isolated
+        child."""
+        return self._transform_window_in_current_process(
+            window, write_to_seperate_files
+        )
 
-        This will make sure that memory gets completely cleared once a
-        window is processed. Without this, we might experience memory
-        leakage, in particular for float data types.
-        """
-        # With the spawn start method, only serializable Python state may cross
-        # into this function. Create and close all GDAL-backed objects here in
-        # the child process instead of attempting to pickle a live WarpedVRT.
+    def _transform_window_in_current_process(
+        self, window: Window, write_to_seperate_files=False
+    ) -> Optional[str]:
+        """Transform one window in the current (already spawned) process."""
+        # Create and close all GDAL-backed objects in the child process.  The
+        # persistent worker calls this repeatedly, then exits after the tile so
+        # native allocations are still bounded by one tile lifetime.
         child_started = perf_counter()
         setup_started = perf_counter()
         src, vrt = self._src_to_vrt()
