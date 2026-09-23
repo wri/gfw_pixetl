@@ -82,11 +82,11 @@ class Globals(EnvSettings):
         4, description="Maximum concurrent GDAL stats/histogram scans."
     )
     memory_admission_reservation_gib: float = Field(
-        8.0,
+        4.0,
         description="Temporary memory reservation for each newly admitted transform.",
     )
     memory_admission_window_reservation_gib: float = Field(
-        8.0,
+        4.0,
         description=(
             "Memory reserved atomically before dispatching each raster window."
         ),

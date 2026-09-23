@@ -130,8 +130,8 @@ class MemoryAdmissionController:
         self.high_watermark = 0.80
         self.resume_watermark = 0.75
         self.stats_workers = 4
-        self.reservation_bytes = 8 * GIB
-        self.window_reservation_bytes = 8 * GIB
+        self.reservation_bytes = 4 * GIB
+        self.window_reservation_bytes = 4 * GIB
         self.poll_seconds = 1.0
 
     def configure(
@@ -142,8 +142,8 @@ class MemoryAdmissionController:
         high_watermark: float = 0.80,
         resume_watermark: float = 0.75,
         stats_workers: int = 4,
-        reservation_bytes: int = 8 * GIB,
-        window_reservation_bytes: int = 8 * GIB,
+        reservation_bytes: int = 4 * GIB,
+        window_reservation_bytes: int = 4 * GIB,
         poll_seconds: float = 1.0,
     ) -> None:
         if not 0 < resume_watermark < high_watermark < 1:

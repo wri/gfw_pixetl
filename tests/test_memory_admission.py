@@ -27,6 +27,7 @@ def _controller(tmp_path, monkeypatch, *, current_gib=60, limit_gib=100):
         enabled=True,
         cgroup_root=str(tmp_path),
         reservation_bytes=8 * GIB,
+        window_reservation_bytes=8 * GIB,
         poll_seconds=0.01,
     )
     return controller
