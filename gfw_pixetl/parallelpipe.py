@@ -1,7 +1,7 @@
 # This file is a modified version of https://github.com/gtsystem/parallelpipe
 # intended to add awareness of whether or not a task has been killed
 # by the OOM killer.
-"""This class provide a transparent way to use multi step map reduce task.
+r"""This class provide a transparent way to use multi step map reduce task.
 
          / map - map2 - reduce
 producer - map - map2 /
@@ -22,21 +22,74 @@ This version adds two things:
      b. Records an OomKillEvent on the error queue so the caller knows
         which stage was affected.
 
-2. OomKillEvent / OomKillException types that let callers (e.g. PixETL's
-   _process_pipe) distinguish an OOM kill from an ordinary exception and
-   react accordingly (typically: retry with fewer workers).
+2. OomKillEvent / OomKillException types that let callers distinguish an
+   involuntarily killed worker from an ordinary task exception and fail the
+   job without hanging the pipeline.
 """
 
+import multiprocessing as mp
+import os
+import sys
 import threading
 import time
+import traceback
 from collections.abc import Iterable
-from multiprocessing import Process, Queue
+from multiprocessing.context import SpawnProcess
+from multiprocessing.process import BaseProcess
+from multiprocessing.queues import Queue
 
 import dill
+
+from gfw_pixetl import get_module_logger
+
+LOGGER = get_module_logger(__name__)
+
+# Use spawn so workers do not inherit native-library thread state.
+_MP_CONTEXT = mp.get_context("spawn")
 
 # ---------------------------------------------------------------------------
 # Public exception types
 # ---------------------------------------------------------------------------
+
+
+def _log_unsafe_fork(kind, target):
+    """Log live non-current thread stacks immediately before a fork."""
+    threads = threading.enumerate()
+    if len(threads) <= 1:
+        return
+
+    current_ident = threading.get_ident()
+    frames = sys._current_frames()
+    details = []
+
+    for thread in threads:
+        if thread.ident == current_ident:
+            continue
+
+        frame = frames.get(thread.ident)
+        stack = (
+            "".join(traceback.format_stack(frame)).strip()
+            if frame is not None
+            else "<stack unavailable>"
+        )
+        details.append(
+            {
+                "name": thread.name,
+                "ident": thread.ident,
+                "daemon": thread.daemon,
+                "stack": stack,
+            }
+        )
+
+    LOGGER.warning(
+        "Unsafe multiprocessing fork: kind=%s target=%s pid=%d "
+        "current_thread=%s non_current_threads=%r",
+        kind,
+        target,
+        os.getpid(),
+        threading.current_thread().name,
+        details,
+    )
 
 
 class OomKillEvent:
@@ -91,7 +144,7 @@ def iterqueue(queue, expected):
         expected -= 1
 
 
-class Task(Process):
+class Task(SpawnProcess):
     """One worker process that runs a callable in a subprocess."""
 
     def __init__(self, callable, args=(), kwargs={}):
@@ -120,6 +173,10 @@ class Task(Process):
         return None
 
     def run(self):
+        # Spawned workers configure logging independently of the parent.
+        from gfw_pixetl.logs import configure_worker_logging
+
+        configure_worker_logging("INFO")
         input = self._consume()
         put_item = self._que_out.put
         func = dill.loads(self._callable)
@@ -156,7 +213,7 @@ class Task(Process):
 # ---------------------------------------------------------------------------
 
 
-def _is_oom_killed(process: Process) -> bool:
+def _is_oom_killed(process: BaseProcess) -> bool:
     """Return True if *process* was killed by SIGKILL / OOM killer."""
     ec = process.exitcode
     # exitcode is None while the process is still alive.
@@ -277,6 +334,7 @@ class Stage(object):
 
     def _start(self):
         for p in self.processes:
+            _log_unsafe_fork("parallelpipe", p.name)
             p.start()
 
     def _join(self):
@@ -332,7 +390,7 @@ class Pipeline(list):
         tt = None
         for i, tf in enumerate(self[:-1]):
             tt = self[i + 1]
-            q = Queue(tf.qsize)
+            q = _MP_CONTEXT.Queue(tf.qsize)
             tf.set_out(q, tt.workers)
             tt.set_in(q, tf.workers)
 
@@ -340,8 +398,8 @@ class Pipeline(list):
             tt = self[0]
 
         # Final output queue (feeds the main thread)
-        out_q = Queue(tt.qsize)
-        err_q = Queue()
+        out_q = _MP_CONTEXT.Queue(tt.qsize)
+        err_q = _MP_CONTEXT.Queue()
         tt.set_out(out_q, 1)
 
         # Total number of EXIT tokens we expect on err_q:
@@ -350,18 +408,8 @@ class Pipeline(list):
         total_workers = sum(t.workers for t in self)
 
         # ------------------------------------------------------------------ #
-        # Start watchdogs (one per stage, before workers so they're ready)
+        # Build watchdogs now; start their threads after worker processes.
         # ------------------------------------------------------------------ #
-        watchdogs = []
-        for stg in self:
-            wd = _StageWatchdog(
-                stg, stg._processes[0]._que_out if stg.processes else out_q, err_q
-            )
-            # Reconstruct: the watchdog needs the actual queue and follower count
-            # We'll set these properly below after the stages have been wired.
-            watchdogs.append((wd, stg))
-
-        # Rebuild watchdogs now that wiring is done (processes have their queues set)
         watchdogs = []
         for stg in self:
             # The output queue for this stage is stored on its processes
@@ -374,13 +422,14 @@ class Pipeline(list):
         for stg in self:
             stg.set_err(err_q)
 
-        # Start watchdogs first so they're ready before any worker can die
-        for wd in watchdogs:
-            wd.start()
-
-        # Start worker processes
+        # Start workers before watchdog threads. Early exits remain observable
+        # through process exit codes when the watchdogs begin.
         for stg in self:
             stg._start()
+
+        # Start watchdog threads after all worker processes are running.
+        for wd in watchdogs:
+            wd.start()
 
         # ------------------------------------------------------------------ #
         # Yield results from the final output queue
@@ -393,9 +442,12 @@ class Pipeline(list):
         # ------------------------------------------------------------------ #
         raw_errors = list(iterqueue(err_q, total_workers))
 
-        # Stop watchdogs
+        # Stop and join watchdogs before returning from this pipeline.
+        # Join watchdogs so no monitoring threads leak into a later pipeline.
         for wd in watchdogs:
             wd.stop()
+        for wd in watchdogs:
+            wd.join()
 
         # Join all worker processes
         for stg in self:
