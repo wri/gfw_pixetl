@@ -20,6 +20,7 @@ from gfw_pixetl.decorators import SubprocessKilledError, lazy_property
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.memory_admission import MEMORY_ADMISSION
+from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -48,6 +49,7 @@ def _gdal_cache_size(block_byte_size: int, max_blocks: int) -> int:
 
 def _persistent_window_worker(
     result_queue,
+    command_queue,
     tile_bytes: bytes,
     windows: List[Window],
     window_offset: int,
@@ -82,6 +84,15 @@ def _persistent_window_worker(
             )
             return
         result_queue.put(("result", window_offset + window_index, result))
+
+        # Give the parent a decision point after every completed window. This
+        # lets it retire us immediately under cgroup memory pressure rather
+        # than waiting for the normal max-windows recycle boundary.
+        command = command_queue.get()
+        if command == "stop":
+            return
+        if command != "continue":
+            raise RuntimeError(f"Unknown persistent-worker command: {command!r}")
 
 
 class RasterSrcTile(Tile):
@@ -245,14 +256,16 @@ class RasterSrcTile(Tile):
         Tile-level parallelism is owned by the pipeline transform stage.
         Keeping window processing sequential avoids creating a second
         process pool inside each transform worker. All windows run in
-        one persistent spawned child for the tile, amortizing spawn
-        overhead while still bounding native GDAL/Rasterio state to the
-        tile lifetime.
+        bounded persistent spawned children, amortizing spawn overhead
+        while periodically reclaiming native GDAL/Rasterio state. A
+        shared atomic memory reservation gates every window before it
+        begins.
         """
         return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
-        """Process tile windows in bounded, persistent spawned workers."""
+        """Process tile windows in bounded, pressure-responsive spawned
+        workers."""
         import dill
 
         windows = self.windows()
@@ -261,39 +274,62 @@ class RasterSrcTile(Tile):
             return False
 
         max_windows = GLOBALS.window_worker_max_windows
-        worker_count = (len(windows) + max_windows - 1) // max_windows
+        planned_workers = (len(windows) + max_windows - 1) // max_windows
         LOGGER.info(
             f"Processing tile {self.tile_id} with persistent window workers "
-            f"(max_windows={max_windows}, workers={worker_count})"
+            f"(max_windows={max_windows}, planned_workers={planned_workers})"
         )
 
         ctx = mp.get_context("spawn")
         tile_bytes = dill.dumps(self)
         out_files = []
         first_window = True
+        next_window = 0
+        batch_number = 0
 
         try:
-            for batch_number, batch_start in enumerate(
-                range(0, len(windows), max_windows), start=1
-            ):
+            while next_window < len(windows):
+                batch_number += 1
+                batch_start = next_window
                 batch_windows = windows[batch_start : batch_start + max_windows]
                 result_queue = ctx.Queue()
+                command_queue = ctx.Queue()
                 worker = ctx.Process(
                     target=_persistent_window_worker,
-                    args=(result_queue, tile_bytes, batch_windows, batch_start),
+                    args=(
+                        result_queue,
+                        command_queue,
+                        tile_bytes,
+                        batch_windows,
+                        batch_start,
+                    ),
                     name=f"window-worker-{self.tile_id}-{batch_number}",
                 )
                 LOGGER.info(
                     "PERF window_worker_start "
-                    f"tile={self.tile_id} batch={batch_number}/{worker_count} "
+                    f"tile={self.tile_id} batch={batch_number} "
                     f"window_start={batch_start + 1} "
                     f"window_end={batch_start + len(batch_windows)} "
                     f"window_count={len(batch_windows)}"
                 )
                 dispatch_started = perf_counter()
                 received = 0
+                recycle_reason = "max_windows"
+                window_reservation_held = False
                 try:
+                    MEMORY_ADMISSION.log_memory_attribution(
+                        "before_admission", self.tile_id
+                    )
+                    # Reserve globally before the child is allowed to begin its
+                    # first window. This closes the stampede race where many
+                    # tile workers simultaneously observed the same cgroup
+                    # headroom and all started memory-heavy windows.
+                    MEMORY_ADMISSION.acquire_window(self.tile_id, next_window)
+                    window_reservation_held = True
                     worker.start()
+                    MEMORY_ADMISSION.log_memory_attribution(
+                        "after_child_spawn", self.tile_id, worker.pid
+                    )
                     while received < len(batch_windows):
                         try:
                             kind, window_index, payload = result_queue.get(timeout=1)
@@ -305,6 +341,12 @@ class RasterSrcTile(Tile):
                             )
 
                         window = windows[window_index]
+                        MEMORY_ADMISSION.log_memory_attribution(
+                            "after_window", self.tile_id, worker.pid
+                        )
+                        if window_reservation_held:
+                            MEMORY_ADMISSION.release_window()
+                            window_reservation_held = False
                         dispatch_seconds = perf_counter() - dispatch_started
                         LOGGER.info(
                             "PERF window_dispatch "
@@ -316,14 +358,44 @@ class RasterSrcTile(Tile):
                         dispatch_started = perf_counter()
 
                         if kind == "error":
+                            command_queue.put("stop")
                             _, ex_value, _ = payload
                             raise ex_value
 
                         out_files.append(payload)
                         received += 1
+                        next_window = window_index + 1
                         if first_window:
                             MEMORY_ADMISSION.commit_transform_reservation()
                             first_window = False
+
+                        pressure_high = MEMORY_ADMISSION.memory_pressure_high()
+                        batch_complete = received >= len(batch_windows)
+                        if pressure_high:
+                            recycle_reason = "memory_pressure"
+                            command_queue.put("stop")
+                            break
+                        if batch_complete:
+                            command_queue.put("stop")
+                            break
+
+                        # Do not block here while the persistent child is alive:
+                        # it may be retaining exactly the native memory that must
+                        # be reclaimed before another window can be admitted. Try
+                        # the atomic reservation once; if it cannot fit, retire
+                        # this child and let the next batch wait before spawning a
+                        # replacement.
+                        if not MEMORY_ADMISSION.try_acquire_window(
+                            self.tile_id, next_window
+                        ):
+                            MEMORY_ADMISSION.log_process_census_if_due(
+                                "window_admission", self.tile_id
+                            )
+                            recycle_reason = "window_admission"
+                            command_queue.put("stop")
+                            break
+                        window_reservation_held = True
+                        command_queue.put("continue")
 
                     worker.join(timeout=60)
                     if worker.is_alive():
@@ -336,18 +408,45 @@ class RasterSrcTile(Tile):
                         raise SubprocessKilledError(
                             f"Persistent window worker exited with code {worker.exitcode}"
                         )
+                    MEMORY_ADMISSION.log_memory_attribution(
+                        "after_child_reap", self.tile_id
+                    )
                 finally:
+                    if window_reservation_held:
+                        MEMORY_ADMISSION.release_window()
+                        window_reservation_held = False
                     if worker.is_alive():
                         worker.terminate()
                         worker.join(timeout=10)
                     result_queue.close()
                     result_queue.join_thread()
+                    command_queue.close()
+                    command_queue.join_thread()
+
+                if recycle_reason in ("memory_pressure", "window_admission"):
+                    # One delayed sample answers whether cgroup memory is merely
+                    # slow to uncharge after the native-heavy child has exited.
+                    # We only pay this diagnostic delay when admission is already
+                    # throttling progress.
+                    import time
+
+                    time.sleep(1)
+                    MEMORY_ADMISSION.log_memory_attribution(
+                        "one_second_after_reap", self.tile_id
+                    )
 
                 LOGGER.info(
                     "PERF window_worker_recycle "
-                    f"tile={self.tile_id} batch={batch_number}/{worker_count} "
-                    f"windows_processed={len(batch_windows)}"
+                    f"tile={self.tile_id} batch={batch_number} "
+                    f"windows_processed={received} reason={recycle_reason}"
                 )
+
+                # Reap the native-heavy child first, then refuse to create its
+                # replacement until actual cgroup usage has recovered below
+                # the resume watermark. Other workers do the same, turning
+                # process recycling into an active pressure-release mechanism.
+                if recycle_reason == "memory_pressure" and next_window < len(windows):
+                    MEMORY_ADMISSION.wait_for_memory_resume(self.tile_id)
         finally:
             MEMORY_ADMISSION.commit_transform_reservation()
 
@@ -371,20 +470,24 @@ class RasterSrcTile(Tile):
 
             source = Source(vrt=vrt, crs=self.src.crs)
 
-            destination = Destination(
-                transform=self.dst[self.default_format].transform,
-                crs=self.dst[self.default_format].crs,
-                count=self.dst[self.default_format].profile["count"],
-                no_data=self.dst[self.default_format].nodata,
-                datatype=self.dst[self.default_format].dtype,
-                profile=self.dst[self.default_format].profile,
-                tmp_dir=self.tmp_dir,
-                uri=self.local_dst[self.default_format].uri,
-                write_to_separate_files=write_to_seperate_files,
+            destination = self._window_destination(
+                self.default_format, write_to_seperate_files
             )
+            additional_destinations = [
+                self._window_destination(dst_format, write_to_seperate_files)
+                for dst_format in self._direct_output_formats()
+                if dst_format != self.default_format
+            ]
 
             transform_started = perf_counter()
-            result = transform(self.tile_id, window, layer, source, destination)
+            result = transform(
+                self.tile_id,
+                window,
+                layer,
+                source,
+                destination,
+                additional_destinations=additional_destinations,
+            )
             transform_seconds = perf_counter() - transform_started
             LOGGER.info(
                 "PERF window_child "
@@ -399,18 +502,59 @@ class RasterSrcTile(Tile):
             vrt.close()
             src.close()
 
+    def _direct_output_formats(self) -> Tuple[str, ...]:
+        """Formats raster-source windows can produce without a full-raster
+        copy."""
+        return DstFormat.geotiff, DstFormat.gdal_geotiff
+
+    def _window_destination(
+        self, dst_format: str, write_to_separate_files: bool
+    ) -> Destination:
+        dst = self.dst[dst_format]
+        return Destination(
+            transform=dst.transform,
+            crs=dst.crs,
+            count=dst.profile["count"],
+            no_data=dst.nodata,
+            datatype=dst.dtype,
+            profile=dst.profile,
+            tmp_dir=self.tmp_dir,
+            uri=self.local_dst[dst_format].uri,
+            write_to_separate_files=write_to_separate_files,
+        )
+
     def windows(self) -> List[Window]:
-        """Creates local output file and returns list of size optimized windows
-        to process."""
-        LOGGER.debug(f"Create local output file for tile {self.tile_id}")
+        """Create both final raster outputs and return optimized windows.
+
+        Raster-source transforms already produce block-aligned arrays.
+        Writing those arrays directly to both final GeoTIFF profiles
+        avoids the later full-raster CreateCopy used to derive the GDAL-
+        optimized representation.
+        """
+        LOGGER.debug(f"Create local output files for tile {self.tile_id}")
+        output_formats = self._direct_output_formats()
         with rasterio.Env(**GDAL_ENV):
+            # Generate windows from the default output; both profiles share the
+            # same raster geometry and block dimensions.
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
                 "w",
                 **self.dst[self.default_format].profile,
             ) as dst:
                 windows = [window for window in self._windows(dst)]
-        self.set_local_dst(self.default_format)
+
+            for dst_format in output_formats:
+                if dst_format == self.default_format:
+                    continue
+                with rasterio.open(
+                    self.get_local_dst_uri(dst_format),
+                    "w",
+                    **self.dst[dst_format].profile,
+                ):
+                    pass
+
+        for dst_format in output_formats:
+            self.set_local_dst(dst_format)
 
         return windows
 

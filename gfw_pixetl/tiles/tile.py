@@ -1,6 +1,8 @@
 import copy
+import multiprocessing as mp
 import os
 import shutil
+import traceback
 from abc import ABC
 from time import perf_counter
 from typing import Dict
@@ -25,6 +27,48 @@ from gfw_pixetl.utils.path import create_dir
 LOGGER = get_module_logger(__name__)
 
 stats_ext = ".aux.xml"  # Extension of stats sidecar gdalinfo -stats creates
+_COPY_CONTEXT = mp.get_context("spawn")
+
+
+def _copy_geotiff_target(conn, src_uri, dst_uri, profile) -> None:
+    """Run the memory-heavy GDAL copy in a disposable spawned process."""
+    try:
+        just_copy_geotiff(src_uri, dst_uri, profile)
+        conn.send((True, None))
+    except BaseException:
+        conn.send((False, traceback.format_exc()))
+    finally:
+        conn.close()
+
+
+def _copy_geotiff_spawned(src_uri, dst_uri, profile) -> None:
+    """Copy a GeoTIFF in a child whose exit deterministically reclaims
+    memory."""
+    recv_conn, send_conn = _COPY_CONTEXT.Pipe(duplex=False)
+    process = _COPY_CONTEXT.Process(
+        target=_copy_geotiff_target,
+        args=(send_conn, src_uri, dst_uri, profile),
+        name="pixetl-geotiff-copy",
+    )
+    process.start()
+    send_conn.close()
+    try:
+        process.join()
+        if recv_conn.poll():
+            ok, error = recv_conn.recv()
+            if not ok:
+                raise RuntimeError(f"GeoTIFF copy subprocess failed:\n{error}")
+        elif process.exitcode != 0:
+            raise RuntimeError(
+                f"GeoTIFF copy subprocess exited with code {process.exitcode}"
+            )
+        else:
+            raise RuntimeError("GeoTIFF copy subprocess returned no result")
+    finally:
+        recv_conn.close()
+        if process.is_alive():
+            process.terminate()
+            process.join()
 
 
 class Tile(ABC):
@@ -126,16 +170,22 @@ class Tile(ABC):
 
     def create_gdal_geotiff(self) -> None:
         dst_format = DstFormat.gdal_geotiff
+        if dst_format in self.local_dst:
+            LOGGER.info(
+                f"Local Gdal Geotiff already exists for tile {self.tile_id}; skip copying"
+            )
+            return
         if self.default_format != dst_format:
             LOGGER.info(
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
             )
 
-            just_copy_geotiff(
-                self.local_dst[self.default_format].uri,
-                self.get_local_dst_uri(dst_format),
-                self.dst[dst_format].profile,
-            )
+            with MEMORY_ADMISSION.copy_slot(self.tile_id):
+                _copy_geotiff_spawned(
+                    self.local_dst[self.default_format].uri,
+                    self.get_local_dst_uri(dst_format),
+                    self.dst[dst_format].profile,
+                )
             self.set_local_dst(dst_format)
         else:
             LOGGER.warning(

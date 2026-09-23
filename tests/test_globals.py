@@ -51,16 +51,19 @@ def test_pipeline_io_worker_defaults_and_env_overrides(monkeypatch):
     monkeypatch.delenv("UPLOAD_WORKERS", raising=False)
     monkeypatch.delenv("CLEANUP_WORKERS", raising=False)
     monkeypatch.delenv("WINDOW_WORKER_MAX_WINDOWS", raising=False)
+    monkeypatch.delenv("MEMORY_ADMISSION_WINDOW_RESERVATION_GIB", raising=False)
     assert Globals().upload_workers == 8
     assert Globals().cleanup_workers == 4
 
     monkeypatch.setenv("UPLOAD_WORKERS", "12")
     monkeypatch.setenv("CLEANUP_WORKERS", "3")
     monkeypatch.setenv("WINDOW_WORKER_MAX_WINDOWS", "8")
+    monkeypatch.setenv("MEMORY_ADMISSION_WINDOW_RESERVATION_GIB", "6")
     config = Globals()
     assert config.upload_workers == 12
     assert config.cleanup_workers == 3
     assert config.window_worker_max_windows == 8
+    assert config.memory_admission_window_reservation_gib == 6.0
 
 
 def test_memory_admission_defaults():
@@ -69,5 +72,6 @@ def test_memory_admission_defaults():
     assert config.memory_admission_high_watermark == 0.80
     assert config.memory_admission_resume_watermark == 0.75
     assert config.memory_admission_stats_workers == 4
+    assert config.memory_admission_copy_workers == 8
     assert config.memory_admission_reservation_gib == 8.0
     assert config.memory_admission_poll_seconds == 1.0

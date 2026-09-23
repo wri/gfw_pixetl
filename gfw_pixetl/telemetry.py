@@ -267,6 +267,12 @@ class ResourceReporter:
         stats_waiting = admission.get("stats_waiting")
         if not isinstance(stats_waiting, (int, float)):
             stats_waiting = None
+        copy_active = admission.get("copy_active")
+        if not isinstance(copy_active, (int, float)):
+            copy_active = None
+        copy_waiting = admission.get("copy_waiting")
+        if not isinstance(copy_waiting, (int, float)):
+            copy_waiting = None
 
         return {
             "timestamp": timestamp,
@@ -295,6 +301,8 @@ class ResourceReporter:
             "memory_admission_throttled": admission_throttled_value,
             "memory_admission_stats_active": stats_active,
             "memory_admission_stats_waiting": stats_waiting,
+            "memory_admission_copy_active": copy_active,
+            "memory_admission_copy_waiting": copy_waiting,
         }
 
     @staticmethod
@@ -308,7 +316,7 @@ class ResourceReporter:
             "TS:%d procs:%s CPU:%s/%s-vCPU(%s%%) "
             "cgrpMem:%s/%sB(%s%%) peak:%sB "
             "RSS(total):%sB DISK:%s%% OOM:%s kills:%s "
-            "admit(wait/reserved/throttled):%s/%sB/%s stats(active/wait):%s/%s",
+            "admit(wait/reserved/throttled):%s/%sB/%s stats(active/wait):%s/%s copy(active/wait):%s/%s",
             int(snap["timestamp"] or 0),
             self._display(snap["process_count"], ".0f"),
             self._display(snap["cgroup_cpu_cores_used"], ".2f"),
@@ -327,6 +335,8 @@ class ResourceReporter:
             self._display(snap["memory_admission_throttled"], ".0f"),
             self._display(snap["memory_admission_stats_active"], ".0f"),
             self._display(snap["memory_admission_stats_waiting"], ".0f"),
+            self._display(snap["memory_admission_copy_active"], ".0f"),
+            self._display(snap["memory_admission_copy_waiting"], ".0f"),
         )
 
     def _log_emf(self, snap: Snapshot) -> None:
@@ -363,6 +373,14 @@ class ResourceReporter:
             ),
             "MemoryAdmissionStatsWaiting": (
                 "memory_admission_stats_waiting",
+                "Count",
+            ),
+            "MemoryAdmissionCopyActive": (
+                "memory_admission_copy_active",
+                "Count",
+            ),
+            "MemoryAdmissionCopyWaiting": (
+                "memory_admission_copy_waiting",
                 "Count",
             ),
         }

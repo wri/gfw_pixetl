@@ -95,12 +95,17 @@ class AdmissionSharedState:
     stats_active: Any
     stats_waiting: Any
     stats_semaphore: Any
+    copy_active: Any
+    copy_waiting: Any
+    copy_semaphore: Any
     enabled: bool
     cgroup_root: str
     high_watermark: float
     resume_watermark: float
     stats_workers: int
+    copy_workers: int
     reservation_bytes: int
+    window_reservation_bytes: int
     poll_seconds: float
 
 
@@ -120,6 +125,9 @@ class MemoryAdmissionController:
         self._stats_active = _MP_CONTEXT.Value("i", 0, lock=False)
         self._stats_waiting = _MP_CONTEXT.Value("i", 0, lock=False)
         self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(4)
+        self._copy_active = _MP_CONTEXT.Value("i", 0, lock=False)
+        self._copy_waiting = _MP_CONTEXT.Value("i", 0, lock=False)
+        self._copy_semaphore = _MP_CONTEXT.BoundedSemaphore(8)
 
         # Per-process state. Each transform worker handles one tile at a time.
         self._local_reservation_held = False
@@ -129,7 +137,9 @@ class MemoryAdmissionController:
         self.high_watermark = 0.80
         self.resume_watermark = 0.75
         self.stats_workers = 4
+        self.copy_workers = 8
         self.reservation_bytes = 8 * GIB
+        self.window_reservation_bytes = 8 * GIB
         self.poll_seconds = 1.0
 
     def configure(
@@ -140,15 +150,21 @@ class MemoryAdmissionController:
         high_watermark: float = 0.80,
         resume_watermark: float = 0.75,
         stats_workers: int = 4,
+        copy_workers: int = 8,
         reservation_bytes: int = 8 * GIB,
+        window_reservation_bytes: int = 8 * GIB,
         poll_seconds: float = 1.0,
     ) -> None:
         if not 0 < resume_watermark < high_watermark < 1:
             raise ValueError("memory admission requires 0 < resume < high < 1")
         if stats_workers <= 0:
             raise ValueError("stats_workers must be positive")
+        if copy_workers <= 0:
+            raise ValueError("copy_workers must be positive")
         if reservation_bytes < 0:
             raise ValueError("reservation_bytes must not be negative")
+        if window_reservation_bytes < 0:
+            raise ValueError("window_reservation_bytes must not be negative")
         if poll_seconds <= 0:
             raise ValueError("poll_seconds must be positive")
 
@@ -158,30 +174,36 @@ class MemoryAdmissionController:
             self.high_watermark = high_watermark
             self.resume_watermark = resume_watermark
             self.stats_workers = stats_workers
+            self.copy_workers = copy_workers
             # Recreated here so a later snapshot_shared_state() call picks up
             # the configured stats_workers limit. This object only actually
             # becomes shared with worker processes once it is explicitly
             # passed to them via AdmissionSharedState - see the module
             # docstring.
             self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(stats_workers)
+            self._copy_semaphore = _MP_CONTEXT.BoundedSemaphore(copy_workers)
             self.reservation_bytes = reservation_bytes
+            self.window_reservation_bytes = window_reservation_bytes
             self.poll_seconds = poll_seconds
             self._reserved_bytes.value = 0
             self._waiting.value = 0
             self._throttled.value = 0
             self._stats_active.value = 0
             self._stats_waiting.value = 0
+            self._copy_active.value = 0
+            self._copy_waiting.value = 0
             self._local_reservation_held = False
             self._write_status_locked()
 
         if enabled:
             LOGGER.info(
                 "Memory admission enabled: high=%.0f%% resume=%.0f%% "
-                "stats_workers=%d reservation=%.1fGiB",
+                "stats_workers=%d reservation=%.1fGiB window_reservation=%.1fGiB",
                 high_watermark * 100,
                 resume_watermark * 100,
                 stats_workers,
                 reservation_bytes / GIB,
+                window_reservation_bytes / GIB,
             )
 
     def snapshot_shared_state(self) -> AdmissionSharedState:
@@ -203,12 +225,17 @@ class MemoryAdmissionController:
                 stats_active=self._stats_active,
                 stats_waiting=self._stats_waiting,
                 stats_semaphore=self._stats_semaphore,
+                copy_active=self._copy_active,
+                copy_waiting=self._copy_waiting,
+                copy_semaphore=self._copy_semaphore,
                 enabled=self.enabled,
                 cgroup_root=self.cgroup_root,
                 high_watermark=self.high_watermark,
                 resume_watermark=self.resume_watermark,
                 stats_workers=self.stats_workers,
+                copy_workers=self.copy_workers,
                 reservation_bytes=self.reservation_bytes,
+                window_reservation_bytes=self.window_reservation_bytes,
                 poll_seconds=self.poll_seconds,
             )
 
@@ -233,12 +260,17 @@ class MemoryAdmissionController:
         self._stats_active = state.stats_active
         self._stats_waiting = state.stats_waiting
         self._stats_semaphore = state.stats_semaphore
+        self._copy_active = state.copy_active
+        self._copy_waiting = state.copy_waiting
+        self._copy_semaphore = state.copy_semaphore
         self.enabled = state.enabled
         self.cgroup_root = state.cgroup_root
         self.high_watermark = state.high_watermark
         self.resume_watermark = state.resume_watermark
         self.stats_workers = state.stats_workers
+        self.copy_workers = state.copy_workers
         self.reservation_bytes = state.reservation_bytes
+        self.window_reservation_bytes = state.window_reservation_bytes
         self.poll_seconds = state.poll_seconds
         # This is per-process bookkeeping (whether *this* process is
         # currently holding a startup reservation) and must never be copied
@@ -247,18 +279,273 @@ class MemoryAdmissionController:
         if self.enabled:
             LOGGER.info(
                 "Memory admission shared state bound in worker pid %d: "
-                "high=%.0f%% resume=%.0f%% stats_workers=%d reservation=%.1fGiB",
+                "high=%.0f%% resume=%.0f%% stats_workers=%d reservation=%.1fGiB window_reservation=%.1fGiB",
                 os.getpid(),
                 self.high_watermark * 100,
                 self.resume_watermark * 100,
                 self.stats_workers,
                 self.reservation_bytes / GIB,
+                self.window_reservation_bytes / GIB,
             )
 
     def _memory(self) -> tuple[Optional[int], Optional[int]]:
         current = _read_int(os.path.join(self.cgroup_root, "memory.current"))
         limit = _read_int(os.path.join(self.cgroup_root, "memory.max"))
         return current, limit
+
+    def memory_attribution_snapshot(
+        self, pid: Optional[int] = None
+    ) -> Dict[str, Optional[int]]:
+        """Return a lightweight cgroup/process memory attribution snapshot.
+
+        ``memory.current`` tells us whether the Batch cgroup is growing,
+        while selected ``memory.stat`` counters distinguish
+        anonymous/native memory from file-backed page cache.  RSS is
+        read directly from ``/proc`` so this diagnostic does not add a
+        psutil dependency to the hot path.
+        """
+        current, limit = self._memory()
+        values: Dict[str, Optional[int]] = {
+            "current": current,
+            "limit": limit,
+            "anon": None,
+            "file": None,
+            "kernel": None,
+            "pagetables": None,
+            "rss": None,
+        }
+
+        try:
+            with open(os.path.join(self.cgroup_root, "memory.stat")) as f:
+                for line in f:
+                    key, raw_value = line.split(None, 1)
+                    if key in ("anon", "file", "kernel", "pagetables"):
+                        values[key] = int(raw_value)
+        except (OSError, ValueError):
+            pass
+
+        target_pid = os.getpid() if pid is None else pid
+        try:
+            with open(f"/proc/{target_pid}/statm") as f:
+                fields = f.read().split()
+            if len(fields) >= 2:
+                values["rss"] = int(fields[1]) * os.sysconf("SC_PAGE_SIZE")
+        except (OSError, ValueError):
+            pass
+
+        return values
+
+    def log_memory_attribution(
+        self, stage: str, tile_id: str, child_pid: Optional[int] = None
+    ) -> None:
+        """Log cgroup buckets plus transform and optional child RSS."""
+        cgroup = self.memory_attribution_snapshot()
+        child = (
+            self.memory_attribution_snapshot(child_pid)
+            if child_pid is not None
+            else None
+        )
+
+        def gib(value: Optional[int]) -> str:
+            return "n/a" if value is None else f"{value / GIB:.2f}"
+
+        LOGGER.info(
+            "PERF memory_attribution "
+            "stage=%s tile=%s cgroup_gib=%s anon_gib=%s file_gib=%s "
+            "kernel_gib=%s pagetables_gib=%s transform_rss_gib=%s child_rss_gib=%s",
+            stage,
+            tile_id,
+            gib(cgroup["current"]),
+            gib(cgroup["anon"]),
+            gib(cgroup["file"]),
+            gib(cgroup["kernel"]),
+            gib(cgroup["pagetables"]),
+            gib(cgroup["rss"]),
+            "n/a" if child is None else gib(child["rss"]),
+        )
+
+    def _cgroup_pids(self) -> list[int]:
+        """Return all PIDs currently charged to this cgroup."""
+        try:
+            with open(os.path.join(self.cgroup_root, "cgroup.procs")) as f:
+                return sorted({int(line) for line in f if line.strip()})
+        except (OSError, ValueError):
+            return []
+
+    @staticmethod
+    def _process_memory_snapshot(
+        pid: int, include_smaps: bool = True
+    ) -> Optional[Dict[str, object]]:
+        """Read cheap process metadata plus smaps_rollup attribution.
+
+        This is diagnostic-only and deliberately reads smaps_rollup only
+        for processes selected by ``log_process_census``.
+        """
+        result: Dict[str, object] = {
+            "pid": pid,
+            "ppid": None,
+            "name": None,
+            "rss": None,
+            "vmsize": None,
+            "swap": None,
+            "pss": None,
+            "pss_anon": None,
+            "pss_file": None,
+            "anonymous": None,
+        }
+        try:
+            with open(f"/proc/{pid}/status") as f:
+                for line in f:
+                    key, _, raw = line.partition(":")
+                    raw = raw.strip()
+                    if key == "Name":
+                        result["name"] = raw
+                    elif key == "PPid":
+                        result["ppid"] = int(raw)
+                    elif key == "VmRSS":
+                        result["rss"] = int(raw.split()[0]) * 1024
+                    elif key == "VmSize":
+                        result["vmsize"] = int(raw.split()[0]) * 1024
+                    elif key == "VmSwap":
+                        result["swap"] = int(raw.split()[0]) * 1024
+        except (OSError, ValueError):
+            return None
+
+        if not include_smaps:
+            return result
+
+        try:
+            with open(f"/proc/{pid}/smaps_rollup") as f:
+                for line in f:
+                    key, _, raw = line.partition(":")
+                    if key in ("Rss", "Pss", "Pss_Anon", "Pss_File", "Anonymous"):
+                        value = int(raw.strip().split()[0]) * 1024
+                        result[
+                            {
+                                "Rss": "rss",
+                                "Pss": "pss",
+                                "Pss_Anon": "pss_anon",
+                                "Pss_File": "pss_file",
+                                "Anonymous": "anonymous",
+                            }[key]
+                        ] = value
+        except (OSError, ValueError):
+            pass
+        return result
+
+    def log_process_census(self, reason: str, tile_id: str, top_n: int = 20) -> None:
+        """Attribute cgroup memory to the largest live processes.
+
+        First rank every cgroup process using the cheap VmRSS value from
+        /proc/<pid>/status. Then read smaps_rollup only for the largest
+        processes, keeping the diagnostic bounded even on large Batch
+        jobs.
+        """
+        processes = []
+        for pid in self._cgroup_pids():
+            snapshot = self._process_memory_snapshot(pid, include_smaps=False)
+            if snapshot is not None:
+                processes.append(snapshot)
+        processes.sort(key=lambda item: int(item.get("rss") or 0), reverse=True)
+        # Enrich only the largest processes with proportional/anonymous
+        # attribution from smaps_rollup.
+        for index, item in enumerate(processes[:top_n]):
+            enriched = self._process_memory_snapshot(
+                int(item["pid"]), include_smaps=True
+            )
+            if enriched is not None:
+                processes[index] = enriched
+
+        cgroup = self.memory_attribution_snapshot()
+        total_rss = sum(int(item.get("rss") or 0) for item in processes)
+        total_swap = sum(int(item.get("swap") or 0) for item in processes)
+        LOGGER.warning(
+            "PERF process_census reason=%s tile=%s process_count=%d "
+            "cgroup_gib=%.2f anon_gib=%.2f file_gib=%.2f total_rss_gib=%.2f total_swap_gib=%.2f",
+            reason,
+            tile_id,
+            len(processes),
+            (cgroup["current"] or 0) / GIB,
+            (cgroup["anon"] or 0) / GIB,
+            (cgroup["file"] or 0) / GIB,
+            total_rss / GIB,
+            total_swap / GIB,
+        )
+        for rank, item in enumerate(processes[:top_n], 1):
+            LOGGER.warning(
+                "PERF process_census_process reason=%s tile=%s rank=%d pid=%s ppid=%s "
+                "name=%s rss_gib=%.3f pss_gib=%s pss_anon_gib=%s pss_file_gib=%s "
+                "anonymous_gib=%s vmsize_gib=%s swap_gib=%s",
+                reason,
+                tile_id,
+                rank,
+                item["pid"],
+                item["ppid"],
+                item["name"],
+                int(item.get("rss") or 0) / GIB,
+                "n/a" if item.get("pss") is None else f'{int(item["pss"]) / GIB:.3f}',
+                (
+                    "n/a"
+                    if item.get("pss_anon") is None
+                    else f'{int(item["pss_anon"]) / GIB:.3f}'
+                ),
+                (
+                    "n/a"
+                    if item.get("pss_file") is None
+                    else f'{int(item["pss_file"]) / GIB:.3f}'
+                ),
+                (
+                    "n/a"
+                    if item.get("anonymous") is None
+                    else f'{int(item["anonymous"]) / GIB:.3f}'
+                ),
+                (
+                    "n/a"
+                    if item.get("vmsize") is None
+                    else f'{int(item["vmsize"]) / GIB:.3f}'
+                ),
+                "n/a" if item.get("swap") is None else f'{int(item["swap"]) / GIB:.3f}',
+            )
+
+    def log_process_census_if_due(
+        self, reason: str, tile_id: str, interval_seconds: float = 15.0
+    ) -> None:
+        """Emit at most one cgroup-wide census per interval across workers.
+
+        The timestamp file is protected with an atomic create/replace
+        pattern. A small race can produce one extra diagnostic census,
+        which is harmless; the important property is avoiding one
+        expensive census per blocked tile.
+        """
+        stamp_path = os.path.join("/tmp", "pixetl-memory-census.stamp")
+        now = time.time()
+        try:
+            mtime = os.stat(stamp_path).st_mtime
+            if now - mtime < interval_seconds:
+                return
+        except OSError:
+            pass
+
+        claim_path = f"{stamp_path}.{os.getpid()}.claim"
+        try:
+            with open(claim_path, "w") as f:
+                f.write(str(now))
+            # Re-check immediately before publishing our claim. os.replace is
+            # atomic; simultaneous contenders can at worst produce one extra
+            # census around the interval boundary.
+            try:
+                mtime = os.stat(stamp_path).st_mtime
+                if now - mtime < interval_seconds:
+                    return
+            except OSError:
+                pass
+            os.replace(claim_path, stamp_path)
+            self.log_process_census(reason, tile_id)
+        finally:
+            try:
+                os.remove(claim_path)
+            except OSError:
+                pass
 
     def _write_status_locked(self) -> None:
         payload = {
@@ -268,6 +555,8 @@ class MemoryAdmissionController:
             "throttled": bool(self._throttled.value),
             "stats_active": int(self._stats_active.value),
             "stats_waiting": int(self._stats_waiting.value),
+            "copy_active": int(self._copy_active.value),
+            "copy_waiting": int(self._copy_waiting.value),
         }
         tmp = f"{STATUS_PATH}.{os.getpid()}.tmp"
         try:
@@ -387,6 +676,124 @@ class MemoryAdmissionController:
         finally:
             self.release_transform()
 
+    def try_acquire_window(self, tile_id: str, window_index: int) -> bool:
+        """Atomically reserve memory for one window if headroom is available.
+
+        ``memory.current`` alone is not sufficient because many
+        transform workers can observe the same free memory and start
+        together.  The shared ``_reserved_bytes`` value makes those
+        decisions serial and immediately visible across spawned
+        transform workers.
+        """
+        if not self.enabled:
+            return True
+
+        with self._lock:
+            current, limit = self._memory()
+            if current is None or limit is None or limit <= 0:
+                LOGGER.warning(
+                    "Window admission unavailable for tile %s window %d; admitting window",
+                    tile_id,
+                    window_index + 1,
+                )
+                return True
+
+            reserved = int(self._reserved_bytes.value)
+            projected = current + reserved + self.window_reservation_bytes
+            high = int(limit * self.high_watermark)
+            if projected >= high:
+                return False
+
+            self._reserved_bytes.value += self.window_reservation_bytes
+            self._write_status_locked()
+            return True
+
+    def acquire_window(self, tile_id: str, window_index: int) -> None:
+        """Wait until an atomic per-window memory reservation can be
+        acquired."""
+        if not self.enabled:
+            return
+
+        waiting_registered = False
+        while True:
+            if self.try_acquire_window(tile_id, window_index):
+                if waiting_registered:
+                    with self._lock:
+                        self._waiting.value = max(0, self._waiting.value - 1)
+                        self._write_status_locked()
+                    LOGGER.info(
+                        "Memory window admission resumed: tile=%s window=%d",
+                        tile_id,
+                        window_index + 1,
+                    )
+                return
+
+            if not waiting_registered:
+                with self._lock:
+                    self._waiting.value += 1
+                    self._write_status_locked()
+                waiting_registered = True
+                LOGGER.warning(
+                    "Memory window admission waiting: tile=%s window=%d",
+                    tile_id,
+                    window_index + 1,
+                )
+            time.sleep(self.poll_seconds)
+
+    def release_window(self) -> None:
+        """Release one executing-window reservation."""
+        if not self.enabled:
+            return
+        with self._lock:
+            self._reserved_bytes.value = max(
+                0, self._reserved_bytes.value - self.window_reservation_bytes
+            )
+            self._write_status_locked()
+
+    def memory_pressure_high(self) -> bool:
+        """Return whether actual cgroup memory is at/above the high watermark.
+
+        This intentionally considers actual ``memory.current`` only. It
+        is used after a window completes to decide whether retiring that
+        window worker could help return native GDAL/Rasterio allocations
+        to the cgroup. Startup reservations are an admission concern and
+        must not cause an already-running worker to recycle.
+        """
+        if not self.enabled:
+            return False
+        current, limit = self._memory()
+        if current is None or limit is None or limit <= 0:
+            return False
+        return current >= int(limit * self.high_watermark)
+
+    def wait_for_memory_resume(self, tile_id: str) -> None:
+        """Wait for actual cgroup memory to fall below the resume watermark."""
+        if not self.enabled:
+            return
+
+        waiting = False
+        while True:
+            current, limit = self._memory()
+            if current is None or limit is None or limit <= 0:
+                return
+            fraction = current / float(limit)
+            if fraction < self.resume_watermark:
+                if waiting:
+                    LOGGER.info(
+                        "Memory window-worker gate resumed: tile=%s current=%.1f%%",
+                        tile_id,
+                        fraction * 100,
+                    )
+                return
+            if not waiting:
+                waiting = True
+                LOGGER.warning(
+                    "Memory window-worker gate waiting: tile=%s current=%.1f%%",
+                    tile_id,
+                    fraction * 100,
+                )
+            time.sleep(self.poll_seconds)
+
     def wait_for_stats(self, tile_id: str) -> None:
         """Do not launch GDAL statistics while cgroup memory is pressured."""
         if not self.enabled:
@@ -416,6 +823,64 @@ class MemoryAdmissionController:
                         fraction * 100,
                     )
             time.sleep(self.poll_seconds)
+
+    def wait_for_copy(self, tile_id: str) -> None:
+        """Do not launch a GeoTIFF copy while cgroup memory is pressured."""
+        if not self.enabled:
+            return
+
+        waiting = False
+        while True:
+            with self._lock:
+                current, limit = self._memory()
+                if current is None or limit is None or limit <= 0:
+                    return
+                fraction = current / float(limit)
+                threshold = self.resume_watermark if waiting else self.high_watermark
+                if fraction < threshold:
+                    if waiting:
+                        LOGGER.info(
+                            "Memory copy gate resumed: tile=%s current=%.1f%%",
+                            tile_id,
+                            fraction * 100,
+                        )
+                    return
+                if not waiting:
+                    waiting = True
+                    LOGGER.warning(
+                        "Memory copy gate waiting: tile=%s current=%.1f%%",
+                        tile_id,
+                        fraction * 100,
+                    )
+            time.sleep(self.poll_seconds)
+
+    @contextmanager
+    def copy_slot(self, tile_id: str) -> Iterator[None]:
+        """Limit concurrent GeoTIFF copies and gate them on actual memory."""
+        with self._lock:
+            self._copy_waiting.value += 1
+            self._write_status_locked()
+        self._copy_semaphore.acquire()
+        active = False
+        try:
+            if self.enabled:
+                self.wait_for_copy(tile_id)
+            with self._lock:
+                self._copy_waiting.value = max(0, self._copy_waiting.value - 1)
+                self._copy_active.value += 1
+                active = True
+                self._write_status_locked()
+            yield
+        finally:
+            if active:
+                with self._lock:
+                    self._copy_active.value = max(0, self._copy_active.value - 1)
+                    self._write_status_locked()
+            else:
+                with self._lock:
+                    self._copy_waiting.value = max(0, self._copy_waiting.value - 1)
+                    self._write_status_locked()
+            self._copy_semaphore.release()
 
     @contextmanager
     def stats_slot(self, tile_id: str) -> Iterator[None]:

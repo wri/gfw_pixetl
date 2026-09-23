@@ -171,3 +171,165 @@ def test_stats_slot_tracks_active_and_waiting(tmp_path, monkeypatch):
         first_thread.join(timeout=1)
         if second_thread.ident is not None:
             second_thread.join(timeout=1)
+
+
+def test_memory_pressure_high_uses_actual_cgroup_memory(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch, current_gib=79)
+    assert not controller.memory_pressure_high()
+
+    _write(tmp_path / "memory.current", 80 * GIB)
+    assert controller.memory_pressure_high()
+
+
+def test_window_worker_gate_waits_for_resume_watermark(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch, current_gib=81)
+    passed = threading.Event()
+
+    thread = threading.Thread(
+        target=lambda: (controller.wait_for_memory_resume("00N_000E"), passed.set())
+    )
+    thread.start()
+
+    try:
+        time.sleep(0.05)
+        assert not passed.is_set()
+
+        # Like transform/stats admission, pressure recovery uses hysteresis:
+        # falling below high-water is insufficient; it must fall below resume.
+        _write(tmp_path / "memory.current", 76 * GIB)
+        time.sleep(0.05)
+        assert not passed.is_set()
+
+        _write(tmp_path / "memory.current", 74 * GIB)
+        thread.join(timeout=1)
+        assert passed.is_set()
+    finally:
+        _write(tmp_path / "memory.current", 0)
+        thread.join(timeout=1)
+
+
+def test_window_reservations_are_atomic_and_count_toward_headroom(
+    tmp_path, monkeypatch
+):
+    controller = _controller(tmp_path, monkeypatch, current_gib=60)
+
+    # 60 GiB current + 8 GiB startup reservation + one 8 GiB window fits
+    # below the 80 GiB high-water mark. A second window does not.
+    controller.acquire_transform("startup")
+    assert controller.try_acquire_window("tile-a", 0)
+    assert controller._reserved_bytes.value == 16 * GIB
+    assert not controller.try_acquire_window("tile-b", 0)
+
+    controller.release_window()
+    assert controller._reserved_bytes.value == 8 * GIB
+    controller.release_transform()
+    assert controller._reserved_bytes.value == 0
+
+
+def test_window_reservation_released_makes_capacity_available(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch, current_gib=65)
+
+    assert controller.try_acquire_window("tile-a", 0)
+    assert not controller.try_acquire_window("tile-b", 0)
+
+    controller.release_window()
+    assert controller.try_acquire_window("tile-b", 0)
+    controller.release_window()
+
+
+def test_memory_attribution_snapshot_reads_cgroup_buckets(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch, current_gib=42)
+    (tmp_path / "memory.stat").write_text(
+        "anon 10737418240\n"
+        "file 21474836480\n"
+        "kernel 3221225472\n"
+        "pagetables 1073741824\n"
+    )
+
+    snapshot = controller.memory_attribution_snapshot()
+
+    assert snapshot["current"] == 42 * GIB
+    assert snapshot["anon"] == 10 * GIB
+    assert snapshot["file"] == 20 * GIB
+    assert snapshot["kernel"] == 3 * GIB
+    assert snapshot["pagetables"] == 1 * GIB
+    assert snapshot["rss"] is not None
+    assert snapshot["rss"] > 0
+
+
+def test_memory_attribution_snapshot_tolerates_missing_stat(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch, current_gib=42)
+
+    snapshot = controller.memory_attribution_snapshot(pid=999999999)
+
+    assert snapshot["current"] == 42 * GIB
+    assert snapshot["anon"] is None
+    assert snapshot["file"] is None
+    assert snapshot["rss"] is None
+
+
+def test_copy_slot_tracks_active_and_waiting(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch)
+    controller.configure(
+        enabled=True,
+        cgroup_root=str(tmp_path),
+        copy_workers=1,
+        reservation_bytes=8 * GIB,
+        poll_seconds=0.01,
+    )
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    second_entered = threading.Event()
+
+    def first():
+        with controller.copy_slot("first"):
+            first_entered.set()
+            release_first.wait(timeout=1)
+
+    def second():
+        with controller.copy_slot("second"):
+            second_entered.set()
+
+    first_thread = threading.Thread(target=first)
+    second_thread = threading.Thread(target=second)
+    first_thread.start()
+    try:
+        assert first_entered.wait(timeout=1)
+        second_thread.start()
+        time.sleep(0.05)
+        assert controller._copy_active.value == 1
+        assert controller._copy_waiting.value == 1
+        assert not second_entered.is_set()
+        release_first.set()
+        first_thread.join(timeout=1)
+        second_thread.join(timeout=1)
+        assert second_entered.is_set()
+        assert controller._copy_active.value == 0
+        assert controller._copy_waiting.value == 0
+    finally:
+        release_first.set()
+        _write(tmp_path / "memory.current", 0)
+        first_thread.join(timeout=1)
+        if second_thread.ident is not None:
+            second_thread.join(timeout=1)
+
+
+def test_copy_gate_uses_80_75_hysteresis(tmp_path, monkeypatch):
+    controller = _controller(tmp_path, monkeypatch, current_gib=81)
+    passed = threading.Event()
+    thread = threading.Thread(
+        target=lambda: (controller.wait_for_copy("00N_000E"), passed.set())
+    )
+    thread.start()
+    try:
+        time.sleep(0.05)
+        assert not passed.is_set()
+        _write(tmp_path / "memory.current", 77 * GIB)
+        time.sleep(0.05)
+        assert not passed.is_set()
+        _write(tmp_path / "memory.current", 74 * GIB)
+        thread.join(timeout=1)
+        assert passed.is_set()
+    finally:
+        _write(tmp_path / "memory.current", 0)
+        thread.join(timeout=1)
