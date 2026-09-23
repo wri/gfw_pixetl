@@ -180,12 +180,11 @@ class Tile(ABC):
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
             )
 
-            with MEMORY_ADMISSION.copy_slot(self.tile_id):
-                _copy_geotiff_spawned(
-                    self.local_dst[self.default_format].uri,
-                    self.get_local_dst_uri(dst_format),
-                    self.dst[dst_format].profile,
-                )
+            _copy_geotiff_spawned(
+                self.local_dst[self.default_format].uri,
+                self.get_local_dst_uri(dst_format),
+                self.dst[dst_format].profile,
+            )
             self.set_local_dst(dst_format)
         else:
             LOGGER.warning(

@@ -54,14 +54,13 @@ def _persistent_window_worker(
     windows: List[Window],
     window_offset: int,
 ) -> None:
-    """Process a bounded batch of windows in one spawned interpreter.
+    """Process all windows for one tile in one spawned interpreter.
 
     The tile is serialized with dill by the parent so we do not depend
     on RasterSrcTile and all of its cached state being stdlib-
-    pickleable.  GDAL objects are still created only after spawn.  The
-    process exits after a bounded number of windows, periodically
-    reclaiming native allocations while amortizing interpreter startup
-    across the batch.
+    pickleable. GDAL objects are created only after spawn, and the
+    process exits when the tile is complete so native allocations are
+    reclaimed at the tile boundary.
     """
     import dill
 
@@ -85,9 +84,7 @@ def _persistent_window_worker(
             return
         result_queue.put(("result", window_offset + window_index, result))
 
-        # Give the parent a decision point after every completed window. This
-        # lets it retire us immediately under cgroup memory pressure rather
-        # than waiting for the normal max-windows recycle boundary.
+        # The parent admits the next window before allowing us to continue.
         command = command_queue.get()
         if command == "stop":
             return
@@ -264,8 +261,13 @@ class RasterSrcTile(Tile):
         return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
-        """Process tile windows in bounded, pressure-responsive spawned
-        workers."""
+        """Process every window for this tile in one persistent spawned worker.
+
+        Tile-level parallelism remains in ParallelPipe. The child exists
+        for native-library isolation, not as another source of
+        parallelism. Window admission still reserves memory atomically
+        before each window begins.
+        """
         import dill
 
         windows = self.windows()
@@ -273,182 +275,111 @@ class RasterSrcTile(Tile):
             MEMORY_ADMISSION.commit_transform_reservation()
             return False
 
-        max_windows = GLOBALS.window_worker_max_windows
-        planned_workers = (len(windows) + max_windows - 1) // max_windows
         LOGGER.info(
-            f"Processing tile {self.tile_id} with persistent window workers "
-            f"(max_windows={max_windows}, planned_workers={planned_workers})"
+            f"Processing tile {self.tile_id} with one persistent window worker "
+            f"({len(windows)} windows)"
         )
 
         ctx = mp.get_context("spawn")
-        tile_bytes = dill.dumps(self)
+        result_queue = ctx.Queue()
+        command_queue = ctx.Queue()
+        worker = ctx.Process(
+            target=_persistent_window_worker,
+            args=(result_queue, command_queue, dill.dumps(self), windows, 0),
+            name=f"window-worker-{self.tile_id}",
+        )
         out_files = []
         first_window = True
-        next_window = 0
-        batch_number = 0
+        window_reservation_held = False
+        dispatch_started = perf_counter()
+
+        LOGGER.info(
+            "PERF window_worker_start "
+            f"tile={self.tile_id} window_start=1 window_end={len(windows)} "
+            f"window_count={len(windows)}"
+        )
 
         try:
-            while next_window < len(windows):
-                batch_number += 1
-                batch_start = next_window
-                batch_windows = windows[batch_start : batch_start + max_windows]
-                result_queue = ctx.Queue()
-                command_queue = ctx.Queue()
-                worker = ctx.Process(
-                    target=_persistent_window_worker,
-                    args=(
-                        result_queue,
-                        command_queue,
-                        tile_bytes,
-                        batch_windows,
-                        batch_start,
-                    ),
-                    name=f"window-worker-{self.tile_id}-{batch_number}",
-                )
-                LOGGER.info(
-                    "PERF window_worker_start "
-                    f"tile={self.tile_id} batch={batch_number} "
-                    f"window_start={batch_start + 1} "
-                    f"window_end={batch_start + len(batch_windows)} "
-                    f"window_count={len(batch_windows)}"
-                )
-                dispatch_started = perf_counter()
-                received = 0
-                recycle_reason = "max_windows"
-                window_reservation_held = False
-                try:
-                    MEMORY_ADMISSION.log_memory_attribution(
-                        "before_admission", self.tile_id
-                    )
-                    # Reserve globally before the child is allowed to begin its
-                    # first window. This closes the stampede race where many
-                    # tile workers simultaneously observed the same cgroup
-                    # headroom and all started memory-heavy windows.
-                    MEMORY_ADMISSION.acquire_window(self.tile_id, next_window)
-                    window_reservation_held = True
-                    worker.start()
-                    MEMORY_ADMISSION.log_memory_attribution(
-                        "after_child_spawn", self.tile_id, worker.pid
-                    )
-                    while received < len(batch_windows):
-                        try:
-                            kind, window_index, payload = result_queue.get(timeout=1)
-                        except queue.Empty:
-                            if worker.is_alive():
-                                continue
-                            raise SubprocessKilledError(
-                                f"Persistent window worker exited with code {worker.exitcode}"
-                            )
+            MEMORY_ADMISSION.log_memory_attribution("before_admission", self.tile_id)
+            MEMORY_ADMISSION.acquire_window(self.tile_id, 0)
+            window_reservation_held = True
+            worker.start()
+            MEMORY_ADMISSION.log_memory_attribution(
+                "after_child_spawn", self.tile_id, worker.pid
+            )
 
-                        window = windows[window_index]
-                        MEMORY_ADMISSION.log_memory_attribution(
-                            "after_window", self.tile_id, worker.pid
-                        )
-                        if window_reservation_held:
-                            MEMORY_ADMISSION.release_window()
-                            window_reservation_held = False
-                        dispatch_seconds = perf_counter() - dispatch_started
-                        LOGGER.info(
-                            "PERF window_dispatch "
-                            f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
-                            f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
-                            f"width={int(window.width)} height={int(window.height)} "
-                            f"elapsed_s={dispatch_seconds:.3f}"
-                        )
-                        dispatch_started = perf_counter()
-
-                        if kind == "error":
-                            command_queue.put("stop")
-                            _, ex_value, _ = payload
-                            raise ex_value
-
-                        out_files.append(payload)
-                        received += 1
-                        next_window = window_index + 1
-                        if first_window:
-                            MEMORY_ADMISSION.commit_transform_reservation()
-                            first_window = False
-
-                        pressure_high = MEMORY_ADMISSION.memory_pressure_high()
-                        batch_complete = received >= len(batch_windows)
-                        if pressure_high:
-                            recycle_reason = "memory_pressure"
-                            command_queue.put("stop")
-                            break
-                        if batch_complete:
-                            command_queue.put("stop")
-                            break
-
-                        # Do not block here while the persistent child is alive:
-                        # it may be retaining exactly the native memory that must
-                        # be reclaimed before another window can be admitted. Try
-                        # the atomic reservation once; if it cannot fit, retire
-                        # this child and let the next batch wait before spawning a
-                        # replacement.
-                        if not MEMORY_ADMISSION.try_acquire_window(
-                            self.tile_id, next_window
-                        ):
-                            MEMORY_ADMISSION.log_process_census_if_due(
-                                "window_admission", self.tile_id
-                            )
-                            recycle_reason = "window_admission"
-                            command_queue.put("stop")
-                            break
-                        window_reservation_held = True
-                        command_queue.put("continue")
-
-                    worker.join(timeout=60)
-                    if worker.is_alive():
-                        worker.terminate()
-                        worker.join(timeout=10)
-                        raise SubprocessKilledError(
-                            "Persistent window worker did not exit"
-                        )
-                    if worker.exitcode != 0:
+            for received in range(len(windows)):
+                while True:
+                    try:
+                        kind, window_index, payload = result_queue.get(timeout=1)
+                        break
+                    except queue.Empty:
+                        if worker.is_alive():
+                            continue
                         raise SubprocessKilledError(
                             f"Persistent window worker exited with code {worker.exitcode}"
                         )
-                    MEMORY_ADMISSION.log_memory_attribution(
-                        "after_child_reap", self.tile_id
-                    )
-                finally:
-                    if window_reservation_held:
-                        MEMORY_ADMISSION.release_window()
-                        window_reservation_held = False
-                    if worker.is_alive():
-                        worker.terminate()
-                        worker.join(timeout=10)
-                    result_queue.close()
-                    result_queue.join_thread()
-                    command_queue.close()
-                    command_queue.join_thread()
 
-                if recycle_reason in ("memory_pressure", "window_admission"):
-                    # One delayed sample answers whether cgroup memory is merely
-                    # slow to uncharge after the native-heavy child has exited.
-                    # We only pay this diagnostic delay when admission is already
-                    # throttling progress.
-                    import time
-
-                    time.sleep(1)
-                    MEMORY_ADMISSION.log_memory_attribution(
-                        "one_second_after_reap", self.tile_id
-                    )
-
-                LOGGER.info(
-                    "PERF window_worker_recycle "
-                    f"tile={self.tile_id} batch={batch_number} "
-                    f"windows_processed={received} reason={recycle_reason}"
+                window = windows[window_index]
+                MEMORY_ADMISSION.log_memory_attribution(
+                    "after_window", self.tile_id, worker.pid
                 )
+                if window_reservation_held:
+                    MEMORY_ADMISSION.release_window()
+                    window_reservation_held = False
 
-                # Reap the native-heavy child first, then refuse to create its
-                # replacement until actual cgroup usage has recovered below
-                # the resume watermark. Other workers do the same, turning
-                # process recycling into an active pressure-release mechanism.
-                if recycle_reason == "memory_pressure" and next_window < len(windows):
-                    MEMORY_ADMISSION.wait_for_memory_resume(self.tile_id)
+                dispatch_seconds = perf_counter() - dispatch_started
+                LOGGER.info(
+                    "PERF window_dispatch "
+                    f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
+                    f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
+                    f"width={int(window.width)} height={int(window.height)} "
+                    f"elapsed_s={dispatch_seconds:.3f}"
+                )
+                dispatch_started = perf_counter()
+
+                if kind == "error":
+                    command_queue.put("stop")
+                    _, ex_value, _ = payload
+                    raise ex_value
+
+                out_files.append(payload)
+                if first_window:
+                    MEMORY_ADMISSION.commit_transform_reservation()
+                    first_window = False
+
+                if received + 1 == len(windows):
+                    command_queue.put("stop")
+                    continue
+
+                # Keep the same worker for the entire tile. Admission may wait
+                # here, but no replacement process is spawned just to reclaim
+                # memory that the direct-write path has shown to remain bounded.
+                MEMORY_ADMISSION.acquire_window(self.tile_id, window_index + 1)
+                window_reservation_held = True
+                command_queue.put("continue")
+
+            worker.join(timeout=60)
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(timeout=10)
+                raise SubprocessKilledError("Persistent window worker did not exit")
+            if worker.exitcode != 0:
+                raise SubprocessKilledError(
+                    f"Persistent window worker exited with code {worker.exitcode}"
+                )
+            MEMORY_ADMISSION.log_memory_attribution("after_child_reap", self.tile_id)
         finally:
             MEMORY_ADMISSION.commit_transform_reservation()
+            if window_reservation_held:
+                MEMORY_ADMISSION.release_window()
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(timeout=10)
+            result_queue.close()
+            result_queue.join_thread()
+            command_queue.close()
+            command_queue.join_thread()
 
         return any(value is not None for value in out_files)
 
@@ -505,7 +436,7 @@ class RasterSrcTile(Tile):
     def _direct_output_formats(self) -> Tuple[str, ...]:
         """Formats raster-source windows can produce without a full-raster
         copy."""
-        return DstFormat.geotiff, DstFormat.gdal_geotiff
+        return (DstFormat.geotiff, DstFormat.gdal_geotiff)
 
     def _window_destination(
         self, dst_format: str, write_to_separate_files: bool

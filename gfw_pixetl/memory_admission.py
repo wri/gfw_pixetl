@@ -55,7 +55,7 @@ import multiprocessing as mp
 import os
 import time
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Optional, cast
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.telemetry import CGROUP_ROOT, _read_int
@@ -95,15 +95,11 @@ class AdmissionSharedState:
     stats_active: Any
     stats_waiting: Any
     stats_semaphore: Any
-    copy_active: Any
-    copy_waiting: Any
-    copy_semaphore: Any
     enabled: bool
     cgroup_root: str
     high_watermark: float
     resume_watermark: float
     stats_workers: int
-    copy_workers: int
     reservation_bytes: int
     window_reservation_bytes: int
     poll_seconds: float
@@ -125,9 +121,6 @@ class MemoryAdmissionController:
         self._stats_active = _MP_CONTEXT.Value("i", 0, lock=False)
         self._stats_waiting = _MP_CONTEXT.Value("i", 0, lock=False)
         self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(4)
-        self._copy_active = _MP_CONTEXT.Value("i", 0, lock=False)
-        self._copy_waiting = _MP_CONTEXT.Value("i", 0, lock=False)
-        self._copy_semaphore = _MP_CONTEXT.BoundedSemaphore(8)
 
         # Per-process state. Each transform worker handles one tile at a time.
         self._local_reservation_held = False
@@ -137,7 +130,6 @@ class MemoryAdmissionController:
         self.high_watermark = 0.80
         self.resume_watermark = 0.75
         self.stats_workers = 4
-        self.copy_workers = 8
         self.reservation_bytes = 8 * GIB
         self.window_reservation_bytes = 8 * GIB
         self.poll_seconds = 1.0
@@ -150,7 +142,6 @@ class MemoryAdmissionController:
         high_watermark: float = 0.80,
         resume_watermark: float = 0.75,
         stats_workers: int = 4,
-        copy_workers: int = 8,
         reservation_bytes: int = 8 * GIB,
         window_reservation_bytes: int = 8 * GIB,
         poll_seconds: float = 1.0,
@@ -159,8 +150,6 @@ class MemoryAdmissionController:
             raise ValueError("memory admission requires 0 < resume < high < 1")
         if stats_workers <= 0:
             raise ValueError("stats_workers must be positive")
-        if copy_workers <= 0:
-            raise ValueError("copy_workers must be positive")
         if reservation_bytes < 0:
             raise ValueError("reservation_bytes must not be negative")
         if window_reservation_bytes < 0:
@@ -174,14 +163,12 @@ class MemoryAdmissionController:
             self.high_watermark = high_watermark
             self.resume_watermark = resume_watermark
             self.stats_workers = stats_workers
-            self.copy_workers = copy_workers
             # Recreated here so a later snapshot_shared_state() call picks up
             # the configured stats_workers limit. This object only actually
             # becomes shared with worker processes once it is explicitly
             # passed to them via AdmissionSharedState - see the module
             # docstring.
             self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(stats_workers)
-            self._copy_semaphore = _MP_CONTEXT.BoundedSemaphore(copy_workers)
             self.reservation_bytes = reservation_bytes
             self.window_reservation_bytes = window_reservation_bytes
             self.poll_seconds = poll_seconds
@@ -190,8 +177,6 @@ class MemoryAdmissionController:
             self._throttled.value = 0
             self._stats_active.value = 0
             self._stats_waiting.value = 0
-            self._copy_active.value = 0
-            self._copy_waiting.value = 0
             self._local_reservation_held = False
             self._write_status_locked()
 
@@ -225,15 +210,11 @@ class MemoryAdmissionController:
                 stats_active=self._stats_active,
                 stats_waiting=self._stats_waiting,
                 stats_semaphore=self._stats_semaphore,
-                copy_active=self._copy_active,
-                copy_waiting=self._copy_waiting,
-                copy_semaphore=self._copy_semaphore,
                 enabled=self.enabled,
                 cgroup_root=self.cgroup_root,
                 high_watermark=self.high_watermark,
                 resume_watermark=self.resume_watermark,
                 stats_workers=self.stats_workers,
-                copy_workers=self.copy_workers,
                 reservation_bytes=self.reservation_bytes,
                 window_reservation_bytes=self.window_reservation_bytes,
                 poll_seconds=self.poll_seconds,
@@ -260,15 +241,11 @@ class MemoryAdmissionController:
         self._stats_active = state.stats_active
         self._stats_waiting = state.stats_waiting
         self._stats_semaphore = state.stats_semaphore
-        self._copy_active = state.copy_active
-        self._copy_waiting = state.copy_waiting
-        self._copy_semaphore = state.copy_semaphore
         self.enabled = state.enabled
         self.cgroup_root = state.cgroup_root
         self.high_watermark = state.high_watermark
         self.resume_watermark = state.resume_watermark
         self.stats_workers = state.stats_workers
-        self.copy_workers = state.copy_workers
         self.reservation_bytes = state.reservation_bytes
         self.window_reservation_bytes = state.window_reservation_bytes
         self.poll_seconds = state.poll_seconds
@@ -446,19 +423,19 @@ class MemoryAdmissionController:
             snapshot = self._process_memory_snapshot(pid, include_smaps=False)
             if snapshot is not None:
                 processes.append(snapshot)
-        processes.sort(key=lambda item: int(item.get("rss") or 0), reverse=True)
+        processes.sort(key=lambda item: cast(int, item.get("rss") or 0), reverse=True)
         # Enrich only the largest processes with proportional/anonymous
         # attribution from smaps_rollup.
         for index, item in enumerate(processes[:top_n]):
             enriched = self._process_memory_snapshot(
-                int(item["pid"]), include_smaps=True
+                cast(int, item["pid"]), include_smaps=True
             )
             if enriched is not None:
                 processes[index] = enriched
 
         cgroup = self.memory_attribution_snapshot()
-        total_rss = sum(int(item.get("rss") or 0) for item in processes)
-        total_swap = sum(int(item.get("swap") or 0) for item in processes)
+        total_rss = sum(cast(int, item.get("rss") or 0) for item in processes)
+        total_swap = sum(cast(int, item.get("swap") or 0) for item in processes)
         LOGGER.warning(
             "PERF process_census reason=%s tile=%s process_count=%d "
             "cgroup_gib=%.2f anon_gib=%.2f file_gib=%.2f total_rss_gib=%.2f total_swap_gib=%.2f",
@@ -482,29 +459,37 @@ class MemoryAdmissionController:
                 item["pid"],
                 item["ppid"],
                 item["name"],
-                int(item.get("rss") or 0) / GIB,
-                "n/a" if item.get("pss") is None else f'{int(item["pss"]) / GIB:.3f}',
+                cast(int, item.get("rss") or 0) / GIB,
+                (
+                    "n/a"
+                    if item.get("pss") is None
+                    else f'{cast(int, item["pss"]) / GIB:.3f}'
+                ),
                 (
                     "n/a"
                     if item.get("pss_anon") is None
-                    else f'{int(item["pss_anon"]) / GIB:.3f}'
+                    else f'{cast(int, item["pss_anon"]) / GIB:.3f}'
                 ),
                 (
                     "n/a"
                     if item.get("pss_file") is None
-                    else f'{int(item["pss_file"]) / GIB:.3f}'
+                    else f'{cast(int, item["pss_file"]) / GIB:.3f}'
                 ),
                 (
                     "n/a"
                     if item.get("anonymous") is None
-                    else f'{int(item["anonymous"]) / GIB:.3f}'
+                    else f'{cast(int, item["anonymous"]) / GIB:.3f}'
                 ),
                 (
                     "n/a"
                     if item.get("vmsize") is None
-                    else f'{int(item["vmsize"]) / GIB:.3f}'
+                    else f'{cast(int, item["vmsize"]) / GIB:.3f}'
                 ),
-                "n/a" if item.get("swap") is None else f'{int(item["swap"]) / GIB:.3f}',
+                (
+                    "n/a"
+                    if item.get("swap") is None
+                    else f'{cast(int, item["swap"]) / GIB:.3f}'
+                ),
             )
 
     def log_process_census_if_due(
@@ -555,8 +540,6 @@ class MemoryAdmissionController:
             "throttled": bool(self._throttled.value),
             "stats_active": int(self._stats_active.value),
             "stats_waiting": int(self._stats_waiting.value),
-            "copy_active": int(self._copy_active.value),
-            "copy_waiting": int(self._copy_waiting.value),
         }
         tmp = f"{STATUS_PATH}.{os.getpid()}.tmp"
         try:
@@ -823,64 +806,6 @@ class MemoryAdmissionController:
                         fraction * 100,
                     )
             time.sleep(self.poll_seconds)
-
-    def wait_for_copy(self, tile_id: str) -> None:
-        """Do not launch a GeoTIFF copy while cgroup memory is pressured."""
-        if not self.enabled:
-            return
-
-        waiting = False
-        while True:
-            with self._lock:
-                current, limit = self._memory()
-                if current is None or limit is None or limit <= 0:
-                    return
-                fraction = current / float(limit)
-                threshold = self.resume_watermark if waiting else self.high_watermark
-                if fraction < threshold:
-                    if waiting:
-                        LOGGER.info(
-                            "Memory copy gate resumed: tile=%s current=%.1f%%",
-                            tile_id,
-                            fraction * 100,
-                        )
-                    return
-                if not waiting:
-                    waiting = True
-                    LOGGER.warning(
-                        "Memory copy gate waiting: tile=%s current=%.1f%%",
-                        tile_id,
-                        fraction * 100,
-                    )
-            time.sleep(self.poll_seconds)
-
-    @contextmanager
-    def copy_slot(self, tile_id: str) -> Iterator[None]:
-        """Limit concurrent GeoTIFF copies and gate them on actual memory."""
-        with self._lock:
-            self._copy_waiting.value += 1
-            self._write_status_locked()
-        self._copy_semaphore.acquire()
-        active = False
-        try:
-            if self.enabled:
-                self.wait_for_copy(tile_id)
-            with self._lock:
-                self._copy_waiting.value = max(0, self._copy_waiting.value - 1)
-                self._copy_active.value += 1
-                active = True
-                self._write_status_locked()
-            yield
-        finally:
-            if active:
-                with self._lock:
-                    self._copy_active.value = max(0, self._copy_active.value - 1)
-                    self._write_status_locked()
-            else:
-                with self._lock:
-                    self._copy_waiting.value = max(0, self._copy_waiting.value - 1)
-                    self._write_status_locked()
-            self._copy_semaphore.release()
 
     @contextmanager
     def stats_slot(self, tile_id: str) -> Iterator[None]:
