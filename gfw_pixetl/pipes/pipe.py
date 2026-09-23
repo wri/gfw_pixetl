@@ -108,15 +108,6 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
-    def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
-        """Copy local file to geotiff format."""
-        for tile in tiles:
-            if tile.status == "pending":
-                tile.create_gdal_geotiff()
-            yield tile
-
-    @staticmethod
     @stage(workers=GLOBALS.upload_workers)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Upload tile to target location."""
