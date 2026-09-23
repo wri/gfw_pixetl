@@ -215,12 +215,26 @@ class RasterSrcTile(Tile):
         out_files = list()
         first_window = True
         try:
-            for window in self.windows():
+            windows = self.windows()
+            window_count = len(windows)
+            for window_index, window in enumerate(windows):
+                # Measure the complete synchronous processify call in the tile
+                # worker.  Comparing this with PERF window_child separates
+                # child startup/IPC overhead from GDAL setup and transform time.
+                dispatch_started = perf_counter()
                 # Open the Rasterio/GDAL datasets inside the spawned child.
                 # Live GDAL handles (including WarpedVRT) are intentionally
                 # never sent across the multiprocessing boundary: they are not
                 # picklable and must not be shared between processes.
                 out_files.append(self._processified_transform(window))
+                dispatch_seconds = perf_counter() - dispatch_started
+                LOGGER.info(
+                    "PERF window_dispatch "
+                    f"tile={self.tile_id} window={window_index + 1}/{window_count} "
+                    f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
+                    f"width={int(window.width)} height={int(window.height)} "
+                    f"elapsed_s={dispatch_seconds:.3f}"
+                )
                 if first_window:
                     # Startup reservation only covers the interval before the
                     # transform working set becomes visible in memory.current.
@@ -251,7 +265,10 @@ class RasterSrcTile(Tile):
         # With the spawn start method, only serializable Python state may cross
         # into this function. Create and close all GDAL-backed objects here in
         # the child process instead of attempting to pickle a live WarpedVRT.
+        child_started = perf_counter()
+        setup_started = perf_counter()
         src, vrt = self._src_to_vrt()
+        setup_seconds = perf_counter() - setup_started
         try:
             layer = Layer(
                 input_bands=self.layer.input_bands, calc_string=self.layer.calc
@@ -271,7 +288,18 @@ class RasterSrcTile(Tile):
                 write_to_separate_files=write_to_seperate_files,
             )
 
-            return transform(self.tile_id, window, layer, source, destination)
+            transform_started = perf_counter()
+            result = transform(self.tile_id, window, layer, source, destination)
+            transform_seconds = perf_counter() - transform_started
+            LOGGER.info(
+                "PERF window_child "
+                f"tile={self.tile_id} col_off={int(window.col_off)} "
+                f"row_off={int(window.row_off)} width={int(window.width)} "
+                f"height={int(window.height)} setup_s={setup_seconds:.3f} "
+                f"transform_s={transform_seconds:.3f} "
+                f"total_s={perf_counter() - child_started:.3f}"
+            )
+            return result
         finally:
             vrt.close()
             src.close()
