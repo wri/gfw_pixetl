@@ -16,10 +16,10 @@ from rasterio.warp import transform_bounds
 from rasterio.windows import Window, bounds, from_bounds, union
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
+from gfw_pixetl.decorators import SubprocessKilledError, lazy_property
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
-from gfw_pixetl.memory_admission import MEMORY_ADMISSION, AdmissionSharedState
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -50,7 +50,6 @@ def _persistent_window_worker(
     result_queue,
     tile_bytes: bytes,
     windows: List[Window],
-    admission_state: AdmissionSharedState,
 ) -> None:
     """Process all windows for one tile in a single spawned interpreter.
 
@@ -66,7 +65,6 @@ def _persistent_window_worker(
     from gfw_pixetl.logs import configure_worker_logging
 
     configure_worker_logging("INFO")
-    MEMORY_ADMISSION.bind_shared_state(admission_state)
     tile = dill.loads(tile_bytes)
 
     for window_index, window in enumerate(windows):
@@ -265,10 +263,9 @@ class RasterSrcTile(Tile):
 
         ctx = mp.get_context("spawn")
         result_queue = ctx.Queue()
-        admission_state = MEMORY_ADMISSION.snapshot_shared_state()
         worker = ctx.Process(
             target=_persistent_window_worker,
-            args=(result_queue, dill.dumps(self), windows, admission_state),
+            args=(result_queue, dill.dumps(self), windows),
             name=f"window-worker-{self.tile_id}",
         )
 
@@ -329,20 +326,6 @@ class RasterSrcTile(Tile):
             result_queue.join_thread()
 
         return any(value is not None for value in out_files)
-
-    def _parallel_transform(self, window) -> Optional[str]:
-        """Transform one window in an isolated spawned process."""
-        return self._processified_transform(window, True)
-
-    @processify
-    def _processified_transform(
-        self, window: Window, write_to_seperate_files=False
-    ) -> Optional[str]:
-        """Compatibility helper to transform one window in an isolated
-        child."""
-        return self._transform_window_in_current_process(
-            window, write_to_seperate_files
-        )
 
     def _transform_window_in_current_process(
         self, window: Window, write_to_seperate_files=False
