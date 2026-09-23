@@ -5,6 +5,7 @@ import sys
 import traceback
 from math import floor, sqrt
 from pathlib import Path
+from time import perf_counter
 from typing import Iterator, List, Optional, Tuple, Union
 
 import numpy as np
@@ -47,9 +48,20 @@ def _gdal_cache_size(block_byte_size: int, max_blocks: int) -> int:
 
 
 def _persistent_window_worker(
-    result_queue, command_queue, tile_bytes: bytes, windows: List[Window]
+    result_queue,
+    command_queue,
+    tile_bytes: bytes,
+    windows: List[Window],
+    window_offset: int,
 ) -> None:
-    """Process every window for one tile in a single spawned interpreter."""
+    """Process all windows for one tile in one spawned interpreter.
+
+    The tile is serialized with dill by the parent so we do not depend
+    on RasterSrcTile and all of its cached state being stdlib-
+    pickleable. GDAL objects are created only after spawn, and the
+    process exits when the tile is complete so native allocations are
+    reclaimed at the tile boundary.
+    """
     import dill
 
     from gfw_pixetl.logs import configure_worker_logging
@@ -65,13 +77,14 @@ def _persistent_window_worker(
             result_queue.put(
                 (
                     "error",
-                    window_index,
+                    window_offset + window_index,
                     (ex_type, ex_value, "".join(traceback.format_tb(tb))),
                 )
             )
             return
-        result_queue.put(("result", window_index, result))
+        result_queue.put(("result", window_offset + window_index, result))
 
+        # The parent admits the next window before allowing us to continue.
         command = command_queue.get()
         if command == "stop":
             return
@@ -164,25 +177,6 @@ class RasterSrcTile(Tile):
 
         return snapped_window(window)
 
-    def reset_for_retry(self) -> None:
-        """Clear all cached properties that reference files in work_dir.
-
-        ``src`` creates hardlinks into ``work_dir`` and a VRT file on disk.
-        ``intersecting_window`` is derived from ``src``.  Both are stored by
-        ``cached_property`` (via ``lazy_property``) in the instance
-        ``__dict__``, so deleting the key is all that is needed to force
-        recomputation on next access.
-
-        We must clear these *before* calling super(), which recreates
-        ``work_dir``, because the old cached ``src`` holds a ``RasterSource``
-        whose ``uri`` points to a VRT file that was deleted along with the
-        previous ``work_dir``.
-        """
-        for attr in ("src", "intersecting_window"):
-            self.__dict__.pop(attr, None)
-
-        super().reset_for_retry()
-
     def within(self) -> bool:
         """Check if target tile extent intersects with source extent."""
         return (
@@ -192,18 +186,25 @@ class RasterSrcTile(Tile):
         )
 
     def transform(self) -> bool:
-        """Write input data to output tile."""
+        """Write input data to output tile and report coarse phase timings."""
         LOGGER.debug(f"Transform tile {self.tile_id}")
+        total_started = perf_counter()
+        windows_seconds = 0.0
+        postprocess_seconds = 0.0
 
         try:
+            phase_started = perf_counter()
             has_data: bool = self._process_windows()
+            windows_seconds = perf_counter() - phase_started
 
             # creating gdal-geotiff and computing stats here
             # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
             if has_data:
+                phase_started = perf_counter()
                 self.postprocessing()
+                postprocess_seconds = perf_counter() - phase_started
 
         except SubprocessKilledError as e:
             LOGGER.exception(e)
@@ -214,6 +215,12 @@ class RasterSrcTile(Tile):
             self.status = "failed"
             has_data = True
 
+        LOGGER.info(
+            "PERF tile "
+            f"tile={self.tile_id} windows_s={windows_seconds:.3f} "
+            f"postprocess_s={postprocess_seconds:.3f} "
+            f"total_s={perf_counter() - total_started:.3f} status={self.status}"
+        )
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
@@ -241,12 +248,21 @@ class RasterSrcTile(Tile):
         return src, vrt
 
     def _process_windows(self) -> bool:
-        """Process windows sequentially in one spawned child per tile."""
+        """Process windows sequentially within this tile worker.
+
+        Tile-level parallelism belongs to the pipeline. Windows run in
+        one spawned child per tile and are gated by shared memory
+        admission.
+        """
         return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
-        """Process every window for this tile in one persistent spawned
-        worker."""
+        """Process every window for this tile in one persistent spawned worker.
+
+        The child isolates native GDAL/Rasterio state for the tile
+        lifetime; window admission reserves memory before each window
+        begins.
+        """
         import dill
 
         windows = self.windows()
@@ -264,12 +280,19 @@ class RasterSrcTile(Tile):
         command_queue = ctx.Queue()
         worker = ctx.Process(
             target=_persistent_window_worker,
-            args=(result_queue, command_queue, dill.dumps(self), windows),
+            args=(result_queue, command_queue, dill.dumps(self), windows, 0),
             name=f"window-worker-{self.tile_id}",
         )
         out_files = []
         first_window = True
         window_reservation_held = False
+        dispatch_started = perf_counter()
+
+        LOGGER.debug(
+            "PERF window_worker_start "
+            f"tile={self.tile_id} window_start=1 window_end={len(windows)} "
+            f"window_count={len(windows)}"
+        )
 
         try:
             MEMORY_ADMISSION.acquire_window(self.tile_id, 0)
@@ -288,19 +311,24 @@ class RasterSrcTile(Tile):
                             f"Persistent window worker exited with code {worker.exitcode}"
                         )
 
+                window = windows[window_index]
                 if window_reservation_held:
                     MEMORY_ADMISSION.release_window()
                     window_reservation_held = False
 
+                dispatch_seconds = perf_counter() - dispatch_started
+                LOGGER.debug(
+                    "PERF window_dispatch "
+                    f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
+                    f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
+                    f"width={int(window.width)} height={int(window.height)} "
+                    f"elapsed_s={dispatch_seconds:.3f}"
+                )
+                dispatch_started = perf_counter()
+
                 if kind == "error":
                     command_queue.put("stop")
-                    _, ex_value, child_traceback = payload
-                    LOGGER.error(
-                        "Persistent window worker failed for tile %s window %s:\n%s",
-                        self.tile_id,
-                        window_index,
-                        child_traceback,
-                    )
+                    _, ex_value, _ = payload
                     raise ex_value
 
                 out_files.append(payload)
@@ -312,6 +340,7 @@ class RasterSrcTile(Tile):
                     command_queue.put("stop")
                     continue
 
+                # Reuse the tile worker; admission may wait before the next window.
                 MEMORY_ADMISSION.acquire_window(self.tile_id, window_index + 1)
                 window_reservation_held = True
                 command_queue.put("continue")
@@ -342,13 +371,21 @@ class RasterSrcTile(Tile):
     def _transform_window_in_current_process(
         self, window: Window, write_to_seperate_files=False
     ) -> Optional[str]:
-        """Transform one window in the current, already-spawned process."""
+        """Transform one window in the current (already spawned) process."""
+        # Create and close all GDAL-backed objects in the child process.  The
+        # persistent worker calls this repeatedly, then exits after the tile so
+        # native allocations are still bounded by one tile lifetime.
+        child_started = perf_counter()
+        setup_started = perf_counter()
         src, vrt = self._src_to_vrt()
+        setup_seconds = perf_counter() - setup_started
         try:
             layer = Layer(
                 input_bands=self.layer.input_bands, calc_string=self.layer.calc
             )
+
             source = Source(vrt=vrt, crs=self.src.crs)
+
             destination = self._window_destination(
                 self.default_format, write_to_seperate_files
             )
@@ -357,7 +394,9 @@ class RasterSrcTile(Tile):
                 for dst_format in self._direct_output_formats()
                 if dst_format != self.default_format
             ]
-            return transform(
+
+            transform_started = perf_counter()
+            result = transform(
                 self.tile_id,
                 window,
                 layer,
@@ -365,6 +404,16 @@ class RasterSrcTile(Tile):
                 destination,
                 additional_destinations=additional_destinations,
             )
+            transform_seconds = perf_counter() - transform_started
+            LOGGER.debug(
+                "PERF window_child "
+                f"tile={self.tile_id} col_off={int(window.col_off)} "
+                f"row_off={int(window.row_off)} width={int(window.width)} "
+                f"height={int(window.height)} setup_s={setup_seconds:.3f} "
+                f"transform_s={transform_seconds:.3f} "
+                f"total_s={perf_counter() - child_started:.3f}"
+            )
+            return result
         finally:
             vrt.close()
             src.close()
@@ -391,10 +440,16 @@ class RasterSrcTile(Tile):
         )
 
     def windows(self) -> List[Window]:
-        """Create both final raster outputs and return optimized windows."""
+        """Create both final raster outputs and return optimized windows.
+
+        Raster-source transforms write each block-aligned result
+        directly to both final GeoTIFF profiles.
+        """
         LOGGER.debug(f"Create local output files for tile {self.tile_id}")
         output_formats = self._direct_output_formats()
         with rasterio.Env(**GDAL_ENV):
+            # Generate windows from the default output; both profiles share the
+            # same raster geometry and block dimensions.
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
                 "w",
@@ -420,7 +475,6 @@ class RasterSrcTile(Tile):
     def _windows(self, dst: DatasetWriter) -> Iterator[Window]:
         """Divides raster source into larger windows which will still fit into
         memory."""
-
         block_count: int = int(sqrt(self._max_blocks()))
         x_blocks: int = int(dst.width / dst.block_shapes[0][0])
         y_blocks: int = int(dst.height / dst.block_shapes[0][1])
@@ -463,7 +517,6 @@ class RasterSrcTile(Tile):
         same time. Using a divisor of 8 leads to max memory usage of
         about 75%.
         """
-
         # Adjust divisor to band count
         divisor = GLOBALS.divisor
 
@@ -523,7 +576,6 @@ class RasterSrcTile(Tile):
 
     def _reproject_dst_window(self, dst_window: Window) -> Window:
         """Reproject window into same projection as source raster."""
-
         dst_bounds: Bounds = bounds(
             window=dst_window,
             transform=self.dst[self.default_format].transform,
@@ -545,7 +597,6 @@ class RasterSrcTile(Tile):
     ) -> Tuple[rasterio.Affine, float, float]:
         """Compute Affine transformation, width and height for WarpedVRT using
         output CRS and pixel size."""
-
         LOGGER.debug(f"Output Bounds {west, south, east, north}")
         north, west = self.grid.snap_coordinates(north, west)
         south, east = self.grid.snap_coordinates(south, east)
