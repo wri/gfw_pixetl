@@ -55,16 +55,8 @@ class RasterPipe(Pipe):
             poll_seconds=GLOBALS.memory_admission_poll_seconds,
         )
 
-        # Transform workers are started with the ``spawn`` start method, so
-        # they do NOT inherit this configured, shared-memory-backed
-        # controller merely by re-importing gfw_pixetl.memory_admission -
-        # that re-import creates a brand new, unconfigured instance in the
-        # fresh interpreter. Snapshot the now-configured shared primitives
-        # here, in the parent, and pass the snapshot explicitly into
-        # ``self.transform`` as an extra argument so each worker can rebind
-        # its own local MEMORY_ADMISSION onto the real shared state before
-        # it processes any tiles. See memory_admission.py's module
-        # docstring for the full explanation.
+        # Spawned workers do not inherit the configured module singleton, so
+        # pass its shared state explicitly and bind it in each transform worker.
         admission_state = MEMORY_ADMISSION.snapshot_shared_state()
 
         return (
@@ -105,20 +97,14 @@ class RasterPipe(Pipe):
 
     # We cannot use the @stage decorator here
     # but need to create a Stage instance directly in the pipe.
-    # When using the decorator, number of workers get set during RasterPipe class instantiation
-    # and cannot be changed anymore. The Stage class gives us more flexibility.
+    # Build this stage explicitly because its worker count depends on the tile set.
     @staticmethod
     def transform(
         tiles: Iterator[RasterSrcTile],
         admission_state: Optional[AdmissionSharedState] = None,
     ) -> Iterator[RasterSrcTile]:
         """Transform input raster to match new tile grid and projection."""
-        # This runs inside a freshly spawned worker process, where
-        # MEMORY_ADMISSION (re-imported from scratch) is NOT the same
-        # object as the parent's configured controller. Rebind it onto the
-        # parent's real shared state before touching any admission-gated
-        # code path. Must happen before the loop below, and only once per
-        # worker process.
+        # Bind the worker-local controller before any admission-gated work.
         if admission_state is not None:
             MEMORY_ADMISSION.bind_shared_state(admission_state)
 

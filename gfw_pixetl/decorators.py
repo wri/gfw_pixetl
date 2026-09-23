@@ -13,24 +13,8 @@ class SubprocessKilledError(Exception):
 
 
 def lazy_property(fn):
-    """Lazy-evaluated property backed by functools.cached_property.
-
-    Behaves identically to the old hand-rolled version but delegates to
-    the stdlib implementation, which is well-tested and supports cache
-    invalidation via ``del obj.<name>``.  This is important for the OOM
-    retry path, where we need to clear cached state that references files
-    inside a tile's work directory before that directory is recreated.
-
-    The ``cached_property`` descriptor stores its value in the instance
-    ``__dict__`` under the function's own name, so deletion is simply:
-
-        del tile.src               # clears RasterSrcTile.src cache
-        del tile.intersecting_window
-
-    Note: ``cached_property`` is not re-entrant; if two threads access the
-    same unset property simultaneously they may both compute it.  That is
-    fine here because each tile is only ever touched by one worker at a time.
-    """
+    """Return a cached property that can be invalidated with ``del
+    obj.attr``."""
     return cached_property(fn)
 
 
@@ -80,9 +64,7 @@ def _log_unsafe_fork(kind, target):
 
 def _processify_target(q, func_bytes, args, kwargs):
     """Run a processified callable in a spawned child process."""
-    # ``spawn`` starts a fresh interpreter and therefore does not inherit the
-    # parent process' logging handlers. Window-level PERF records are emitted
-    # from this child, so configure stdout logging before invoking the callable.
+    # Spawned children configure logging independently of the parent.
     from gfw_pixetl.logs import configure_worker_logging
 
     configure_worker_logging("INFO")

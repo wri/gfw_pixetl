@@ -250,23 +250,18 @@ class RasterSrcTile(Tile):
     def _process_windows(self) -> bool:
         """Process windows sequentially within this tile worker.
 
-        Tile-level parallelism is owned by the pipeline transform stage.
-        Keeping window processing sequential avoids creating a second
-        process pool inside each transform worker. All windows run in
-        one persistent spawned child, amortizing spawn overhead while
-        keeping native GDAL/Rasterio state isolated to the tile
-        lifetime. A shared atomic memory reservation gates every window
-        before it begins.
+        Tile-level parallelism belongs to the pipeline. Windows run in
+        one spawned child per tile and are gated by shared memory
+        admission.
         """
         return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
         """Process every window for this tile in one persistent spawned worker.
 
-        Tile-level parallelism remains in ParallelPipe. The child exists
-        for native-library isolation, not as another source of
-        parallelism. Window admission still reserves memory atomically
-        before each window begins.
+        The child isolates native GDAL/Rasterio state for the tile
+        lifetime; window admission reserves memory before each window
+        begins.
         """
         import dill
 
@@ -345,9 +340,7 @@ class RasterSrcTile(Tile):
                     command_queue.put("stop")
                     continue
 
-                # Keep the same worker for the entire tile. Admission may wait
-                # here, but no replacement process is spawned just to reclaim
-                # memory that the direct-write path has shown to remain bounded.
+                # Reuse the tile worker; admission may wait before the next window.
                 MEMORY_ADMISSION.acquire_window(self.tile_id, window_index + 1)
                 window_reservation_held = True
                 command_queue.put("continue")
@@ -449,10 +442,8 @@ class RasterSrcTile(Tile):
     def windows(self) -> List[Window]:
         """Create both final raster outputs and return optimized windows.
 
-        Raster-source transforms already produce block-aligned arrays.
-        Writing those arrays directly to both final GeoTIFF profiles
-        avoids the later full-raster CreateCopy used to derive the GDAL-
-        optimized representation.
+        Raster-source transforms write each block-aligned result
+        directly to both final GeoTIFF profiles.
         """
         LOGGER.debug(f"Create local output files for tile {self.tile_id}")
         output_formats = self._direct_output_formats()

@@ -44,10 +44,7 @@ from gfw_pixetl import get_module_logger
 
 LOGGER = get_module_logger(__name__)
 
-# Use a local spawn context rather than the platform default.  In particular,
-# Linux defaults to fork, which is unsafe once libraries such as GDAL have
-# created native threads in the parent process.  Keeping the context local to
-# ParallelPipe avoids changing multiprocessing semantics for callers.
+# Use spawn so workers do not inherit native-library thread state.
 _MP_CONTEXT = mp.get_context("spawn")
 
 # ---------------------------------------------------------------------------
@@ -157,9 +154,7 @@ class Task(SpawnProcess):
         self._que_in = None
         self._que_out = None
         self._que_err = None
-        # Wall-clock timestamp is intentionally stored on the Process object:
-        # spawn serializes it into the child, letting us measure the complete
-        # parent start -> child target-entry bootstrap interval.
+        # Stored on the Process so the child can report startup latency.
         self._perf_start_ns = None
 
     def set_in(self, que_in, num_senders):
@@ -179,17 +174,12 @@ class Task(SpawnProcess):
         return None
 
     def start(self):
-        # Capture this immediately before multiprocessing starts the child.
-        # time.time_ns(), rather than a process-local timer, makes the value
-        # directly comparable after the Process object is serialized by spawn.
+        # Wall-clock time is comparable across the parent and child.
         self._perf_start_ns = time.time_ns()
         super().start()
 
     def run(self):
-        # ``Task`` uses the spawn start method, so logging configuration from
-        # the parent is not inherited. Configure the fresh interpreter before
-        # executing pipeline code so INFO diagnostics from transform workers
-        # reach stdout/CloudWatch.
+        # Spawned workers configure logging independently of the parent.
         from gfw_pixetl.logs import configure_worker_logging
 
         configure_worker_logging("INFO")
@@ -445,9 +435,7 @@ class Pipeline(list):
         total_workers = sum(t.workers for t in self)
 
         # ------------------------------------------------------------------ #
-        # Build watchdogs now that stages have been wired. Do not start their
-        # threads until after all worker processes have been started: forking a
-        # multithreaded parent is deprecated on Python 3.12 and can deadlock.
+        # Build watchdogs now; start their threads after worker processes.
         # ------------------------------------------------------------------ #
         watchdogs = []
         for stg in self:
@@ -461,15 +449,12 @@ class Pipeline(list):
         for stg in self:
             stg.set_err(err_q)
 
-        # Start worker processes before the watchdog threads. Workers use the
-        # explicit spawn context above, so this is safe even if GDAL or another
-        # native library has already created threads in the parent. A worker
-        # that exits before its watchdog starts still retains its exitcode, so
-        # the watchdog can detect an OOM kill on its first pass.
+        # Start workers before watchdog threads. Early exits remain observable
+        # through process exit codes when the watchdogs begin.
         for stg in self:
             stg._start()
 
-        # Only start watchdog threads after all worker processes have forked.
+        # Start watchdog threads after all worker processes are running.
         for wd in watchdogs:
             wd.start()
 
@@ -485,9 +470,7 @@ class Pipeline(list):
         raw_errors = list(iterqueue(err_q, total_workers))
 
         # Stop and join watchdogs before returning from this pipeline.
-        # Merely setting the stop event can leave watchdog threads alive for
-        # up to one polling interval; a subsequent Pipeline may then fork
-        # while those threads still exist.
+        # Join watchdogs so no monitoring threads leak into a later pipeline.
         for wd in watchdogs:
             wd.stop()
         for wd in watchdogs:
