@@ -144,9 +144,6 @@ def isolated_work_dir(tmp_path, monkeypatch):
     yield tmp_path
 
 
-#########
-
-
 minimal_layer_dict = {
     "dataset": "whrc_aboveground_biomass_stock_2000",
     "version": "v4",

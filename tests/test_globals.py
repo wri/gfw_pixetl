@@ -37,3 +37,14 @@ def test_global_workers():
         assert config.workers == 1
 
     os.environ = vars
+
+
+def test_memory_admission_defaults():
+    config = Globals()
+    assert config.memory_admission_enabled is True
+    assert config.memory_admission_high_watermark == 0.80
+    assert config.memory_admission_resume_watermark == 0.75
+    assert config.memory_admission_stats_workers == 4
+    assert config.memory_admission_reservation_gib == 4.0
+    assert config.memory_admission_window_reservation_gib == 4.0
+    assert config.memory_admission_poll_seconds == 1.0
