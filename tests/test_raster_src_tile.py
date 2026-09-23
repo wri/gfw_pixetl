@@ -90,7 +90,7 @@ def test_transform_writes_both_geotiff_formats_directly(LAYER, monkeypatch):
             "raster-source transform must not run full-raster CreateCopy"
         )
 
-    monkeypatch.setattr("gfw_pixetl.tiles.tile.just_copy_geotiff", fail_if_copied)
+    monkeypatch.setattr("gfw_pixetl.tiles.tile._copy_geotiff_spawned", fail_if_copied)
 
     tile.transform()
 
