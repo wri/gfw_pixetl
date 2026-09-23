@@ -19,6 +19,7 @@ from gfw_pixetl.decorators import SubprocessKilledError, lazy_property
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
 from gfw_pixetl.memory_admission import MEMORY_ADMISSION
+from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -348,26 +349,51 @@ class RasterSrcTile(Tile):
                 input_bands=self.layer.input_bands, calc_string=self.layer.calc
             )
             source = Source(vrt=vrt, crs=self.src.crs)
-            destination = Destination(
-                transform=self.dst[self.default_format].transform,
-                crs=self.dst[self.default_format].crs,
-                count=self.dst[self.default_format].profile["count"],
-                no_data=self.dst[self.default_format].nodata,
-                datatype=self.dst[self.default_format].dtype,
-                profile=self.dst[self.default_format].profile,
-                tmp_dir=self.tmp_dir,
-                uri=self.local_dst[self.default_format].uri,
-                write_to_separate_files=write_to_seperate_files,
+            destination = self._window_destination(
+                self.default_format, write_to_seperate_files
             )
-            return transform(self.tile_id, window, layer, source, destination)
+            additional_destinations = [
+                self._window_destination(dst_format, write_to_seperate_files)
+                for dst_format in self._direct_output_formats()
+                if dst_format != self.default_format
+            ]
+            return transform(
+                self.tile_id,
+                window,
+                layer,
+                source,
+                destination,
+                additional_destinations=additional_destinations,
+            )
         finally:
             vrt.close()
             src.close()
 
+    def _direct_output_formats(self) -> Tuple[str, ...]:
+        """Formats raster-source windows can produce without a full-raster
+        copy."""
+        return (DstFormat.geotiff, DstFormat.gdal_geotiff)
+
+    def _window_destination(
+        self, dst_format: str, write_to_separate_files: bool
+    ) -> Destination:
+        dst = self.dst[dst_format]
+        return Destination(
+            transform=dst.transform,
+            crs=dst.crs,
+            count=dst.profile["count"],
+            no_data=dst.nodata,
+            datatype=dst.dtype,
+            profile=dst.profile,
+            tmp_dir=self.tmp_dir,
+            uri=self.local_dst[dst_format].uri,
+            write_to_separate_files=write_to_separate_files,
+        )
+
     def windows(self) -> List[Window]:
-        """Creates local output file and returns list of size optimized windows
-        to process."""
-        LOGGER.debug(f"Create local output file for tile {self.tile_id}")
+        """Create both final raster outputs and return optimized windows."""
+        LOGGER.debug(f"Create local output files for tile {self.tile_id}")
+        output_formats = self._direct_output_formats()
         with rasterio.Env(**GDAL_ENV):
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
@@ -375,7 +401,19 @@ class RasterSrcTile(Tile):
                 **self.dst[self.default_format].profile,
             ) as dst:
                 windows = [window for window in self._windows(dst)]
-        self.set_local_dst(self.default_format)
+
+            for dst_format in output_formats:
+                if dst_format == self.default_format:
+                    continue
+                with rasterio.open(
+                    self.get_local_dst_uri(dst_format),
+                    "w",
+                    **self.dst[dst_format].profile,
+                ):
+                    pass
+
+        for dst_format in output_formats:
+            self.set_local_dst(dst_format)
 
         return windows
 
