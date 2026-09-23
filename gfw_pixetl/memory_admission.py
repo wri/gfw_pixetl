@@ -5,18 +5,57 @@ peak native GDAL/Rasterio working sets at once.  This module keeps the
 worker pool intact but delays *new* expensive work when cgroup memory
 pressure is high.
 
-The controller is created in the single-threaded parent before
-ParallelPipe forks its workers.  Its multiprocessing primitives are
-therefore inherited by all transform workers without introducing a
-manager/server process.
+The controller is created as a module-level singleton (``MEMORY_ADMISSION``,
+below) and ``configure()``d in the single-threaded parent before any worker
+processes start.
+
+IMPORTANT - why this module exists in its current shape:
+ParallelPipe workers (and ``processify`` children) are started with the
+explicit ``spawn`` start method, not ``fork`` (see parallelpipe.py and
+decorators.py; this was a deliberate correctness fix, since forking a
+multithreaded process that has already loaded GDAL is unsafe).  Under
+``spawn`` a worker does NOT inherit the parent's memory - it boots a fresh
+interpreter and re-imports whatever modules its target callable needs.  If
+the transform worker's target function references this module's
+``MEMORY_ADMISSION`` singleton only by (module, qualname) - which is how
+functions get pickled "by reference" - then re-importing
+``gfw_pixetl.memory_admission`` in the child re-executes this module's
+top-level code and creates a *brand new*, unconfigured
+``MemoryAdmissionController()`` (``enabled=False``, fresh/unshared
+``mp.Value``/``mp.RLock``/``mp.BoundedSemaphore`` objects) that has no
+relationship to the parent's configured instance. Concretely, this means
+admission control was silently a no-op in every transform worker even when
+``memory_admission_enabled`` was True, because each worker's local
+``self.enabled`` defaulted to False and every gated method (``acquire_transform``,
+``wait_for_stats``, etc.) short-circuits on ``if not self.enabled: return``.
+
+The fix: ``mp.Value``/``mp.RLock``/``mp.BoundedSemaphore`` objects (and plain
+config values) can be shared correctly across a ``spawn`` boundary, but only
+if they are passed *explicitly* as arguments to the worker's target callable
+- not picked up implicitly via a re-imported module global. See
+``snapshot_shared_state()`` / ``bind_shared_state()`` below: the parent
+snapshots its configured, already-shared primitives into a picklable
+``AdmissionSharedState``, passes that explicitly into the transform stage's
+target function (as an extra argument), and the first thing that function
+does in the (freshly spawned, freshly re-imported) worker is call
+``MEMORY_ADMISSION.bind_shared_state(state)``, which mutates the worker's
+local singleton *in place* to point at the same underlying shared
+primitives and configuration the parent has. Because the rebind mutates the
+existing object rather than reassigning the module-level name, every other
+module in that worker process that already did
+``from gfw_pixetl.memory_admission import MEMORY_ADMISSION`` (e.g.
+``gfw_pixetl/tiles/tile.py``, ``gfw_pixetl/tiles/raster_src_tile.py``) is
+holding a reference to that same object and is therefore correctly
+"upgraded" too, without needing its own explicit wiring.
 """
 
+import dataclasses
 import json
 import multiprocessing as mp
 import os
 import time
 from contextlib import contextmanager
-from typing import Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Optional
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.telemetry import CGROUP_ROOT, _read_int
@@ -26,20 +65,61 @@ LOGGER = get_module_logger(__name__)
 STATUS_PATH = "/tmp/pixetl-memory-admission.json"
 GIB = 1024**3
 
+# Use an explicit spawn context for the shared primitives below, to match
+# the explicit spawn context used everywhere workers are actually created
+# (parallelpipe.py, decorators.py). This is not strictly required for the
+# fix - a Value/RLock/BoundedSemaphore created under any context can be
+# passed as an explicit argument to a spawned child - but keeping the
+# context consistent avoids surprises and documents the intent.
+_MP_CONTEXT = mp.get_context("spawn")
+
+
+@dataclasses.dataclass
+class AdmissionSharedState:
+    """A picklable handle to one configured controller's shared state.
+
+    Passing this object explicitly into a worker's target callable (rather
+    than relying on the worker re-importing this module and finding an
+    already-configured global) is what makes admission control actually
+    shared across a ``spawn`` boundary. Every field here must remain
+    picklable via the standard multiprocessing reduction machinery: the
+    ``mp.Value``/``mp.RLock``/``mp.BoundedSemaphore`` objects support this
+    specifically when passed as explicit process/callable arguments, which
+    is the officially supported way to share them with spawned children.
+    """
+
+    lock: Any
+    reserved_bytes: Any
+    waiting: Any
+    throttled: Any
+    stats_active: Any
+    stats_waiting: Any
+    stats_semaphore: Any
+    enabled: bool
+    cgroup_root: str
+    high_watermark: float
+    resume_watermark: float
+    stats_workers: int
+    reservation_bytes: int
+    poll_seconds: float
+
 
 class MemoryAdmissionController:
     """Coordinate transform admission using cgroup-v2 memory pressure."""
 
     def __init__(self) -> None:
-        # ParallelPipe uses fork on Linux.  These objects are intentionally
-        # created before worker processes so the counters/lock are shared.
-        self._lock = mp.RLock()
-        self._reserved_bytes = mp.Value("q", 0, lock=False)
-        self._waiting = mp.Value("i", 0, lock=False)
-        self._throttled = mp.Value("b", 0, lock=False)
-        self._stats_active = mp.Value("i", 0, lock=False)
-        self._stats_waiting = mp.Value("i", 0, lock=False)
-        self._stats_semaphore = mp.BoundedSemaphore(4)
+        # These are created with an explicit spawn-compatible context. They
+        # are only actually *shared* with a worker process if that worker
+        # receives them explicitly - see ``bind_shared_state`` above. A
+        # worker that does not receive a snapshot keeps its own private
+        # (and, since ``enabled`` defaults to False, inert) set of these.
+        self._lock = _MP_CONTEXT.RLock()
+        self._reserved_bytes = _MP_CONTEXT.Value("q", 0, lock=False)
+        self._waiting = _MP_CONTEXT.Value("i", 0, lock=False)
+        self._throttled = _MP_CONTEXT.Value("b", 0, lock=False)
+        self._stats_active = _MP_CONTEXT.Value("i", 0, lock=False)
+        self._stats_waiting = _MP_CONTEXT.Value("i", 0, lock=False)
+        self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(4)
 
         # Per-process state. Each transform worker handles one tile at a time.
         self._local_reservation_held = False
@@ -78,9 +158,12 @@ class MemoryAdmissionController:
             self.high_watermark = high_watermark
             self.resume_watermark = resume_watermark
             self.stats_workers = stats_workers
-            # Recreated before transform workers are forked, so all workers
-            # inherit the same process-shared stats concurrency limit.
-            self._stats_semaphore = mp.BoundedSemaphore(stats_workers)
+            # Recreated here so a later snapshot_shared_state() call picks up
+            # the configured stats_workers limit. This object only actually
+            # becomes shared with worker processes once it is explicitly
+            # passed to them via AdmissionSharedState - see the module
+            # docstring.
+            self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(stats_workers)
             self.reservation_bytes = reservation_bytes
             self.poll_seconds = poll_seconds
             self._reserved_bytes.value = 0
@@ -99,6 +182,77 @@ class MemoryAdmissionController:
                 resume_watermark * 100,
                 stats_workers,
                 reservation_bytes / GIB,
+            )
+
+    def snapshot_shared_state(self) -> AdmissionSharedState:
+        """Capture this (parent-process, already-configured) controller's
+        shared primitives and scalar config into a picklable handle.
+
+        Call this once, after ``configure()``, in the single-threaded
+        parent. Pass the result explicitly into whatever callable will
+        run in a spawned worker process, and have that callable call
+        ``bind_shared_state`` on its own (freshly re-imported)
+        ``MEMORY_ADMISSION`` before doing any admission-gated work.
+        """
+        with self._lock:
+            return AdmissionSharedState(
+                lock=self._lock,
+                reserved_bytes=self._reserved_bytes,
+                waiting=self._waiting,
+                throttled=self._throttled,
+                stats_active=self._stats_active,
+                stats_waiting=self._stats_waiting,
+                stats_semaphore=self._stats_semaphore,
+                enabled=self.enabled,
+                cgroup_root=self.cgroup_root,
+                high_watermark=self.high_watermark,
+                resume_watermark=self.resume_watermark,
+                stats_workers=self.stats_workers,
+                reservation_bytes=self.reservation_bytes,
+                poll_seconds=self.poll_seconds,
+            )
+
+    def bind_shared_state(self, state: AdmissionSharedState) -> None:
+        """Rebind this controller's primitives/config onto a shared state
+        snapshot taken from another (typically parent-process) instance.
+
+        This mutates ``self`` in place rather than replacing the
+        module-level ``MEMORY_ADMISSION`` name, so every other module in
+        this process that already imported ``MEMORY_ADMISSION`` sees the
+        change too - see the module docstring for why that matters under
+        ``spawn``.
+
+        Safe to call multiple times; not thread-safe against concurrent use
+        of the controller, so call it once, early, before any admission-
+        gated work starts in this process.
+        """
+        self._lock = state.lock
+        self._reserved_bytes = state.reserved_bytes
+        self._waiting = state.waiting
+        self._throttled = state.throttled
+        self._stats_active = state.stats_active
+        self._stats_waiting = state.stats_waiting
+        self._stats_semaphore = state.stats_semaphore
+        self.enabled = state.enabled
+        self.cgroup_root = state.cgroup_root
+        self.high_watermark = state.high_watermark
+        self.resume_watermark = state.resume_watermark
+        self.stats_workers = state.stats_workers
+        self.reservation_bytes = state.reservation_bytes
+        self.poll_seconds = state.poll_seconds
+        # This is per-process bookkeeping (whether *this* process is
+        # currently holding a startup reservation) and must never be copied
+        # from another process's snapshot.
+        self._local_reservation_held = False
+        if self.enabled:
+            LOGGER.info(
+                "Memory admission shared state bound in worker pid %d: "
+                "high=%.0f%% resume=%.0f%% stats_workers=%d reservation=%.1fGiB",
+                os.getpid(),
+                self.high_watermark * 100,
+                self.resume_watermark * 100,
+                self.stats_workers,
+                self.reservation_bytes / GIB,
             )
 
     def _memory(self) -> tuple[Optional[int], Optional[int]]:

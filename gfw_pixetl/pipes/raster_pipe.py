@@ -1,8 +1,8 @@
-from typing import Iterator, List, Set, Tuple
+from typing import Iterator, List, Optional, Set, Tuple
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import RasterSrcLayer
-from gfw_pixetl.memory_admission import GIB, MEMORY_ADMISSION
+from gfw_pixetl.memory_admission import GIB, MEMORY_ADMISSION, AdmissionSharedState
 from gfw_pixetl.parallelpipe import Pipeline, Stage, stage
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.settings.globals import GLOBALS
@@ -41,7 +41,7 @@ class RasterPipe(Pipe):
         worker counts so they do not each reserve a full
         ``num_processes`` pool.
         """
-        # Configure/reset the shared controller before ParallelPipe forks the
+        # Configure the shared controller before ParallelPipe spawns the
         # transform workers.
         MEMORY_ADMISSION.configure(
             enabled=GLOBALS.memory_admission_enabled,
@@ -52,9 +52,21 @@ class RasterPipe(Pipe):
             poll_seconds=GLOBALS.memory_admission_poll_seconds,
         )
 
+        # Transform workers are started with the ``spawn`` start method, so
+        # they do NOT inherit this configured, shared-memory-backed
+        # controller merely by re-importing gfw_pixetl.memory_admission -
+        # that re-import creates a brand new, unconfigured instance in the
+        # fresh interpreter. Snapshot the now-configured shared primitives
+        # here, in the parent, and pass the snapshot explicitly into
+        # ``self.transform`` as an extra argument so each worker can rebind
+        # its own local MEMORY_ADMISSION onto the real shared state before
+        # it processes any tiles. See memory_admission.py's module
+        # docstring for the full explanation.
+        admission_state = MEMORY_ADMISSION.snapshot_shared_state()
+
         return (
             tiles
-            | Stage(self.transform).setup(workers=workers)
+            | Stage(self.transform, admission_state).setup(workers=workers)
             | self.upload_file
             | self.delete_work_dir
         )
@@ -93,8 +105,20 @@ class RasterPipe(Pipe):
     # When using the decorator, number of workers get set during RasterPipe class instantiation
     # and cannot be changed anymore. The Stage class gives us more flexibility.
     @staticmethod
-    def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+    def transform(
+        tiles: Iterator[RasterSrcTile],
+        admission_state: Optional[AdmissionSharedState] = None,
+    ) -> Iterator[RasterSrcTile]:
         """Transform input raster to match new tile grid and projection."""
+        # This runs inside a freshly spawned worker process, where
+        # MEMORY_ADMISSION (re-imported from scratch) is NOT the same
+        # object as the parent's configured controller. Rebind it onto the
+        # parent's real shared state before touching any admission-gated
+        # code path. Must happen before the loop below, and only once per
+        # worker process.
+        if admission_state is not None:
+            MEMORY_ADMISSION.bind_shared_state(admission_state)
+
         for tile in tiles:
             if tile.status == "pending":
                 with MEMORY_ADMISSION.transform_slot(tile.tile_id):
