@@ -186,6 +186,13 @@ class Task(SpawnProcess):
         super().start()
 
     def run(self):
+        # ``Task`` uses the spawn start method, so logging configuration from
+        # the parent is not inherited. Configure the fresh interpreter before
+        # executing pipeline code so INFO diagnostics from transform workers
+        # reach stdout/CloudWatch.
+        from gfw_pixetl.logs import configure_worker_logging
+
+        configure_worker_logging("INFO")
         input = self._consume()
         put_item = self._que_out.put
         func = dill.loads(self._callable)

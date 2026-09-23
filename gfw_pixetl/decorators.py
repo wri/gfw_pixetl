@@ -80,6 +80,12 @@ def _log_unsafe_fork(kind, target):
 
 def _processify_target(q, func_bytes, args, kwargs):
     """Run a processified callable in a spawned child process."""
+    # ``spawn`` starts a fresh interpreter and therefore does not inherit the
+    # parent process' logging handlers. Window-level PERF records are emitted
+    # from this child, so configure stdout logging before invoking the callable.
+    from gfw_pixetl.logs import configure_worker_logging
+
+    configure_worker_logging("INFO")
     func = dill.loads(func_bytes)
     try:
         ret = func(*args, **kwargs)

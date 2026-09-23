@@ -33,8 +33,9 @@ def setup_logging(level: Union[str, int] = "INFO") -> logging.StreamHandler:
     """Configure direct stdout logging for the current process.
 
     Batch/CloudWatch already aggregates stdout from the container, so pixetl does
-    not need a QueueListener thread in the parent process.  Direct stream logging
-    is also safe to inherit across the fork-based multiprocessing used by pixetl.
+    not need a QueueListener thread in the parent process. Spawned workers call
+    ``configure_worker_logging`` to install the same direct handler in their fresh
+    interpreters.
 
     Calling this function repeatedly is idempotent: pixetl replaces only the
     handler it owns, rather than accumulating duplicates or background threads.
@@ -69,8 +70,8 @@ def configure_worker_logging(level: Union[str, int] = "INFO") -> logging.StreamH
     """Configure stdout logging in a child process that uses a fresh
     interpreter.
 
-    Forked pixetl workers inherit the parent's StreamHandler
-    automatically.  This helper is available for explicit spawn-based
-    child entrypoints, such as the dedicated telemetry process.
+    Spawned pixetl workers start with a fresh interpreter and do not
+    inherit the parent's logging handlers. This helper installs the
+    standard pixetl stdout handler in those child entrypoints.
     """
     return setup_logging(level)
