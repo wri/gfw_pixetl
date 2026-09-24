@@ -60,6 +60,10 @@ class Globals(EnvSettings):
         8,
         description="Maximum number of source files to download concurrently.",
     )
+    upload_workers: PositiveInt = Field(
+        8,
+        description="Maximum number of tiles to upload concurrently.",
+    )
     memory_admission_enabled: bool = Field(
         True, description="Throttle new raster transforms under cgroup memory pressure."
     )
