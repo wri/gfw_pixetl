@@ -1,7 +1,8 @@
-from typing import Iterator, List, Set, Tuple
+from typing import Iterator, List, Optional, Set, Tuple
 
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.memory_admission import GIB, MEMORY_ADMISSION, AdmissionSharedState
 from gfw_pixetl.parallelpipe import Pipeline, Stage, stage
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.settings.globals import GLOBALS
@@ -18,7 +19,6 @@ class RasterPipe(Pipe):
         Then see in which target grid cell it would fall. Remove
         duplicated grid cells.
         """
-
         tiles: Set[RasterSrcTile] = set()
         for tile_id in self.grid.get_tile_ids():
             tiles.add(self._get_grid_tile(tile_id))
@@ -37,13 +37,29 @@ class RasterPipe(Pipe):
         count.
 
         ``workers`` controls the parallelism of the memory-intensive
-        ``transform`` stage.  The upload/delete stages always run at
-        ``GLOBALS.num_processes`` workers since they are I/O-bound and
-        much lighter on memory.
+        ``transform`` stage.
         """
+        # Configure the shared controller before ParallelPipe spawns the
+        # transform workers.
+        MEMORY_ADMISSION.configure(
+            enabled=GLOBALS.memory_admission_enabled,
+            high_watermark=GLOBALS.memory_admission_high_watermark,
+            resume_watermark=GLOBALS.memory_admission_resume_watermark,
+            stats_workers=GLOBALS.memory_admission_stats_workers,
+            reservation_bytes=int(GLOBALS.memory_admission_reservation_gib * GIB),
+            window_reservation_bytes=int(
+                GLOBALS.memory_admission_window_reservation_gib * GIB
+            ),
+            poll_seconds=GLOBALS.memory_admission_poll_seconds,
+        )
+
+        # Spawned workers do not inherit the configured module singleton, so
+        # pass its shared state explicitly and bind it in each transform worker.
+        admission_state = MEMORY_ADMISSION.snapshot_shared_state()
+
         return (
             tiles
-            | Stage(self.transform).setup(workers=workers)
+            | Stage(self.transform, admission_state).setup(workers=workers)
             | self.upload_file
             | self.delete_work_dir
         )
@@ -52,21 +68,15 @@ class RasterPipe(Pipe):
         self, overwrite: bool
     ) -> Tuple[List[Tile], List[Tile], List[Tile], List[Tile]]:
         """Raster Pipe."""
-
         LOGGER.info("Start Raster Pipe")
 
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        # Start with as many workers as there are tiles to process, capped at
-        # GLOBALS.workers.  The retry logic will halve this on each OOM kill.
-        initial_workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
-        GLOBALS.workers = initial_workers
-
-        result = self._process_pipe_with_oom_retry(
-            tiles=tiles,
-            workers=initial_workers,
-            build_pipe=self._build_pipe,
-        )
+        # Use as many transform workers as there are tiles to process, capped
+        # at the configured maximum. Memory admission controls how much of that
+        # capacity may be active under pressure.
+        workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
+        result = self._process_pipe(self._build_pipe(tiles, workers))
 
         LOGGER.info("Finished Raster Pipe")
         return result
@@ -85,13 +95,21 @@ class RasterPipe(Pipe):
 
     # We cannot use the @stage decorator here
     # but need to create a Stage instance directly in the pipe.
-    # When using the decorator, number of workers get set during RasterPipe class instantiation
-    # and cannot be changed anymore. The Stage class gives us more flexibility.
+    # Build this stage explicitly because its worker count depends on the tile set.
     @staticmethod
-    def transform(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
+    def transform(
+        tiles: Iterator[RasterSrcTile],
+        admission_state: Optional[AdmissionSharedState] = None,
+    ) -> Iterator[RasterSrcTile]:
         """Transform input raster to match new tile grid and projection."""
+        # Bind the worker-local controller before any admission-gated work.
+        if admission_state is not None:
+            MEMORY_ADMISSION.bind_shared_state(admission_state)
+
         for tile in tiles:
-            if tile.status == "pending" and not tile.transform():
-                tile.status = "skipped (has no data)"
-                LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
+            if tile.status == "pending":
+                with MEMORY_ADMISSION.transform_slot(tile.tile_id):
+                    if not tile.transform():
+                        tile.status = "skipped (has no data)"
+                        LOGGER.info(f"Tile {tile.tile_id} has no data - skip")
             yield tile

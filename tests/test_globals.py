@@ -37,3 +37,38 @@ def test_global_workers():
         assert config.workers == 1
 
     os.environ = vars
+
+
+def test_memory_admission_defaults():
+    config = Globals()
+    assert config.memory_admission_enabled is True
+    assert config.memory_admission_high_watermark == 0.80
+    assert config.memory_admission_resume_watermark == 0.75
+    assert config.memory_admission_stats_workers == 4
+    assert config.memory_admission_reservation_gib == 4.0
+    assert config.memory_admission_window_reservation_gib == 4.0
+    assert config.memory_admission_poll_seconds == 1.0
+
+
+def test_download_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("DOWNLOAD_WORKERS", raising=False)
+    assert Globals().download_workers == 8
+
+    monkeypatch.setenv("DOWNLOAD_WORKERS", "12")
+    assert Globals().download_workers == 12
+
+
+def test_upload_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("UPLOAD_WORKERS", raising=False)
+    assert Globals().upload_workers == 8
+
+    monkeypatch.setenv("UPLOAD_WORKERS", "12")
+    assert Globals().upload_workers == 12
+
+
+def test_cleanup_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("CLEANUP_WORKERS", raising=False)
+    assert Globals().cleanup_workers == 4
+
+    monkeypatch.setenv("CLEANUP_WORKERS", "3")
+    assert Globals().cleanup_workers == 3

@@ -1,7 +1,10 @@
 import copy
+import multiprocessing as mp
 import os
 import shutil
+import traceback
 from abc import ABC
+from time import perf_counter
 from typing import Dict
 
 import rasterio
@@ -12,6 +15,7 @@ from gfw_pixetl import get_module_logger
 from gfw_pixetl.decorators import SubprocessKilledError
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import Layer
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION
 from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import Destination, RasterSource
@@ -23,6 +27,48 @@ from gfw_pixetl.utils.path import create_dir
 LOGGER = get_module_logger(__name__)
 
 stats_ext = ".aux.xml"  # Extension of stats sidecar gdalinfo -stats creates
+_COPY_CONTEXT = mp.get_context("spawn")
+
+
+def _copy_geotiff_target(conn, src_uri, dst_uri, profile) -> None:
+    """Run the memory-heavy GDAL copy in a disposable spawned process."""
+    try:
+        just_copy_geotiff(src_uri, dst_uri, profile)
+        conn.send((True, None))
+    except BaseException:
+        conn.send((False, traceback.format_exc()))
+    finally:
+        conn.close()
+
+
+def _copy_geotiff_spawned(src_uri, dst_uri, profile) -> None:
+    """Copy a GeoTIFF in a child whose exit deterministically reclaims
+    memory."""
+    recv_conn, send_conn = _COPY_CONTEXT.Pipe(duplex=False)
+    process = _COPY_CONTEXT.Process(
+        target=_copy_geotiff_target,
+        args=(send_conn, src_uri, dst_uri, profile),
+        name="pixetl-geotiff-copy",
+    )
+    process.start()
+    send_conn.close()
+    try:
+        process.join()
+        if recv_conn.poll():
+            ok, error = recv_conn.recv()
+            if not ok:
+                raise RuntimeError(f"GeoTIFF copy subprocess failed:\n{error}")
+        elif process.exitcode != 0:
+            raise RuntimeError(
+                f"GeoTIFF copy subprocess exited with code {process.exitcode}"
+            )
+        else:
+            raise RuntimeError("GeoTIFF copy subprocess returned no result")
+    finally:
+        recv_conn.close()
+        if process.is_alive():
+            process.terminate()
+            process.join()
 
 
 class Tile(ABC):
@@ -106,24 +152,6 @@ class Tile(ABC):
     def remove_work_dir(self):
         shutil.rmtree(self.work_dir, ignore_errors=True)
 
-    def reset_for_retry(self) -> None:
-        """Prepare this tile to be processed again after an OOM kill.
-
-        Resets all mutable state that accumulates during a pipeline run
-        so that the tile can safely pass through the full pipeline a
-        second time.  Subclasses should call
-        ``super().reset_for_retry()`` and then clear any additional
-        cached properties they own.
-        """
-        self.status = "pending"
-        self.metadata = {}
-        self.local_dst = {}
-
-        # Recreate work directories in case delete_work_dir already ran
-        # for tiles that completed before the OOM kill hit.
-        create_dir(self.work_dir)
-        create_dir(self.tmp_dir)
-
     def set_local_dst(self, dst_format) -> None:
         if hasattr(self, "local_src"):
             self.rm_local_src(dst_format)
@@ -142,12 +170,17 @@ class Tile(ABC):
 
     def create_gdal_geotiff(self) -> None:
         dst_format = DstFormat.gdal_geotiff
+        if dst_format in self.local_dst:
+            LOGGER.info(
+                f"Local Gdal Geotiff already exists for tile {self.tile_id}; skip copying"
+            )
+            return
         if self.default_format != dst_format:
             LOGGER.info(
                 f"Create copy of local file as Gdal Geotiff for tile {self.tile_id}"
             )
 
-            just_copy_geotiff(
+            _copy_geotiff_spawned(
                 self.local_dst[self.default_format].uri,
                 self.get_local_dst_uri(dst_format),
                 self.dst[dst_format].profile,
@@ -199,14 +232,34 @@ class Tile(ABC):
                     os.remove(local_file)
 
     def postprocessing(self):
-        """Once we have the final geotiff, all postprocessing steps should be
-        the same no matter the source format and grid type."""
+        """Finalize a tile and report coarse copy/statistics timings."""
+        total_started = perf_counter()
 
-        # Add superior compression, which only works with GDAL drivers
+        # Add superior compression, which only works with GDAL drivers.
+        phase_started = perf_counter()
         self.create_gdal_geotiff()
+        copy_seconds = perf_counter() - phase_started
 
-        # Compute stats and histogram
-        for dst_format in self.local_dst.keys():
-            self.metadata[dst_format] = self.local_dst[dst_format].metadata(
-                self.layer.compute_stats, self.layer.compute_histogram
-            )
+        # Structural metadata is cheap. Stats/histograms require full raster
+        # scans, so only those opt-in paths are memory- and concurrency-gated.
+        phase_started = perf_counter()
+        needs_stats_gate = self.layer.compute_stats or self.layer.compute_histogram
+        if needs_stats_gate:
+            with MEMORY_ADMISSION.stats_slot(self.tile_id):
+                for dst_format in self.local_dst.keys():
+                    self.metadata[dst_format] = self.local_dst[dst_format].metadata(
+                        self.layer.compute_stats, self.layer.compute_histogram
+                    )
+        else:
+            for dst_format in self.local_dst.keys():
+                self.metadata[dst_format] = self.local_dst[dst_format].metadata(
+                    False, False
+                )
+        metadata_seconds = perf_counter() - phase_started
+
+        LOGGER.info(
+            "PERF postprocess "
+            f"tile={self.tile_id} copy_s={copy_seconds:.3f} "
+            f"metadata_s={metadata_seconds:.3f} "
+            f"total_s={perf_counter() - total_started:.3f}"
+        )

@@ -25,24 +25,20 @@ EMPTY_METADATA = Metadata(
 )
 
 
-def test_create_tiles_subset(PIPE_10x10):
+def test_create_tiles_subset(PIPE_10x10, in_process_pipeline):
     with mock.patch.object(
         RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
     ):
-        with mock.patch.object(
-            RasterSrcTile, "within", return_value=True
-        ), mock.patch.object(
-            Destination, "exists", return_value=False
-        ), mock.patch.object(
-            RasterSrcTile, "transform", return_value=True
-        ), mock.patch.object(
-            RasterSrcTile, "create_gdal_geotiff", return_value=None
-        ), mock.patch.object(
-            RasterSrcTile, "upload", return_value=None
-        ), mock.patch.object(
-            RasterSrcTile, "rm_local_src", return_value=None
-        ), mock.patch(
-            "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+        with (
+            mock.patch.object(RasterSrcTile, "within", return_value=True),
+            mock.patch.object(Destination, "exists", return_value=False),
+            mock.patch.object(RasterSrcTile, "transform", return_value=True),
+            mock.patch.object(RasterSrcTile, "create_gdal_geotiff", return_value=None),
+            mock.patch.object(RasterSrcTile, "upload", return_value=None),
+            mock.patch.object(RasterSrcTile, "rm_local_src", return_value=None),
+            mock.patch(
+                "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+            ),
         ):
             (
                 tiles,
@@ -56,28 +52,24 @@ def test_create_tiles_subset(PIPE_10x10):
             assert len(existing_tiles) == 0
 
 
-def test_create_tiles_all(LAYER):
-    with mock.patch.object(
-        RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
-    ), mock.patch(
-        "gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA
-    ), mock.patch.object(
-        RasterSrcTile, "within", return_value=True
-    ), mock.patch.object(
-        Destination, "exists", return_value=False
-    ), mock.patch.object(
-        RasterSrcTile, "transform", return_value=True
-    ), mock.patch.object(
-        RasterSrcTile, "create_gdal_geotiff", return_value=None
-    ), mock.patch.object(
-        RasterSrcTile, "upload", return_value=None
-    ), mock.patch.object(
-        RasterSrcTile, "rm_local_src", return_value=None
-    ), mock.patch(
-        "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+def test_create_tiles_all(LAYER, in_process_pipeline):
+    with (
+        mock.patch.object(
+            RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
+        ),
+        mock.patch("gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA),
+        mock.patch.object(RasterSrcTile, "within", return_value=True),
+        mock.patch.object(Destination, "exists", return_value=False),
+        mock.patch.object(RasterSrcTile, "transform", return_value=True),
+        mock.patch.object(RasterSrcTile, "create_gdal_geotiff", return_value=None),
+        mock.patch.object(RasterSrcTile, "upload", return_value=None),
+        mock.patch.object(RasterSrcTile, "rm_local_src", return_value=None),
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+        ),
     ):
         pipe = RasterPipe(LAYER)
-        (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
             overwrite=False
         )
         assert len(tiles) == 4
@@ -86,29 +78,25 @@ def test_create_tiles_all(LAYER):
         assert len(existing_tiles) == 0
 
 
-def test_create_tiles_existing(LAYER):
-    with mock.patch.object(
-        RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
-    ), mock.patch(
-        "gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA
-    ), mock.patch.object(
-        RasterSrcTile, "within", return_value=True
-    ), mock.patch.object(
-        Destination, "exists", return_value=True
-    ), mock.patch.object(
-        RasterSrcTile, "transform", return_value=True
-    ), mock.patch.object(
-        RasterSrcTile, "create_gdal_geotiff", return_value=None
-    ), mock.patch.object(
-        RasterSrcTile, "upload", return_value=None
-    ), mock.patch.object(
-        RasterSrcTile, "rm_local_src", return_value=None
-    ), mock.patch(
-        "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+def test_create_tiles_existing(LAYER, in_process_pipeline):
+    with (
+        mock.patch.object(
+            RasterPipe, "get_grid_tiles", return_value=_get_subset_tiles()
+        ) as get_grid_tiles,
+        mock.patch("gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA),
+        mock.patch.object(RasterSrcTile, "within", return_value=True),
+        mock.patch.object(Destination, "exists", return_value=True),
+        mock.patch.object(RasterSrcTile, "transform", return_value=True),
+        mock.patch.object(RasterSrcTile, "create_gdal_geotiff", return_value=None),
+        mock.patch.object(RasterSrcTile, "upload", return_value=None),
+        mock.patch.object(RasterSrcTile, "rm_local_src", return_value=None),
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+        ),
     ):
         # All exist
         pipe = RasterPipe(LAYER)
-        (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
             overwrite=False
         )
         assert len(tiles) == 0
@@ -116,9 +104,12 @@ def test_create_tiles_existing(LAYER):
         assert len(failed_tiles) == 0
         assert len(existing_tiles) == 4
 
-        # Now do it with overwrite set to True
+        # The in-process test pipeline mutates the tile instances, so use a
+        # fresh set when exercising the overwrite case.
+        get_grid_tiles.return_value = _get_subset_tiles()
+
         pipe = RasterPipe(LAYER)
-        (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
             overwrite=True
         )
         assert len(tiles) == 4
@@ -127,28 +118,25 @@ def test_create_tiles_existing(LAYER):
         assert len(existing_tiles) == 0
 
 
-def test_create_tiles_fail(LAYER):
-    with mock.patch.object(
-        RasterPipe,
-        "get_grid_tiles",
-        return_value=[RasterSrcTile(tile_id="10N_011E", grid=GRID_1, layer=LAYER)],
-    ), mock.patch(
-        "gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA
-    ), mock.patch.object(
-        RasterSrcTile, "within", return_value=True
-    ), mock.patch.object(
-        Destination, "exists", return_value=False
-    ), mock.patch.object(
-        RasterSrcTile, "create_gdal_geotiff", return_value=None
-    ), mock.patch.object(
-        RasterSrcTile, "_process_windows", side_effect=Exception
-    ), mock.patch.object(
-        RasterSrcTile, "rm_local_src", return_value=None
-    ), mock.patch(
-        "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+def test_create_tiles_fail(LAYER, in_process_pipeline):
+    with (
+        mock.patch.object(
+            RasterPipe,
+            "get_grid_tiles",
+            return_value=[RasterSrcTile(tile_id="10N_011E", grid=GRID_1, layer=LAYER)],
+        ),
+        mock.patch("gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA),
+        mock.patch.object(RasterSrcTile, "within", return_value=True),
+        mock.patch.object(Destination, "exists", return_value=False),
+        mock.patch.object(RasterSrcTile, "create_gdal_geotiff", return_value=None),
+        mock.patch.object(RasterSrcTile, "_process_windows", side_effect=Exception),
+        mock.patch.object(RasterSrcTile, "rm_local_src", return_value=None),
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+        ),
     ):
         pipe = RasterPipe(LAYER)
-        (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
             overwrite=False
         )
         assert len(tiles) == 0
@@ -158,56 +146,41 @@ def test_create_tiles_fail(LAYER):
         assert all(tile.status == "failed" for tile in failed_tiles)
 
 
-def test_create_tiles_subprocess_oom(LAYER):
-    with mock.patch.object(
-        RasterPipe,
-        "get_grid_tiles",
-        return_value=[RasterSrcTile(tile_id="10N_011E", grid=GRID_1, layer=LAYER)],
-    ), mock.patch(
-        "gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA
-    ), mock.patch.object(
-        RasterSrcTile, "within", return_value=True
-    ), mock.patch.object(
-        Destination, "exists", return_value=False
-    ), mock.patch.object(
-        RasterSrcTile, "_processified_transform", side_effect=SubprocessKilledError
-    ), mock.patch.object(
-        RasterSrcTile, "create_gdal_geotiff", return_value=None
-    ), mock.patch.object(
-        RasterSrcTile, "rm_local_src", return_value=None
-    ), mock.patch(
-        "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+def test_create_tiles_subprocess_oom(LAYER, in_process_pipeline):
+    with (
+        mock.patch.object(
+            RasterPipe,
+            "get_grid_tiles",
+            return_value=[RasterSrcTile(tile_id="10N_011E", grid=GRID_1, layer=LAYER)],
+        ),
+        mock.patch("gfw_pixetl.pipes.pipe.get_metadata", return_value=EMPTY_METADATA),
+        mock.patch.object(RasterSrcTile, "within", return_value=True),
+        mock.patch.object(Destination, "exists", return_value=False),
+        mock.patch.object(
+            RasterSrcTile,
+            "_process_windows_sequential",
+            side_effect=SubprocessKilledError,
+        ),
+        mock.patch.object(RasterSrcTile, "create_gdal_geotiff", return_value=None),
+        mock.patch.object(RasterSrcTile, "rm_local_src", return_value=None),
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries.upload_geojsons", return_value=None
+        ),
     ):
-        # First test the sequential code path
-        with mock.patch("gfw_pixetl.utils.get_co_workers", return_value=1):
-            pipe = RasterPipe(LAYER)
-            (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
-                overwrite=False
-            )
-            assert len(tiles) == 0
-            assert len(skipped_tiles) == 0
-            assert len(failed_tiles) == 1
-            assert len(existing_tiles) == 0
-            assert all(
-                tile.status == "failed - subprocess was killed" for tile in failed_tiles
-            )
-
-        # Then the parallel one
-        with mock.patch("gfw_pixetl.utils.get_co_workers", return_value=2):
-            pipe = RasterPipe(LAYER)
-            (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
-                overwrite=False
-            )
-            assert len(tiles) == 0
-            assert len(skipped_tiles) == 0
-            assert len(failed_tiles) == 1
-            assert len(existing_tiles) == 0
-            assert all(
-                tile.status == "failed - subprocess was killed" for tile in failed_tiles
-            )
+        pipe = RasterPipe(LAYER)
+        tiles, skipped_tiles, failed_tiles, existing_tiles = pipe.create_tiles(
+            overwrite=False
+        )
+        assert len(tiles) == 0
+        assert len(skipped_tiles) == 0
+        assert len(failed_tiles) == 1
+        assert len(existing_tiles) == 0
+        assert all(
+            tile.status == "failed - subprocess was killed" for tile in failed_tiles
+        )
 
 
-def test_filter_src_tiles(PIPE_10x10):
+def test_filter_src_tiles(PIPE_10x10, in_process_pipeline):
     tiles = _get_subset_tiles()
 
     with mock.patch.object(RasterSrcTile, "within", return_value=False):
@@ -219,6 +192,7 @@ def test_filter_src_tiles(PIPE_10x10):
                 assert isinstance(tile, RasterSrcTile)
         assert i == 0
 
+    tiles = _get_subset_tiles()
     with mock.patch.object(RasterSrcTile, "within", return_value=True):
         pipe = tiles | PIPE_10x10.filter_src_tiles
         i = 0

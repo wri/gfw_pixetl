@@ -1,9 +1,12 @@
 import json
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from urllib.parse import urlparse
 
+from botocore.exceptions import BotoCoreError, ClientError
 from geojson import FeatureCollection
 from shapely.geometry import shape
 
@@ -19,6 +22,52 @@ from gfw_pixetl.utils.path import create_dir, from_vsi
 from gfw_pixetl.utils.utils import DummyTile
 
 LOGGER = get_module_logger(__name__)
+
+DOWNLOAD_MAX_ATTEMPTS = 4
+DOWNLOAD_INITIAL_BACKOFF_SECONDS = 1.0
+DOWNLOAD_MAX_BACKOFF_SECONDS = 8.0
+
+
+def _http_status_code(exception: Exception) -> Optional[int]:
+    """Best-effort extraction of an HTTP status from cloud SDK exceptions."""
+    if isinstance(exception, ClientError):
+        return exception.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+    status = getattr(exception, "code", None)
+    if callable(status):
+        status = status()
+    if hasattr(status, "value"):
+        status = status.value
+    try:
+        return int(status) if status is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_transient_download_error(exception: Exception) -> bool:
+    """Return True for cloud/network failures which are safe to retry."""
+    if isinstance(exception, BotoCoreError):
+        return True
+
+    if isinstance(exception, (TimeoutError, ConnectionError)):
+        return True
+
+    status = _http_status_code(exception)
+    if status == 429 or (status is not None and 500 <= status < 600):
+        return True
+
+    if isinstance(exception, ClientError):
+        code = str(exception.response.get("Error", {}).get("Code", ""))
+        return code in {
+            "SlowDown",
+            "RequestTimeout",
+            "RequestTimeoutException",
+            "Throttling",
+            "ThrottlingException",
+            "TooManyRequestsException",
+        }
+
+    return False
 
 
 def get_file_list_from_tiles_geojson(bucket: str, prefix: str) -> List[str]:
@@ -83,11 +132,29 @@ def download_source_file(args: Tuple[str, str]) -> Path:
     os.makedirs(os.path.dirname(local_file), exist_ok=True)
 
     LOGGER.debug(f"Downloading remote file {remote_file} to {local_file}")
-    download_constructor[parts.scheme](
-        bucket=str(parts.netloc), key=str(parts.path[1:]), dst=str(local_file)
-    )
 
-    return local_file
+    delay = DOWNLOAD_INITIAL_BACKOFF_SECONDS
+    for attempt in range(1, DOWNLOAD_MAX_ATTEMPTS + 1):
+        try:
+            download_constructor[parts.scheme](
+                bucket=str(parts.netloc), key=str(parts.path[1:]), dst=str(local_file)
+            )
+            return local_file
+        except Exception as exc:
+            if attempt == DOWNLOAD_MAX_ATTEMPTS or not _is_transient_download_error(
+                exc
+            ):
+                raise
+
+            LOGGER.warning(
+                f"Transient error downloading {remote_file} "
+                f"(attempt {attempt}/{DOWNLOAD_MAX_ATTEMPTS}): {exc}. "
+                f"Retrying in {delay:.1f}s."
+            )
+            time.sleep(delay)
+            delay = min(delay * 2, DOWNLOAD_MAX_BACKOFF_SECONDS)
+
+    raise AssertionError("download retry loop exited unexpectedly")
 
 
 def download_sources(source_uris: List[str], work_dir: str) -> List[str]:
@@ -125,14 +192,30 @@ def download_sources(source_uris: List[str], work_dir: str) -> List[str]:
 
     LOGGER.info(f"Complete list of file_uris to download: {file_uris}")
 
-    for file_uri, target_dir in file_uris:
-        file_path = download_source_file((file_uri, target_dir))
-        assert os.path.exists(
-            file_path
-        ), f"In download_sources. {file_path} does not exist!"
+    if file_uris:
+        download_workers = min(GLOBALS.download_workers, len(file_uris))
+        started = time.monotonic()
+        LOGGER.info(
+            f"Downloading {len(file_uris)} source files with "
+            f"{download_workers} concurrent workers"
+        )
 
-    # with ProcessPoolExecutor(max_workers=GLOBALS.num_processes) as executor:
-    #     for file_uri, target_dir in file_uris:
-    #         executor.submit(download_source_file, (file_uri, target_dir))
+        with ThreadPoolExecutor(
+            max_workers=download_workers, thread_name_prefix="source-download"
+        ) as executor:
+            futures = [
+                executor.submit(download_source_file, file_uri)
+                for file_uri in file_uris
+            ]
+            for future in as_completed(futures):
+                file_path = future.result()
+                assert os.path.exists(
+                    file_path
+                ), f"In download_sources. {file_path} does not exist!"
+
+        LOGGER.info(
+            f"Downloaded {len(file_uris)} source files in "
+            f"{time.monotonic() - started:.1f}s"
+        )
 
     return local_source_uris
