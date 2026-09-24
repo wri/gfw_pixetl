@@ -64,6 +64,10 @@ class Globals(EnvSettings):
         8,
         description="Maximum number of tiles to upload concurrently.",
     )
+    cleanup_workers: PositiveInt = Field(
+        4,
+        description="Maximum number of tile work directories to clean up concurrently.",
+    )
     memory_admission_enabled: bool = Field(
         True, description="Throttle new raster transforms under cgroup memory pressure."
     )
