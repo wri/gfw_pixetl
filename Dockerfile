@@ -12,7 +12,11 @@ ENV DIR=/usr/local/app \
 ARG ENV
 
 # ── System dependencies ────────────────────────────────────────────────────────
-RUN apt-get update -y \
+# The OSGeo base image includes the Apache Arrow APT repository. We do not use
+# packages from that repository, and its signing key can expire independently of
+# this image, preventing apt from updating the Ubuntu repositories we do need.
+RUN grep -rlZ "apache.jfrog.io/artifactory/arrow" /etc/apt/sources.list.d 2>/dev/null | xargs -0r rm -f \
+    && apt-get update -y \
     && apt-get install --no-install-recommends -y \
         python3-dev \
         python3-venv \
