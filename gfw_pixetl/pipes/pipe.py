@@ -117,7 +117,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.upload_workers)
     def upload_file(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Upload tile to target location."""
         for tile in tiles:

@@ -56,3 +56,11 @@ def test_download_workers_default_and_env_override(monkeypatch):
 
     monkeypatch.setenv("DOWNLOAD_WORKERS", "12")
     assert Globals().download_workers == 12
+
+
+def test_upload_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("UPLOAD_WORKERS", raising=False)
+    assert Globals().upload_workers == 8
+
+    monkeypatch.setenv("UPLOAD_WORKERS", "12")
+    assert Globals().upload_workers == 12
