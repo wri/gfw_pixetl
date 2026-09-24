@@ -153,7 +153,7 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
             raise GDALNoneTypeError(e)
         elif (
             e
-            == b"ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
+            == "ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
         ):
             raise GDALAWSConfigError(e)
         elif "ERROR 3: Load json file" in e or "GOOGLE_APPLICATION_CREDENTIALS" in e:
