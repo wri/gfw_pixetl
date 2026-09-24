@@ -10,7 +10,6 @@ services:
       - ./gfw_pixetl:/usr/local/app/gfw_pixetl:ro
       - ./tests:/usr/local/app/tests
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./tests/fixtures/tmp:/tmp
     environment:
       - ENV=test
       - PGPASSWORD=postgres  # pragma: allowlist secret
