@@ -109,22 +109,17 @@ def copy_fixtures():
 
 
 @pytest.fixture(autouse=True)
-def cleanup_tmp():
-    yield
+def isolated_work_dir(tmp_path, monkeypatch):
+    """Run each test in a pytest-owned temporary working directory.
 
-    folder = "/tmp"
-    for filename in os.listdir(folder):
-        file_path = os.path.join(folder, filename)
-        try:
-            if (
-                os.path.isfile(file_path) or os.path.islink(file_path)
-            ) and "coverage" not in filename:
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print("Failed to delete %s. Reason: %s" % (file_path, e))
-    open("/tmp/.gitkeep", "a").close()
+    PixETL creates tile and source work directories relative to the
+    current working directory. Isolating the cwd gives every test its
+    own workspace without deleting unrelated files from the system
+    temporary directory. Pytest owns the lifetime and cleanup of
+    ``tmp_path``.
+    """
+    monkeypatch.chdir(tmp_path)
+    yield tmp_path
 
 
 #########

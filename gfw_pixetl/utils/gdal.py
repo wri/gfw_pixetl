@@ -95,14 +95,35 @@ def create_vrt(
     return vrt
 
 
+RASTERIO_DATASET_PROFILE_KEYS = {
+    "width",
+    "height",
+    "count",
+    "transform",
+    "crs",
+    "dtype",
+    "nodata",
+}
+
+
+def _copy_creation_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
+    """Return only driver creation options valid for copying a raster."""
+    return {
+        key: value
+        for key, value in profile.items()
+        if key not in RASTERIO_DATASET_PROFILE_KEYS
+    }
+
+
 @processify
 def just_copy_geotiff(src_uri, dst_uri, profile):
+    creation_profile = _copy_creation_profile(profile)
     with rasterio.Env(**get_gdal_env()):
         raster_copy(
             src_uri,
             dst_uri,
             strict=False,
-            **profile,
+            **creation_profile,
         )
 
 
@@ -153,7 +174,7 @@ def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str
             raise GDALNoneTypeError(e)
         elif (
             e
-            == b"ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
+            == "ERROR 15: AWS_SECRET_ACCESS_KEY and AWS_NO_SIGN_REQUEST configuration options not defined, and /root/.aws/credentials not filled\n"
         ):
             raise GDALAWSConfigError(e)
         elif "ERROR 3: Load json file" in e or "GOOGLE_APPLICATION_CREDENTIALS" in e:

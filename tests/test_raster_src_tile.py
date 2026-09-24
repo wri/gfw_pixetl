@@ -258,7 +258,9 @@ def test__vrt_transform(LAYER):
 
 
 def test_download_files():
-    expected_source_file_location = "/tmp/input/source0/gfw-data-lake-test/10N_010E.tif"
+    expected_source_file_location = os.path.join(
+        os.getcwd(), "input", "source0", "gfw-data-lake-test", "10N_010E.tif"
+    )
     try:
         os.remove(expected_source_file_location)
     except FileNotFoundError:
@@ -271,8 +273,13 @@ def test_download_files():
 
     assert os.path.isfile(expected_source_file_location)
 
-    expected_link_location = (
-        "/tmp/10N_010E/input/source0/gfw-data-lake-test/10N_010E.tif"
+    expected_link_location = os.path.join(
+        os.getcwd(),
+        "10N_010E",
+        "input",
+        "source0",
+        "gfw-data-lake-test",
+        "10N_010E.tif",
     )
     assert not os.path.isfile(expected_link_location)
 
