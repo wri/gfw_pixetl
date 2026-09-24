@@ -29,8 +29,7 @@ class VectorSrcTile(Tile):
         self.src: VectorSource = layer.src
 
     def intersect_filter(self) -> TextClause:
-        return text(
-            f"""ST_Intersects(
+        return text(f"""ST_Intersects(
                         {GEOMETRY_COLUMN},
                         ST_MakeEnvelope(
                             {self.bounds.left},
@@ -38,12 +37,10 @@ class VectorSrcTile(Tile):
                             {self.bounds.right},
                             {self.bounds.top},
                             4326)
-                    )"""
-        )
+                    )""")
 
     def intersection(self) -> TextClause:
-        return text(
-            f"""
+        return text(f"""
             st_intersection(
                 {GEOMETRY_COLUMN},
                 ST_MakeEnvelope(
@@ -52,17 +49,14 @@ class VectorSrcTile(Tile):
                     {self.bounds.right},
                     {self.bounds.top},
                     4326)
-            )"""
-        )
+            )""")
 
     def intersection_geom(self) -> TextClause:
-        return text(
-            f"""CASE
+        return text(f"""CASE
                         WHEN st_geometrytype({str(self.intersection())}) = 'ST_GeometryCollection'::text
                         THEN st_collectionextract({str(self.intersection())}, 3)
                         ELSE st_intersection({GEOMETRY_COLUMN}, {str(self.intersection())})
-                END"""
-        )
+                END""")
 
     def order_column(self, val) -> Column:
         if self.layer.order == "desc":
@@ -140,7 +134,9 @@ class VectorSrcTile(Tile):
         geom_column = literal_column(str(self.intersection_geom()))
 
         sql = (
-            select([val_column.label(self.layer.field), geom_column.label(GEOMETRY_COLUMN)])
+            select(
+                [val_column.label(self.layer.field), geom_column.label(GEOMETRY_COLUMN)]
+            )
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .order_by(self.order_column(val_column))
@@ -152,7 +148,7 @@ class VectorSrcTile(Tile):
         # GeoParquet is both faster and more compact (without extra
         # processing) than GeoPackage, Shapefiles, GeoJSON, CSV.
         geodataframe = geopandas.read_postgis(sql, engine)
-        geodataframe.set_crs("EPSG:4326")
+        geodataframe = geodataframe.set_crs("EPSG:4326")
         geodataframe.to_parquet(dst, compression="snappy")
 
     def rasterize(self) -> None:
@@ -172,6 +168,8 @@ class VectorSrcTile(Tile):
             cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
 
         cmd += [
+            "-a_srs",
+            "EPSG:4326",
             "-te",
             str(self.bounds.left),
             str(self.bounds.bottom),

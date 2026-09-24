@@ -70,20 +70,20 @@ def test_set_local_src(TILE):
         with mock.patch("rasterio.open", return_value=Img()):
             TILE.set_local_dst(TILE.default_format)
             assert isinstance(TILE.local_dst[TILE.default_format], RasterSource)
-            assert (
-                TILE.local_dst[TILE.default_format].uri
-                == f"/tmp/10N_010E/{TILE.default_format}/10N_010E.tif"
+            assert TILE.local_dst[TILE.default_format].uri == os.path.join(
+                os.getcwd(),
+                "10N_010E",
+                TILE.default_format,
+                "10N_010E.tif",
             )
 
 
 def test_get_local_dst_uri(TILE):
-    assert (
-        TILE.get_local_dst_uri(TILE.default_format)
-        == f"/tmp/10N_010E/{TILE.default_format}/10N_010E.tif"
+    assert TILE.get_local_dst_uri(TILE.default_format) == os.path.join(
+        os.getcwd(), "10N_010E", TILE.default_format, "10N_010E.tif"
     )
-    assert (
-        TILE.get_local_dst_uri("gdal-geotiff")
-        == "/tmp/10N_010E/gdal-geotiff/10N_010E.tif"
+    assert TILE.get_local_dst_uri("gdal-geotiff") == os.path.join(
+        os.getcwd(), "10N_010E", "gdal-geotiff", "10N_010E.tif"
     )
 
 
@@ -91,13 +91,11 @@ def test_upload(LAYER, TILE):
     s3_client = get_s3_client()
     resp = s3_client.list_objects_v2(Bucket=BUCKET, Prefix=LAYER_DICT["dataset"])
     count = resp["KeyCount"]
-    os.makedirs(
-        "/tmp/20N_010E/geotiff/",  # pragma: allowlist secret
-        exist_ok=True,
-    )
-    with open("/tmp/20N_010E/geotiff/20N_010E.tif", "w+"):
+    local_dst_dir = os.path.join(os.getcwd(), "20N_010E", "geotiff")
+    os.makedirs(local_dst_dir, exist_ok=True)
+    with open(os.path.join(local_dst_dir, "20N_010E.tif"), "w+"):
         pass
-    with open("/tmp/20N_010E/geotiff/20N_010E.tif.aux.xml", "w+"):
+    with open(os.path.join(local_dst_dir, "20N_010E.tif.aux.xml"), "w+"):
         pass
     tile = Tile("20N_010E", LAYER.grid, LAYER)
     with mock.patch("rasterio.open", return_value=EmptyImg()):
