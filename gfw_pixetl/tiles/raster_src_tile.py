@@ -505,13 +505,16 @@ class RasterSrcTile(Tile):
         # Convert to Path object for cleaner manipulation
         path_obj = Path(path)
 
-        # If the path is absolute and starts with /tmp, make it relative
+        # Source downloads live alongside tile work directories. Preserve the
+        # source path relative to that workspace rather than assuming the
+        # workspace itself is /tmp.
         if path_obj.is_absolute():
+            workspace = Path(self.work_dir).parent
             try:
-                # Try to make relative to /tmp
-                relative_path = path_obj.relative_to("/tmp")
+                relative_path = path_obj.relative_to(workspace)
             except ValueError:
-                # If not under /tmp, just use the name parts
+                # Preserve the existing fallback for absolute paths outside the
+                # PixETL workspace.
                 relative_path = Path(*path_obj.parts[1:])  # Skip the root /
         else:
             relative_path = path_obj
