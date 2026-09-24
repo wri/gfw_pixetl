@@ -95,14 +95,35 @@ def create_vrt(
     return vrt
 
 
+RASTERIO_DATASET_PROFILE_KEYS = {
+    "width",
+    "height",
+    "count",
+    "transform",
+    "crs",
+    "dtype",
+    "nodata",
+}
+
+
+def _copy_creation_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
+    """Return only driver creation options valid for copying a raster."""
+    return {
+        key: value
+        for key, value in profile.items()
+        if key not in RASTERIO_DATASET_PROFILE_KEYS
+    }
+
+
 @processify
 def just_copy_geotiff(src_uri, dst_uri, profile):
+    creation_profile = _copy_creation_profile(profile)
     with rasterio.Env(**get_gdal_env()):
         raster_copy(
             src_uri,
             dst_uri,
             strict=False,
-            **profile,
+            **creation_profile,
         )
 
 
