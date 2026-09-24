@@ -126,7 +126,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.cleanup_workers)
     def delete_work_dir(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Delete local files."""
         for tile in tiles:

@@ -64,3 +64,11 @@ def test_upload_workers_default_and_env_override(monkeypatch):
 
     monkeypatch.setenv("UPLOAD_WORKERS", "12")
     assert Globals().upload_workers == 12
+
+
+def test_cleanup_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("CLEANUP_WORKERS", raising=False)
+    assert Globals().cleanup_workers == 4
+
+    monkeypatch.setenv("CLEANUP_WORKERS", "3")
+    assert Globals().cleanup_workers == 3
