@@ -117,10 +117,11 @@ class VectorSrcTile(Tile):
 
     @retry(
         retry_on_exception=retry_if_db_fell_over,
-        stop_max_attempt_number=7,
-        wait_random_min=60000,
-        wait_random_max=180000,
-    )  # Wait 60-180s between retries
+        stop_max_attempt_number=12,
+        wait_random_min=5000,
+        wait_random_max=30000,
+    )  # Wait 5-30s between retries (jittered, so concurrent workers don't
+    # all hammer the DB again at the same instant once it recovers)
     def src_vector_intersects(self) -> bool:
         engine = _get_engine()
 
@@ -144,10 +145,11 @@ class VectorSrcTile(Tile):
 
     @retry(
         retry_on_exception=retry_if_db_fell_over,
-        stop_max_attempt_number=7,
-        wait_random_min=60000,
-        wait_random_max=180000,
-    )  # Wait 60-180s between retries
+        stop_max_attempt_number=12,
+        wait_random_min=5000,
+        wait_random_max=30000,
+    )  # Wait 5-30s between retries (jittered, so concurrent workers don't
+    # all hammer the DB again at the same instant once it recovers)
     def fetch_data(self) -> None:
         """Download all intersecting features to a local file."""
         prefix = f"{self.work_dir}"
