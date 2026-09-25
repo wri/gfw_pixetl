@@ -62,6 +62,7 @@ def setup_logging(level: Union[str, int] = "INFO") -> logging.StreamHandler:
 
     logging.getLogger("botocore").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("rasterio._env").setLevel(logging.WARNING)
 
     return stream
 
