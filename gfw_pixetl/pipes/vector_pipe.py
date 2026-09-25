@@ -44,15 +44,25 @@ class VectorPipe(Pipe):
         """
         # Configure the shared controller before ParallelPipe spawns the
         # rasterize workers -- same call RasterPipe makes before its
-        # transform workers start, and the same GLOBALS.memory_admission_*
-        # settings, since the mechanism (reserve memory for a per-tile
-        # step, throttle new admissions under cgroup pressure) is generic.
+        # transform workers start. Note reservation_bytes here uses
+        # vector_rasterize_reservation_gib, *not* the raster-tuned
+        # memory_admission_reservation_gib: a burst of simultaneously
+        # -starting rasterize workers (parallelpipe starts a whole stage's
+        # workers at once, not gradually) is only actually throttled before
+        # any of them touch real memory if their *reservations* already
+        # reflect roughly what a vector rasterize call really costs. Using
+        # raster's 4GiB default here undercounted a 10m-resolution tile's
+        # true ~12-13GiB footprint badly enough that all 16 workers were
+        # admitted in the same few seconds, before cgroup memory caught up
+        # and the OOM killer stepped in -- see
+        # vector_rasterize_reservation_gib's description for the run that
+        # number comes from.
         MEMORY_ADMISSION.configure(
             enabled=GLOBALS.memory_admission_enabled,
             high_watermark=GLOBALS.memory_admission_high_watermark,
             resume_watermark=GLOBALS.memory_admission_resume_watermark,
             stats_workers=GLOBALS.memory_admission_stats_workers,
-            reservation_bytes=int(GLOBALS.memory_admission_reservation_gib * GIB),
+            reservation_bytes=int(GLOBALS.vector_rasterize_reservation_gib * GIB),
             window_reservation_bytes=int(
                 GLOBALS.memory_admission_window_reservation_gib * GIB
             ),
