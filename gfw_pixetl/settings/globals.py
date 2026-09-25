@@ -150,7 +150,7 @@ class Globals(EnvSettings):
         "effectively disable admission throttling for that layer.",
     )
     db_fetch_workers: PositiveInt = Field(
-        4,
+        8,
         description="Maximum number of concurrent worker processes allowed to "
         "query the source database at once (vector pipe's filter_src_tiles "
         "and fetch_tile_data stages). This is a budget for the *source* "
