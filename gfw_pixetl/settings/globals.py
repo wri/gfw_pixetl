@@ -92,6 +92,45 @@ class Globals(EnvSettings):
     memory_admission_poll_seconds: float = Field(
         1.0, description="Polling interval while memory admission is throttled."
     )
+    db_fetch_workers: PositiveInt = Field(
+        4,
+        description="Maximum number of concurrent worker processes allowed to "
+        "query the source database at once (vector pipe's filter_src_tiles "
+        "and fetch_tile_data stages). This is a budget for the *source* "
+        "database's capacity, not the pixETL host's CPU, so it is "
+        "intentionally decoupled from num_processes/workers and should be "
+        "tuned to what the database can sustain.",
+    )
+    db_pool_size: PositiveInt = Field(
+        2,
+        description="Number of pooled connections each DB worker *process* "
+        "keeps open and reuses across tiles, instead of opening a brand new "
+        "connection for every tile.",
+    )
+    db_pool_max_overflow: int = Field(
+        1,
+        description="Extra connections a DB worker process may open above "
+        "db_pool_size before it waits for one to free up.",
+    )
+    db_pool_recycle_seconds: PositiveInt = Field(
+        300,
+        description="Recycle pooled DB connections older than this many "
+        "seconds, so long-lived worker processes don't hold onto "
+        "connections the DB (or an intermediate proxy/load balancer) has "
+        "silently dropped.",
+    )
+    db_connect_timeout_seconds: PositiveInt = Field(
+        10,
+        description="TCP connect timeout, in seconds, for new connections to "
+        "the source database.",
+    )
+    db_statement_timeout_ms: PositiveInt = Field(
+        120000,
+        description="Postgres statement_timeout, in milliseconds, applied to "
+        "every vector source DB query. Caps how long a single slow/expensive "
+        "intersection query can hold a connection (and DB-side memory/CPU) "
+        "instead of running indefinitely.",
+    )
 
     ########################
     # PostgreSQL authentication
