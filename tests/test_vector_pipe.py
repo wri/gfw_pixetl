@@ -27,9 +27,15 @@ SUBSET_1x1_TILES: List[VectorSrcTile] = [
 ]
 
 
-def test_create_tiles_with_data(sample_vector_data):
-    # Mock collect_tiles to avoid generating the zillion tiles in this grid
-    with mock.patch.object(VectorPipe, "collect_tiles", return_value=SUBSET_1x1_TILES):
+def test_create_tiles_with_data(sample_vector_data, in_process_pipeline):
+    # Mock get_grid_tiles (not collect_tiles) so collect_tiles() actually
+    # runs its real filtering -- including the DB intersects check -- against
+    # a small, manageable subset instead of generating the zillion tiles in
+    # this grid. _build_pipe() must not repeat that filtering (see
+    # vector_pipe.py), so this exercises the real end-to-end classification.
+    with mock.patch.object(
+        VectorPipe, "get_grid_tiles", return_value=set(SUBSET_1x1_TILES)
+    ):
         pipe: VectorPipe = VectorPipe(layer, SUBSET_1x1_IDS)
 
         (tiles, skipped_tiles, failed_tiles, existing_tiles) = pipe.create_tiles(
