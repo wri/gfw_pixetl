@@ -108,7 +108,7 @@ class RasterPipe(Pipe):
 
         for tile in tiles:
             if tile.status == "pending":
-                with MEMORY_ADMISSION.transform_slot(tile.tile_id):
+                with MEMORY_ADMISSION.tile_slot(tile.tile_id):
                     if not tile.transform():
                         tile.status = "skipped (has no data)"
                         LOGGER.info(f"Tile {tile.tile_id} has no data - skip")

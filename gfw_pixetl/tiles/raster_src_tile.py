@@ -267,7 +267,7 @@ class RasterSrcTile(Tile):
 
         windows = self.windows()
         if not windows:
-            MEMORY_ADMISSION.commit_transform_reservation()
+            MEMORY_ADMISSION.commit_tile_reservation()
             return False
 
         LOGGER.info(
@@ -333,7 +333,7 @@ class RasterSrcTile(Tile):
 
                 out_files.append(payload)
                 if first_window:
-                    MEMORY_ADMISSION.commit_transform_reservation()
+                    MEMORY_ADMISSION.commit_tile_reservation()
                     first_window = False
 
                 if received + 1 == len(windows):
@@ -355,7 +355,7 @@ class RasterSrcTile(Tile):
                     f"Persistent window worker exited with code {worker.exitcode}"
                 )
         finally:
-            MEMORY_ADMISSION.commit_transform_reservation()
+            MEMORY_ADMISSION.commit_tile_reservation()
             if window_reservation_held:
                 MEMORY_ADMISSION.release_window()
             if worker.is_alive():

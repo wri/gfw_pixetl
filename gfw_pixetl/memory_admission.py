@@ -1,9 +1,13 @@
-"""Cgroup-aware admission control for memory-intensive raster work.
+"""Cgroup-aware admission control for memory-intensive per-tile work.
 
-The controller limits new transform, window, and statistics work when
-current cgroup memory plus outstanding reservations approaches the
-configured high watermark. Work resumes below a lower watermark to avoid
-oscillation.
+The controller limits new tile, window, and statistics work when current
+cgroup memory plus outstanding reservations approaches the configured high
+watermark. Work resumes below a lower watermark to avoid oscillation.
+Originally built for the raster transform stage's windowed reads, it is
+generic enough for any stage whose per-tile memory footprint can spike --
+the vector rasterize stage (a single gdal_rasterize subprocess call per
+tile) uses the same acquire_tile/tile_slot gate without the window-level
+calls, which are raster-specific.
 
 Workers use the ``spawn`` start method, so shared multiprocessing
 primitives are passed explicitly via :class:`AdmissionSharedState` and
@@ -53,7 +57,7 @@ class AdmissionSharedState:
 
 
 class MemoryAdmissionController:
-    """Coordinate transform admission using cgroup-v2 memory pressure."""
+    """Coordinate per-tile work admission using cgroup-v2 memory pressure."""
 
     def __init__(self) -> None:
         # Workers receive these primitives explicitly via AdmissionSharedState.
@@ -243,13 +247,21 @@ class MemoryAdmissionController:
                 self._waiting.value,
             )
 
-    def acquire_transform(self, tile_id: str) -> None:
-        """Wait until another transform can safely begin.
+    def acquire_tile(self, tile_id: str) -> None:
+        """Wait until another memory-intensive per-tile step can safely
+        begin.
 
         A fixed reservation covers only startup, before the new worker's
-        memory is visible in ``memory.current``. The transform worker
-        releases that reservation after its first window completes;
-        actual cgroup memory is authoritative after that point.
+        memory is visible in ``memory.current``. Callers that process a
+        tile in sub-steps whose memory only becomes visible gradually (the
+        raster transform stage, which reads a tile window by window)
+        should call commit_tile_reservation() once real usage is
+        observable, so actual cgroup memory becomes authoritative sooner
+        rather than double-counting alongside the reservation. Callers
+        that do the tile's memory-intensive work in one bounded step (the
+        vector rasterize stage, a single gdal_rasterize subprocess call)
+        can just hold the reservation for the whole step and let tile_slot
+        release it on exit -- there is nothing gradual to commit early.
         """
         if not self.enabled:
             return
@@ -297,7 +309,7 @@ class MemoryAdmissionController:
 
             time.sleep(self.poll_seconds)
 
-    def commit_transform_reservation(self) -> None:
+    def commit_tile_reservation(self) -> None:
         """Release startup reservation once the working set is observable."""
         if not self.enabled or not self._local_reservation_held:
             return
@@ -308,17 +320,18 @@ class MemoryAdmissionController:
             self._local_reservation_held = False
             self._write_status_locked()
 
-    def release_transform(self) -> None:
-        """Release a reservation if transform exited before committing it."""
-        self.commit_transform_reservation()
+    def release_tile(self) -> None:
+        """Release a reservation if the tile step exited before committing
+        it (or never needed to commit it early in the first place)."""
+        self.commit_tile_reservation()
 
     @contextmanager
-    def transform_slot(self, tile_id: str) -> Iterator[None]:
-        self.acquire_transform(tile_id)
+    def tile_slot(self, tile_id: str) -> Iterator[None]:
+        self.acquire_tile(tile_id)
         try:
             yield
         finally:
-            self.release_transform()
+            self.release_tile()
 
     def try_acquire_window(self, tile_id: str, window_index: int) -> bool:
         """Atomically reserve memory for one window if headroom is available.

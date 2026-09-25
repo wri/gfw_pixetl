@@ -33,39 +33,39 @@ def _controller(tmp_path, monkeypatch, *, current_gib=60, limit_gib=100):
     return controller
 
 
-def test_transform_reservation_is_released_after_startup_commit(tmp_path, monkeypatch):
+def test_tile_reservation_is_released_after_startup_commit(tmp_path, monkeypatch):
     controller = _controller(tmp_path, monkeypatch)
 
-    controller.acquire_transform("00N_000E")
+    controller.acquire_tile("00N_000E")
     assert controller._reserved_bytes.value == 8 * GIB
 
     # Reservation only protects startup; the first completed transform window
     # commits it once memory.current reflects the real working set.
-    controller.commit_transform_reservation()
+    controller.commit_tile_reservation()
     assert controller._reserved_bytes.value == 0
 
-    # release_transform remains idempotent for cleanup/error paths.
-    controller.release_transform()
+    # release_tile remains idempotent for cleanup/error paths.
+    controller.release_tile()
     assert controller._reserved_bytes.value == 0
 
 
-def test_transform_slot_cleans_up_uncommitted_reservation(tmp_path, monkeypatch):
+def test_tile_slot_cleans_up_uncommitted_reservation(tmp_path, monkeypatch):
     controller = _controller(tmp_path, monkeypatch)
 
-    with controller.transform_slot("00N_000E"):
+    with controller.tile_slot("00N_000E"):
         assert controller._reserved_bytes.value == 8 * GIB
-        controller.commit_transform_reservation()
+        controller.commit_tile_reservation()
         assert controller._reserved_bytes.value == 0
 
     assert controller._reserved_bytes.value == 0
 
 
-def test_transform_waits_for_resume_watermark(tmp_path, monkeypatch):
+def test_tile_admission_waits_for_resume_watermark(tmp_path, monkeypatch):
     controller = _controller(tmp_path, monkeypatch, current_gib=75)
     admitted = threading.Event()
 
     def acquire():
-        controller.acquire_transform("00N_000E")
+        controller.acquire_tile("00N_000E")
         admitted.set()
 
     thread = threading.Thread(target=acquire)
@@ -89,7 +89,7 @@ def test_transform_waits_for_resume_watermark(tmp_path, monkeypatch):
         assert admitted.is_set()
         assert controller._throttled.value == 0
         assert controller._waiting.value == 0
-        controller.release_transform()
+        controller.release_tile()
     finally:
         # Never leave a polling thread alive after pytest removes tmp_path.
         _write(tmp_path / "memory.current", 0)
@@ -182,14 +182,14 @@ def test_window_reservations_are_atomic_and_count_toward_headroom(
 
     # 60 GiB current + 8 GiB startup reservation + one 8 GiB window fits
     # below the 80 GiB high-water mark. A second window does not.
-    controller.acquire_transform("startup")
+    controller.acquire_tile("startup")
     assert controller.try_acquire_window("tile-a", 0)
     assert controller._reserved_bytes.value == 16 * GIB
     assert not controller.try_acquire_window("tile-b", 0)
 
     controller.release_window()
     assert controller._reserved_bytes.value == 8 * GIB
-    controller.release_transform()
+    controller.release_tile()
     assert controller._reserved_bytes.value == 0
 
 
