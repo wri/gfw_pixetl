@@ -92,6 +92,22 @@ class Globals(EnvSettings):
     memory_admission_poll_seconds: float = Field(
         1.0, description="Polling interval while memory admission is throttled."
     )
+    vector_rasterize_reservation_gib: float = Field(
+        16.0,
+        description="Temporary memory reservation for each newly admitted "
+        "vector rasterize() call, via the same admission gate "
+        "RasterPipe.transform() uses (see memory_admission_reservation_gib). "
+        "Kept as a separate setting because vector rasterize's real per-tile "
+        "footprint -- one bounded gdal_rasterize subprocess call, sized by "
+        "pixel resolution -- has nothing to do with raster transform's "
+        "windowed-read footprint; conflating the two either over-throttles "
+        "raster jobs or under-reserves for vector ones, depending on which "
+        "value wins. Default sized generously above the ~12-13GiB observed "
+        "per-tile at 10m/pixel resolution for WDPA; re-tune per resolution "
+        "if that changes materially, since this trades directly against how "
+        "many rasterize workers the admission gate will actually let run "
+        "concurrently under memory pressure.",
+    )
     db_fetch_workers: PositiveInt = Field(
         4,
         description="Maximum number of concurrent worker processes allowed to "
