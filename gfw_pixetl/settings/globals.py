@@ -92,21 +92,41 @@ class Globals(EnvSettings):
     memory_admission_poll_seconds: float = Field(
         1.0, description="Polling interval while memory admission is throttled."
     )
-    vector_rasterize_reservation_gib: float = Field(
-        16.0,
-        description="Temporary memory reservation for each newly admitted "
-        "vector rasterize() call, via the same admission gate "
-        "RasterPipe.transform() uses (see memory_admission_reservation_gib). "
-        "Kept as a separate setting because vector rasterize's real per-tile "
-        "footprint -- one bounded gdal_rasterize subprocess call, sized by "
-        "pixel resolution -- has nothing to do with raster transform's "
-        "windowed-read footprint; conflating the two either over-throttles "
-        "raster jobs or under-reserves for vector ones, depending on which "
-        "value wins. Default sized generously above the ~12-13GiB observed "
-        "per-tile at 10m/pixel resolution for WDPA; re-tune per resolution "
-        "if that changes materially, since this trades directly against how "
-        "many rasterize workers the admission gate will actually let run "
-        "concurrently under memory pressure.",
+    vector_rasterize_reservation_gib: Optional[float] = Field(
+        None,
+        description="Manual override for the vector rasterize() memory "
+        "reservation, in GiB. Leave unset (the default) to compute it "
+        "automatically from the layer's actual grid resolution and output "
+        "dtype/band count -- see vector_rasterize_reservation_overhead and "
+        "VectorPipe._rasterize_reservation_bytes(). A fixed GiB value here "
+        "was tried first and got this backwards: sized for a 10m-resolution "
+        "WDPA run, it then over-throttled a 30m run by ~6x (30m tiles have "
+        "roughly 1/6 the pixels), and would equally under-reserve for an "
+        "even higher resolution or a wider layer (e.g. GADM boundaries with "
+        "more bands or a larger dtype) than the run it was tuned from. Set "
+        "this only to force a specific value regardless of grid/dtype, e.g. "
+        "while diagnosing whether the formula itself is off for a layer.",
+    )
+    vector_rasterize_reservation_overhead: float = Field(
+        1.5,
+        description="Multiplier applied to a vector tile's raw, uncompressed "
+        "output array size (cols * rows * band_count * dtype itemsize) to "
+        "estimate gdal_rasterize's real per-tile memory footprint, when "
+        "vector_rasterize_reservation_gib is not set to a manual override. "
+        "1.5x is not a principled constant -- it's rounded up from the one "
+        "data point we have (a 10/100000 WDPA grid, uint8, 1 band: ~9.3GiB "
+        "raw array vs. ~12-13GiB observed real usage, so ~1.3-1.4x). "
+        "Re-derive from telemetry on other layers/grids before trusting it "
+        "far outside that one case, especially for very different dtypes or "
+        "band counts where GDAL's internal buffering may not scale the same "
+        "way as the raw array size does.",
+    )
+    vector_rasterize_reservation_floor_gib: float = Field(
+        0.5,
+        description="Minimum vector rasterize() memory reservation "
+        "regardless of the computed formula result, so a very coarse grid "
+        "or a small dtype can't compute a near-zero reservation that would "
+        "effectively disable admission throttling for that layer.",
     )
     db_fetch_workers: PositiveInt = Field(
         4,
