@@ -21,6 +21,25 @@ class VectorPipe(Pipe):
         LOGGER.debug("Start Vector Pipe")
         tiles = self.collect_tiles(overwrite=overwrite)
 
+        # Front-load the tiles most likely to become a long tail. rasterize
+        # is a fixed-size worker pool pulling from one shared queue; a
+        # worker that happens to draw several complex tiles in a row (or
+        # one that pulls the single worst one, e.g. WDPA's 1066s-burn
+        # 24-feature outlier) can end up running long after every other
+        # worker has run out of tiles and gone idle, stretching the whole
+        # job's wall-clock time past what the *sum* of work actually
+        # requires. Sorting once here -- tiles are already a fully
+        # materialized in-memory list at this point, so this is a plain,
+        # cheap Python sort, not a pipeline change -- means the complex
+        # tiles get dispatched first, while every worker is still free to
+        # pick one up, rather than at some arbitrary, possibly-very-late
+        # point determined by queue order.
+        #
+        # complexity_score is 0 for tiles filter_src_tiles never ran on
+        # (skipped/existing); Python's sort is stable, so those keep their
+        # original relative order.
+        tiles.sort(key=lambda tile: getattr(tile, "complexity_score", 0), reverse=True)
+
         workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
         result = self._process_pipe(self._build_pipe(tiles, workers))
 
