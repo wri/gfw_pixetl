@@ -35,3 +35,9 @@ def test_configure_worker_logging_needs_no_parent_handler():
     assert handler in logging.getLogger().handlers
     assert getattr(handler, "_pixetl_handler") is True
     assert logging.getLogger().level == logging.WARNING
+
+
+def test_setup_logging_quiets_expected_rasterio_errors():
+    setup_logging()
+
+    assert logging.getLogger("rasterio._env").level == logging.WARNING
