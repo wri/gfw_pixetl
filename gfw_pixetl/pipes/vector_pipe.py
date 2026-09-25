@@ -1,5 +1,7 @@
 from typing import Iterator, List, Optional, Set, Tuple
 
+import numpy as np
+
 from gfw_pixetl import get_module_logger
 from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.memory_admission import GIB, MEMORY_ADMISSION, AdmissionSharedState
@@ -25,6 +27,33 @@ class VectorPipe(Pipe):
         LOGGER.debug("Finished Vector Pipe")
         return result
 
+    def _rasterize_reservation_bytes(self) -> int:
+        """Estimate the rasterize stage's per-tile memory reservation from
+        this layer's actual grid resolution and output dtype/band count,
+        instead of one fixed number for every grid.
+
+        Every tile in a single run shares the same grid, so this only needs
+        computing once per pipe, not per tile -- a 10-degree tile on a
+        10/100000 grid (WDPA at ~10m/pixel) is 100000 x 100000 pixels; the
+        same 10-degree tile on a 10/40000 grid (~30m/pixel) is 40000 x
+        40000, about 1/6 the pixels and, empirically, roughly 1/6 the real
+        memory. A single fixed reservation can only ever be right for one
+        of those.
+        """
+        if GLOBALS.vector_rasterize_reservation_gib is not None:
+            return int(GLOBALS.vector_rasterize_reservation_gib * GIB)
+
+        pixel_count = self.grid.cols * self.grid.rows
+        bytes_per_pixel = np.dtype(self.layer.dst_profile["dtype"]).itemsize
+        band_count = max(self.layer.band_count, 1)
+        raw_bytes = pixel_count * bytes_per_pixel * band_count
+
+        reservation_bytes = int(
+            raw_bytes * GLOBALS.vector_rasterize_reservation_overhead
+        )
+        floor_bytes = int(GLOBALS.vector_rasterize_reservation_floor_gib * GIB)
+        return max(reservation_bytes, floor_bytes)
+
     def _build_pipe(self, tiles: List[Tile], workers: int) -> Pipeline:
         """Construct the vector pipeline for a given tile list and worker
         count.
@@ -44,25 +73,21 @@ class VectorPipe(Pipe):
         """
         # Configure the shared controller before ParallelPipe spawns the
         # rasterize workers -- same call RasterPipe makes before its
-        # transform workers start. Note reservation_bytes here uses
-        # vector_rasterize_reservation_gib, *not* the raster-tuned
-        # memory_admission_reservation_gib: a burst of simultaneously
+        # transform workers start. reservation_bytes comes from this
+        # layer's actual grid/dtype (see _rasterize_reservation_bytes()),
+        # not memory_admission_reservation_gib: a burst of simultaneously
         # -starting rasterize workers (parallelpipe starts a whole stage's
         # workers at once, not gradually) is only actually throttled before
         # any of them touch real memory if their *reservations* already
-        # reflect roughly what a vector rasterize call really costs. Using
-        # raster's 4GiB default here undercounted a 10m-resolution tile's
-        # true ~12-13GiB footprint badly enough that all 16 workers were
-        # admitted in the same few seconds, before cgroup memory caught up
-        # and the OOM killer stepped in -- see
-        # vector_rasterize_reservation_gib's description for the run that
-        # number comes from.
+        # reflect roughly what a vector rasterize call really costs, and
+        # that cost scales with this layer's resolution -- a fixed number
+        # tuned for one grid is wrong for any other.
         MEMORY_ADMISSION.configure(
             enabled=GLOBALS.memory_admission_enabled,
             high_watermark=GLOBALS.memory_admission_high_watermark,
             resume_watermark=GLOBALS.memory_admission_resume_watermark,
             stats_workers=GLOBALS.memory_admission_stats_workers,
-            reservation_bytes=int(GLOBALS.vector_rasterize_reservation_gib * GIB),
+            reservation_bytes=self._rasterize_reservation_bytes(),
             window_reservation_bytes=int(
                 GLOBALS.memory_admission_window_reservation_gib * GIB
             ),
