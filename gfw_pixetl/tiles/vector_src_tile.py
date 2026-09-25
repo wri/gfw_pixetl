@@ -1,7 +1,9 @@
 import os
+from time import perf_counter
 from typing import List, Optional
 
 import geopandas
+import pyarrow.parquet as pq
 from retrying import retry
 from shapely import get_parts, unary_union
 from shapely.geometry import Polygon, box
@@ -256,12 +258,34 @@ class VectorSrcTile(Tile):
             dst,
         ]
 
+        # Cheap: reads only parquet footer metadata, not the feature data
+        # itself, so this doesn't cost what actually loading the tile's
+        # geometries would.
+        try:
+            feature_count = pq.ParquetFile(src).metadata.num_rows
+        except Exception:
+            feature_count = -1  # don't let a metadata-read hiccup fail the tile
+
+        burn_started = perf_counter()
         try:
             run_gdal_subcommand(cmd)
         except GDALError:
             logger.error(f"Could not rasterize tile {self.tile_id}")
             raise
         else:
+            burn_s = perf_counter() - burn_started
+            # PERF burn (see PERF postprocess in tile.py): times just the
+            # gdal_rasterize subprocess call, alongside the input feature
+            # count, to see whether slow tiles correlate with how many
+            # features they had to burn -- see the parallelpipe shutdown
+            # investigation, which found some rasterize workers finishing
+            # ~3.5x faster than others and pointed here as the likely
+            # source of that spread.
+            logger.info(
+                f"PERF burn tile={self.tile_id} "
+                f"features={feature_count} "
+                f"burn_s={burn_s:.3f}"
+            )
             self.set_local_dst(self.default_format)
 
             # invoking gdal-geotiff and compute stats here
