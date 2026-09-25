@@ -119,3 +119,14 @@ def test_main_sigterm_unwinds_through_cleanup(monkeypatch):
     reporter = _FakeReporterManager.instances[0]
     assert reporter.start_calls == [os.getpid()]
     assert reporter.stop_calls == 1
+
+
+def test_console_script_runs_main():
+    from pathlib import Path
+
+    import tomllib
+
+    with (Path(__file__).parents[1] / "pyproject.toml").open("rb") as src:
+        pyproject = tomllib.load(src)
+
+    assert pyproject["project"]["scripts"]["pixetl"] == "gfw_pixetl.pixetl:main"
