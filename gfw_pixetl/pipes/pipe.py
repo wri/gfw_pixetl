@@ -30,8 +30,13 @@ class Pipe(ABC):
         pipe = (
             self.get_grid_tiles()
             | self.filter_subset_tiles(self.subset)
-            | self.filter_src_tiles
+            # Check whether the tile already exists at the destination
+            # before doing any source-side work: for VectorPipe,
+            # filter_src_tiles makes a DB round trip per tile, so tiles
+            # that are already done (a common case on reruns/incremental
+            # updates) should never reach it in the first place.
             | self.filter_target_tiles(overwrite=overwrite)
+            | self.filter_src_tiles
         )
         tiles = list()
 
