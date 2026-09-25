@@ -1,6 +1,6 @@
 [project]
 name = "gfw_pixetl"
-version = "1.9.1a1"
+version = "1.9.1a2"
 description = "Tool to preprocess GFW tiles"
 authors = [{ name = "Thomas Maschler" }]
 license = { text = "MIT" }
@@ -40,7 +40,7 @@ dev = [
 ]
 
 [project.scripts]
-pixetl      = "gfw_pixetl.pixetl:cli"
+pixetl      = "gfw_pixetl.pixetl:main"
 pixetl_prep = "gfw_pixetl.pixetl_prep:cli"
 
 [build-system]
