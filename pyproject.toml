@@ -40,7 +40,7 @@ dev = [
 ]
 
 [project.scripts]
-pixetl      = "gfw_pixetl.pixetl:cli"
+pixetl      = "gfw_pixetl.pixetl:main"
 pixetl_prep = "gfw_pixetl.pixetl_prep:cli"
 
 [build-system]
