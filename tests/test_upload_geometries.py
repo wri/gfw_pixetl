@@ -21,13 +21,16 @@ def test_upload_geojsons(PIPE):
     assert len(processed_tiles) == 2
     assert len(existing_tiles) == 2
 
-    with mock.patch(
-        "gfw_pixetl.utils.upload_geometries._upload_geojson", return_value={}
-    ) as mock_upload_geojson, mock.patch(
-        "gfw_pixetl.utils.upload_geometries._upload_extent", return_value={}
+    with (
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries._upload_geojson", return_value={}
+        ) as mock_upload_geojson,
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries._upload_extent", return_value={}
+        ),
     ):
         # There should be 4 responses: a tiles.geojson and extent.geojson for 2 dst formats
-        resps = upload_geojsons(
+        resps = upload_geojsons.__wrapped__(
             processed_tiles, existing_tiles, "some_prefix", ignore_existing_tiles=False
         )
         assert resps == [dict(), dict(), dict(), dict()]
@@ -38,12 +41,15 @@ def test_upload_geojsons(PIPE):
             assert len(fc["features"]) == 4
 
     # Get new mocks, and this time ignore existing tiles
-    with mock.patch(
-        "gfw_pixetl.utils.upload_geometries._upload_geojson", return_value={}
-    ) as mock_upload_geojson, mock.patch(
-        "gfw_pixetl.utils.upload_geometries._upload_extent", return_value={}
+    with (
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries._upload_geojson", return_value={}
+        ) as mock_upload_geojson,
+        mock.patch(
+            "gfw_pixetl.utils.upload_geometries._upload_extent", return_value={}
+        ),
     ):
-        _ = upload_geojsons(
+        _ = upload_geojsons.__wrapped__(
             processed_tiles, existing_tiles, "some_prefix", ignore_existing_tiles=True
         )
 
