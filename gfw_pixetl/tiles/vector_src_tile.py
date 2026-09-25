@@ -7,7 +7,7 @@ from shapely import get_parts, unary_union
 from shapely.geometry import Polygon, box
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import Column, Table, select, table, text
-from sqlalchemy.engine import ResultProxy, create_engine
+from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql.elements import TextClause, literal_column
 
@@ -60,6 +60,12 @@ class VectorSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
         self.src: VectorSource = layer.src
+        # Populated by src_vector_intersects(); zero for tiles it never ran
+        # on (subset-filtered, or already existing at the destination) so
+        # sorting by complexity_score never trips over a missing attribute.
+        self.feature_count: int = 0
+        self.total_vertices: int = 0
+        self.complexity_score: int = 0
 
     def intersect_filter(self) -> TextClause:
         return text(f"""ST_Intersects(
@@ -94,6 +100,26 @@ class VectorSrcTile(Tile):
     )  # Wait 5-30s between retries (jittered, so concurrent workers don't
     # all hammer the DB again at the same instant once it recovers)
     def src_vector_intersects(self) -> bool:
+        """Check whether this tile intersects the source vector table.
+
+        While already paying for one round trip per tile, also capture
+        enough to score how expensive this tile's rasterize() burn is
+        likely to be: complexity_score combines feature count and total
+        vertex count, because count alone misses tiles whose slowness
+        comes from a handful of very complex features rather than many
+        simple ones. Concretely, in one WDPA run's burn timing, the single
+        slowest tile had only 24 features but ~1066s of burn time (vs. a
+        ~41s floor for most tiles) -- driven by vertex complexity a
+        feature count alone would never have flagged.
+
+        This changes the query from a cheap EXISTS ... LIMIT 1 (stops at
+        the first match) to a full aggregate scan of every intersecting
+        row, computing ST_NPoints for each -- a real, deliberate increase
+        in per-tile DB load, traded for being able to front-load the
+        tiles most likely to become a long tail (see VectorPipe.
+        collect_tiles's sort by complexity_score).
+        """
+
         db_url: URL = URL(
             "postgresql+psycopg2",
             host=GLOBALS.db_host,
@@ -105,20 +131,32 @@ class VectorSrcTile(Tile):
         engine = create_engine(db_url)
 
         sql = (
-            select([literal_column("gfw_fid")])
+            select(
+                literal_column("count(*)").label("feature_count"),
+                literal_column("coalesce(sum(st_npoints(geom)), 0)").label(
+                    "total_vertices"
+                ),
+            )
             .select_from(self.src_table())
             .where(self.intersect_filter())
-            .limit(1)
         )
 
         with engine.begin() as conn:
-            result: ResultProxy = conn.execute(sql)
-            exists: bool = False if result.fetchone() is None else True
+            result = conn.execute(sql)
+            row = result.fetchone()
+
+        self.feature_count = int(row.feature_count) if row else 0
+        self.total_vertices = int(row.total_vertices) if row else 0
+        self.complexity_score = self.feature_count + self.total_vertices
+
+        exists = self.feature_count > 0
 
         logger.debug(
             f"Tile id {self.tile_id} "
             f"{'exists' if exists else 'does not exist'} "
-            f"in database table {self.src.schema}.{self.src.table}"
+            f"in database table {self.src.schema}.{self.src.table} "
+            f"(feature_count={self.feature_count}, "
+            f"total_vertices={self.total_vertices})"
         )
         return exists
 
