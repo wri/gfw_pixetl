@@ -63,8 +63,9 @@ def test_filter_subset_tiles(PIPE):
 
 def test_filter_target_tiles_all_existing_no_overwrite(PIPE, _upload_pipe_fixtures):
     tiles = _get_subset_tiles(PIPE)
-    with mock.patch.object(Destination, "exists", return_value=True), mock.patch(
-        "gfw_pixetl.pipes.pipe.get_metadata", return_value=_STUB_METADATA
+    with (
+        mock.patch.object(Destination, "exists", return_value=True),
+        mock.patch("gfw_pixetl.pipes.pipe.get_metadata", return_value=_STUB_METADATA),
     ):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0
@@ -75,7 +76,9 @@ def test_filter_target_tiles_all_existing_no_overwrite(PIPE, _upload_pipe_fixtur
         assert i == 0
 
 
-def test_filter_target_tiles_no_existing_no_overwrite(PIPE, _upload_pipe_fixtures):
+def test_filter_target_tiles_no_existing_no_overwrite(
+    PIPE, _upload_pipe_fixtures, in_process_pipeline
+):
     tiles = _get_subset_tiles(PIPE)
     with mock.patch.object(Destination, "exists", return_value=False):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
@@ -115,8 +118,9 @@ def test_filter_target_tiles_all_existing_no_overwrite_positive(
     PIPE, _upload_pipe_fixtures
 ):
     tiles = _get_subset_tiles(PIPE)
-    with mock.patch.object(Destination, "exists", return_value=True), mock.patch(
-        "gfw_pixetl.pipes.pipe.get_metadata", return_value=_STUB_METADATA
+    with (
+        mock.patch.object(Destination, "exists", return_value=True),
+        mock.patch("gfw_pixetl.pipes.pipe.get_metadata", return_value=_STUB_METADATA),
     ):
         pipe = tiles | PIPE.filter_target_tiles(overwrite=False)
         i = 0

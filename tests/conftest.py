@@ -14,6 +14,7 @@ from sqlalchemy.sql import text
 
 from gfw_pixetl.layers import layer_factory
 from gfw_pixetl.models.pydantic import LayerModel
+from gfw_pixetl.parallelpipe import Pipeline
 from gfw_pixetl.pipes import RasterPipe
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile
@@ -32,6 +33,28 @@ TILE_3_NAME = "world.tif"
 TILE_3_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_3_NAME)
 TILE_4_NAME = "01N_001E.tif"
 TILE_4_PATH = os.path.join(os.path.dirname(__file__), "fixtures", TILE_4_NAME)
+
+
+@pytest.fixture
+def in_process_pipeline(monkeypatch):
+    """Execute mock-heavy pipeline unit tests in the parent process.
+
+    Spawned workers intentionally do not inherit parent-process mocks.
+    These tests exercise stage/status logic rather than multiprocessing
+    itself.
+    """
+
+    def results(self):
+        result = None
+        for index, stage in enumerate(self):
+            if index == 0:
+                result = stage._target(*stage._args, **stage._kwargs)
+            else:
+                result = stage._target(result, *stage._args, **stage._kwargs)
+        if result is not None:
+            yield from result
+
+    monkeypatch.setattr(Pipeline, "results", results)
 
 
 ########### World.tif
@@ -112,16 +135,14 @@ def copy_fixtures():
 def isolated_work_dir(tmp_path, monkeypatch):
     """Run each test in a pytest-owned temporary working directory.
 
-    PixETL creates tile and source work directories relative to the current
-    working directory. Isolating the cwd gives every test its own workspace
-    without deleting unrelated files from the system temporary directory.
-    Pytest owns the lifetime and cleanup of ``tmp_path``.
+    PixETL creates tile and source work directories relative to the
+    current working directory. Isolating the cwd gives every test its
+    own workspace without deleting unrelated files from the system
+    temporary directory. Pytest owns the lifetime and cleanup of
+    ``tmp_path``.
     """
     monkeypatch.chdir(tmp_path)
     yield tmp_path
-
-
-#########
 
 
 minimal_layer_dict = {
@@ -194,12 +215,12 @@ def sample_vector_data():
     dataset = "some_dataset"
     version = "v4"
 
-    db_url = URL(
+    db_url = URL.create(
         "postgresql+psycopg2",
         host=GLOBALS.db_host,
         port=GLOBALS.db_port,
         username=GLOBALS.db_username,
-        password=GLOBALS.db_password,
+        password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
         database=GLOBALS.db_name,
     )
 

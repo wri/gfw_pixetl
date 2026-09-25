@@ -107,7 +107,7 @@ def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
 
     except Exception as e:
         if _file_does_not_exist(e):
-            LOGGER.info(f"File does not exist {src_uri}")
+            LOGGER.debug(f"File does not exist {src_uri}")
             raise FileNotFoundError(f"File does not exist: {src_uri}")
         elif isinstance(e, rasterio.RasterioIOError):
             LOGGER.warning(
@@ -120,8 +120,7 @@ def fetch_metadata(src_uri) -> Tuple[BoundingBox, Dict[str, Any]]:
 
 
 def get_bucket(env: Optional[str] = None) -> str:
-    """compose bucket name based on environment."""
-
+    """Compose bucket name based on environment."""
     if not env and "ENV" in os.environ:
         env = os.environ["ENV"]
     else:
@@ -162,7 +161,6 @@ def snapped_window(window: Window):
 
 def world_bounds(crs: CRS) -> Bounds:
     """Get world bounds for given CRT."""
-
     from_crs = CRS(4326)
 
     proj = Transformer.from_crs(from_crs, crs, always_xy=True)
@@ -238,7 +236,6 @@ def _count_with_letters():
 @lru_cache(typed=False)
 def enumerate_bands(num_bands: int) -> List[str]:
     """Return a variable name for each of num_bands."""
-
     if not isinstance(num_bands, int):
         raise ValueError(
             "num_bands must be an int... you're asking for an infinite loop!"

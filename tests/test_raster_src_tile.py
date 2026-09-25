@@ -37,7 +37,7 @@ def test_src_tile_intersects_wm(LAYER_WM):
 def test_transform_final(LAYER):
     assert isinstance(LAYER, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
-    assert tile.dst[tile.default_format].crs.is_valid
+    assert tile.dst[tile.default_format].crs == tile.grid.crs
 
     with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
         window = rasterio.windows.from_bounds(
@@ -65,7 +65,6 @@ def test_transform_final(LAYER):
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
     assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
-    assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
     assert src_profile["height"] == LAYER.grid.cols
@@ -80,6 +79,49 @@ def test_transform_final(LAYER):
     os.remove(tile.local_dst[tile.default_format].uri)
 
 
+def test_transform_writes_both_geotiff_formats_directly(LAYER, monkeypatch):
+    """Raster source windows produce both final TIFFs without CreateCopy."""
+    assert isinstance(LAYER, layers.RasterSrcLayer)
+    tile = RasterSrcTile("10N_010E", LAYER.grid, LAYER)
+
+    def fail_if_copied(*args, **kwargs):
+        raise AssertionError(
+            "raster-source transform must not run full-raster CreateCopy"
+        )
+
+    monkeypatch.setattr("gfw_pixetl.tiles.tile._copy_geotiff_spawned", fail_if_copied)
+
+    tile.transform()
+
+    assert set(tile.local_dst) == {"geotiff", "gdal-geotiff"}
+    geotiff_uri = tile.local_dst["geotiff"].uri
+    gdal_geotiff_uri = tile.local_dst["gdal-geotiff"].uri
+
+    with (
+        rasterio.Env(**GDAL_ENV),
+        rasterio.open(geotiff_uri) as geotiff,
+        rasterio.open(gdal_geotiff_uri) as gdal_geotiff,
+    ):
+        np.testing.assert_array_equal(geotiff.read(), gdal_geotiff.read())
+        assert geotiff.crs == gdal_geotiff.crs
+        assert geotiff.transform == gdal_geotiff.transform
+        assert geotiff.width == gdal_geotiff.width
+        assert geotiff.height == gdal_geotiff.height
+        assert geotiff.count == gdal_geotiff.count
+        assert geotiff.dtypes == gdal_geotiff.dtypes
+        assert geotiff.nodatavals == gdal_geotiff.nodatavals
+        assert geotiff.block_shapes == gdal_geotiff.block_shapes
+        assert geotiff.compression.value.lower() == "deflate"
+        assert (
+            gdal_geotiff.compression.value.lower()
+            == LAYER.dst_profile["compress"].lower()
+        )
+        assert gdal_geotiff.profile["interleave"] == "band"
+
+    os.remove(geotiff_uri)
+    os.remove(gdal_geotiff_uri)
+
+
 def test_transform_final_wm():
     layer_dict_wm = deepcopy(LAYER_DICT)
     layer_dict_wm["grid"] = "zoom_0"
@@ -90,7 +132,7 @@ def test_transform_final_wm():
     assert isinstance(layer_wm, layers.RasterSrcLayer)
     tile = RasterSrcTile("000R_000C", layer_wm.grid, layer_wm)
 
-    assert tile.dst[tile.default_format].crs.is_valid
+    assert tile.dst[tile.default_format].crs == tile.grid.crs
     tile.transform()
 
     LOGGER.debug(tile.local_dst[tile.default_format].uri)
@@ -110,7 +152,6 @@ def test_transform_final_wm():
     assert src_profile["compress"].lower() == layer_wm.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
     assert src_profile["crs"].to_epsg() == layer_wm.grid.crs.to_epsg()
-    assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == layer_wm.dst_profile["dtype"]
     assert src_profile["height"] == layer_wm.grid.cols
@@ -131,7 +172,7 @@ def test_transform_final_wm():
 def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     assert isinstance(LAYER_MULTI, layers.RasterSrcLayer)
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
-    assert tile.dst[tile.default_format].crs.is_valid
+    assert tile.dst[tile.default_format].crs == tile.grid.crs
 
     with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
         assert tile_src.profile["count"] == 2
@@ -164,7 +205,6 @@ def test_transform_final_multi_in(LAYER_MULTI, LAYER):
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 1
     assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
-    assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
     assert src_profile["height"] == LAYER.grid.cols
@@ -186,7 +226,7 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
     LAYER_MULTI.photometric = PhotometricType.rgb
 
     tile = RasterSrcTile("10N_010E", LAYER_MULTI.grid, LAYER_MULTI)
-    assert tile.dst[tile.default_format].crs.is_valid
+    assert tile.dst[tile.default_format].crs == tile.grid.crs
 
     with rasterio.Env(**GDAL_ENV), rasterio.open(tile.src.uri) as tile_src:
         assert tile_src.profile["count"] == 2
@@ -219,7 +259,6 @@ def test_transform_final_multi_out(LAYER_MULTI, LAYER):
     assert src_profile["compress"].lower() == LAYER.dst_profile["compress"].lower()
     assert src_profile["count"] == 3
     assert src_profile["crs"].to_epsg() == LAYER.grid.crs.to_epsg()
-    assert src_profile["crs"].is_valid
     assert src_profile["driver"] == "GTiff"
     assert src_profile["dtype"] == LAYER.dst_profile["dtype"]
     assert src_profile["height"] == LAYER.grid.cols
