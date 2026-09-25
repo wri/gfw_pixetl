@@ -202,10 +202,29 @@ class Task(SpawnProcess):
             self._que_err.put(EXIT)
             # Wait until queues are drained before the process exits so the
             # parent's queue objects don't lose buffered data.
+            #
+            # DIAGNOSTIC (see parallelpipe shutdown investigation): timed,
+            # because a worker that finishes its own work early still has to
+            # sit here until every OTHER worker across every stage has also
+            # reached this point and the shared out_q/err_q are drained --
+            # see Pipeline.results(), which does not start draining err_q
+            # until out_q (the whole pipeline's final output) is fully
+            # exhausted. A long wait here is expected for early-finishing
+            # workers; the question is how long, and this makes it visible.
+            wait_start = time.monotonic()
             while not self._que_out.empty():
                 time.sleep(0.1)
+            out_wait_s = time.monotonic() - wait_start
+            err_wait_start = time.monotonic()
             while not self._que_err.empty():
                 time.sleep(0.1)
+            err_wait_s = time.monotonic() - err_wait_start
+            if out_wait_s > 1.0 or err_wait_s > 1.0:
+                LOGGER.info(
+                    f"SHUTDOWN {self.name} waited "
+                    f"out_q_empty_s={out_wait_s:.1f} "
+                    f"err_q_empty_s={err_wait_s:.1f} before exiting"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -338,8 +357,12 @@ class Stage(object):
             p.start()
 
     def _join(self):
+        join_start = time.monotonic()
         for p in self.processes:
             p.join()
+        join_s = time.monotonic() - join_start
+        if join_s > 1.0:
+            LOGGER.info(f"SHUTDOWN {self.target_name} Stage._join() took {join_s:.1f}s")
         self._processes = None
 
     def __str__(self):
@@ -434,13 +457,34 @@ class Pipeline(list):
         # ------------------------------------------------------------------ #
         # Yield results from the final output queue
         # ------------------------------------------------------------------ #
+        out_q_start = time.monotonic()
         for item in iterqueue(out_q, tt.workers):
             yield item
+        out_q_drain_s = time.monotonic() - out_q_start
 
         # ------------------------------------------------------------------ #
         # Collect errors / OOM events from error queue
         # ------------------------------------------------------------------ #
+        # DIAGNOSTIC (see parallelpipe shutdown investigation): err_q is
+        # shared across every stage, and every worker -- however early it
+        # finished its own work -- waits (see Task.run()'s finally block)
+        # until this queue is drained before it actually exits. That
+        # drain can't start until out_q above is fully exhausted, i.e. not
+        # until the *last* tile has made it all the way through every
+        # stage. total_workers is summed across every stage in this
+        # pipeline, not just the last one, so a long draining wait here
+        # means many already-finished workers were held open the whole
+        # time, and how long is what the timing below is for.
+        err_q_start = time.monotonic()
         raw_errors = list(iterqueue(err_q, total_workers))
+        err_q_drain_s = time.monotonic() - err_q_start
+        if out_q_drain_s > 1.0 or err_q_drain_s > 1.0:
+            LOGGER.info(
+                f"SHUTDOWN pipeline={[str(s) for s in self]} "
+                f"total_workers={total_workers} "
+                f"out_q_drain_s={out_q_drain_s:.1f} "
+                f"err_q_drain_s={err_q_drain_s:.1f}"
+            )
 
         # Stop and join watchdogs before returning from this pipeline.
         # Join watchdogs so no monitoring threads leak into a later pipeline.
