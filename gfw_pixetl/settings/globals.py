@@ -97,7 +97,8 @@ class Globals(EnvSettings):
         description="Manual override for the vector rasterize() memory "
         "reservation, in GiB. Leave unset (the default) to compute it "
         "automatically from the layer's actual grid resolution and output "
-        "dtype/band count -- see vector_rasterize_reservation_overhead and "
+        "dtype/band count -- see vector_rasterize_reservation_base_gib, "
+        "vector_rasterize_reservation_scale_factor, and "
         "VectorPipe._rasterize_reservation_bytes(). A fixed GiB value here "
         "was tried first and got this backwards: sized for a 10m-resolution "
         "WDPA run, it then over-throttled a 30m run by ~6x (30m tiles have "
@@ -107,19 +108,39 @@ class Globals(EnvSettings):
         "this only to force a specific value regardless of grid/dtype, e.g. "
         "while diagnosing whether the formula itself is off for a layer.",
     )
-    vector_rasterize_reservation_overhead: float = Field(
-        1.5,
-        description="Multiplier applied to a vector tile's raw, uncompressed "
-        "output array size (cols * rows * band_count * dtype itemsize) to "
+    vector_rasterize_reservation_base_gib: float = Field(
+        2.5,
+        description="Fixed per-tile floor for the vector rasterize() memory "
+        "reservation, in GiB, before adding the resolution-scaled term (see "
+        "vector_rasterize_reservation_scale_factor). Real memory no longer "
+        "scales anywhere close to proportionally with output pixel count "
+        "now that GDAL_CACHEMAX is capped (see gdal.py) -- gdal_rasterize "
+        "appears to stream output in bounded blocks rather than "
+        "materializing the whole array, so real usage is dominated by a "
+        "roughly fixed cost (GDAL's small cache, the in-memory vector "
+        "GeoDataFrame, process overhead) with only a modest "
+        "resolution-dependent term on top. Fit from two WDPA data points "
+        "(30m grid: ~1.92GiB real; 10m grid: ~3.0GiB real, despite a "
+        "6.25x larger raw output array) as reservation ~= 1.7GiB + 0.14 x "
+        "raw_array_bytes, then both terms scaled up ~1.5x for margin, "
+        "since two points is thin evidence for a fitted model. Revisit if "
+        "a layer with meaningfully different dtype/band-count/feature "
+        "density shows this doesn't hold.",
+    )
+    vector_rasterize_reservation_scale_factor: float = Field(
+        0.2,
+        description="Coefficient applied to a vector tile's raw, "
+        "uncompressed output array size (cols * rows * band_count * dtype "
+        "itemsize) and added to vector_rasterize_reservation_base_gib to "
         "estimate gdal_rasterize's real per-tile memory footprint, when "
         "vector_rasterize_reservation_gib is not set to a manual override. "
-        "1.5x is not a principled constant -- it's rounded up from the one "
-        "data point we have (a 10/100000 WDPA grid, uint8, 1 band: ~9.3GiB "
-        "raw array vs. ~12-13GiB observed real usage, so ~1.3-1.4x). "
-        "Re-derive from telemetry on other layers/grids before trusting it "
-        "far outside that one case, especially for very different dtypes or "
-        "band counts where GDAL's internal buffering may not scale the same "
-        "way as the raw array size does.",
+        "This replaced a flat multiplier applied to the whole raw array "
+        "(vector_rasterize_reservation_overhead) that could not "
+        "simultaneously be safe at low resolution (where real usage tracks "
+        "close to the raw array, ~1.3x) and non-wasteful at high resolution "
+        "(where real usage was only ~0.3x the raw array) -- see "
+        "vector_rasterize_reservation_base_gib for the fit this and that "
+        "constant come from together.",
     )
     vector_rasterize_reservation_floor_gib: float = Field(
         0.5,
