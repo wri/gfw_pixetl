@@ -28,14 +28,21 @@ class VectorPipe(Pipe):
         """Construct the vector pipeline for a given tile list and worker
         count.
 
+        ``tiles`` have already been classified by ``collect_tiles()``:
+        filter_subset_tiles, filter_target_tiles, and filter_src_tiles all
+        ran there (see Pipe.collect_tiles). This pipe must NOT repeat those
+        stages -- filter_src_tiles in particular makes one DB round trip per
+        tile ("Limited to be nice to DB"), and re-running it here used to
+        silently double the number of queries hitting the source database on
+        every single run, for tiles whose status was already decided.
+        RasterPipe's _build_pipe does not repeat its filters either; this
+        now matches that pattern.
+
         ``workers`` controls the parallelism of the memory-intensive
         ``rasterize`` stage.
         """
         return (
             tiles
-            | self.filter_subset_tiles(self.subset)
-            | self.filter_src_tiles
-            | self.filter_target_tiles(overwrite=False)
             | self.fetch_tile_data
             | Stage(self.rasterize).setup(workers=workers)
             | self.upload_file
