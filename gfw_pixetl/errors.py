@@ -81,6 +81,7 @@ def retry_if_db_fell_over(exception) -> bool:
     if isinstance(exception, (PsycoOperationalError, SQLAOperationalError)) and (
         "SSL SYSCALL error: EOF detected" in str(exception)
         or "Connection refused" in str(exception)
+        or "out of memory" in str(exception)
     ):
         LOGGER.warning("SQLA error (suspect the DB fell over) - RETRY")
         return True  # i.e. retry
