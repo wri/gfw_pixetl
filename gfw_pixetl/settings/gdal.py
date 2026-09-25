@@ -51,6 +51,29 @@ class GdalEnv(EnvSettings):
         return v
 
 
+# GDAL_CACHEMAX deliberately does NOT live on GdalEnv above, even though it's
+# conceptually the same kind of setting. GdalEnv.env_dict() stringifies every
+# field so the result can be merged into a subprocess's OS environment (which
+# requires str values) -- but rasterio.Env(**kwargs) special-cases
+# GDAL_CACHEMAX internally and requires a real Python int there, not a
+# string. Passing the stringified "512" through rasterio.Env(GDAL_CACHEMAX=
+# "512") raises "TypeError: an integer is required" in rasterio's Cython
+# _env.pyx, before a single raster file is touched -- exactly what broke
+# fetch_metadata()'s rasterio.Env(**get_gdal_env()) call on the very first
+# tile of the very first stage.
+#
+# Setting it as a real OS environment variable instead sidesteps the type
+# mismatch entirely: GDAL's C layer reads GDAL_CACHEMAX from the process
+# environment as a fallback whenever it isn't explicitly passed as a config
+# option, so this still reaches both run_gdal_subcommand()'s gdal_rasterize
+# subprocess (which inherits it via os.environ.copy()) and in-process
+# rasterio/GDAL calls (just_copy_geotiff, fetch_metadata) -- without ever
+# handing the value to rasterio.Env()'s kwargs, where the crash happened.
+# setdefault() so a value the deployment's own environment already sets
+# takes precedence over this default.
+os.environ.setdefault("GDAL_CACHEMAX", "512")
+
+
 def get_gdal_env() -> dict:
     """Return a fresh GDAL environment dict, re-reading AWS_ENDPOINT_URL each
     time.
