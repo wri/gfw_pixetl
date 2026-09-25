@@ -32,6 +32,27 @@ class GdalEnv(EnvSettings):
     gdal_http_max_retry: int = 4
     gdal_http_retry_delay: int = 10
     vsi_cache: str = "YES"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
+    gdal_cachemax: str = Field(
+        "512",
+        description="GDAL's per-process raster block cache limit, in MB "
+        "(GDAL also accepts a percentage, e.g. '5%'). Explicitly fixed here "
+        "because GDAL's own default, when this is left unset, is 5% of the "
+        "*host's* physical RAM -- not the cgroup memory limit -- recomputed "
+        "independently by every new process that touches GDAL: every "
+        "gdal_rasterize subprocess call, and every spawned geotiff-copy "
+        "process (see tile.py's _copy_geotiff_spawned). On a 371GiB host "
+        "that default is ~18.5GiB of *permitted* cache per process, and it "
+        "grows every time the instance is resized up -- the opposite of "
+        "what VectorPipe._rasterize_reservation_bytes() assumes when it "
+        "reserves a roughly fixed amount per tile from the layer's grid and "
+        "dtype. With many tiles concurrently in flight, several processes "
+        "independently approaching a many-GiB cache ceiling at once is a "
+        "very plausible source of the ~2.1x real-vs-modeled overhead seen "
+        "on the 10/100000 grid, and would also mean part of a bigger "
+        "instance's extra headroom goes into bigger per-process caches "
+        "instead of more concurrent tiles. A small, fixed value keeps GDAL's "
+        "own memory use predictable and decoupled from host size.",
+    )
     aws_https: Optional[str] = None
     aws_virtual_hosting: Optional[str] = None
     aws_s3_endpoint: Optional[str] = None  # Populated at call time via get_gdal_env()
