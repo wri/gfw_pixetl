@@ -1,10 +1,10 @@
 import os
-from typing import List
+from typing import List, Optional
 
 import geopandas
 from retrying import retry
 from sqlalchemy import Column, Table, select, table, text
-from sqlalchemy.engine import CursorResult, create_engine
+from sqlalchemy.engine import CursorResult, Engine, create_engine
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql.elements import TextClause, literal_column
 
@@ -21,6 +21,49 @@ from gfw_pixetl.utils.gdal import run_gdal_subcommand
 logger = get_module_logger(__name__)
 
 GEOMETRY_COLUMN = "geom"
+
+# One engine (and its small connection pool) per worker *process*, created
+# lazily and reused for every tile that process handles. Previously each of
+# src_vector_intersects()/fetch_data() called create_engine() fresh on every
+# single tile -- a brand new TCP+SSL handshake for a single query, with the
+# connection then abandoned rather than returned to a pool -- which both
+# wasted time and multiplied the number of connections the source DB had to
+# service under load. Because worker processes are started with `spawn`,
+# this module-level cache is naturally private to each process; there is no
+# risk of sharing a connection across processes.
+_ENGINE: Optional[Engine] = None
+
+
+def _get_engine() -> Engine:
+    """Return this worker process's cached SQLAlchemy engine, creating it on
+    first use."""
+    global _ENGINE
+    if _ENGINE is None:
+        db_url: URL = URL.create(
+            "postgresql+psycopg2",
+            host=GLOBALS.db_host,
+            port=GLOBALS.db_port,
+            username=GLOBALS.db_username,
+            password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
+            database=GLOBALS.db_name,
+        )
+        _ENGINE = create_engine(
+            db_url,
+            pool_size=GLOBALS.db_pool_size,
+            max_overflow=GLOBALS.db_pool_max_overflow,
+            # Detect and transparently discard connections the DB (or a
+            # proxy) has silently dropped, instead of failing the query.
+            pool_pre_ping=True,
+            pool_recycle=GLOBALS.db_pool_recycle_seconds,
+            connect_args={
+                "connect_timeout": GLOBALS.db_connect_timeout_seconds,
+                # Cap how long any single query may hold this connection, so
+                # one expensive intersection can't monopolize DB resources
+                # (or this worker) indefinitely.
+                "options": f"-c statement_timeout={GLOBALS.db_statement_timeout_ms}",
+            },
+        )
+    return _ENGINE
 
 
 class VectorSrcTile(Tile):
@@ -79,15 +122,7 @@ class VectorSrcTile(Tile):
         wait_random_max=180000,
     )  # Wait 60-180s between retries
     def src_vector_intersects(self) -> bool:
-        db_url: URL = URL.create(
-            "postgresql+psycopg2",
-            host=GLOBALS.db_host,
-            port=GLOBALS.db_port,
-            username=GLOBALS.db_username,
-            password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
-            database=GLOBALS.db_name,
-        )
-        engine = create_engine(db_url)
+        engine = _get_engine()
 
         sql = (
             select(literal_column("gfw_fid"))
@@ -120,15 +155,7 @@ class VectorSrcTile(Tile):
 
         dst = os.path.join(prefix, f"{self.tile_id}.parquet")
 
-        db_url: URL = URL.create(
-            "postgresql+psycopg2",
-            host=GLOBALS.db_host,
-            port=GLOBALS.db_port,
-            username=GLOBALS.db_username,
-            password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
-            database=GLOBALS.db_name,
-        )
-        engine = create_engine(db_url)
+        engine = _get_engine()
 
         val_column = literal_column(str(self.layer.calc))
         geom_column = literal_column(str(self.intersection_geom()))
