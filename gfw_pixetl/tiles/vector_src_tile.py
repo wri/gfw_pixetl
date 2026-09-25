@@ -3,6 +3,9 @@ from typing import List, Optional
 
 import geopandas
 from retrying import retry
+from shapely import get_parts, unary_union
+from shapely.geometry import Polygon, box
+from shapely.geometry.base import BaseGeometry
 from sqlalchemy import Column, Table, select, table, text
 from sqlalchemy.engine import CursorResult, Engine, create_engine
 from sqlalchemy.engine.url import URL
@@ -66,6 +69,36 @@ def _get_engine() -> Engine:
     return _ENGINE
 
 
+def _clip_to_polygonal(geom: BaseGeometry, tile_box: BaseGeometry) -> BaseGeometry:
+    """Clip *geom* to *tile_box*, keeping only its polygonal parts.
+
+    Computed locally with Shapely/GEOS instead of in Postgres. Mirrors the
+    PostGIS expression this replaces::
+
+        CASE
+            WHEN st_geometrytype(st_intersection(geom, envelope))
+                 = 'ST_GeometryCollection'
+            THEN st_collectionextract(st_intersection(geom, envelope), 3)
+            ELSE st_intersection(geom, envelope)
+        END
+
+    A feature that only grazes the tile edge can intersect the envelope in
+    a mix of dimensions (a sliver polygon plus a point or line where two
+    edges just touch); rasterizing only cares about the polygonal part, so
+    non-polygonal pieces of a GeometryCollection result are dropped, same
+    as st_collectionextract(..., 3) did.
+    """
+    clipped = geom.intersection(tile_box)
+    if clipped.geom_type == "GeometryCollection":
+        polygons = [
+            part
+            for part in get_parts(clipped)
+            if part.geom_type in ("Polygon", "MultiPolygon")
+        ]
+        clipped = unary_union(polygons) if polygons else Polygon()
+    return clipped
+
+
 class VectorSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
@@ -81,25 +114,6 @@ class VectorSrcTile(Tile):
                             {self.bounds.top},
                             4326)
                     )""")
-
-    def intersection(self) -> TextClause:
-        return text(f"""
-            st_intersection(
-                {GEOMETRY_COLUMN},
-                ST_MakeEnvelope(
-                    {self.bounds.left},
-                    {self.bounds.bottom},
-                    {self.bounds.right},
-                    {self.bounds.top},
-                    4326)
-            )""")
-
-    def intersection_geom(self) -> TextClause:
-        return text(f"""CASE
-                        WHEN st_geometrytype({str(self.intersection())}) = 'ST_GeometryCollection'::text
-                        THEN st_collectionextract({str(self.intersection())}, 3)
-                        ELSE st_intersection({GEOMETRY_COLUMN}, {str(self.intersection())})
-                END""")
 
     def order_column(self, val) -> Column:
         if self.layer.order == "desc":
@@ -151,7 +165,17 @@ class VectorSrcTile(Tile):
     )  # Wait 5-30s between retries (jittered, so concurrent workers don't
     # all hammer the DB again at the same instant once it recovers)
     def fetch_data(self) -> None:
-        """Download all intersecting features to a local file."""
+        """Download all intersecting features to a local file, clipping
+        them to the tile locally instead of in the database.
+
+        ST_Intersects still runs in Postgres, in the WHERE clause, so the
+        DB's GiST index does the (cheap) row-pruning it's good at. What
+        used to also run in Postgres -- ST_Intersection actually clipping
+        every matched geometry to the tile envelope, a much more expensive,
+        per-row computation -- now happens here instead, after the raw
+        geometry has been fetched, using the EC2 host's own idle CPU rather
+        than the shared database's.
+        """
         prefix = f"{self.work_dir}"
         os.makedirs(f"{prefix}", exist_ok=True)
 
@@ -160,11 +184,11 @@ class VectorSrcTile(Tile):
         engine = _get_engine()
 
         val_column = literal_column(str(self.layer.calc))
-        geom_column = literal_column(str(self.intersection_geom()))
 
         sql = (
             select(
-                val_column.label(self.layer.field), geom_column.label(GEOMETRY_COLUMN)
+                val_column.label(self.layer.field),
+                literal_column(GEOMETRY_COLUMN).label(GEOMETRY_COLUMN),
             )
             .select_from(self.src_table())
             .where(self.intersect_filter())
@@ -176,8 +200,16 @@ class VectorSrcTile(Tile):
         # Why store as GeoParquet? Could be almost anything, but
         # GeoParquet is both faster and more compact (without extra
         # processing) than GeoPackage, Shapefiles, GeoJSON, CSV.
-        geodataframe = geopandas.read_postgis(sql, engine)
+        geodataframe = geopandas.read_postgis(sql, engine, geom_col=GEOMETRY_COLUMN)
         geodataframe = geodataframe.set_crs("EPSG:4326")
+
+        tile_box = box(
+            self.bounds.left, self.bounds.bottom, self.bounds.right, self.bounds.top
+        )
+        geodataframe[GEOMETRY_COLUMN] = geodataframe[GEOMETRY_COLUMN].apply(
+            lambda geom: _clip_to_polygonal(geom, tile_box)
+        )
+
         geodataframe.to_parquet(dst, compression="snappy")
 
     def rasterize(self) -> None:
