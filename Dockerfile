@@ -9,6 +9,13 @@ ENV DIR=/usr/local/app \
     UV_PYTHON_PREFERENCE=only-managed \
     PATH="/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 
+# These are needed to prevent numpy, pandas, and other packages from trying to
+# use multiple threads, which can cause deadlocks after forking
+ENV OPENBLAS_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1
+
 ARG ENV
 
 # ── System dependencies ────────────────────────────────────────────────────────
