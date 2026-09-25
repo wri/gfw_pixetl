@@ -28,17 +28,24 @@ class VectorPipe(Pipe):
         return result
 
     def _rasterize_reservation_bytes(self) -> int:
-        """Estimate the rasterize stage's per-tile memory reservation from
-        this layer's actual grid resolution and output dtype/band count,
-        instead of one fixed number for every grid.
+        """Estimate the rasterize stage's per-tile memory reservation.
 
         Every tile in a single run shares the same grid, so this only needs
-        computing once per pipe, not per tile -- a 10-degree tile on a
-        10/100000 grid (WDPA at ~10m/pixel) is 100000 x 100000 pixels; the
-        same 10-degree tile on a 10/40000 grid (~30m/pixel) is 40000 x
-        40000, about 1/6 the pixels and, empirically, roughly 1/6 the real
-        memory. A single fixed reservation can only ever be right for one
-        of those.
+        computing once per pipe, not per tile.
+
+        Real memory does NOT scale anywhere close to proportionally with
+        output pixel count once GDAL_CACHEMAX is capped (see gdal.py):
+        going from a 10/40000 WDPA grid (~30m/pixel, 40000x40000 pixels)
+        to 10/100000 (~10m/pixel, 100000x100000 pixels) is a 6.25x larger
+        raw output array, but real observed memory only grew ~1.5x (~1.92
+        -> ~3.0GiB). gdal_rasterize appears to stream output in bounded
+        blocks rather than materializing the whole array, so real cost is
+        mostly a fixed per-tile floor (GDAL's small cache, the in-memory
+        vector GeoDataFrame, process overhead) with only a modest
+        resolution-dependent term on top -- an affine model, not a
+        multiplier on the raw array size. See
+        vector_rasterize_reservation_base_gib's description for the fit
+        this is drawn from and its caveats.
         """
         if GLOBALS.vector_rasterize_reservation_gib is not None:
             return int(GLOBALS.vector_rasterize_reservation_gib * GIB)
@@ -48,8 +55,9 @@ class VectorPipe(Pipe):
         band_count = max(self.layer.band_count, 1)
         raw_bytes = pixel_count * bytes_per_pixel * band_count
 
-        reservation_bytes = int(
-            raw_bytes * GLOBALS.vector_rasterize_reservation_overhead
+        base_bytes = int(GLOBALS.vector_rasterize_reservation_base_gib * GIB)
+        reservation_bytes = base_bytes + int(
+            raw_bytes * GLOBALS.vector_rasterize_reservation_scale_factor
         )
         floor_bytes = int(GLOBALS.vector_rasterize_reservation_floor_gib * GIB)
         return max(reservation_bytes, floor_bytes)
