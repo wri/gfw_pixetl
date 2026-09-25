@@ -32,27 +32,6 @@ class GdalEnv(EnvSettings):
     gdal_http_max_retry: int = 4
     gdal_http_retry_delay: int = 10
     vsi_cache: str = "YES"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
-    gdal_cachemax: str = Field(
-        "512",
-        description="GDAL's per-process raster block cache limit, in MB "
-        "(GDAL also accepts a percentage, e.g. '5%'). Explicitly fixed here "
-        "because GDAL's own default, when this is left unset, is 5% of the "
-        "*host's* physical RAM -- not the cgroup memory limit -- recomputed "
-        "independently by every new process that touches GDAL: every "
-        "gdal_rasterize subprocess call, and every spawned geotiff-copy "
-        "process (see tile.py's _copy_geotiff_spawned). On a 371GiB host "
-        "that default is ~18.5GiB of *permitted* cache per process, and it "
-        "grows every time the instance is resized up -- the opposite of "
-        "what VectorPipe._rasterize_reservation_bytes() assumes when it "
-        "reserves a roughly fixed amount per tile from the layer's grid and "
-        "dtype. With many tiles concurrently in flight, several processes "
-        "independently approaching a many-GiB cache ceiling at once is a "
-        "very plausible source of the ~2.1x real-vs-modeled overhead seen "
-        "on the 10/100000 grid, and would also mean part of a bigger "
-        "instance's extra headroom goes into bigger per-process caches "
-        "instead of more concurrent tiles. A small, fixed value keeps GDAL's "
-        "own memory use predictable and decoupled from host size.",
-    )
     aws_https: Optional[str] = None
     aws_virtual_hosting: Optional[str] = None
     aws_s3_endpoint: Optional[str] = None  # Populated at call time via get_gdal_env()
@@ -70,6 +49,29 @@ class GdalEnv(EnvSettings):
     def validate_google_application_credentials(cls, v):
         set_google_application_credentials(v)
         return v
+
+
+# GDAL_CACHEMAX deliberately does NOT live on GdalEnv above, even though it's
+# conceptually the same kind of setting. GdalEnv.env_dict() stringifies every
+# field so the result can be merged into a subprocess's OS environment (which
+# requires str values) -- but rasterio.Env(**kwargs) special-cases
+# GDAL_CACHEMAX internally and requires a real Python int there, not a
+# string. Passing the stringified "512" through rasterio.Env(GDAL_CACHEMAX=
+# "512") raises "TypeError: an integer is required" in rasterio's Cython
+# _env.pyx, before a single raster file is touched -- exactly what broke
+# fetch_metadata()'s rasterio.Env(**get_gdal_env()) call on the very first
+# tile of the very first stage.
+#
+# Setting it as a real OS environment variable instead sidesteps the type
+# mismatch entirely: GDAL's C layer reads GDAL_CACHEMAX from the process
+# environment as a fallback whenever it isn't explicitly passed as a config
+# option, so this still reaches both run_gdal_subcommand()'s gdal_rasterize
+# subprocess (which inherits it via os.environ.copy()) and in-process
+# rasterio/GDAL calls (just_copy_geotiff, fetch_metadata) -- without ever
+# handing the value to rasterio.Env()'s kwargs, where the crash happened.
+# setdefault() so a value the deployment's own environment already sets
+# takes precedence over this default.
+os.environ.setdefault("GDAL_CACHEMAX", "512")
 
 
 def get_gdal_env() -> dict:
