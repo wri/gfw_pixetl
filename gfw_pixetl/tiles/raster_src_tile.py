@@ -294,7 +294,7 @@ class RasterSrcTile(Tile):
         # recomputed on every acquire/release call.
         reservation_bytes = self._window_reservation_bytes()
 
-        LOGGER.debug(
+        LOGGER.info(
             "PERF window_worker_start "
             f"tile={self.tile_id} window_start=1 window_end={len(windows)} "
             f"window_count={len(windows)}"
@@ -323,7 +323,7 @@ class RasterSrcTile(Tile):
                     window_reservation_held = False
 
                 dispatch_seconds = perf_counter() - dispatch_started
-                LOGGER.debug(
+                LOGGER.info(
                     "PERF window_dispatch "
                     f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
                     f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
@@ -413,7 +413,7 @@ class RasterSrcTile(Tile):
                 additional_destinations=additional_destinations,
             )
             transform_seconds = perf_counter() - transform_started
-            LOGGER.debug(
+            LOGGER.info(
                 "PERF window_child "
                 f"tile={self.tile_id} col_off={int(window.col_off)} "
                 f"row_off={int(window.row_off)} width={int(window.width)} "
@@ -552,7 +552,7 @@ class RasterSrcTile(Tile):
             floor(sqrt(target_bytes / (working_copies * block_byte_size))) ** 2,
         )
 
-        LOGGER.debug(
+        LOGGER.info(
             f"Target window size {target_bytes} B, working_copies={working_copies} "
             f"-> maximum number of blocks for tile {self.tile_id} to read at once: "
             f"{max_blocks}. Expected max chunk size: {max_blocks * block_byte_size} B."
