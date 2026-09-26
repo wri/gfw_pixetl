@@ -29,11 +29,7 @@ from gfw_pixetl.sources import RasterSource
 from gfw_pixetl.tiles import Tile
 from gfw_pixetl.tiles.utils.named_tuples import Destination, Layer, Source
 from gfw_pixetl.tiles.utils.transform import transform
-from gfw_pixetl.utils import (
-    available_memory_per_process_bytes,
-    available_memory_per_process_mb,
-    snapped_window,
-)
+from gfw_pixetl.utils import snapped_window
 from gfw_pixetl.utils.gdal import create_multiband_vrt
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
@@ -241,7 +237,12 @@ class RasterSrcTile(Tile):
                 transform=transform,
                 width=width,
                 height=height,
-                warp_mem_limit=available_memory_per_process_mb(),
+                # Bounded by the same fixed per-window target used for
+                # _max_blocks() (see GLOBALS.raster_window_target_mb), not
+                # available memory divided by worker count -- a warp's
+                # memory need is bounded by the window it's processing,
+                # not by how many other workers happen to exist.
+                warp_mem_limit=GLOBALS.raster_window_target_mb,
                 resampling=self.layer.resampling,
             )
 
@@ -287,6 +288,11 @@ class RasterSrcTile(Tile):
         first_window = True
         window_reservation_held = False
         dispatch_started = perf_counter()
+        # Same for every window of this tile (see _window_reservation_bytes():
+        # it's derived from this tile's dtype/band count/target, none of
+        # which vary window to window), computed once rather than
+        # recomputed on every acquire/release call.
+        reservation_bytes = self._window_reservation_bytes()
 
         LOGGER.debug(
             "PERF window_worker_start "
@@ -295,7 +301,7 @@ class RasterSrcTile(Tile):
         )
 
         try:
-            MEMORY_ADMISSION.acquire_window(self.tile_id, 0)
+            MEMORY_ADMISSION.acquire_window(self.tile_id, 0, reservation_bytes)
             window_reservation_held = True
             worker.start()
 
@@ -313,7 +319,7 @@ class RasterSrcTile(Tile):
 
                 window = windows[window_index]
                 if window_reservation_held:
-                    MEMORY_ADMISSION.release_window()
+                    MEMORY_ADMISSION.release_window(reservation_bytes)
                     window_reservation_held = False
 
                 dispatch_seconds = perf_counter() - dispatch_started
@@ -341,7 +347,9 @@ class RasterSrcTile(Tile):
                     continue
 
                 # Reuse the tile worker; admission may wait before the next window.
-                MEMORY_ADMISSION.acquire_window(self.tile_id, window_index + 1)
+                MEMORY_ADMISSION.acquire_window(
+                    self.tile_id, window_index + 1, reservation_bytes
+                )
                 window_reservation_held = True
                 command_queue.put("continue")
 
@@ -357,7 +365,7 @@ class RasterSrcTile(Tile):
         finally:
             MEMORY_ADMISSION.commit_tile_reservation()
             if window_reservation_held:
-                MEMORY_ADMISSION.release_window()
+                MEMORY_ADMISSION.release_window(reservation_bytes)
             if worker.is_alive():
                 worker.terminate()
                 worker.join(timeout=10)
@@ -508,54 +516,60 @@ class RasterSrcTile(Tile):
                     else:
                         raise
 
-    def _max_blocks(self) -> int:
-        """Calculate the maximum amount of blocks we can fit into memory,
-        making sure that blocks can always fill a squared extent.
-
-        We can only use a fraction of the available memory per process
-        per block b/c we might have multiple copies of the array at the
-        same time. Using a divisor of 8 leads to max memory usage of
-        about 75%.
-        """
-        # Adjust divisor to band count
-        divisor = GLOBALS.divisor
-
-        # Float data types seem to need more memory.
-        if np.issubdtype(
-            self.dst[self.default_format].dtype, np.floating
-        ) or np.issubdtype(self.src.dtype, np.floating):
-            divisor *= 2
-            LOGGER.debug("Divisor doubled for float data")
-
-            # Float64s require even more?
-            if (
-                self.dst[self.default_format].dtype == np.dtype("float64")
-            ) or self.src.dtype == np.dtype("float64"):
-                divisor *= 2
-                LOGGER.debug("Divisor doubled again for float64 data")
-
-        # Multiple layers need more memory
-        divisor *= self.layer.band_count
-
-        # further reduce block size in case we need to perform additional computations
+    def _window_working_copies(self) -> int:
+        """How many simultaneous copies of one window's data this tile's
+        transform needs -- see GLOBALS.raster_window_working_copies /
+        raster_window_calc_working_copies."""
         if self.layer.calc is not None:
-            divisor **= 2
-            LOGGER.debug("Divisor squared for calc operations")
+            return GLOBALS.raster_window_calc_working_copies
+        return GLOBALS.raster_window_working_copies
 
-        LOGGER.debug(f"Divisor set to {divisor} for tile {self.tile_id}")
+    def _max_blocks(self) -> int:
+        """Calculate the maximum number of blocks one window can read at
+        once, sized against a fixed target footprint (see
+        GLOBALS.raster_window_target_mb) -- independent of worker count or
+        total instance memory, unlike the old approach of dividing
+        available memory by an assumed worker count. Every window, on any
+        instance or worker-count configuration, aims for roughly the same
+        footprint; MEMORY_ADMISSION's live cgroup-pressure gate decides how
+        many can run concurrently (see _window_reservation_bytes()), not a
+        static a-priori guess baked into the window size itself.
 
+        dtype and band count are already correctly reflected in
+        _block_byte_size() (it computes the actual byte size of one block
+        for this tile's actual dtype/band count), so they are not
+        adjusted for again here -- only working_copies, which accounts for
+        something _block_byte_size() does not: needing more than one copy
+        of a block's data in memory at once.
+        """
+        working_copies = self._window_working_copies()
+        target_bytes = GLOBALS.raster_window_target_mb * 1000000
         block_byte_size: int = self._block_byte_size()
-        memory_per_process: float = available_memory_per_process_bytes() / divisor
 
         # make sure we get a number whose sqrt is a whole number
-        max_blocks: int = max(1, floor(sqrt(memory_per_process / block_byte_size)) ** 2)
+        max_blocks: int = max(
+            1,
+            floor(sqrt(target_bytes / (working_copies * block_byte_size))) ** 2,
+        )
 
         LOGGER.debug(
-            f"Maximum number of blocks for tile {self.tile_id} to read at once: {max_blocks}. "
-            f"Expected max chunk size: {max_blocks * block_byte_size} B."
+            f"Target window size {target_bytes} B, working_copies={working_copies} "
+            f"-> maximum number of blocks for tile {self.tile_id} to read at once: "
+            f"{max_blocks}. Expected max chunk size: {max_blocks * block_byte_size} B."
         )
 
         return max_blocks
+
+    def _window_reservation_bytes(self) -> int:
+        """The memory to reserve with MEMORY_ADMISSION for one window of
+        this tile, computed from the same numbers _max_blocks() used --
+        so admission reserves what a window is actually expected to use,
+        not a single flat size applied identically regardless of dtype,
+        band count, or how many blocks actually fit in the target.
+        """
+        return int(
+            self._max_blocks() * self._block_byte_size() * self._window_working_copies()
+        )
 
     def _block_byte_size(self):
         shape = (

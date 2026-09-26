@@ -48,10 +48,47 @@ class Globals(EnvSettings):
         psutil.virtual_memory()[1] / 1000000,
         description="Max memory available to pixETL",
     )
-    divisor: PositiveInt = Field(
-        4,
-        description="Fraction of memory per worker to use to compute maximum block size."
-        "(ie 4 => size =  25% of available memory)",
+    raster_window_target_mb: PositiveInt = Field(
+        1024,
+        description="Target memory footprint for one raster transform "
+        "window, in MB, before the working-copies multiplier (see "
+        "raster_window_working_copies/raster_window_calc_working_copies). "
+        "Deliberately independent of worker count or total instance "
+        "memory: the goal is that every window, on any instance or "
+        "worker-count configuration, aims for roughly the same footprint, "
+        "so MEMORY_ADMISSION's live cgroup-pressure gate -- not a static "
+        "a-priori division of total memory by an assumed worker count -- "
+        "is what decides how many can run concurrently. Replaces the old "
+        "divisor setting, which conflated worker-count fair-share with "
+        "dtype/band adjustments _block_byte_size() already accounts for. "
+        "Starting guess (roughly matching vector rasterize's proven-safe "
+        "512MB, scaled up modestly since raster windows are read, not "
+        "burned-and-copied), not yet validated against a live run.",
+    )
+    raster_window_working_copies: PositiveInt = Field(
+        2,
+        description="How many simultaneous copies of one window's data a "
+        "transform needs in memory at once -- e.g. a resampling "
+        "algorithm's input block plus its output/accumulation buffer. "
+        "Applied by dividing how many blocks fit in "
+        "raster_window_target_mb (fewer, smaller blocks per window when "
+        "more copies are needed), so the reservation MEMORY_ADMISSION "
+        "receives still matches the target footprint rather than growing "
+        "past it. A starting guess carried over in spirit from the old "
+        "divisor heuristic's float/float64 adjustments, but as an "
+        "explicit, named multiplier instead of folded into worker-count "
+        "math -- not yet validated against a live run.",
+    )
+    raster_window_calc_working_copies: PositiveInt = Field(
+        3,
+        description="Like raster_window_working_copies, but used instead "
+        "of it (not on top of it) when the layer has a calc expression "
+        "(self.layer.calc is not None): evaluating an expression against "
+        "the source plausibly needs more simultaneous working memory "
+        "(input array(s), intermediate expression evaluation, output "
+        "array) than a plain resampling copy does. Carried over in spirit "
+        "from the old divisor heuristic's 'squared for calc operations' "
+        "adjustment -- not yet validated against a live run.",
     )
     workers: PositiveInt = Field(
         cpu_count(), description="Number of workers to use to execute job."
