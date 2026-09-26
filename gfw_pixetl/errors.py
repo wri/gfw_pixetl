@@ -123,6 +123,14 @@ def _file_does_not_exist(e: Exception) -> bool:
         "No such file or directory",
         "not recognized as a supported file format",
         "Access Denied",
+        # Some access paths raise a generic HTTP error rather than an
+        # S3-SDK-style or local-filesystem-style message for the exact
+        # same "file genuinely doesn't exist yet" condition -- the normal,
+        # expected case on the first-ever run of a new dataset version.
+        # HTTP 404 unambiguously means Not Found per the HTTP spec, so
+        # this is safe to treat the same as the messages above rather
+        # than letting it propagate as a fatal, job-ending exception.
+        "HTTP response code: 404",
     ]
 
     return isinstance(e, RasterioIOError) and any(error in str(e) for error in errors)
