@@ -21,7 +21,7 @@ from gfw_pixetl.layers import VectorSrcLayer
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.sources import VectorSource
 from gfw_pixetl.tiles import Tile
-from gfw_pixetl.utils.gdal import run_gdal_subcommand
+from gfw_pixetl.utils.gdal import get_gdal_env, run_gdal_subcommand
 
 logger = get_module_logger(__name__)
 
@@ -105,6 +105,12 @@ class VectorSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
         self.src: VectorSource = layer.src
+        # See Tile.gdal_cachemax_mb: small and fixed here on purpose, since
+        # vector rasterize's write-once access pattern doesn't benefit
+        # from a big GDAL cache the way raster transform's windowed reads
+        # do, and letting concurrent copies each grab GDAL's default (5%
+        # of host RAM) is what caused the OOM this value was chosen to fix.
+        self.gdal_cachemax_mb: int = 512
         # Populated by src_vector_intersects(); zero for tiles it never ran
         # on (subset-filtered, or already existing at the destination) so
         # sorting by complexity_score never trips over a missing attribute.
@@ -305,7 +311,16 @@ class VectorSrcTile(Tile):
 
         burn_started = perf_counter()
         try:
-            run_gdal_subcommand(cmd)
+            # Small, fixed cache for this subprocess specifically -- see
+            # Tile.gdal_cachemax_mb; a string here is fine (unlike
+            # just_copy_geotiff's rasterio.Env call), since this dict
+            # feeds a subprocess's OS environment, which is str-only
+            # anyway.
+            gdal_rasterize_env = {
+                **get_gdal_env(),
+                "GDAL_CACHEMAX": str(self.gdal_cachemax_mb),
+            }
+            run_gdal_subcommand(cmd, env=gdal_rasterize_env)
         except GDALError:
             logger.error(f"Could not rasterize tile {self.tile_id}")
             raise
