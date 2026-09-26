@@ -116,9 +116,19 @@ def _copy_creation_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @processify
-def just_copy_geotiff(src_uri, dst_uri, profile):
+def just_copy_geotiff(src_uri, dst_uri, profile, gdal_cachemax_mb=None):
     creation_profile = _copy_creation_profile(profile)
-    with rasterio.Env(**get_gdal_env()):
+    env_options = get_gdal_env()
+    if gdal_cachemax_mb is not None:
+        # rasterio.Env(**kwargs) special-cases GDAL_CACHEMAX and requires a
+        # real Python int here, unlike every other option in get_gdal_env(),
+        # which env_dict() stringifies for the (different) subprocess-env
+        # use case. Setting it directly as an int at this one call site
+        # sidesteps that mismatch instead of routing it through the
+        # generic, string-producing settings machinery -- see the
+        # "TypeError: an integer is required" this caused the first time.
+        env_options = {**env_options, "GDAL_CACHEMAX": gdal_cachemax_mb}
+    with rasterio.Env(**env_options):
         raster_copy(
             src_uri,
             dst_uri,

@@ -51,27 +51,25 @@ class GdalEnv(EnvSettings):
         return v
 
 
-# GDAL_CACHEMAX deliberately does NOT live on GdalEnv above, even though it's
-# conceptually the same kind of setting. GdalEnv.env_dict() stringifies every
-# field so the result can be merged into a subprocess's OS environment (which
-# requires str values) -- but rasterio.Env(**kwargs) special-cases
-# GDAL_CACHEMAX internally and requires a real Python int there, not a
-# string. Passing the stringified "512" through rasterio.Env(GDAL_CACHEMAX=
-# "512") raises "TypeError: an integer is required" in rasterio's Cython
-# _env.pyx, before a single raster file is touched -- exactly what broke
-# fetch_metadata()'s rasterio.Env(**get_gdal_env()) call on the very first
-# tile of the very first stage.
+# GDAL_CACHEMAX deliberately does NOT live here, or anywhere else applied
+# process-wide. It was, briefly (os.environ.setdefault("GDAL_CACHEMAX",
+# "512")) -- fixed one real problem (vector rasterize's write-once workload
+# had no business letting every concurrent gdal_rasterize/geotiff-copy
+# process independently claim GDAL's default 5%-of-host-RAM cache, which is
+# what caused the OOM this was built to prevent) but broke another: raster
+# transform's windowed, often-overlapping reads are a genuinely
+# cache-friendly access pattern, and capping every GDAL operation in the
+# whole process to 512MB regardless of which pipeline was running slowed
+# that down instead.
 #
-# Setting it as a real OS environment variable instead sidesteps the type
-# mismatch entirely: GDAL's C layer reads GDAL_CACHEMAX from the process
-# environment as a fallback whenever it isn't explicitly passed as a config
-# option, so this still reaches both run_gdal_subcommand()'s gdal_rasterize
-# subprocess (which inherits it via os.environ.copy()) and in-process
-# rasterio/GDAL calls (just_copy_geotiff, fetch_metadata) -- without ever
-# handing the value to rasterio.Env()'s kwargs, where the crash happened.
-# setdefault() so a value the deployment's own environment already sets
-# takes precedence over this default.
-os.environ.setdefault("GDAL_CACHEMAX", "512")
+# Per-tile-type sizing lives on Tile.gdal_cachemax_mb instead (None by
+# default = GDAL's own behavior, which is what raster transform always
+# had and is fine for it; VectorSrcTile overrides it to a small fixed
+# value), applied at the specific call sites that need it --
+# just_copy_geotiff() (the shared geotiff-copy step both pipelines use)
+# and VectorSrcTile.rasterize()'s own gdal_rasterize subprocess call --
+# rather than as a single global default for every GDAL operation in the
+# process.
 
 
 def get_gdal_env() -> dict:

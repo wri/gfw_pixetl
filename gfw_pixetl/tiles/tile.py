@@ -5,7 +5,7 @@ import shutil
 import traceback
 from abc import ABC
 from time import perf_counter
-from typing import Dict
+from typing import Dict, Optional
 
 import rasterio
 from rasterio.coords import BoundingBox
@@ -30,10 +30,12 @@ stats_ext = ".aux.xml"  # Extension of stats sidecar gdalinfo -stats creates
 _COPY_CONTEXT = mp.get_context("spawn")
 
 
-def _copy_geotiff_target(conn, src_uri, dst_uri, profile) -> None:
+def _copy_geotiff_target(
+    conn, src_uri, dst_uri, profile, gdal_cachemax_mb=None
+) -> None:
     """Run the memory-heavy GDAL copy in a disposable spawned process."""
     try:
-        just_copy_geotiff(src_uri, dst_uri, profile)
+        just_copy_geotiff(src_uri, dst_uri, profile, gdal_cachemax_mb=gdal_cachemax_mb)
         conn.send((True, None))
     except BaseException:
         conn.send((False, traceback.format_exc()))
@@ -41,13 +43,13 @@ def _copy_geotiff_target(conn, src_uri, dst_uri, profile) -> None:
         conn.close()
 
 
-def _copy_geotiff_spawned(src_uri, dst_uri, profile) -> None:
+def _copy_geotiff_spawned(src_uri, dst_uri, profile, gdal_cachemax_mb=None) -> None:
     """Copy a GeoTIFF in a child whose exit deterministically reclaims
     memory."""
     recv_conn, send_conn = _COPY_CONTEXT.Pipe(duplex=False)
     process = _COPY_CONTEXT.Process(
         target=_copy_geotiff_target,
-        args=(send_conn, src_uri, dst_uri, profile),
+        args=(send_conn, src_uri, dst_uri, profile, gdal_cachemax_mb),
         name="pixetl-geotiff-copy",
     )
     process.start()
@@ -149,6 +151,19 @@ class Tile(ABC):
         self.status = "pending"
         self.metadata: Dict[str, Dict] = dict()
 
+        # Per-tile-type override for the geotiff-copy step's GDAL_CACHEMAX,
+        # in MB. None (the default here) means "don't override" -- GDAL
+        # falls back to its own default (5% of host RAM), which is fine
+        # for raster transform's windowed, often-overlapping reads, a
+        # genuinely cache-friendly access pattern. VectorSrcTile overrides
+        # this to a small fixed value: vector rasterize's write-once
+        # pattern doesn't benefit from a big cache, and letting every
+        # concurrent copy grab up to 5% of host RAM independently is what
+        # caused the vector OOM this was built to fix in the first place.
+        # See just_copy_geotiff()/create_gdal_geotiff() for where this is
+        # actually applied.
+        self.gdal_cachemax_mb: Optional[int] = None
+
     def remove_work_dir(self):
         shutil.rmtree(self.work_dir, ignore_errors=True)
 
@@ -184,6 +199,7 @@ class Tile(ABC):
                 self.local_dst[self.default_format].uri,
                 self.get_local_dst_uri(dst_format),
                 self.dst[dst_format].profile,
+                gdal_cachemax_mb=self.gdal_cachemax_mb,
             )
             self.set_local_dst(dst_format)
         else:
