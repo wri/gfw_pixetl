@@ -333,7 +333,12 @@ class MemoryAdmissionController:
         finally:
             self.release_tile()
 
-    def try_acquire_window(self, tile_id: str, window_index: int) -> bool:
+    def try_acquire_window(
+        self,
+        tile_id: str,
+        window_index: int,
+        reservation_bytes: Optional[int] = None,
+    ) -> bool:
         """Atomically reserve memory for one window if headroom is available.
 
         ``memory.current`` alone is not sufficient because many
@@ -341,9 +346,23 @@ class MemoryAdmissionController:
         together.  The shared ``_reserved_bytes`` value makes those
         decisions serial and immediately visible across spawned
         transform workers.
+
+        ``reservation_bytes``: the actual size this specific window is
+        expected to use (see RasterSrcTile._window_reservation_bytes()).
+        Defaults to ``self.window_reservation_bytes``, the single fixed
+        size configured for the whole run, only for callers that don't
+        have a more specific number -- relying on that default for every
+        window regardless of its real size is what let admission's view
+        of reserved memory drift arbitrarily far from reality.
         """
         if not self.enabled:
             return True
+
+        size = (
+            self.window_reservation_bytes
+            if reservation_bytes is None
+            else reservation_bytes
+        )
 
         with self._lock:
             current, limit = self._memory()
@@ -356,24 +375,29 @@ class MemoryAdmissionController:
                 return True
 
             reserved = int(self._reserved_bytes.value)
-            projected = current + reserved + self.window_reservation_bytes
+            projected = current + reserved + size
             high = int(limit * self.high_watermark)
             if projected >= high:
                 return False
 
-            self._reserved_bytes.value += self.window_reservation_bytes
+            self._reserved_bytes.value += size
             self._write_status_locked()
             return True
 
-    def acquire_window(self, tile_id: str, window_index: int) -> None:
+    def acquire_window(
+        self,
+        tile_id: str,
+        window_index: int,
+        reservation_bytes: Optional[int] = None,
+    ) -> None:
         """Wait until an atomic per-window memory reservation can be
-        acquired."""
+        acquired. See try_acquire_window() for reservation_bytes."""
         if not self.enabled:
             return
 
         waiting_registered = False
         while True:
-            if self.try_acquire_window(tile_id, window_index):
+            if self.try_acquire_window(tile_id, window_index, reservation_bytes):
                 if waiting_registered:
                     with self._lock:
                         self._waiting.value = max(0, self._waiting.value - 1)
@@ -397,14 +421,23 @@ class MemoryAdmissionController:
                 )
             time.sleep(self.poll_seconds)
 
-    def release_window(self) -> None:
-        """Release one executing-window reservation."""
+    def release_window(self, reservation_bytes: Optional[int] = None) -> None:
+        """Release one executing-window reservation.
+
+        ``reservation_bytes`` must match what the corresponding
+        acquire_window() call actually reserved -- defaults to
+        ``self.window_reservation_bytes`` to match acquire_window()'s own
+        default, for callers that don't pass a specific size.
+        """
         if not self.enabled:
             return
+        size = (
+            self.window_reservation_bytes
+            if reservation_bytes is None
+            else reservation_bytes
+        )
         with self._lock:
-            self._reserved_bytes.value = max(
-                0, self._reserved_bytes.value - self.window_reservation_bytes
-            )
+            self._reserved_bytes.value = max(0, self._reserved_bytes.value - size)
             self._write_status_locked()
 
     def wait_for_stats(self, tile_id: str) -> None:
