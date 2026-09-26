@@ -130,11 +130,20 @@ class MemoryAdmissionController:
         if enabled:
             LOGGER.info(
                 "Memory admission enabled: high=%.0f%% resume=%.0f%% "
-                "stats_workers=%d reservation=%.1fGiB window_reservation=%.1fGiB",
+                "stats_workers=%d reservation=%.1fGiB "
+                "window_reservation_default=%.1fGiB",
                 high_watermark * 100,
                 resume_watermark * 100,
                 stats_workers,
                 reservation_bytes / GIB,
+                # Renamed from window_reservation: acquire_window()/
+                # release_window() callers now pass their own computed
+                # per-tile size (see RasterSrcTile._window_reservation_bytes())
+                # on every real call, so this configured value is only a
+                # fallback for a caller that doesn't -- reporting it as
+                # simply "window_reservation" implied it was what every
+                # window actually used, which stopped being true once
+                # per-call sizing was added.
                 window_reservation_bytes / GIB,
             )
 
