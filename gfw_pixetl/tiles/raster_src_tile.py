@@ -220,7 +220,7 @@ class RasterSrcTile(Tile):
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
-        chunk_size = _gdal_cache_size(self._block_byte_size(), self._max_blocks())
+        chunk_size = _gdal_cache_size(self._block_byte_size(), self._max_blocks)
         with rasterio.Env(
             **GDAL_ENV,
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
@@ -483,7 +483,7 @@ class RasterSrcTile(Tile):
     def _windows(self, dst: DatasetWriter) -> Iterator[Window]:
         """Divides raster source into larger windows which will still fit into
         memory."""
-        block_count: int = int(sqrt(self._max_blocks()))
+        block_count: int = int(sqrt(self._max_blocks))
         x_blocks: int = int(dst.width / dst.block_shapes[0][0])
         y_blocks: int = int(dst.height / dst.block_shapes[0][1])
 
@@ -524,6 +524,7 @@ class RasterSrcTile(Tile):
             return GLOBALS.raster_window_calc_working_copies
         return GLOBALS.raster_window_working_copies
 
+    @lazy_property
     def _max_blocks(self) -> int:
         """Calculate the maximum number of blocks one window can read at
         once, sized against a fixed target footprint (see
@@ -541,6 +542,16 @@ class RasterSrcTile(Tile):
         adjusted for again here -- only working_copies, which accounts for
         something _block_byte_size() does not: needing more than one copy
         of a block's data in memory at once.
+
+        A lazy_property (computed once per tile, cached), not a plain
+        method: this is called once per tile from _windows() and
+        _window_reservation_bytes(), but once per *window* from
+        _src_to_vrt() (which sets up a fresh VRT for every window read).
+        The three calls always compute the same, fully deterministic
+        answer for a given tile -- caching avoids redoing that arithmetic
+        dozens or hundreds of times per tile, and keeps the sizing log line
+        below (DEBUG by default; raise the log level to see it) to one per
+        tile instead of one per window when it is enabled.
         """
         working_copies = self._window_working_copies()
         target_bytes = GLOBALS.raster_window_target_mb * 1000000
@@ -568,7 +579,7 @@ class RasterSrcTile(Tile):
         band count, or how many blocks actually fit in the target.
         """
         return int(
-            self._max_blocks() * self._block_byte_size() * self._window_working_copies()
+            self._max_blocks * self._block_byte_size() * self._window_working_copies()
         )
 
     def _block_byte_size(self):
