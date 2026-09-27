@@ -45,14 +45,13 @@ class AdmissionSharedState:
     throttled: Any
     stats_active: Any
     stats_waiting: Any
-    stats_semaphore: Any
     enabled: bool
     cgroup_root: str
     high_watermark: float
     resume_watermark: float
-    stats_workers: int
     reservation_bytes: int
     window_reservation_bytes: int
+    stats_reservation_bytes: int
     poll_seconds: float
 
 
@@ -67,7 +66,6 @@ class MemoryAdmissionController:
         self._throttled = _MP_CONTEXT.Value("b", 0, lock=False)
         self._stats_active = _MP_CONTEXT.Value("i", 0, lock=False)
         self._stats_waiting = _MP_CONTEXT.Value("i", 0, lock=False)
-        self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(4)
 
         # Per-process state. Each transform worker handles one tile at a time.
         self._local_reservation_held = False
@@ -76,9 +74,9 @@ class MemoryAdmissionController:
         self.cgroup_root = CGROUP_ROOT
         self.high_watermark = 0.80
         self.resume_watermark = 0.75
-        self.stats_workers = 4
         self.reservation_bytes = 4 * GIB
         self.window_reservation_bytes = 4 * GIB
+        self.stats_reservation_bytes = 12 * GIB
         self.poll_seconds = 1.0
 
     def configure(
@@ -88,19 +86,19 @@ class MemoryAdmissionController:
         cgroup_root: str = CGROUP_ROOT,
         high_watermark: float = 0.80,
         resume_watermark: float = 0.75,
-        stats_workers: int = 4,
         reservation_bytes: int = 4 * GIB,
         window_reservation_bytes: int = 4 * GIB,
+        stats_reservation_bytes: int = 12 * GIB,
         poll_seconds: float = 1.0,
     ) -> None:
         if not 0 < resume_watermark < high_watermark < 1:
             raise ValueError("memory admission requires 0 < resume < high < 1")
-        if stats_workers <= 0:
-            raise ValueError("stats_workers must be positive")
         if reservation_bytes < 0:
             raise ValueError("reservation_bytes must not be negative")
         if window_reservation_bytes < 0:
             raise ValueError("window_reservation_bytes must not be negative")
+        if stats_reservation_bytes < 0:
+            raise ValueError("stats_reservation_bytes must not be negative")
         if poll_seconds <= 0:
             raise ValueError("poll_seconds must be positive")
 
@@ -109,15 +107,9 @@ class MemoryAdmissionController:
             self.cgroup_root = cgroup_root
             self.high_watermark = high_watermark
             self.resume_watermark = resume_watermark
-            self.stats_workers = stats_workers
-            # Recreated here so a later snapshot_shared_state() call picks up
-            # the configured stats_workers limit. This object only actually
-            # becomes shared with worker processes once it is explicitly
-            # passed to them via AdmissionSharedState - see the module
-            # docstring.
-            self._stats_semaphore = _MP_CONTEXT.BoundedSemaphore(stats_workers)
             self.reservation_bytes = reservation_bytes
             self.window_reservation_bytes = window_reservation_bytes
+            self.stats_reservation_bytes = stats_reservation_bytes
             self.poll_seconds = poll_seconds
             self._reserved_bytes.value = 0
             self._waiting.value = 0
@@ -130,11 +122,10 @@ class MemoryAdmissionController:
         if enabled:
             LOGGER.info(
                 "Memory admission enabled: high=%.0f%% resume=%.0f%% "
-                "stats_workers=%d reservation=%.1fGiB "
-                "window_reservation_default=%.1fGiB",
+                "reservation=%.1fGiB window_reservation_default=%.1fGiB "
+                "stats_reservation_default=%.1fGiB",
                 high_watermark * 100,
                 resume_watermark * 100,
-                stats_workers,
                 reservation_bytes / GIB,
                 # Renamed from window_reservation: acquire_window()/
                 # release_window() callers now pass their own computed
@@ -145,6 +136,11 @@ class MemoryAdmissionController:
                 # window actually used, which stopped being true once
                 # per-call sizing was added.
                 window_reservation_bytes / GIB,
+                # Same story for stats: acquire_stats()/release_stats() use
+                # this as their only source (no per-tile sizing exists for
+                # stats scans, unlike windows), so unlike window_reservation
+                # this figure IS what every stats scan actually reserves.
+                stats_reservation_bytes / GIB,
             )
 
     def snapshot_shared_state(self) -> AdmissionSharedState:
@@ -157,14 +153,13 @@ class MemoryAdmissionController:
                 throttled=self._throttled,
                 stats_active=self._stats_active,
                 stats_waiting=self._stats_waiting,
-                stats_semaphore=self._stats_semaphore,
                 enabled=self.enabled,
                 cgroup_root=self.cgroup_root,
                 high_watermark=self.high_watermark,
                 resume_watermark=self.resume_watermark,
-                stats_workers=self.stats_workers,
                 reservation_bytes=self.reservation_bytes,
                 window_reservation_bytes=self.window_reservation_bytes,
+                stats_reservation_bytes=self.stats_reservation_bytes,
                 poll_seconds=self.poll_seconds,
             )
 
@@ -176,14 +171,13 @@ class MemoryAdmissionController:
         self._throttled = state.throttled
         self._stats_active = state.stats_active
         self._stats_waiting = state.stats_waiting
-        self._stats_semaphore = state.stats_semaphore
         self.enabled = state.enabled
         self.cgroup_root = state.cgroup_root
         self.high_watermark = state.high_watermark
         self.resume_watermark = state.resume_watermark
-        self.stats_workers = state.stats_workers
         self.reservation_bytes = state.reservation_bytes
         self.window_reservation_bytes = state.window_reservation_bytes
+        self.stats_reservation_bytes = state.stats_reservation_bytes
         self.poll_seconds = state.poll_seconds
         # This is per-process bookkeeping (whether *this* process is
         # currently holding a startup reservation) and must never be copied
@@ -192,13 +186,14 @@ class MemoryAdmissionController:
         if self.enabled:
             LOGGER.info(
                 "Memory admission shared state bound in worker pid %d: "
-                "high=%.0f%% resume=%.0f%% stats_workers=%d reservation=%.1fGiB window_reservation=%.1fGiB",
+                "high=%.0f%% resume=%.0f%% reservation=%.1fGiB "
+                "window_reservation=%.1fGiB stats_reservation=%.1fGiB",
                 os.getpid(),
                 self.high_watermark * 100,
                 self.resume_watermark * 100,
-                self.stats_workers,
                 self.reservation_bytes / GIB,
                 self.window_reservation_bytes / GIB,
+                self.stats_reservation_bytes / GIB,
             )
 
     def _memory(self) -> tuple[Optional[int], Optional[int]]:
@@ -449,47 +444,118 @@ class MemoryAdmissionController:
             self._reserved_bytes.value = max(0, self._reserved_bytes.value - size)
             self._write_status_locked()
 
-    def wait_for_stats(self, tile_id: str) -> None:
-        """Do not launch GDAL statistics while cgroup memory is pressured."""
+    def try_acquire_stats(
+        self, tile_id: str, reservation_bytes: Optional[int] = None
+    ) -> bool:
+        """Atomically reserve memory for one stats/histogram scan if
+        headroom is available. See try_acquire_window() for why an atomic
+        shared reservation is needed rather than checking memory.current
+        alone.
+
+        ``reservation_bytes`` defaults to ``self.stats_reservation_bytes``
+        -- unlike windows, there's no per-tile sizing for stats scans (see
+        GLOBALS.raster_stats_reservation_gib for how that default was
+        derived), so this configured value is what every real call uses.
+        """
+        if not self.enabled:
+            return True
+
+        size = (
+            self.stats_reservation_bytes
+            if reservation_bytes is None
+            else reservation_bytes
+        )
+
+        with self._lock:
+            current, limit = self._memory()
+            if current is None or limit is None or limit <= 0:
+                LOGGER.warning(
+                    "Stats admission unavailable for tile %s; admitting scan",
+                    tile_id,
+                )
+                return True
+
+            reserved = int(self._reserved_bytes.value)
+            projected = current + reserved + size
+            high = int(limit * self.high_watermark)
+            if projected >= high:
+                return False
+
+            self._reserved_bytes.value += size
+            self._write_status_locked()
+            return True
+
+    def acquire_stats(
+        self, tile_id: str, reservation_bytes: Optional[int] = None
+    ) -> None:
+        """Wait until an atomic per-scan memory reservation can be
+        acquired. See try_acquire_stats() for reservation_bytes."""
         if not self.enabled:
             return
 
-        waiting = False
+        waiting_registered = False
         while True:
-            with self._lock:
-                current, limit = self._memory()
-                if current is None or limit is None or limit <= 0:
-                    return
-                fraction = current / float(limit)
-                threshold = self.resume_watermark if waiting else self.high_watermark
-                if fraction < threshold:
-                    if waiting:
-                        LOGGER.info(
-                            "Memory stats gate resumed: tile=%s current=%.1f%%",
-                            tile_id,
-                            fraction * 100,
-                        )
-                    return
-                if not waiting:
-                    waiting = True
-                    LOGGER.warning(
-                        "Memory stats gate waiting: tile=%s current=%.1f%%",
-                        tile_id,
-                        fraction * 100,
+            if self.try_acquire_stats(tile_id, reservation_bytes):
+                if waiting_registered:
+                    with self._lock:
+                        self._waiting.value = max(0, self._waiting.value - 1)
+                        self._write_status_locked()
+                    LOGGER.info(
+                        "Memory stats admission resumed: tile=%s", tile_id
                     )
+                return
+
+            if not waiting_registered:
+                with self._lock:
+                    self._waiting.value += 1
+                    self._write_status_locked()
+                waiting_registered = True
+                LOGGER.warning(
+                    "Memory stats admission waiting: tile=%s", tile_id
+                )
             time.sleep(self.poll_seconds)
 
+    def release_stats(self, reservation_bytes: Optional[int] = None) -> None:
+        """Release one stats-scan reservation. Must match what the
+        corresponding acquire_stats() call actually reserved -- defaults
+        to ``self.stats_reservation_bytes`` to match acquire_stats()'s own
+        default."""
+        if not self.enabled:
+            return
+        size = (
+            self.stats_reservation_bytes
+            if reservation_bytes is None
+            else reservation_bytes
+        )
+        with self._lock:
+            self._reserved_bytes.value = max(0, self._reserved_bytes.value - size)
+            self._write_status_locked()
+
     @contextmanager
-    def stats_slot(self, tile_id: str) -> Iterator[None]:
-        """Limit concurrent stats scans and gate them on actual memory."""
+    def stats_slot(
+        self, tile_id: str, reservation_bytes: Optional[int] = None
+    ) -> Iterator[None]:
+        """Gate one stats/histogram scan on an atomic memory reservation.
+
+        Previously: a fixed-count BoundedSemaphore (an arbitrary cap
+        unrelated to actual memory cost) plus wait_for_stats(), a
+        watermark poll with no reservation of its own -- meaning several
+        scans could all observe headroom and proceed together before any
+        of their own memory use became visible in memory.current, the
+        same "thundering herd" risk try_acquire_window() was built to
+        close. The semaphore's fixed count was very likely there as a
+        blunt backstop against exactly that race, capping worst-case
+        damage regardless of how badly the watermark check raced. With a
+        real reservation, concurrency falls out of actual memory headroom
+        the same way it already does for windows and tiles -- no
+        arbitrary count needed.
+        """
         with self._lock:
             self._stats_waiting.value += 1
             self._write_status_locked()
-        self._stats_semaphore.acquire()
         active = False
         try:
-            if self.enabled:
-                self.wait_for_stats(tile_id)
+            self.acquire_stats(tile_id, reservation_bytes)
             with self._lock:
                 self._stats_waiting.value = max(0, self._stats_waiting.value - 1)
                 self._stats_active.value += 1
@@ -501,11 +567,11 @@ class MemoryAdmissionController:
                 with self._lock:
                     self._stats_active.value = max(0, self._stats_active.value - 1)
                     self._write_status_locked()
+                self.release_stats(reservation_bytes)
             else:
                 with self._lock:
                     self._stats_waiting.value = max(0, self._stats_waiting.value - 1)
                     self._write_status_locked()
-            self._stats_semaphore.release()
 
 
 MEMORY_ADMISSION = MemoryAdmissionController()

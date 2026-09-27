@@ -138,9 +138,6 @@ class Globals(EnvSettings):
     memory_admission_resume_watermark: float = Field(
         0.75, description="Resume transform admission below this memory fraction."
     )
-    memory_admission_stats_workers: PositiveInt = Field(
-        4, description="Maximum concurrent GDAL stats/histogram scans."
-    )
     memory_admission_reservation_gib: float = Field(
         4.0,
         description="Temporary memory reservation for each newly admitted transform.",
@@ -148,6 +145,28 @@ class Globals(EnvSettings):
     memory_admission_window_reservation_gib: float = Field(
         4.0,
         description="Memory reserved atomically before dispatching each raster window.",
+    )
+    raster_stats_reservation_gib: float = Field(
+        12.0,
+        description="Memory reserved atomically for one concurrent GDAL "
+        "stats/histogram scan (see MemoryAdmissionController.stats_slot()). "
+        "Replaces memory_admission_stats_workers, a fixed count of "
+        "concurrent scans unrelated to their actual memory cost -- that "
+        "count existed as a blunt backstop for a race the old "
+        "wait_for_stats() had no atomic reservation to prevent (several "
+        "scans could all observe headroom and proceed together); once "
+        "stats admission uses a real reservation like windows and tiles "
+        "already do, no separate count is needed, and this reservation is "
+        "the only number that matters. Derived from a run with "
+        "stats_workers=32: cgroup memory climbed from ~274GiB to ~546GiB "
+        "as concurrently active scans rose from roughly 1 to 32, a linear "
+        "fit giving ~8-10GiB marginal memory per concurrently active scan "
+        "(depending on which portion of the ramp is fit); 12GiB carries "
+        "some margin above that range. One dataset's data (RADD alerts, "
+        "uint16, 10/100000 grid) blended with other concurrent transform "
+        "activity in the same run, not an isolated measurement -- a "
+        "reasonable starting point, not a validated number for every "
+        "dataset/dtype.",
     )
     memory_admission_poll_seconds: float = Field(
         1.0, description="Polling interval while memory admission is throttled."
