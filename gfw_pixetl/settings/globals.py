@@ -65,6 +65,29 @@ class Globals(EnvSettings):
         "512MB, scaled up modestly since raster windows are read, not "
         "burned-and-copied), not yet validated against a live run.",
     )
+    raster_gdal_cachemax_mb: PositiveInt = Field(
+        4096,
+        description="Per-process bound for GDAL_CACHEMAX (the general GDAL "
+        "block cache), for raster transform's window read/warp step and "
+        "the shared geotiff-copy step -- deliberately a separate setting "
+        "from raster_window_target_mb, not reusing it, so this can be "
+        "tuned without disturbing window/warp sizing. A first attempt at "
+        "1024MB (matching raster_window_target_mb) coincided with "
+        "~unchanged peak memory (72.2% vs. 72.4% on the same 164-tile, "
+        "~96-worker run) but a ~26% longer run -- suggesting GDAL's own "
+        "default (5% of host RAM per process, uncoordinated across "
+        "processes) was not actually the driver of that peak, and that "
+        "window/warp reads were losing real repeat-read caching benefit "
+        "without a corresponding safety gain. 4096MB is a middle ground: "
+        "at ~96 concurrent workers, the theoretical aggregate ceiling "
+        "(96 x 4GiB =~ 384GiB) stays well under a ~797GiB instance, "
+        "unlike GDAL's raw default's multi-terabyte theoretical ceiling, "
+        "while giving GDAL noticeably more room than 1024MB to retain "
+        "cached blocks across a warp's overlapping reads. Still a "
+        "starting guess for this specific experiment, not a validated "
+        "value -- the next run is what actually tests whether raising it "
+        "recovers throughput without meaningfully raising peak memory.",
+    )
     raster_window_working_copies: PositiveInt = Field(
         2,
         description="How many simultaneous copies of one window's data a "
