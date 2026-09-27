@@ -96,43 +96,28 @@ def test_tile_admission_waits_for_resume_watermark(tmp_path, monkeypatch):
         thread.join(timeout=1)
 
 
-def test_stats_gate_uses_80_75_hysteresis(tmp_path, monkeypatch):
-    controller = _controller(tmp_path, monkeypatch, current_gib=81)
-    passed = threading.Event()
+def test_stats_reservations_are_atomic_and_count_toward_headroom(
+    tmp_path, monkeypatch
+):
+    controller = _controller(tmp_path, monkeypatch, current_gib=60)
 
-    thread = threading.Thread(
-        target=lambda: (controller.wait_for_stats("00N_000E"), passed.set())
-    )
-    thread.start()
+    # 60 GiB current + one 12 GiB stats reservation (the default) fits
+    # below the 80 GiB high-water mark. A second concurrent scan does not.
+    assert controller.try_acquire_stats("tile-a")
+    assert controller._reserved_bytes.value == 12 * GIB
+    assert not controller.try_acquire_stats("tile-b")
 
-    try:
-        time.sleep(0.05)
-        assert not passed.is_set()
-
-        # It must fall below the 75% resume threshold, not merely 80%.
-        _write(tmp_path / "memory.current", 77 * GIB)
-        time.sleep(0.05)
-        assert not passed.is_set()
-
-        _write(tmp_path / "memory.current", 74 * GIB)
-        thread.join(timeout=1)
-        assert passed.is_set()
-    finally:
-        # Ensure wait_for_stats can escape even if an assertion above fails.
-        _write(tmp_path / "memory.current", 0)
-        thread.join(timeout=1)
+    controller.release_stats()
+    assert controller._reserved_bytes.value == 0
 
 
 def test_stats_slot_tracks_active_and_waiting(tmp_path, monkeypatch):
+    # current_gib=60 (the _controller() default) plus one default 12GiB
+    # stats reservation fits under the 80GiB high-water mark; a second
+    # concurrent reservation would not (60 + 12 + 12 = 84 >= 80) -- real
+    # memory headroom is what blocks the second scan here, not a fixed
+    # concurrent-scan count.
     controller = _controller(tmp_path, monkeypatch)
-    controller.configure(
-        enabled=True,
-        cgroup_root=str(tmp_path),
-        stats_workers=1,
-        reservation_bytes=8 * GIB,
-        window_reservation_bytes=8 * GIB,
-        poll_seconds=0.01,
-    )
     first_entered = threading.Event()
     release_first = threading.Event()
     second_entered = threading.Event()

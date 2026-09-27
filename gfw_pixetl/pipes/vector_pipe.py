@@ -113,7 +113,6 @@ class VectorPipe(Pipe):
             enabled=GLOBALS.memory_admission_enabled,
             high_watermark=GLOBALS.memory_admission_high_watermark,
             resume_watermark=GLOBALS.memory_admission_resume_watermark,
-            stats_workers=GLOBALS.memory_admission_stats_workers,
             reservation_bytes=self._rasterize_reservation_bytes(),
             window_reservation_bytes=int(
                 GLOBALS.memory_admission_window_reservation_gib * GIB
