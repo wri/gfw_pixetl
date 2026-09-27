@@ -92,6 +92,15 @@ class RasterSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: RasterSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
         self.layer: RasterSrcLayer = layer
+        # Same fixed target used for window sizing (_max_blocks()) and
+        # warp_mem_limit, not GDAL's own default: with the ~96 concurrent
+        # transform workers seen on a real stress-test run, GDAL's default
+        # (5% of host RAM per process, uncoordinated across processes)
+        # produced a theoretical aggregate cache ceiling of several
+        # terabytes on a ~797GiB instance -- the same runaway-with-
+        # concurrency failure vector's GDAL_CACHEMAX fix addressed,
+        # just not caught here until concurrency was actually pushed.
+        self.gdal_cachemax_mb: int = GLOBALS.raster_window_target_mb
 
     @lazy_property
     def src(self) -> RasterSource:
@@ -223,6 +232,12 @@ class RasterSrcTile(Tile):
         chunk_size = _gdal_cache_size(self._block_byte_size(), self._max_blocks)
         with rasterio.Env(
             **GDAL_ENV,
+            # A real int, not routed through GDAL_ENV's stringified dict --
+            # rasterio.Env(**kwargs) requires an int for this specific
+            # option (see just_copy_geotiff(), which hit the same
+            # requirement first). Bounds the general block cache; VSI
+            # /curl caching below is sized separately, per-file.
+            GDAL_CACHEMAX=self.gdal_cachemax_mb,
             VSI_CACHE_SIZE=chunk_size,  # Cache size for current file.
             CPL_VSIL_CURL_CHUNK_SIZE=chunk_size,  # Chunk size for partial downloads
         ):
@@ -455,7 +470,7 @@ class RasterSrcTile(Tile):
         """
         LOGGER.debug(f"Create local output files for tile {self.tile_id}")
         output_formats = self._direct_output_formats()
-        with rasterio.Env(**GDAL_ENV):
+        with rasterio.Env(**GDAL_ENV, GDAL_CACHEMAX=self.gdal_cachemax_mb):
             # Generate windows from the default output; both profiles share the
             # same raster geometry and block dimensions.
             with rasterio.open(
