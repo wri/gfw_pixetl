@@ -92,15 +92,10 @@ class RasterSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: RasterSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
         self.layer: RasterSrcLayer = layer
-        # Same fixed target used for window sizing (_max_blocks()) and
-        # warp_mem_limit, not GDAL's own default: with the ~96 concurrent
-        # transform workers seen on a real stress-test run, GDAL's default
-        # (5% of host RAM per process, uncoordinated across processes)
-        # produced a theoretical aggregate cache ceiling of several
-        # terabytes on a ~797GiB instance -- the same runaway-with-
-        # concurrency failure vector's GDAL_CACHEMAX fix addressed,
-        # just not caught here until concurrency was actually pushed.
-        self.gdal_cachemax_mb: int = GLOBALS.raster_window_target_mb
+        # See GLOBALS.raster_gdal_cachemax_mb for why this is a separate
+        # setting from raster_window_target_mb, and the reasoning behind
+        # its current value.
+        self.gdal_cachemax_mb: int = GLOBALS.raster_gdal_cachemax_mb
 
     @lazy_property
     def src(self) -> RasterSource:
