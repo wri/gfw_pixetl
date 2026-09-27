@@ -151,17 +151,18 @@ class Tile(ABC):
         self.status = "pending"
         self.metadata: Dict[str, Dict] = dict()
 
-        # Per-tile-type override for the geotiff-copy step's GDAL_CACHEMAX,
-        # in MB. None (the default here) means "don't override" -- GDAL
-        # falls back to its own default (5% of host RAM), which is fine
-        # for raster transform's windowed, often-overlapping reads, a
-        # genuinely cache-friendly access pattern. VectorSrcTile overrides
-        # this to a small fixed value: vector rasterize's write-once
-        # pattern doesn't benefit from a big cache, and letting every
-        # concurrent copy grab up to 5% of host RAM independently is what
-        # caused the vector OOM this was built to fix in the first place.
-        # See just_copy_geotiff()/create_gdal_geotiff() for where this is
-        # actually applied.
+        # Per-tile-type override for the geotiff-copy step's (and, for
+        # raster, the window-read/warp step's) GDAL_CACHEMAX, in MB.
+        # None here is just a neutral placeholder -- both subclasses set
+        # their own value (see RasterSrcTile.__init__ and
+        # VectorSrcTile.__init__). Leaving either one at None would mean
+        # GDAL falls back to its own default of 5% of host RAM *per
+        # process*, which is exactly the failure shape both pipelines
+        # actually hit under real concurrency: with N processes running
+        # at once, that default's aggregate ceiling scales with N and
+        # with host RAM, not with how much memory the instance actually
+        # has to give out. See just_copy_geotiff()/create_gdal_geotiff()
+        # for where this is actually applied.
         self.gdal_cachemax_mb: Optional[int] = None
 
     def remove_work_dir(self):
