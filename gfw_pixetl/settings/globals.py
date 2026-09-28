@@ -58,12 +58,10 @@ class Globals(EnvSettings):
         "worker-count configuration, aims for roughly the same footprint, "
         "so MEMORY_ADMISSION's live cgroup-pressure gate -- not a static "
         "a-priori division of total memory by an assumed worker count -- "
-        "is what decides how many can run concurrently. Replaces the old "
-        "divisor setting, which conflated worker-count fair-share with "
-        "dtype/band adjustments _block_byte_size() already accounts for. "
+        "is what decides how many can run concurrently."
         "Starting guess (roughly matching vector rasterize's proven-safe "
         "512MB, scaled up modestly since raster windows are read, not "
-        "burned-and-copied), not yet validated against a live run.",
+        "burned-and-copied).",
     )
     raster_gdal_cachemax_mb: PositiveInt = Field(
         4096,
@@ -71,22 +69,8 @@ class Globals(EnvSettings):
         "block cache), for raster transform's window read/warp step and "
         "the shared geotiff-copy step -- deliberately a separate setting "
         "from raster_window_target_mb, not reusing it, so this can be "
-        "tuned without disturbing window/warp sizing. A first attempt at "
-        "1024MB (matching raster_window_target_mb) coincided with "
-        "~unchanged peak memory (72.2% vs. 72.4% on the same 164-tile, "
-        "~96-worker run) but a ~26% longer run -- suggesting GDAL's own "
-        "default (5% of host RAM per process, uncoordinated across "
-        "processes) was not actually the driver of that peak, and that "
-        "window/warp reads were losing real repeat-read caching benefit "
-        "without a corresponding safety gain. 4096MB is a middle ground: "
-        "at ~96 concurrent workers, the theoretical aggregate ceiling "
-        "(96 x 4GiB =~ 384GiB) stays well under a ~797GiB instance, "
-        "unlike GDAL's raw default's multi-terabyte theoretical ceiling, "
-        "while giving GDAL noticeably more room than 1024MB to retain "
-        "cached blocks across a warp's overlapping reads. Still a "
-        "starting guess for this specific experiment, not a validated "
-        "value -- the next run is what actually tests whether raising it "
-        "recovers throughput without meaningfully raising peak memory.",
+        "tuned without disturbing window/warp sizing. Still a "
+        "starting guess for this, not a validated value.",
     )
     raster_window_working_copies: PositiveInt = Field(
         2,
@@ -97,10 +81,7 @@ class Globals(EnvSettings):
         "raster_window_target_mb (fewer, smaller blocks per window when "
         "more copies are needed), so the reservation MEMORY_ADMISSION "
         "receives still matches the target footprint rather than growing "
-        "past it. A starting guess carried over in spirit from the old "
-        "divisor heuristic's float/float64 adjustments, but as an "
-        "explicit, named multiplier instead of folded into worker-count "
-        "math -- not yet validated against a live run.",
+        "past it.",
     )
     raster_window_calc_working_copies: PositiveInt = Field(
         3,
@@ -109,9 +90,7 @@ class Globals(EnvSettings):
         "(self.layer.calc is not None): evaluating an expression against "
         "the source plausibly needs more simultaneous working memory "
         "(input array(s), intermediate expression evaluation, output "
-        "array) than a plain resampling copy does. Carried over in spirit "
-        "from the old divisor heuristic's 'squared for calc operations' "
-        "adjustment -- not yet validated against a live run.",
+        "array) than a plain resampling copy does.",
     )
     workers: PositiveInt = Field(
         cpu_count(), description="Number of workers to use to execute job."
@@ -150,22 +129,7 @@ class Globals(EnvSettings):
         12.0,
         description="Memory reserved atomically for one concurrent GDAL "
         "stats/histogram scan (see MemoryAdmissionController.stats_slot()). "
-        "Replaces memory_admission_stats_workers, a fixed count of "
-        "concurrent scans unrelated to their actual memory cost -- that "
-        "count existed as a blunt backstop for a race the old "
-        "wait_for_stats() had no atomic reservation to prevent (several "
-        "scans could all observe headroom and proceed together); once "
-        "stats admission uses a real reservation like windows and tiles "
-        "already do, no separate count is needed, and this reservation is "
-        "the only number that matters. Derived from a run with "
-        "stats_workers=32: cgroup memory climbed from ~274GiB to ~546GiB "
-        "as concurrently active scans rose from roughly 1 to 32, a linear "
-        "fit giving ~8-10GiB marginal memory per concurrently active scan "
-        "(depending on which portion of the ramp is fit); 12GiB carries "
-        "some margin above that range. One dataset's data (RADD alerts, "
-        "uint16, 10/100000 grid) blended with other concurrent transform "
-        "activity in the same run, not an isolated measurement -- a "
-        "reasonable starting point, not a validated number for every "
+        "A reasonable starting point, not a validated number for every "
         "dataset/dtype.",
     )
     memory_admission_poll_seconds: float = Field(
@@ -178,12 +142,7 @@ class Globals(EnvSettings):
         "automatically from the layer's actual grid resolution and output "
         "dtype/band count -- see vector_rasterize_reservation_base_gib, "
         "vector_rasterize_reservation_scale_factor, and "
-        "VectorPipe._rasterize_reservation_bytes(). A fixed GiB value here "
-        "was tried first and got this backwards: sized for a 10m-resolution "
-        "WDPA run, it then over-throttled a 30m run by ~6x (30m tiles have "
-        "roughly 1/6 the pixels), and would equally under-reserve for an "
-        "even higher resolution or a wider layer (e.g. GADM boundaries with "
-        "more bands or a larger dtype) than the run it was tuned from. Set "
+        "VectorPipe._rasterize_reservation_bytes(). Set "
         "this only to force a specific value regardless of grid/dtype, e.g. "
         "while diagnosing whether the formula itself is off for a layer.",
     )
@@ -191,9 +150,7 @@ class Globals(EnvSettings):
         2.5,
         description="Fixed per-tile floor for the vector rasterize() memory "
         "reservation, in GiB, before adding the resolution-scaled term (see "
-        "vector_rasterize_reservation_scale_factor). Real memory no longer "
-        "scales anywhere close to proportionally with output pixel count "
-        "now that GDAL_CACHEMAX is capped (see gdal.py) -- gdal_rasterize "
+        "vector_rasterize_reservation_scale_factor). gdal_rasterize "
         "appears to stream output in bounded blocks rather than "
         "materializing the whole array, so real usage is dominated by a "
         "roughly fixed cost (GDAL's small cache, the in-memory vector "
@@ -212,14 +169,7 @@ class Globals(EnvSettings):
         "uncompressed output array size (cols * rows * band_count * dtype "
         "itemsize) and added to vector_rasterize_reservation_base_gib to "
         "estimate gdal_rasterize's real per-tile memory footprint, when "
-        "vector_rasterize_reservation_gib is not set to a manual override. "
-        "This replaced a flat multiplier applied to the whole raw array "
-        "(vector_rasterize_reservation_overhead) that could not "
-        "simultaneously be safe at low resolution (where real usage tracks "
-        "close to the raw array, ~1.3x) and non-wasteful at high resolution "
-        "(where real usage was only ~0.3x the raw array) -- see "
-        "vector_rasterize_reservation_base_gib for the fit this and that "
-        "constant come from together.",
+        "vector_rasterize_reservation_gib is not set to a manual override. ",
     )
     vector_rasterize_reservation_floor_gib: float = Field(
         0.5,

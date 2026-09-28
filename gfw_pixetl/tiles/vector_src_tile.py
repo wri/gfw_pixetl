@@ -28,12 +28,8 @@ logger = get_module_logger(__name__)
 GEOMETRY_COLUMN = "geom"
 
 # One engine (and its small connection pool) per worker *process*, created
-# lazily and reused for every tile that process handles. Previously each of
-# src_vector_intersects()/fetch_data() called create_engine() fresh on every
-# single tile -- a brand new TCP+SSL handshake for a single query, with the
-# connection then abandoned rather than returned to a pool -- which both
-# wasted time and multiplied the number of connections the source DB had to
-# service under load. Because worker processes are started with `spawn`,
+# lazily and reused for every tile that process handles.
+# Because worker processes are started with `spawn`
 # this module-level cache is naturally private to each process; there is no
 # risk of sharing a connection across processes.
 _ENGINE: Optional[Engine] = None
@@ -107,9 +103,7 @@ class VectorSrcTile(Tile):
         self.src: VectorSource = layer.src
         # See Tile.gdal_cachemax_mb: small and fixed here on purpose, since
         # vector rasterize's write-once access pattern doesn't benefit
-        # from a big GDAL cache the way raster transform's windowed reads
-        # do, and letting concurrent copies each grab GDAL's default (5%
-        # of host RAM) is what caused the OOM this value was chosen to fix.
+        # from a big GDAL cache the way raster transform's windowed reads do.
         self.gdal_cachemax_mb: int = 512
         # Populated by src_vector_intersects(); zero for tiles it never ran
         # on (subset-filtered, or already existing at the destination) so
@@ -210,16 +204,16 @@ class VectorSrcTile(Tile):
     )  # Wait 5-30s between retries (jittered, so concurrent workers don't
     # all hammer the DB again at the same instant once it recovers)
     def fetch_data(self) -> None:
-        """Download all intersecting features to a local file, clipping
-        them to the tile locally instead of in the database.
+        """Download all intersecting features to a local file, clipping them to
+        the tile locally instead of in the database.
 
-        ST_Intersects still runs in Postgres, in the WHERE clause, so the
-        DB's GiST index does the (cheap) row-pruning it's good at. What
-        used to also run in Postgres -- ST_Intersection actually clipping
-        every matched geometry to the tile envelope, a much more expensive,
-        per-row computation -- now happens here instead, after the raw
-        geometry has been fetched, using the EC2 host's own idle CPU rather
-        than the shared database's.
+        ST_Intersects still runs in Postgres, in the WHERE clause, so
+        the DB's GiST index does the (cheap) row-pruning it's good at.
+        What used to also run in Postgres -- ST_Intersection actually
+        clipping every matched geometry to the tile envelope, a much
+        more expensive, per-row computation -- now happens here instead,
+        after the raw geometry has been fetched, using the EC2 host's
+        own idle CPU rather than the shared database's.
         """
         prefix = f"{self.work_dir}"
         os.makedirs(f"{prefix}", exist_ok=True)
@@ -329,10 +323,7 @@ class VectorSrcTile(Tile):
             # PERF burn (see PERF postprocess in tile.py): times just the
             # gdal_rasterize subprocess call, alongside the input feature
             # count, to see whether slow tiles correlate with how many
-            # features they had to burn -- see the parallelpipe shutdown
-            # investigation, which found some rasterize workers finishing
-            # ~3.5x faster than others and pointed here as the likely
-            # source of that spread.
+            # features they had to burn.
             logger.info(
                 f"PERF burn tile={self.tile_id} "
                 f"features={feature_count} "
