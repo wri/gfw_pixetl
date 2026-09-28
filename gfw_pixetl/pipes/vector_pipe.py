@@ -61,10 +61,7 @@ class VectorPipe(Pipe):
         blocks rather than materializing the whole array, so real cost is
         mostly a fixed per-tile floor (GDAL's small cache, the in-memory
         vector GeoDataFrame, process overhead) with only a modest
-        resolution-dependent term on top -- an affine model, not a
-        multiplier on the raw array size. See
-        vector_rasterize_reservation_base_gib's description for the fit
-        this is drawn from and its caveats.
+        resolution-dependent term on top.
         """
         if GLOBALS.vector_rasterize_reservation_gib is not None:
             return int(GLOBALS.vector_rasterize_reservation_gib * GIB)
@@ -89,11 +86,7 @@ class VectorPipe(Pipe):
         filter_subset_tiles, filter_target_tiles, and filter_src_tiles all
         ran there (see Pipe.collect_tiles). This pipe must NOT repeat those
         stages -- filter_src_tiles in particular makes one DB round trip per
-        tile ("Limited to be nice to DB"), and re-running it here used to
-        silently double the number of queries hitting the source database on
-        every single run, for tiles whose status was already decided.
-        RasterPipe's _build_pipe does not repeat its filters either; this
-        now matches that pattern.
+        tile ("Limited to be nice to DB").
 
         ``workers`` controls the parallelism of the memory-intensive
         ``rasterize`` stage.
@@ -154,7 +147,9 @@ class VectorPipe(Pipe):
         return VectorSrcTile(tile_id=tile_id, grid=self.grid, layer=self.layer)
 
     @staticmethod
-    @stage(workers=GLOBALS.db_fetch_workers)  # Budget for the source DB, see GLOBALS.db_fetch_workers
+    @stage(
+        workers=GLOBALS.db_fetch_workers
+    )  # Budget for the source DB, see GLOBALS.db_fetch_workers
     def filter_src_tiles(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """Only include tiles which intersect input vector extent."""
         for tile in tiles:
@@ -163,7 +158,9 @@ class VectorPipe(Pipe):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.db_fetch_workers)  # Budget for the source DB, see GLOBALS.db_fetch_workers
+    @stage(
+        workers=GLOBALS.db_fetch_workers
+    )  # Budget for the source DB, see GLOBALS.db_fetch_workers
     def fetch_tile_data(tiles: Iterator[VectorSrcTile]) -> Iterator[VectorSrcTile]:
         """Download vector data from the database."""
         for tile in tiles:
@@ -178,14 +175,14 @@ class VectorPipe(Pipe):
     ) -> Iterator[VectorSrcTile]:
         """Convert vector source to raster tiles.
 
-        Gated by MEMORY_ADMISSION the same way RasterPipe.transform() is:
-        a spike in cgroup memory (concurrent gdal_rasterize calls at high
-        resolution, say) throttles new admissions here instead of running
-        every configured worker regardless of actual headroom. Unlike
-        transform(), there's no windowed sub-step to commit a reservation
-        early for -- rasterize() is one bounded gdal_rasterize subprocess
-        call per tile, so the whole call holds its reservation and
-        tile_slot() releases it on exit.
+        Gated by MEMORY_ADMISSION the same way RasterPipe.transform()
+        is: a spike in cgroup memory (concurrent gdal_rasterize calls at
+        high resolution, say) throttles new admissions here instead of
+        running every configured worker regardless of actual headroom.
+        Unlike transform(), there's no windowed sub-step to commit a
+        reservation early for -- rasterize() is one bounded
+        gdal_rasterize subprocess call per tile, so the whole call holds
+        its reservation and tile_slot() releases it on exit.
         """
         # Bind the worker-local controller before any admission-gated work.
         if admission_state is not None:

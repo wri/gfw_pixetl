@@ -125,8 +125,7 @@ def just_copy_geotiff(src_uri, dst_uri, profile, gdal_cachemax_mb=None):
         # which env_dict() stringifies for the (different) subprocess-env
         # use case. Setting it directly as an int at this one call site
         # sidesteps that mismatch instead of routing it through the
-        # generic, string-producing settings machinery -- see the
-        # "TypeError: an integer is required" this caused the first time.
+        # generic, string-producing settings machinery.
         env_options = {**env_options, "GDAL_CACHEMAX": gdal_cachemax_mb}
     with rasterio.Env(**env_options):
         raster_copy(
@@ -144,7 +143,6 @@ def just_copy_geotiff(src_uri, dst_uri, profile, gdal_cachemax_mb=None):
 )
 def run_gdal_subcommand(cmd: List[str], env: Optional[Dict] = None) -> Tuple[str, str]:
     """Run GDAL as sub command and catch common errors."""
-
     gdal_env = os.environ.copy()
     resolved_env = env if env is not None else get_gdal_env()
     if resolved_env:
@@ -204,7 +202,6 @@ def get_metadata(
 
     Parse statistics as Stats object
     """
-
     cmd: List[str] = ["gdalinfo", "-json"]
 
     if compute_stats:
