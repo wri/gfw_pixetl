@@ -304,7 +304,7 @@ class RasterSrcTile(Tile):
         # recomputed on every acquire/release call.
         reservation_bytes = self._window_reservation_bytes()
 
-        LOGGER.info(
+        LOGGER.debug(
             "PERF window_worker_start "
             f"tile={self.tile_id} window_start=1 window_end={len(windows)} "
             f"window_count={len(windows)}"
@@ -333,7 +333,7 @@ class RasterSrcTile(Tile):
                     window_reservation_held = False
 
                 dispatch_seconds = perf_counter() - dispatch_started
-                LOGGER.info(
+                LOGGER.debug(
                     "PERF window_dispatch "
                     f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
                     f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
@@ -423,7 +423,7 @@ class RasterSrcTile(Tile):
                 additional_destinations=additional_destinations,
             )
             transform_seconds = perf_counter() - transform_started
-            LOGGER.info(
+            LOGGER.debug(
                 "PERF window_child "
                 f"tile={self.tile_id} col_off={int(window.col_off)} "
                 f"row_off={int(window.row_off)} width={int(window.width)} "
@@ -559,8 +559,9 @@ class RasterSrcTile(Tile):
         _src_to_vrt() (which sets up a fresh VRT for every window read).
         The three calls always compute the same, fully deterministic
         answer for a given tile -- caching avoids redoing that arithmetic
-        dozens or hundreds of times per tile, and, now that this logs at
-        INFO, avoids the same number of near-duplicate log lines with it.
+        dozens or hundreds of times per tile, and keeps the sizing log line
+        below (DEBUG by default; raise the log level to see it) to one per
+        tile instead of one per window when it is enabled.
         """
         working_copies = self._window_working_copies()
         target_bytes = GLOBALS.raster_window_target_mb * 1000000
@@ -572,7 +573,7 @@ class RasterSrcTile(Tile):
             floor(sqrt(target_bytes / (working_copies * block_byte_size))) ** 2,
         )
 
-        LOGGER.info(
+        LOGGER.debug(
             f"Target window size {target_bytes} B, working_copies={working_copies} "
             f"-> maximum number of blocks for tile {self.tile_id} to read at once: "
             f"{max_blocks}. Expected max chunk size: {max_blocks * block_byte_size} B."
