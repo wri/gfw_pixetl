@@ -244,6 +244,24 @@ def sample_vector_data():
     p = subprocess.run(proc_args, capture_output=True, check=True)
     assert p.stderr == b""
 
+    # The CSV fixture stores geom as EWKB hex, which ogr2ogr imports as text.
+    # Match the production vector-table contract by converting it to a native
+    # PostGIS geometry column before exercising spatial queries.
+    with create_engine(db_url).begin() as conn:
+        conn.execute(text(f"""
+                ALTER TABLE {dataset}.{version}
+                ALTER COLUMN geom
+                TYPE geometry(MultiPolygon, 4326)
+                USING ST_GeomFromEWKB(decode(geom, 'hex'))
+                """))
+        geometry_type, srid = conn.execute(text(f"""
+                SELECT GeometryType(geom), ST_SRID(geom)
+                FROM {dataset}.{version}
+                LIMIT 1
+                """)).one()
+        assert geometry_type == "MULTIPOLYGON"
+        assert srid == 4326
+
     yield dataset, version
 
     sql = text(f"DROP TABLE IF EXISTS {dataset}.{version};")
