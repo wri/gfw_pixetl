@@ -56,6 +56,42 @@ class Globals(EnvSettings):
     workers: PositiveInt = Field(
         cpu_count(), description="Number of workers to use to execute job."
     )
+    download_workers: PositiveInt = Field(
+        8,
+        description="Maximum number of source files to download concurrently.",
+    )
+    upload_workers: PositiveInt = Field(
+        8,
+        description="Maximum number of tiles to upload concurrently.",
+    )
+    cleanup_workers: PositiveInt = Field(
+        4,
+        description="Maximum number of tile work directories to clean up concurrently.",
+    )
+    memory_admission_enabled: bool = Field(
+        True, description="Throttle new raster transforms under cgroup memory pressure."
+    )
+    memory_admission_high_watermark: float = Field(
+        0.80,
+        description="Stop admitting new transforms/windows at this memory fraction.",
+    )
+    memory_admission_resume_watermark: float = Field(
+        0.75, description="Resume transform admission below this memory fraction."
+    )
+    memory_admission_stats_workers: PositiveInt = Field(
+        4, description="Maximum concurrent GDAL stats/histogram scans."
+    )
+    memory_admission_reservation_gib: float = Field(
+        4.0,
+        description="Temporary memory reservation for each newly admitted transform.",
+    )
+    memory_admission_window_reservation_gib: float = Field(
+        4.0,
+        description="Memory reserved atomically before dispatching each raster window.",
+    )
+    memory_admission_poll_seconds: float = Field(
+        1.0, description="Polling interval while memory admission is throttled."
+    )
 
     ########################
     # PostgreSQL authentication

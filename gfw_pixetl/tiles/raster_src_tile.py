@@ -1,7 +1,11 @@
+import multiprocessing as mp
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import queue
+import sys
+import traceback
 from math import floor, sqrt
 from pathlib import Path
+from time import perf_counter
 from typing import Iterator, List, Optional, Tuple, Union
 
 import numpy as np
@@ -12,9 +16,11 @@ from rasterio.warp import transform_bounds
 from rasterio.windows import Window, bounds, from_bounds, union
 
 from gfw_pixetl import get_module_logger
-from gfw_pixetl.decorators import SubprocessKilledError, lazy_property, processify
+from gfw_pixetl.decorators import SubprocessKilledError, lazy_property
 from gfw_pixetl.grids import Grid
 from gfw_pixetl.layers import RasterSrcLayer
+from gfw_pixetl.memory_admission import MEMORY_ADMISSION
+from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.models.named_tuples import InputBandElement
 from gfw_pixetl.models.types import Bounds
 from gfw_pixetl.settings.gdal import GDAL_ENV
@@ -26,10 +32,9 @@ from gfw_pixetl.tiles.utils.transform import transform
 from gfw_pixetl.utils import (
     available_memory_per_process_bytes,
     available_memory_per_process_mb,
-    get_co_workers,
     snapped_window,
 )
-from gfw_pixetl.utils.gdal import create_multiband_vrt, create_vrt, just_copy_geotiff
+from gfw_pixetl.utils.gdal import create_multiband_vrt
 from gfw_pixetl.utils.utils import create_empty_file, fetch_metadata
 
 LOGGER = get_module_logger(__name__)
@@ -40,6 +45,51 @@ Windows = Tuple[Window, Window]
 def _gdal_cache_size(block_byte_size: int, max_blocks: int) -> int:
     """Return a GDAL cache size as a plain Python integer."""
     return int(block_byte_size * max_blocks)
+
+
+def _persistent_window_worker(
+    result_queue,
+    command_queue,
+    tile_bytes: bytes,
+    windows: List[Window],
+    window_offset: int,
+) -> None:
+    """Process all windows for one tile in one spawned interpreter.
+
+    The tile is serialized with dill by the parent so we do not depend
+    on RasterSrcTile and all of its cached state being stdlib-
+    pickleable. GDAL objects are created only after spawn, and the
+    process exits when the tile is complete so native allocations are
+    reclaimed at the tile boundary.
+    """
+    import dill
+
+    from gfw_pixetl.logs import configure_worker_logging
+
+    configure_worker_logging("INFO")
+    tile = dill.loads(tile_bytes)
+
+    for window_index, window in enumerate(windows):
+        try:
+            result = tile._transform_window_in_current_process(window)
+        except Exception:
+            ex_type, ex_value, tb = sys.exc_info()
+            result_queue.put(
+                (
+                    "error",
+                    window_offset + window_index,
+                    (ex_type, ex_value, "".join(traceback.format_tb(tb))),
+                )
+            )
+            return
+        result_queue.put(("result", window_offset + window_index, result))
+
+        # The parent admits the next window before allowing us to continue.
+        command = command_queue.get()
+        if command == "stop":
+            return
+        if command != "continue":
+            raise RuntimeError(f"Unknown persistent-worker command: {command!r}")
 
 
 class RasterSrcTile(Tile):
@@ -127,25 +177,6 @@ class RasterSrcTile(Tile):
 
         return snapped_window(window)
 
-    def reset_for_retry(self) -> None:
-        """Clear all cached properties that reference files in work_dir.
-
-        ``src`` creates hardlinks into ``work_dir`` and a VRT file on disk.
-        ``intersecting_window`` is derived from ``src``.  Both are stored by
-        ``cached_property`` (via ``lazy_property``) in the instance
-        ``__dict__``, so deleting the key is all that is needed to force
-        recomputation on next access.
-
-        We must clear these *before* calling super(), which recreates
-        ``work_dir``, because the old cached ``src`` holds a ``RasterSource``
-        whose ``uri`` points to a VRT file that was deleted along with the
-        previous ``work_dir``.
-        """
-        for attr in ("src", "intersecting_window"):
-            self.__dict__.pop(attr, None)
-
-        super().reset_for_retry()
-
     def within(self) -> bool:
         """Check if target tile extent intersects with source extent."""
         return (
@@ -155,18 +186,25 @@ class RasterSrcTile(Tile):
         )
 
     def transform(self) -> bool:
-        """Write input data to output tile."""
+        """Write input data to output tile and report coarse phase timings."""
         LOGGER.debug(f"Transform tile {self.tile_id}")
+        total_started = perf_counter()
+        windows_seconds = 0.0
+        postprocess_seconds = 0.0
 
         try:
+            phase_started = perf_counter()
             has_data: bool = self._process_windows()
+            windows_seconds = perf_counter() - phase_started
 
             # creating gdal-geotiff and computing stats here
             # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
             if has_data:
+                phase_started = perf_counter()
                 self.postprocessing()
+                postprocess_seconds = perf_counter() - phase_started
 
         except SubprocessKilledError as e:
             LOGGER.exception(e)
@@ -177,6 +215,12 @@ class RasterSrcTile(Tile):
             self.status = "failed"
             has_data = True
 
+        LOGGER.info(
+            "PERF tile "
+            f"tile={self.tile_id} windows_s={windows_seconds:.3f} "
+            f"postprocess_s={postprocess_seconds:.3f} "
+            f"total_s={perf_counter() - total_started:.3f} status={self.status}"
+        )
         return has_data
 
     def _src_to_vrt(self) -> Tuple[DatasetReader, WarpedVRT]:
@@ -204,140 +248,233 @@ class RasterSrcTile(Tile):
         return src, vrt
 
     def _process_windows(self) -> bool:
-        # In case we have more workers than cores we can further subdivide the read process.
-        # In that case we will need to write the windows into separate files
-        # and merging them into one file at the end of the write process
-        co_workers: int = get_co_workers()
-        if co_workers >= 2:
-            has_data: bool = self._process_windows_parallel(co_workers)
+        """Process windows sequentially within this tile worker.
 
-        # Otherwise we just read the entire image in one process
-        # and write directly to target file.
-        else:
-            has_data = self._process_windows_sequential()
-
-        return has_data
-
-    def _process_windows_parallel(self, co_workers) -> bool:
-        """Process windows in parallel and write output into separate files.
-
-        Create VRT of output files and copy results into final GTIFF
+        Tile-level parallelism belongs to the pipeline. Windows run in
+        one spawned child per tile and are gated by shared memory
+        admission.
         """
-        LOGGER.info(f"Processing tile {self.tile_id} with {co_workers} co_workers")
-
-        has_data = False
-        out_files: List[str] = list()
-
-        with ProcessPoolExecutor(max_workers=co_workers) as executor:
-            future_to_window = {
-                executor.submit(self._parallel_transform, window): window
-                for window in self.windows()
-            }
-            for future in as_completed(future_to_window):
-                out_file = future.result()
-                if out_file is not None:
-                    out_files.append(out_file)
-
-        if out_files:
-            # merge all data into one VRT and copy to target file
-            vrt_name: str = os.path.join(self.tmp_dir, f"{self.tile_id}.vrt")
-            create_vrt(out_files, extent=self.bounds, vrt=vrt_name)
-            just_copy_geotiff(
-                vrt_name,
-                self.local_dst[self.default_format].uri,
-                self.dst[self.default_format].profile,
-            )
-            # Clean up tmp files
-            for f in out_files:
-                LOGGER.debug(f"Delete temporary file {f}")
-                os.remove(f)
-            has_data = True
-
-        return has_data
+        return self._process_windows_sequential()
 
     def _process_windows_sequential(self) -> bool:
-        """Read one window after another and update target file."""
-        LOGGER.info(f"Processing tile {self.tile_id} with a single worker")
+        """Process every window for this tile in one persistent spawned worker.
 
-        src: DatasetReader
-        vrt: WarpedVRT
-
-        src, vrt = self._src_to_vrt()
-        out_files = list()
-        try:
-            for window in self.windows():
-                out_files.append(self._processified_transform(vrt, window))
-        finally:
-            vrt.close()
-            src.close()
-
-        has_data = any(value is not None for value in out_files)
-
-        return has_data
-
-    def _parallel_transform(self, window) -> Optional[str]:
-        """When transforming in parallel, we need to read SRC and create VRT in
-        every process."""
-        src: DatasetReader
-        vrt: WarpedVRT
-
-        src, vrt = self._src_to_vrt()
-
-        try:
-            out_file: Optional[str] = self._processified_transform(vrt, window, True)
-        finally:
-            vrt.close()
-            src.close()
-
-        return out_file
-
-    @processify
-    def _processified_transform(
-        self, vrt: WarpedVRT, window: Window, write_to_seperate_files=False
-    ) -> Optional[str]:
-        """Wrapper to run _transform in a separate process.
-
-        This will make sure that memory gets completely cleared once a
-        window is processed. Without this, we might experience memory
-        leakage, in particular for float data types.
+        The child isolates native GDAL/Rasterio state for the tile
+        lifetime; window admission reserves memory before each window
+        begins.
         """
-        layer = Layer(input_bands=self.layer.input_bands, calc_string=self.layer.calc)
+        import dill
 
-        source = Source(vrt=vrt, crs=self.src.crs)
+        windows = self.windows()
+        if not windows:
+            MEMORY_ADMISSION.commit_transform_reservation()
+            return False
 
-        destination = Destination(
-            transform=self.dst[self.default_format].transform,
-            crs=self.dst[self.default_format].crs,
-            count=self.dst[self.default_format].profile["count"],
-            no_data=self.dst[self.default_format].nodata,
-            datatype=self.dst[self.default_format].dtype,
-            profile=self.dst[self.default_format].profile,
-            tmp_dir=self.tmp_dir,
-            uri=self.local_dst[self.default_format].uri,
-            write_to_separate_files=write_to_seperate_files,
+        LOGGER.info(
+            f"Processing tile {self.tile_id} with one persistent window worker "
+            f"({len(windows)} windows)"
         )
 
-        return transform(self.tile_id, window, layer, source, destination)
+        ctx = mp.get_context("spawn")
+        result_queue = ctx.Queue()
+        command_queue = ctx.Queue()
+        worker = ctx.Process(
+            target=_persistent_window_worker,
+            args=(result_queue, command_queue, dill.dumps(self), windows, 0),
+            name=f"window-worker-{self.tile_id}",
+        )
+        out_files = []
+        first_window = True
+        window_reservation_held = False
+        dispatch_started = perf_counter()
+
+        LOGGER.debug(
+            "PERF window_worker_start "
+            f"tile={self.tile_id} window_start=1 window_end={len(windows)} "
+            f"window_count={len(windows)}"
+        )
+
+        try:
+            MEMORY_ADMISSION.acquire_window(self.tile_id, 0)
+            window_reservation_held = True
+            worker.start()
+
+            for received in range(len(windows)):
+                while True:
+                    try:
+                        kind, window_index, payload = result_queue.get(timeout=1)
+                        break
+                    except queue.Empty:
+                        if worker.is_alive():
+                            continue
+                        raise SubprocessKilledError(
+                            f"Persistent window worker exited with code {worker.exitcode}"
+                        )
+
+                window = windows[window_index]
+                if window_reservation_held:
+                    MEMORY_ADMISSION.release_window()
+                    window_reservation_held = False
+
+                dispatch_seconds = perf_counter() - dispatch_started
+                LOGGER.debug(
+                    "PERF window_dispatch "
+                    f"tile={self.tile_id} window={window_index + 1}/{len(windows)} "
+                    f"col_off={int(window.col_off)} row_off={int(window.row_off)} "
+                    f"width={int(window.width)} height={int(window.height)} "
+                    f"elapsed_s={dispatch_seconds:.3f}"
+                )
+                dispatch_started = perf_counter()
+
+                if kind == "error":
+                    command_queue.put("stop")
+                    _, ex_value, _ = payload
+                    raise ex_value
+
+                out_files.append(payload)
+                if first_window:
+                    MEMORY_ADMISSION.commit_transform_reservation()
+                    first_window = False
+
+                if received + 1 == len(windows):
+                    command_queue.put("stop")
+                    continue
+
+                # Reuse the tile worker; admission may wait before the next window.
+                MEMORY_ADMISSION.acquire_window(self.tile_id, window_index + 1)
+                window_reservation_held = True
+                command_queue.put("continue")
+
+            worker.join(timeout=60)
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(timeout=10)
+                raise SubprocessKilledError("Persistent window worker did not exit")
+            if worker.exitcode != 0:
+                raise SubprocessKilledError(
+                    f"Persistent window worker exited with code {worker.exitcode}"
+                )
+        finally:
+            MEMORY_ADMISSION.commit_transform_reservation()
+            if window_reservation_held:
+                MEMORY_ADMISSION.release_window()
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(timeout=10)
+            result_queue.close()
+            result_queue.join_thread()
+            command_queue.close()
+            command_queue.join_thread()
+
+        return any(value is not None for value in out_files)
+
+    def _transform_window_in_current_process(
+        self, window: Window, write_to_seperate_files=False
+    ) -> Optional[str]:
+        """Transform one window in the current (already spawned) process."""
+        # Create and close all GDAL-backed objects in the child process.  The
+        # persistent worker calls this repeatedly, then exits after the tile so
+        # native allocations are still bounded by one tile lifetime.
+        child_started = perf_counter()
+        setup_started = perf_counter()
+        src, vrt = self._src_to_vrt()
+        setup_seconds = perf_counter() - setup_started
+        try:
+            layer = Layer(
+                input_bands=self.layer.input_bands, calc_string=self.layer.calc
+            )
+
+            source = Source(vrt=vrt, crs=self.src.crs)
+
+            destination = self._window_destination(
+                self.default_format, write_to_seperate_files
+            )
+            additional_destinations = [
+                self._window_destination(dst_format, write_to_seperate_files)
+                for dst_format in self._direct_output_formats()
+                if dst_format != self.default_format
+            ]
+
+            transform_started = perf_counter()
+            result = transform(
+                self.tile_id,
+                window,
+                layer,
+                source,
+                destination,
+                additional_destinations=additional_destinations,
+            )
+            transform_seconds = perf_counter() - transform_started
+            LOGGER.debug(
+                "PERF window_child "
+                f"tile={self.tile_id} col_off={int(window.col_off)} "
+                f"row_off={int(window.row_off)} width={int(window.width)} "
+                f"height={int(window.height)} setup_s={setup_seconds:.3f} "
+                f"transform_s={transform_seconds:.3f} "
+                f"total_s={perf_counter() - child_started:.3f}"
+            )
+            return result
+        finally:
+            vrt.close()
+            src.close()
+
+    def _direct_output_formats(self) -> Tuple[str, ...]:
+        """Formats raster-source windows can produce without a full-raster
+        copy."""
+        return (DstFormat.geotiff, DstFormat.gdal_geotiff)
+
+    def _window_destination(
+        self, dst_format: str, write_to_separate_files: bool
+    ) -> Destination:
+        dst = self.dst[dst_format]
+        return Destination(
+            transform=dst.transform,
+            crs=dst.crs,
+            count=dst.profile["count"],
+            no_data=dst.nodata,
+            datatype=dst.dtype,
+            profile=dst.profile,
+            tmp_dir=self.tmp_dir,
+            uri=self.local_dst[dst_format].uri,
+            write_to_separate_files=write_to_separate_files,
+        )
 
     def windows(self) -> List[Window]:
-        """Creates local output file and returns list of size optimized windows
-        to process."""
-        LOGGER.debug(f"Create local output file for tile {self.tile_id}")
+        """Create both final raster outputs and return optimized windows.
+
+        Raster-source transforms write each block-aligned result
+        directly to both final GeoTIFF profiles.
+        """
+        LOGGER.debug(f"Create local output files for tile {self.tile_id}")
+        output_formats = self._direct_output_formats()
         with rasterio.Env(**GDAL_ENV):
+            # Generate windows from the default output; both profiles share the
+            # same raster geometry and block dimensions.
             with rasterio.open(
                 self.get_local_dst_uri(self.default_format),
                 "w",
                 **self.dst[self.default_format].profile,
             ) as dst:
                 windows = [window for window in self._windows(dst)]
-        self.set_local_dst(self.default_format)
+
+            for dst_format in output_formats:
+                if dst_format == self.default_format:
+                    continue
+                with rasterio.open(
+                    self.get_local_dst_uri(dst_format),
+                    "w",
+                    **self.dst[dst_format].profile,
+                ):
+                    pass
+
+        for dst_format in output_formats:
+            self.set_local_dst(dst_format)
 
         return windows
 
     def _windows(self, dst: DatasetWriter) -> Iterator[Window]:
         """Divides raster source into larger windows which will still fit into
         memory."""
-
         block_count: int = int(sqrt(self._max_blocks()))
         x_blocks: int = int(dst.width / dst.block_shapes[0][0])
         y_blocks: int = int(dst.height / dst.block_shapes[0][1])
@@ -380,7 +517,6 @@ class RasterSrcTile(Tile):
         same time. Using a divisor of 8 leads to max memory usage of
         about 75%.
         """
-
         # Adjust divisor to band count
         divisor = GLOBALS.divisor
 
@@ -400,13 +536,6 @@ class RasterSrcTile(Tile):
 
         # Multiple layers need more memory
         divisor *= self.layer.band_count
-
-        # Decrease block size if we have co-workers.
-        # This way we can process more blocks in parallel.
-        co_workers = get_co_workers()
-        if co_workers >= 2:
-            divisor *= co_workers
-            LOGGER.debug("Divisor multiplied for multiple workers")
 
         # further reduce block size in case we need to perform additional computations
         if self.layer.calc is not None:
@@ -447,7 +576,6 @@ class RasterSrcTile(Tile):
 
     def _reproject_dst_window(self, dst_window: Window) -> Window:
         """Reproject window into same projection as source raster."""
-
         dst_bounds: Bounds = bounds(
             window=dst_window,
             transform=self.dst[self.default_format].transform,
@@ -469,7 +597,6 @@ class RasterSrcTile(Tile):
     ) -> Tuple[rasterio.Affine, float, float]:
         """Compute Affine transformation, width and height for WarpedVRT using
         output CRS and pixel size."""
-
         LOGGER.debug(f"Output Bounds {west, south, east, north}")
         north, west = self.grid.snap_coordinates(north, west)
         south, east = self.grid.snap_coordinates(south, east)

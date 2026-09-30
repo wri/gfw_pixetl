@@ -53,3 +53,10 @@ def test_terminating_proc():
             pass
         else:
             pytest.fail("Processify never returned")
+
+
+def test_processify_reaps_queue_feeder_thread():
+    import threading
+
+    assert sleeper_proc(0) == 42
+    assert not any(t.name == "QueueFeederThread" for t in threading.enumerate())

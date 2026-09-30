@@ -1,6 +1,6 @@
 [project]
 name = "gfw_pixetl"
-version = "1.7.8.1"
+version = "1.9.0a9"
 description = "Tool to preprocess GFW tiles"
 authors = [{ name = "Thomas Maschler" }]
 license = { text = "MIT" }
@@ -11,12 +11,12 @@ dependencies = [
     "aenum",
     "boto3",
     "click",
+    "dill",
     "geojson",
     "geopandas<1",
     "google-cloud-storage",
     "numpy<2",
     "pandas<2.2",
-    "parallelpipe",
     "psutil",
     "pyarrow",
     "psycopg2<3",
@@ -40,7 +40,7 @@ dev = [
 ]
 
 [project.scripts]
-pixetl      = "gfw_pixetl.pixetl:cli"
+pixetl      = "gfw_pixetl.pixetl:main"
 pixetl_prep = "gfw_pixetl.pixetl_prep:cli"
 
 [build-system]
