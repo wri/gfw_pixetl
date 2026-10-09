@@ -47,8 +47,7 @@ def _log_unsafe_fork(kind, target):
             }
         )
 
-    # Import locally to keep the decorator module's existing initialization
-    # behavior unchanged.
+    # Avoid initializing application logging when this module is imported.
     from gfw_pixetl import get_module_logger
 
     get_module_logger(__name__).warning(

@@ -21,23 +21,8 @@ class VectorPipe(Pipe):
         LOGGER.debug("Start Vector Pipe")
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        # Front-load the tiles most likely to become a long tail. rasterize
-        # is a fixed-size worker pool pulling from one shared queue; a
-        # worker that happens to draw several complex tiles in a row (or
-        # one that pulls the single worst one, e.g. WDPA's 1066s-burn
-        # 24-feature outlier) can end up running long after every other
-        # worker has run out of tiles and gone idle, stretching the whole
-        # job's wall-clock time past what the *sum* of work actually
-        # requires. Sorting once here -- tiles are already a fully
-        # materialized in-memory list at this point, so this is a plain,
-        # cheap Python sort, not a pipeline change -- means the complex
-        # tiles get dispatched first, while every worker is still free to
-        # pick one up, rather than at some arbitrary, possibly-very-late
-        # point determined by queue order.
-        #
-        # complexity_score is 0 for tiles filter_src_tiles never ran on
-        # (skipped/existing); Python's sort is stable, so those keep their
-        # original relative order.
+        # Schedule expensive tiles first so long-running rasterizations overlap
+        # with the rest of the queue instead of creating a serial tail.
         tiles.sort(key=lambda tile: getattr(tile, "complexity_score", 0), reverse=True)
 
         workers = self._processing_workers()
@@ -85,30 +70,15 @@ class VectorPipe(Pipe):
         """Construct the vector pipeline for a given tile list and worker
         count.
 
-        ``tiles`` have already been classified by ``collect_tiles()``:
-        filter_subset_tiles, filter_target_tiles, and filter_src_tiles all
-        ran there (see Pipe.collect_tiles). This pipe must NOT repeat those
-        stages -- filter_src_tiles in particular makes one DB round trip per
-        tile ("Limited to be nice to DB"), and re-running it here used to
-        silently double the number of queries hitting the source database on
-        every single run, for tiles whose status was already decided.
-        RasterPipe's _build_pipe does not repeat its filters either; this
-        now matches that pattern.
+        ``tiles`` have already been classified by ``collect_tiles()``. Filtering
+        must not be repeated here because source filtering performs database I/O
+        and tile status has already been decided.
 
         ``workers`` controls the parallelism of the memory-intensive
         ``rasterize`` stage.
         """
-        # Configure the shared controller before ParallelPipe spawns the
-        # rasterize workers -- same call RasterPipe makes before its
-        # transform workers start. reservation_bytes comes from this
-        # layer's actual grid/dtype (see _rasterize_reservation_bytes()),
-        # not memory_admission_reservation_gib: a burst of simultaneously
-        # -starting rasterize workers (parallelpipe starts a whole stage's
-        # workers at once, not gradually) is only actually throttled before
-        # any of them touch real memory if their *reservations* already
-        # reflect roughly what a vector rasterize call really costs, and
-        # that cost scales with this layer's resolution -- a fixed number
-        # tuned for one grid is wrong for any other.
+        # Configure admission before workers spawn. The reservation reflects
+        # this layer's grid and dtype so startup bursts are memory-bounded.
         MEMORY_ADMISSION.configure(
             enabled=GLOBALS.memory_admission_enabled,
             high_watermark=GLOBALS.memory_admission_high_watermark,

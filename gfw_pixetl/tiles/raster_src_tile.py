@@ -507,15 +507,14 @@ class RasterSrcTile(Tile):
                 except rasterio.errors.WindowError as e:
                     e_str = str(e)
                     if "Bounds and transform are inconsistent" in e_str:
-                        # FIXME: This check was introduced recently in rasterio
-                        # Figure out what it means to fail, and fix the window
-                        # generating code in this function
+                        # The generated window should be transform-consistent; log
+                        # enough context to diagnose violations of that invariant.
                         LOGGER.warning(
                             f"Bogus window generated for tile {self.tile_id}! "
                             f"i: {i} j: {j} max_i: {max_i} max_j: {max_j} window: {window}"
                         )
                     elif "Intersection is empty Window" in e_str:
-                        # Seems harmless to skip empty windows we generate
+                        # Empty intersections contain no pixels to process.
                         continue
                     elif "windows do not intersect" in e_str:
                         # Hmm, should this happen? Log for further investigation
@@ -582,12 +581,11 @@ class RasterSrcTile(Tile):
         return max_blocks
 
     def _window_reservation_bytes(self) -> int:
-        """The memory to reserve with MEMORY_ADMISSION for one window of
-        this tile, computed from the same numbers _max_blocks() used --
-        so admission reserves what a window is actually expected to use,
-        not a single flat size applied identically regardless of dtype,
-        band count, or how many blocks actually fit in the target.
-        """
+        """The memory to reserve with MEMORY_ADMISSION for one window of this
+        tile, computed from the same numbers _max_blocks() used -- so admission
+        reserves what a window is actually expected to use, not a single flat
+        size applied identically regardless of dtype, band count, or how many
+        blocks actually fit in the target."""
         return int(
             self._max_blocks * self._block_byte_size() * self._window_working_copies()
         )

@@ -103,11 +103,8 @@ class VectorSrcTile(Tile):
     def __init__(self, tile_id: str, grid: Grid, layer: VectorSrcLayer) -> None:
         super().__init__(tile_id, grid, layer)
         self.src: VectorSource = layer.src
-        # See Tile.gdal_cachemax_mb: small and fixed here on purpose, since
-        # vector rasterize's write-once access pattern doesn't benefit
-        # from a big GDAL cache the way raster transform's windowed reads
-        # do, and letting concurrent copies each grab GDAL's default (5%
-        # of host RAM) is what caused the OOM this value was chosen to fix.
+        # Vector rasterization is write-oriented and gains little from a large
+        # GDAL cache, so bound each concurrent operation's cache explicitly.
         self.gdal_cachemax_mb: int = 512
         # Populated by src_vector_intersects(); zero for tiles it never ran
         # on (subset-filtered, or already existing at the destination) so
@@ -194,13 +191,10 @@ class VectorSrcTile(Tile):
         """Download all intersecting features to a local file, clipping them to
         the tile locally instead of in the database.
 
-        ST_Intersects still runs in Postgres, in the WHERE clause, so
-        the DB's GiST index does the (cheap) row-pruning it's good at.
-        What used to also run in Postgres -- ST_Intersection actually
-        clipping every matched geometry to the tile envelope, a much
-        more expensive, per-row computation -- now happens here instead,
-        after the raw geometry has been fetched, using the EC2 host's
-        own idle CPU rather than the shared database's.
+        Postgres uses ST_Intersects and the GiST index to select
+        candidate features. Geometry clipping then runs locally so
+        expensive per-feature intersection work consumes worker CPU
+        rather than shared database CPU.
         """
         prefix = f"{self.work_dir}"
         os.makedirs(f"{prefix}", exist_ok=True)

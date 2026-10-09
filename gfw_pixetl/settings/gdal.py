@@ -31,7 +31,9 @@ class GdalEnv(EnvSettings):
     gdal_disable_readdir_on_open: Optional[str] = None
     gdal_http_max_retry: int = 4
     gdal_http_retry_delay: int = 10
-    vsi_cache: str = "YES"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
+    vsi_cache: str = (
+        "YES"  # file can be cached in RAM.  Content in that cache is discarded when the file handle is closed.
+    )
     aws_https: Optional[str] = None
     aws_virtual_hosting: Optional[str] = None
     aws_s3_endpoint: Optional[str] = None  # Populated at call time via get_gdal_env()
@@ -51,25 +53,10 @@ class GdalEnv(EnvSettings):
         return v
 
 
-# GDAL_CACHEMAX deliberately does NOT live here, or anywhere else applied
-# process-wide. It was, briefly (os.environ.setdefault("GDAL_CACHEMAX",
-# "512")) -- fixed one real problem (vector rasterize's write-once workload
-# had no business letting every concurrent gdal_rasterize/geotiff-copy
-# process independently claim GDAL's default 5%-of-host-RAM cache, which is
-# what caused the OOM this was built to prevent) but broke another: raster
-# transform's windowed, often-overlapping reads are a genuinely
-# cache-friendly access pattern, and capping every GDAL operation in the
-# whole process to 512MB regardless of which pipeline was running slowed
-# that down instead.
-#
-# Per-tile-type sizing lives on Tile.gdal_cachemax_mb instead (None by
-# default = GDAL's own behavior, which is what raster transform always
-# had and is fine for it; VectorSrcTile overrides it to a small fixed
-# value), applied at the specific call sites that need it --
-# just_copy_geotiff() (the shared geotiff-copy step both pipelines use)
-# and VectorSrcTile.rasterize()'s own gdal_rasterize subprocess call --
-# rather than as a single global default for every GDAL operation in the
-# process.
+# Do not set GDAL_CACHEMAX process-wide. Raster transforms benefit from GDAL's
+# normal cache behavior, while vector rasterization and GeoTIFF copy operations
+# need bounded caches to prevent concurrent subprocesses from consuming a large
+# fraction of host memory. Tile.gdal_cachemax_mb provides per-operation sizing.
 
 
 def get_gdal_env() -> dict:
@@ -84,8 +71,6 @@ def get_gdal_env() -> dict:
     return GdalEnv(aws_s3_endpoint=set_aws_s3_endpoint()).env_dict()
 
 
-# Backwards-compatible module-level constant for code paths that import GDAL_ENV
-# directly and are not sensitive to late-bound environment changes (e.g. static
-# config reads at startup).  S3-sensitive paths (fetch_metadata, run_gdal_subcommand)
-# should call get_gdal_env() instead.
+# Static configuration may use this snapshot. S3-sensitive paths should call
+# get_gdal_env() so late-bound endpoint configuration is respected.
 GDAL_ENV = get_gdal_env()

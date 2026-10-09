@@ -127,19 +127,10 @@ class MemoryAdmissionController:
                 high_watermark * 100,
                 resume_watermark * 100,
                 reservation_bytes / GIB,
-                # Renamed from window_reservation: acquire_window()/
-                # release_window() callers now pass their own computed
-                # per-tile size (see RasterSrcTile._window_reservation_bytes())
-                # on every real call, so this configured value is only a
-                # fallback for a caller that doesn't -- reporting it as
-                # simply "window_reservation" implied it was what every
-                # window actually used, which stopped being true once
-                # per-call sizing was added.
+                # Default reservation for callers that do not provide a
+                # per-window estimate. RasterSrcTile normally supplies one.
                 window_reservation_bytes / GIB,
-                # Same story for stats: acquire_stats()/release_stats() use
-                # this as their only source (no per-tile sizing exists for
-                # stats scans, unlike windows), so unlike window_reservation
-                # this figure IS what every stats scan actually reserves.
+                # Statistics scans use this fixed reservation.
                 stats_reservation_bytes / GIB,
             )
 
@@ -252,8 +243,7 @@ class MemoryAdmissionController:
             )
 
     def acquire_tile(self, tile_id: str) -> None:
-        """Wait until another memory-intensive per-tile step can safely
-        begin.
+        """Wait until another memory-intensive per-tile step can safely begin.
 
         A fixed reservation covers only startup, before the new worker's
         memory is visible in ``memory.current``. Callers that process a
@@ -325,8 +315,8 @@ class MemoryAdmissionController:
             self._write_status_locked()
 
     def release_tile(self) -> None:
-        """Release a reservation if the tile step exited before committing
-        it (or never needed to commit it early in the first place)."""
+        """Release a reservation if the tile step exited before committing it
+        (or never needed to commit it early in the first place)."""
         self.commit_tile_reservation()
 
     @contextmanager
@@ -394,8 +384,10 @@ class MemoryAdmissionController:
         window_index: int,
         reservation_bytes: Optional[int] = None,
     ) -> None:
-        """Wait until an atomic per-window memory reservation can be
-        acquired. See try_acquire_window() for reservation_bytes."""
+        """Wait until an atomic per-window memory reservation can be acquired.
+
+        See try_acquire_window() for reservation_bytes.
+        """
         if not self.enabled:
             return
 
@@ -447,10 +439,9 @@ class MemoryAdmissionController:
     def try_acquire_stats(
         self, tile_id: str, reservation_bytes: Optional[int] = None
     ) -> bool:
-        """Atomically reserve memory for one stats/histogram scan if
-        headroom is available. See try_acquire_window() for why an atomic
-        shared reservation is needed rather than checking memory.current
-        alone.
+        """Atomically reserve memory for one stats/histogram scan if headroom
+        is available. See try_acquire_window() for why an atomic shared
+        reservation is needed rather than checking memory.current alone.
 
         ``reservation_bytes`` defaults to ``self.stats_reservation_bytes``
         -- unlike windows, there's no per-tile sizing for stats scans (see
@@ -488,8 +479,10 @@ class MemoryAdmissionController:
     def acquire_stats(
         self, tile_id: str, reservation_bytes: Optional[int] = None
     ) -> None:
-        """Wait until an atomic per-scan memory reservation can be
-        acquired. See try_acquire_stats() for reservation_bytes."""
+        """Wait until an atomic per-scan memory reservation can be acquired.
+
+        See try_acquire_stats() for reservation_bytes.
+        """
         if not self.enabled:
             return
 
@@ -500,9 +493,7 @@ class MemoryAdmissionController:
                     with self._lock:
                         self._waiting.value = max(0, self._waiting.value - 1)
                         self._write_status_locked()
-                    LOGGER.info(
-                        "Memory stats admission resumed: tile=%s", tile_id
-                    )
+                    LOGGER.info("Memory stats admission resumed: tile=%s", tile_id)
                 return
 
             if not waiting_registered:
@@ -510,16 +501,17 @@ class MemoryAdmissionController:
                     self._waiting.value += 1
                     self._write_status_locked()
                 waiting_registered = True
-                LOGGER.warning(
-                    "Memory stats admission waiting: tile=%s", tile_id
-                )
+                LOGGER.warning("Memory stats admission waiting: tile=%s", tile_id)
             time.sleep(self.poll_seconds)
 
     def release_stats(self, reservation_bytes: Optional[int] = None) -> None:
-        """Release one stats-scan reservation. Must match what the
+        """Release one stats-scan reservation.
+
+        Must match what the
         corresponding acquire_stats() call actually reserved -- defaults
         to ``self.stats_reservation_bytes`` to match acquire_stats()'s own
-        default."""
+        default.
+        """
         if not self.enabled:
             return
         size = (
