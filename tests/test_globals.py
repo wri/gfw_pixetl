@@ -1,42 +1,25 @@
 import os
-from copy import deepcopy
 
-from gfw_pixetl.settings.globals import Globals
+from gfw_pixetl.settings.globals import Globals, available_cpu_count
 
 
-def test_global_workers():
-    config = Globals()
-    assert config.num_processes == os.cpu_count()
-    assert config.workers == os.cpu_count()
+def test_available_cpu_count_prefers_affinity(monkeypatch):
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: {0, 2, 4})
+    assert available_cpu_count() == 3
 
-    config.workers = os.cpu_count() + 1
-    assert config.num_processes == os.cpu_count()
-    assert config.workers == os.cpu_count()
 
-    config.num_processes = 1
-    assert config.num_processes == 1
-    assert config.workers == 1
+def test_available_cpu_count_falls_back_to_cpu_count(monkeypatch):
+    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
+    monkeypatch.setattr(os, "cpu_count", lambda: 6)
+    assert available_cpu_count() == 6
 
-    config = Globals(num_processes=2, workers=3)
-    assert config.num_processes == 2
-    assert config.workers == 2
 
-    config = Globals(cores=4, num_processes=3, workers=2)
-    assert config.num_processes == 3
-    assert config.workers == 2
+def test_process_workers_default_and_env_override(monkeypatch):
+    monkeypatch.delenv("PROCESS_WORKERS", raising=False)
+    assert Globals().process_workers == available_cpu_count()
 
-    vars = deepcopy(os.environ)
-
-    os.environ["NUM_PROCESSES"] = "2"
-    config = Globals(workers=3)
-    if os.cpu_count() >= 2:
-        assert config.num_processes == 2
-        assert config.workers == 2
-    else:
-        assert config.num_processes == 1
-        assert config.workers == 1
-
-    os.environ = vars
+    monkeypatch.setenv("PROCESS_WORKERS", "2")
+    assert Globals().process_workers == 2
 
 
 def test_memory_admission_defaults():

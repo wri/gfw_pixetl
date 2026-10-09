@@ -19,7 +19,7 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcs/private_key.json
       - DIVISOR=1
       - MAX_MEM=4000
-      - CORES=2
+      - PROCESS_WORKERS=2
 #      - GCS_KEY_SECRET_ARN=gcs/gfw-gee-export
 #      - AWS_ACCESS_KEY_ID=testing  # pragma: allowlist secret
 #      - AWS_SECRET_ACCESS_KEY=testing  # pragma: allowlist secret

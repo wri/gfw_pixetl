@@ -1,4 +1,4 @@
-from os import cpu_count
+import os
 from typing import Optional
 
 import psutil
@@ -10,6 +10,22 @@ from gfw_pixetl.models.enums import DstFormat
 from gfw_pixetl.settings.models import EnvSettings
 
 LOGGER = get_module_logger(__name__)
+
+
+def available_cpu_count() -> int:
+    """Return the number of CPUs available to this process.
+
+    CPU affinity reflects container/cpuset restrictions when the
+    platform exposes it; fall back to the host-reported CPU count
+    elsewhere.
+    """
+    get_affinity = getattr(os, "sched_getaffinity", None)
+    if get_affinity is not None:
+        try:
+            return max(len(get_affinity(0)), 1)
+        except OSError:
+            pass
+    return max(os.cpu_count() or 1, 1)
 
 
 class Secret:
@@ -40,9 +56,9 @@ class Globals(EnvSettings):
     #####################
     # Resource management
     ######################
-    cores: PositiveInt = Field(cpu_count(), description="Number of CPU cores available")
-    num_processes: PositiveInt = Field(
-        cpu_count(), description="Max number of parallel processes to use"
+    process_workers: PositiveInt = Field(
+        available_cpu_count(),
+        description="Maximum number of local CPU worker processes.",
     )
     max_mem: PositiveInt = Field(
         psutil.virtual_memory()[1] / 1000000,
@@ -112,9 +128,6 @@ class Globals(EnvSettings):
         "array) than a plain resampling copy does. Carried over in spirit "
         "from the old divisor heuristic's 'squared for calc operations' "
         "adjustment -- not yet validated against a live run.",
-    )
-    workers: PositiveInt = Field(
-        cpu_count(), description="Number of workers to use to execute job."
     )
     download_workers: PositiveInt = Field(
         8,
@@ -234,7 +247,7 @@ class Globals(EnvSettings):
         "query the source database at once (vector pipe's filter_src_tiles "
         "and fetch_tile_data stages). This is a budget for the *source* "
         "database's capacity, not the pixETL host's CPU, so it is "
-        "intentionally decoupled from num_processes/workers and should be "
+        "intentionally decoupled from process_workers and should be "
         "tuned to what the database can sustain.",
     )
     db_pool_size: PositiveInt = Field(
@@ -308,24 +321,6 @@ class Globals(EnvSettings):
     @pydantic.validator("db_password", pre=True, always=True)
     def hide_password(cls, v):
         return Secret(v) or None
-
-    @pydantic.root_validator()
-    def set_processes_workers(cls, values):
-        cores = values.get("cores")
-
-        # Don't allow specifying more processes than cores
-        num_processes = max(min(cores, values.get("num_processes")), 1)
-
-        # Don't allow specifying more workers than processes
-        workers = max(min(num_processes, values.get("workers")), 1)
-
-        values["num_processes"] = num_processes
-        values["workers"] = workers
-
-        LOGGER.info(f"Set num_processes to {num_processes}")
-        LOGGER.info(f"Set workers to {workers}")
-
-        return values
 
     @pydantic.validator("max_mem", pre=True, always=True)
     def set_max_mem(cls, v, *, values, **kwargs):
