@@ -40,7 +40,7 @@ class VectorPipe(Pipe):
         # original relative order.
         tiles.sort(key=lambda tile: getattr(tile, "complexity_score", 0), reverse=True)
 
-        workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
+        workers = self._processing_workers()
         result = self._process_pipe(self._build_pipe(tiles, workers))
 
         LOGGER.debug("Finished Vector Pipe")

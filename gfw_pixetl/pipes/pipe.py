@@ -72,14 +72,14 @@ class Pipe(ABC):
         ...
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.process_workers)
     @abstractmethod
     def filter_src_tiles():
         """Override this method when implementing pipes."""
         ...
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=1)
     def filter_subset_tiles(tiles: Iterator[Tile], subset) -> Iterator[Tile]:
         """Apply filter in case user only wants to process a subset.
 
@@ -92,7 +92,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.process_workers)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """Don't process tiles if they already exist in target location, unless
         overwrite is set to True."""
@@ -113,7 +113,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.process_workers)
     def create_gdal_geotiff(tiles: Iterator[Tile]) -> Iterator[Tile]:
         """Copy local file to geotiff format."""
         for tile in tiles:
@@ -137,6 +137,10 @@ class Pipe(ABC):
         for tile in tiles:
             tile.remove_work_dir()
             yield tile
+
+    def _processing_workers(self) -> int:
+        """Return process capacity for the expensive tile-processing stage."""
+        return max(min(self.tiles_to_process, GLOBALS.process_workers), 1)
 
     def _build_pipe(self, tiles: List[Tile], workers: int) -> Pipeline:
         """Construct the processing pipeline for *tiles*.

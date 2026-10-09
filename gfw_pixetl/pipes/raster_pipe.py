@@ -75,14 +75,14 @@ class RasterPipe(Pipe):
         # Use as many transform workers as there are tiles to process, capped
         # at the configured maximum. Memory admission controls how much of that
         # capacity may be active under pressure.
-        workers = max(min(self.tiles_to_process, GLOBALS.workers), 1)
+        workers = self._processing_workers()
         result = self._process_pipe(self._build_pipe(tiles, workers))
 
         LOGGER.info("Finished Raster Pipe")
         return result
 
     @staticmethod
-    @stage(workers=GLOBALS.num_processes)
+    @stage(workers=GLOBALS.process_workers)
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """Only process tiles which intersect with source raster."""
         for tile in tiles:
