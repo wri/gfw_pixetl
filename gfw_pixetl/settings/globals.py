@@ -13,7 +13,7 @@ LOGGER = get_module_logger(__name__)
 
 
 def available_cpu_count() -> int:
-    """Return the number of CPUs available to this process.
+    """Return the number of logical CPUs available to this process.
 
     CPU affinity reflects container/cpuset restrictions when the
     platform exposes it; fall back to the host-reported CPU count
@@ -26,6 +26,17 @@ def available_cpu_count() -> int:
         except OSError:
             pass
     return max(os.cpu_count() or 1, 1)
+
+
+def default_process_worker_count() -> int:
+    """Return the default worker count for CPU-heavy processing.
+
+    PixETL processes are heavyweight (Python + GDAL) and do not benefit
+    from one process per SMT/logical CPU. Keep the execution ceiling at
+    half the available logical CPU count; PROCESS_WORKERS can still
+    override it.
+    """
+    return max(available_cpu_count() // 2, 1)
 
 
 class Secret:
@@ -57,8 +68,10 @@ class Globals(EnvSettings):
     # Resource management
     ######################
     process_workers: PositiveInt = Field(
-        available_cpu_count(),
-        description="Maximum number of local CPU worker processes.",
+        default_process_worker_count(),
+        description="Maximum number of local CPU-heavy worker processes. "
+        "Defaults to half the available logical CPUs to avoid oversubscribing "
+        "Python/GDAL workers on SMT-enabled hosts.",
     )
     max_mem: PositiveInt = Field(
         psutil.virtual_memory()[1] / 1000000,
@@ -160,7 +173,7 @@ class Globals(EnvSettings):
         description="Memory reserved atomically before dispatching each raster window.",
     )
     raster_stats_reservation_gib: float = Field(
-        12.0,
+        6.0,
         description="Memory reserved atomically for one concurrent GDAL "
         "stats/histogram scan (see MemoryAdmissionController.stats_slot()). "
         "Replaces memory_admission_stats_workers, a fixed count of "

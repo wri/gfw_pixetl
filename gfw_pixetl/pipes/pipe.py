@@ -11,6 +11,10 @@ from gfw_pixetl.utils.gdal import get_metadata
 
 LOGGER = get_module_logger(__name__)
 
+# Destination/source filtering is I/O-heavy and may touch S3/GDAL/AWS
+# credentials. Do not fan it out to the full CPU-heavy process pool.
+FILTER_WORKERS = min(GLOBALS.process_workers, 32)
+
 
 class Pipe(ABC):
     """Base Pipe including all the basic stages to seed, filter, delete and
@@ -92,7 +96,7 @@ class Pipe(ABC):
             yield tile
 
     @staticmethod
-    @stage(workers=GLOBALS.process_workers)
+    @stage(workers=FILTER_WORKERS)
     def filter_target_tiles(tiles: Iterator[Tile], overwrite: bool) -> Iterator[Tile]:
         """Don't process tiles if they already exist in target location, unless
         overwrite is set to True."""

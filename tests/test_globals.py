@@ -1,6 +1,10 @@
 import os
 
-from gfw_pixetl.settings.globals import Globals, available_cpu_count
+from gfw_pixetl.settings.globals import (
+    Globals,
+    available_cpu_count,
+    default_process_worker_count,
+)
 
 
 def test_available_cpu_count_prefers_affinity(monkeypatch):
@@ -14,9 +18,19 @@ def test_available_cpu_count_falls_back_to_cpu_count(monkeypatch):
     assert available_cpu_count() == 6
 
 
+def test_default_process_worker_count(monkeypatch):
+    monkeypatch.setattr("gfw_pixetl.settings.globals.available_cpu_count", lambda: 192)
+    assert default_process_worker_count() == 96
+
+
+def test_default_process_worker_count_never_returns_zero(monkeypatch):
+    monkeypatch.setattr("gfw_pixetl.settings.globals.available_cpu_count", lambda: 1)
+    assert default_process_worker_count() == 1
+
+
 def test_process_workers_default_and_env_override(monkeypatch):
     monkeypatch.delenv("PROCESS_WORKERS", raising=False)
-    assert Globals().process_workers == available_cpu_count()
+    assert Globals().process_workers == default_process_worker_count()
 
     monkeypatch.setenv("PROCESS_WORKERS", "2")
     assert Globals().process_workers == 2

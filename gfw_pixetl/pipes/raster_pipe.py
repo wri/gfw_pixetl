@@ -82,7 +82,7 @@ class RasterPipe(Pipe):
         return result
 
     @staticmethod
-    @stage(workers=GLOBALS.process_workers)
+    @stage(workers=min(GLOBALS.process_workers, 32))
     def filter_src_tiles(tiles: Iterator[RasterSrcTile]) -> Iterator[RasterSrcTile]:
         """Only process tiles which intersect with source raster."""
         for tile in tiles:
