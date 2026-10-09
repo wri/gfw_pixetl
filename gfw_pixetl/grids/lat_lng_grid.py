@@ -132,7 +132,7 @@ class LatLngGrid(Grid):
             tile_ids.add(self._get_tile_ids(x_y))
 
         # # Get all grid ids using top left corners
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
+        # with get_context("spawn").Pool(processes=GLOBALS.process_workers) as pool:
         #     tile_ids: Set[str] = set(pool.map(self._get_tile_ids, x_y))
 
         return tile_ids
@@ -141,7 +141,7 @@ class LatLngGrid(Grid):
         return self.xy_to_tile_id(x_y[0], x_y[1])
 
     def _apply_lng_offset(self, lng, x):
-        """apply longitudinal offset and shift grid cell in case point doesn't
+        """Apply longitudinal offset and shift grid cell in case point doesn't
         fall into it."""
 
         offset = self.lng_offset
@@ -158,7 +158,7 @@ class LatLngGrid(Grid):
         return lng
 
     def _apply_lat_offset(self, lat, y):
-        """apply latitudinal offset and shift grid cell in case point doesn't
+        """Apply latitudinal offset and shift grid cell in case point doesn't
         fall into it."""
         offset = self.lat_offset
         if lat != 0 and offset:

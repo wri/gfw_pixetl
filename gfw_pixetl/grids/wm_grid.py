@@ -16,8 +16,9 @@ class WebMercatorGrid(Grid):
 
     Each Grid instance defines tile for a given zoom level
 
-    Output tiles within grid always have a block size of 256 px (equal to raster tile cache tile).
-    Max size of a tile within grid can not be larger than 65536x65526 pixel (256x256).
+    Output tiles within grid always have a block size of 256 px (equal
+    to raster tile cache tile). Max size of a tile within grid can not
+    be larger than 65536x65526 pixel (256x256).
     """
 
     is_snapped_grid = False
@@ -29,7 +30,7 @@ class WebMercatorGrid(Grid):
         """Initialize Webmercator tile grid of a given Zoom level."""
 
         self.zoom: int = zoom
-        self.nb_tiles = max(1, int(2 ** self.zoom / 256)) ** 2
+        self.nb_tiles = max(1, int(2**self.zoom / 256)) ** 2
         super().__init__(crs)
 
     def get_tile_ids(self) -> Set[str]:
@@ -45,7 +46,7 @@ class WebMercatorGrid(Grid):
         # rows_cols: List[Tuple[int, int]] = list(itertools.product(rows, cols))
         #
         # # Get all grid ids using top left corners
-        # with get_context("spawn").Pool(processes=GLOBALS.num_processes) as pool:
+        # with get_context("spawn").Pool(processes=GLOBALS.process_workers) as pool:
         #     tile_ids: Set[str] = set(pool.map(self._get_tile_ids, rows_cols))
 
         return tile_ids
@@ -97,18 +98,18 @@ class WebMercatorGrid(Grid):
     def _get_xres(self) -> float:
         """Pixel width."""
         grid_width = self.bounds.left + self.bounds.right + (-2 * self.bounds.left)
-        pixels_per_row = 256 * 2 ** self.zoom
+        pixels_per_row = 256 * 2**self.zoom
         return grid_width / pixels_per_row
 
     def _get_yres(self) -> float:
         """Pixel height."""
         grid_height = self.bounds.top + self.bounds.bottom + (-2 * self.bounds.bottom)
-        pixels_per_col = 256 * 2 ** self.zoom
+        pixels_per_col = 256 * 2**self.zoom
         return grid_height / pixels_per_col
 
     def _get_cols(self) -> int:
         """Number of columns per grid."""
-        return int(2 ** self.zoom * 256 / math.sqrt(self.nb_tiles))
+        return int(2**self.zoom * 256 / math.sqrt(self.nb_tiles))
 
     def _get_rows(self) -> int:
         """Number of rows per grid."""

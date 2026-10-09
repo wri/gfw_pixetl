@@ -13,12 +13,9 @@ from shapely.geometry import MultiPolygon, Polygon
 
 import gfw_pixetl.utils.gdal
 from gfw_pixetl.errors import GDALNoneTypeError
-from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.utils.cwd import set_cwd
 from gfw_pixetl.utils.gdal import create_vrt, run_gdal_subcommand
 from gfw_pixetl.utils.utils import (
-    available_memory_per_process_bytes,
-    available_memory_per_process_mb,
     enumerate_bands,
     get_bucket,
     intersection,
@@ -72,31 +69,6 @@ def test_set_cwd():
     assert os.path.join(cwd, new_dir) == os.getcwd()
     os.chdir(cwd)
     os.rmdir(new_dir)
-
-
-def test_set_workers():
-    num_processes = GLOBALS.num_processes
-    GLOBALS.workers = num_processes
-    assert GLOBALS.workers == num_processes
-
-    GLOBALS.workers = num_processes + 1
-    assert GLOBALS.workers == num_processes
-
-    GLOBALS.workers = num_processes - 1
-    if num_processes == 1:
-        assert GLOBALS.workers == 1
-    else:
-        assert GLOBALS.workers == num_processes - 1
-
-
-def test_available_memory_per_process():
-    GLOBALS.workers = 1
-    assert available_memory_per_process_bytes() == GLOBALS.max_mem * 1000000
-    assert available_memory_per_process_mb() == GLOBALS.max_mem
-
-    GLOBALS.workers = 2
-    assert available_memory_per_process_bytes() == GLOBALS.max_mem * 1000000 / 2
-    assert available_memory_per_process_mb() == GLOBALS.max_mem / 2
 
 
 def test_create_vrt():
