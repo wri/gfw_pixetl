@@ -257,7 +257,7 @@ def sample_vector_data():
                 SELECT GeometryType(geom), ST_SRID(geom)
                 FROM {dataset}.{version}
                 LIMIT 1
-                """)).one()
+                """)).fetchone()
         assert geometry_type == "MULTIPOLYGON"
         assert srid == 4326
 

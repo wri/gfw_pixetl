@@ -138,10 +138,12 @@ class VectorSrcTile(Tile):
 
         sql = (
             select(
-                literal_column("count(*)").label("feature_count"),
-                literal_column("coalesce(sum(st_npoints(geom)), 0)").label(
-                    "total_vertices"
-                ),
+                [
+                    literal_column("count(*)").label("feature_count"),
+                    literal_column("coalesce(sum(st_npoints(geom)), 0)").label(
+                        "total_vertices"
+                    ),
+                ]
             )
             .select_from(self.src_table())
             .where(self.intersect_filter())
