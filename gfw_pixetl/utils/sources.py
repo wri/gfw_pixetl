@@ -36,7 +36,7 @@ def _http_status_code(exception: Exception) -> Optional[int]:
     status = getattr(exception, "code", None)
     if callable(status):
         status = status()
-    if hasattr(status, "value"):
+    if status is not None and hasattr(status, "value"):
         status = status.value
     try:
         return int(status) if status is not None else None

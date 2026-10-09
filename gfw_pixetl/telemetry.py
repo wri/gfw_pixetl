@@ -53,7 +53,7 @@ def _read_text(path: str) -> Optional[str]:
 
 def _read_int(path: str) -> Optional[int]:
     value = _read_text(path)
-    if value in (None, "max"):
+    if value is None or value == "max":
         return None
     try:
         return int(value)
@@ -122,7 +122,7 @@ def effective_cpu_count(stats: Dict[str, Optional[int]]) -> Optional[float]:
     constrained."""
     quota = stats.get("cpu_quota_us")
     period = stats.get("cpu_period_us")
-    if quota is None or period in (None, 0):
+    if quota is None or period is None or period == 0:
         return None
     return max(0.0, float(quota) / float(period))
 
