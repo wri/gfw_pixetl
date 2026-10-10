@@ -1,4 +1,4 @@
-from typing import Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import numpy as np
 
@@ -9,8 +9,15 @@ from gfw_pixetl.parallelpipe import Pipeline, Stage, stage
 from gfw_pixetl.pipes import Pipe
 from gfw_pixetl.settings.globals import GLOBALS
 from gfw_pixetl.tiles import Tile, VectorSrcTile
+from gfw_pixetl.tiles.vector_src_tile import (
+    RASTER_PART_COUNT,
+    VectorRasterAssemblyItem,
+    VectorRasterWorkItem,
+)
 
 LOGGER = get_module_logger(__name__)
+
+ASSEMBLE_RASTER_WORKERS = 64
 
 
 class VectorPipe(Pipe):
@@ -98,7 +105,12 @@ class VectorPipe(Pipe):
         return (
             tiles
             | self.fetch_tile_data
-            | Stage(self.rasterize, admission_state).setup(workers=workers)
+            | self.split_raster_work
+            | Stage(self.rasterize_work, admission_state).setup(workers=workers)
+            | Stage(self.group_raster_work).setup(workers=1)
+            | Stage(self.assemble_raster_work, admission_state).setup(
+                workers=ASSEMBLE_RASTER_WORKERS
+            )
             | self.upload_file
             | self.delete_work_dir
         )
@@ -146,27 +158,73 @@ class VectorPipe(Pipe):
             yield tile
 
     @staticmethod
-    def rasterize(
+    @stage(workers=1)
+    def split_raster_work(
         tiles: Iterator[VectorSrcTile],
-        admission_state: Optional[AdmissionSharedState] = None,
-    ) -> Iterator[VectorSrcTile]:
-        """Convert vector source to raster tiles.
+    ) -> Iterator[Union[VectorSrcTile, VectorRasterWorkItem]]:
+        """Fan pending parent tiles out into fixed raster work items."""
+        for tile in tiles:
+            if tile.status == "pending":
+                yield from tile.raster_work_items()
+            else:
+                yield tile
 
-        Gated by MEMORY_ADMISSION the same way RasterPipe.transform()
-        is: a spike in cgroup memory (concurrent gdal_rasterize calls at
-        high resolution, say) throttles new admissions here instead of
-        running every configured worker regardless of actual headroom.
-        Unlike transform(), there's no windowed sub-step to commit a
-        reservation early for -- rasterize() is one bounded
-        gdal_rasterize subprocess call per tile, so the whole call holds
-        its reservation and tile_slot() releases it on exit.
-        """
-        # Bind the worker-local controller before any admission-gated work.
+    @staticmethod
+    def rasterize_work(
+        items: Iterator[Union[VectorSrcTile, VectorRasterWorkItem]],
+        admission_state: Optional[AdmissionSharedState] = None,
+    ) -> Iterator[Union[VectorSrcTile, VectorRasterWorkItem]]:
+        """Rasterize independent work items under the existing admission
+        gate."""
         if admission_state is not None:
             MEMORY_ADMISSION.bind_shared_state(admission_state)
 
-        for tile in tiles:
-            if tile.status == "pending":
-                with MEMORY_ADMISSION.tile_slot(tile.tile_id):
-                    tile.rasterize()
-            yield tile
+        for item in items:
+            if isinstance(item, VectorRasterWorkItem):
+                with MEMORY_ADMISSION.tile_slot(item.work_id):
+                    item.parent.rasterize_work_item(item)
+            yield item
+
+    @staticmethod
+    def group_raster_work(
+        items: Iterator[Union[VectorSrcTile, VectorRasterWorkItem]],
+    ) -> Iterator[Union[VectorSrcTile, VectorRasterAssemblyItem]]:
+        """Group completed raster work items without doing heavy work."""
+        pending: Dict[str, List[VectorRasterWorkItem]] = {}
+
+        for item in items:
+            if not isinstance(item, VectorRasterWorkItem):
+                yield item
+                continue
+
+            tile_id = item.parent.tile_id
+            group = pending.setdefault(tile_id, [])
+            group.append(item)
+            if len(group) == RASTER_PART_COUNT:
+                yield VectorRasterAssemblyItem(group[0].parent, group)
+                del pending[tile_id]
+
+        if pending:
+            incomplete = ", ".join(
+                f"{tile_id} ({len(parts)}/{RASTER_PART_COUNT})"
+                for tile_id, parts in sorted(pending.items())
+            )
+            raise RuntimeError(f"Incomplete vector raster work groups: {incomplete}")
+
+    @staticmethod
+    def assemble_raster_work(
+        items: Iterator[Union[VectorSrcTile, VectorRasterAssemblyItem]],
+        admission_state: Optional[AdmissionSharedState] = None,
+    ) -> Iterator[VectorSrcTile]:
+        """Assemble complete groups in parallel and restore parent tiles."""
+        if admission_state is not None:
+            MEMORY_ADMISSION.bind_shared_state(admission_state)
+
+        for item in items:
+            if isinstance(item, VectorRasterAssemblyItem):
+                parent = item.parent
+                with MEMORY_ADMISSION.tile_slot(f"{parent.tile_id}-assemble"):
+                    parent.assemble_raster_work_items(item.parts)
+                yield parent
+            else:
+                yield item

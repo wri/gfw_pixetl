@@ -1,5 +1,7 @@
 import os
-from typing import List, Optional
+from dataclasses import dataclass
+from time import perf_counter
+from typing import List, Optional, Tuple
 
 import geopandas
 from retrying import retry
@@ -23,7 +25,34 @@ from gfw_pixetl.utils.gdal import get_gdal_env, run_gdal_subcommand
 
 logger = get_module_logger(__name__)
 
+RASTER_SUBDIVISIONS = 4
+RASTER_PART_COUNT = RASTER_SUBDIVISIONS**2
+
 GEOMETRY_COLUMN = "geom"
+
+
+@dataclass
+class VectorRasterWorkItem:
+    """One spatial subdivision of a vector tile's rasterization work."""
+
+    parent: "VectorSrcTile"
+    index: int
+    bounds: Tuple[float, float, float, float]
+    src: str
+    dst: str
+
+    @property
+    def work_id(self) -> str:
+        return f"{self.parent.tile_id}-part-{self.index}"
+
+
+@dataclass
+class VectorRasterAssemblyItem:
+    """A parent tile whose four raster work items are complete."""
+
+    parent: "VectorSrcTile"
+    parts: List[VectorRasterWorkItem]
+
 
 # One engine (and its small connection pool) per worker *process*, created
 # lazily and reused for every tile that process handles. Previously each of
@@ -222,23 +251,225 @@ class VectorSrcTile(Tile):
         # Why store as GeoParquet? Could be almost anything, but
         # GeoParquet is both faster and more compact (without extra
         # processing) than GeoPackage, Shapefiles, GeoJSON, CSV.
-        geodataframe = geopandas.read_postgis(sql, engine, geom_col=GEOMETRY_COLUMN)
-        geodataframe = geodataframe.set_crs("EPSG:4326")
+        total_started = perf_counter()
 
+        phase_started = perf_counter()
+        logger.info(
+            f"PERF vector_fetch_db_start tile={self.tile_id} "
+            f"bounds=({self.bounds.left}, {self.bounds.bottom}, "
+            f"{self.bounds.right}, {self.bounds.top}) "
+            f"features={self.feature_count} vertices={self.total_vertices} "
+            f"complexity={self.complexity_score}"
+        )
+        try:
+            geodataframe = geopandas.read_postgis(sql, engine, geom_col=GEOMETRY_COLUMN)
+        except Exception:
+            logger.exception(
+                f"PERF vector_fetch_db_failed tile={self.tile_id} "
+                f"bounds=({self.bounds.left}, {self.bounds.bottom}, "
+                f"{self.bounds.right}, {self.bounds.top}) "
+                f"features={self.feature_count} vertices={self.total_vertices} "
+                f"complexity={self.complexity_score} "
+                f"elapsed_s={perf_counter() - phase_started:.3f}"
+            )
+            raise
+        geodataframe = geodataframe.set_crs("EPSG:4326")
+        db_read_seconds = perf_counter() - phase_started
+        fetched_features = len(geodataframe)
+
+        phase_started = perf_counter()
         tile_box = box(
             self.bounds.left, self.bounds.bottom, self.bounds.right, self.bounds.top
         )
         geodataframe[GEOMETRY_COLUMN] = geodataframe[GEOMETRY_COLUMN].apply(
             lambda geom: _clip_to_polygonal(geom, tile_box)
         )
+        clip_seconds = perf_counter() - phase_started
 
+        phase_started = perf_counter()
         geodataframe.to_parquet(dst, compression="snappy")
+        parquet_write_seconds = perf_counter() - phase_started
+        parquet_bytes = os.path.getsize(dst)
+
+        phase_started = perf_counter()
+        self._prepare_raster_work_items(geodataframe)
+        raster_parts_seconds = perf_counter() - phase_started
+
+        logger.info(
+            f"PERF vector_fetch tile={self.tile_id} "
+            f"features={self.feature_count} vertices={self.total_vertices} "
+            f"complexity={self.complexity_score} fetched_features={fetched_features} "
+            f"db_read_s={db_read_seconds:.3f} clip_s={clip_seconds:.3f} "
+            f"parquet_write_s={parquet_write_seconds:.3f} "
+            f"raster_parts_s={raster_parts_seconds:.3f} "
+            f"parquet_bytes={parquet_bytes} "
+            f"total_s={perf_counter() - total_started:.3f}"
+        )
+
+    def _raster_part_bounds(self) -> List[Tuple[float, float, float, float]]:
+        """Return fixed compute-cell bounds in north-to-south row-major
+        order."""
+        width = (self.bounds.right - self.bounds.left) / RASTER_SUBDIVISIONS
+        height = (self.bounds.top - self.bounds.bottom) / RASTER_SUBDIVISIONS
+        bounds = []
+        for row in range(RASTER_SUBDIVISIONS):
+            top = self.bounds.top - row * height
+            bottom = top - height
+            for column in range(RASTER_SUBDIVISIONS):
+                left = self.bounds.left + column * width
+                right = left + width
+                bounds.append((left, bottom, right, top))
+        return bounds
+
+    def _prepare_raster_work_items(self, geodataframe) -> None:
+        """Write spatially clipped GeoParquets while source data is
+        resident."""
+        part_dir = os.path.join(self.work_dir, "raster_parts")
+        os.makedirs(part_dir, exist_ok=True)
+
+        for index, part_bounds in enumerate(self._raster_part_bounds()):
+            part_box = box(*part_bounds)
+            part = geodataframe[geodataframe.intersects(part_box)].copy()
+            if not part.empty:
+                part[GEOMETRY_COLUMN] = part[GEOMETRY_COLUMN].apply(
+                    lambda geom: _clip_to_polygonal(geom, part_box)
+                )
+                part = part[~part[GEOMETRY_COLUMN].is_empty]
+            part.to_parquet(
+                os.path.join(part_dir, f"part-{index}.parquet"),
+                compression="snappy",
+            )
+
+    def raster_work_items(self) -> List[VectorRasterWorkItem]:
+        """Return the prepared rasterization work items."""
+        part_dir = os.path.join(self.work_dir, "raster_parts")
+        return [
+            VectorRasterWorkItem(
+                self,
+                index,
+                part_bounds,
+                os.path.join(part_dir, f"part-{index}.parquet"),
+                os.path.join(part_dir, f"part-{index}.tif"),
+            )
+            for index, part_bounds in enumerate(self._raster_part_bounds())
+        ]
+
+    def rasterize_work_item(self, work_item: VectorRasterWorkItem) -> None:
+        """Rasterize one spatial work item without parent postprocessing."""
+        left, bottom, right, top = work_item.bounds
+        logger.info(
+            f"Rasterizing {work_item.src} to {work_item.dst} "
+            f"for {work_item.work_id}"
+        )
+        started = perf_counter()
+        cmd: List[str] = ["gdal_rasterize"]
+        if self.layer.rasterize_method == "count":
+            cmd += ["-burn", "1", "-add"]
+        else:
+            cmd += ["-a", self.layer.field]
+        if self.dst[self.default_format].nodata is not None:
+            cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
+        cmd += [
+            "-a_srs",
+            "EPSG:4326",
+            "-te",
+            str(left),
+            str(bottom),
+            str(right),
+            str(top),
+            "-tr",
+            str(self.grid.xres),
+            str(self.grid.yres),
+            "-ot",
+            to_gdal_data_type(self.dst[self.default_format].dtype),
+            "-co",
+            f"COMPRESS={self.dst[self.default_format].compress}",
+            "-co",
+            "TILED=YES",
+            "-co",
+            f"BLOCKXSIZE={self.grid.blockxsize}",
+            "-co",
+            f"BLOCKYSIZE={self.grid.blockxsize}",
+            "-q",
+            "-oo",
+            f"GEOM_POSSIBLE_NAMES={GEOMETRY_COLUMN}",
+            work_item.src,
+            work_item.dst,
+        ]
+        env = {**get_gdal_env(), "GDAL_CACHEMAX": str(self.gdal_cachemax_mb)}
+        run_gdal_subcommand(cmd, env=env)
+        logger.info(
+            f"PERF vector_rasterize_part tile={self.tile_id} "
+            f"part={work_item.index} bounds={work_item.bounds} "
+            f"parquet_bytes={os.path.getsize(work_item.src)} "
+            f"rasterize_s={perf_counter() - started:.3f}"
+        )
+
+    def assemble_raster_work_items(
+        self, work_items: List[VectorRasterWorkItem]
+    ) -> None:
+        """Mosaic four completed work items and finalize the parent tile."""
+        started = perf_counter()
+        part_dir = os.path.join(self.work_dir, "raster_parts")
+        vrt = os.path.join(part_dir, "assembled.vrt")
+        dst = self.get_local_dst_uri(self.default_format)
+        input_list = os.path.join(part_dir, "parts.txt")
+        with open(input_list, "w") as fp:
+            ordered = sorted(work_items, key=lambda item: item.index)
+            fp.write("\n".join(item.dst for item in ordered))
+
+        run_gdal_subcommand(
+            [
+                "gdalbuildvrt",
+                "-input_file_list",
+                input_list,
+                "-resolution",
+                "highest",
+                vrt,
+            ]
+        )
+        cmd = [
+            "gdal_translate",
+            "-of",
+            "GTiff",
+            "-co",
+            f"COMPRESS={self.dst[self.default_format].compress}",
+            "-co",
+            "TILED=YES",
+            "-co",
+            f"BLOCKXSIZE={self.grid.blockxsize}",
+            "-co",
+            f"BLOCKYSIZE={self.grid.blockxsize}",
+        ]
+        if self.dst[self.default_format].nodata is not None:
+            cmd += ["-a_nodata", str(self.dst[self.default_format].nodata)]
+        cmd += [vrt, dst]
+        env = {**get_gdal_env(), "GDAL_CACHEMAX": str(self.gdal_cachemax_mb)}
+        run_gdal_subcommand(cmd, env=env)
+        self.set_local_dst(self.default_format)
+        assemble_seconds = perf_counter() - started
+
+        postprocess_started = perf_counter()
+        self.postprocessing()
+        postprocess_seconds = perf_counter() - postprocess_started
+        logger.info(
+            f"PERF vector_rasterize_assembled tile={self.tile_id} "
+            f"parts={len(work_items)} assemble_s={assemble_seconds:.3f} "
+            f"postprocess_s={postprocess_seconds:.3f} "
+            f"total_s={perf_counter() - started:.3f}"
+        )
 
     def rasterize(self) -> None:
-        """Rasterize all features from data fetched in previous stage."""
+        """Rasterize all features from data fetched in previous stage.
+
+        Kept as the single-tile path for direct callers and focused
+        tests. VectorPipe uses the 2x2 work-item path instead.
+        """
         src = f"{self.work_dir}/{self.tile_id}.parquet"
         dst = self.get_local_dst_uri(self.default_format)
+        parquet_bytes = os.path.getsize(src)
         logger.info(f"Rasterizing {src} to {dst}")
+        total_started = perf_counter()
 
         cmd: List[str] = ["gdal_rasterize"]
 
@@ -288,7 +519,9 @@ class VectorSrcTile(Tile):
                 **get_gdal_env(),
                 "GDAL_CACHEMAX": str(self.gdal_cachemax_mb),
             }
+            rasterize_started = perf_counter()
             run_gdal_subcommand(cmd, env=gdal_rasterize_env)
+            rasterize_seconds = perf_counter() - rasterize_started
         except GDALError:
             logger.error(f"Could not rasterize tile {self.tile_id}")
             raise
@@ -299,4 +532,16 @@ class VectorSrcTile(Tile):
             # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
+            postprocess_started = perf_counter()
             self.postprocessing()
+            postprocess_seconds = perf_counter() - postprocess_started
+
+            logger.info(
+                f"PERF vector_rasterize tile={self.tile_id} "
+                f"features={self.feature_count} vertices={self.total_vertices} "
+                f"complexity={self.complexity_score} "
+                f"parquet_bytes={parquet_bytes} "
+                f"rasterize_s={rasterize_seconds:.3f} "
+                f"postprocess_s={postprocess_seconds:.3f} "
+                f"total_s={perf_counter() - total_started:.3f}"
+            )
