@@ -28,10 +28,6 @@ class VectorPipe(Pipe):
         LOGGER.debug("Start Vector Pipe")
         tiles = self.collect_tiles(overwrite=overwrite)
 
-        # Schedule expensive tiles first so long-running rasterizations overlap
-        # with the rest of the queue instead of creating a serial tail.
-        tiles.sort(key=lambda tile: getattr(tile, "complexity_score", 0), reverse=True)
-
         workers = self._processing_workers()
         result = self._process_pipe(self._build_pipe(tiles, workers))
 

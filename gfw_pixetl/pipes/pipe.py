@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from time import perf_counter
 from typing import Iterator, List, Optional, Set, Tuple
 
 from gfw_pixetl import get_module_logger
@@ -43,12 +44,18 @@ class Pipe(ABC):
             | self.filter_src_tiles
         )
         tiles = list()
+        collect_started = perf_counter()
 
         for tile in pipe.results():
             if tile.status == "pending":
                 self.tiles_to_process += 1
             tiles.append(tile)
 
+        LOGGER.info(
+            "PERF collect_tiles "
+            f"tiles={len(tiles)} pending={self.tiles_to_process} "
+            f"total_s={perf_counter() - collect_started:.3f}"
+        )
         LOGGER.info(f"{self.tiles_to_process} tiles to process")
 
         return tiles
@@ -101,19 +108,18 @@ class Pipe(ABC):
         """Don't process tiles if they already exist in target location, unless
         overwrite is set to True."""
         for tile in tiles:
-            if (
-                not overwrite
-                and tile.status == "pending"
-                and all([tile.dst[fmt].exists() for fmt in tile.dst.keys()])
-            ):
-                for dst_format in tile.dst.keys():
-                    tile.metadata[dst_format] = get_metadata(
-                        tile.dst[tile.default_format].url,
-                        tile.layer.compute_stats,
-                        tile.layer.compute_histogram,
-                    ).dict()
-                tile.status = "existing"
-                LOGGER.debug(f"Tile {tile} already in destination. Skip processing.")
+            if not overwrite and tile.status == "pending":
+                if all(tile.dst[fmt].exists() for fmt in tile.dst.keys()):
+                    for dst_format in tile.dst.keys():
+                        tile.metadata[dst_format] = get_metadata(
+                            tile.dst[tile.default_format].url,
+                            tile.layer.compute_stats,
+                            tile.layer.compute_histogram,
+                        ).dict()
+                    tile.status = "existing"
+                    LOGGER.debug(
+                        f"Tile {tile} already in destination. Skip processing."
+                    )
             yield tile
 
     @staticmethod

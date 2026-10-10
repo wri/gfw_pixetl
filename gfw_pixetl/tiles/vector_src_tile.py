@@ -48,7 +48,7 @@ class VectorRasterWorkItem:
 
 @dataclass
 class VectorRasterAssemblyItem:
-    """A parent tile whose four raster work items are complete."""
+    """A parent tile whose raster work items are complete."""
 
     parent: "VectorSrcTile"
     parts: List[VectorRasterWorkItem]
@@ -135,12 +135,6 @@ class VectorSrcTile(Tile):
         # Vector rasterization is write-oriented and gains little from a large
         # GDAL cache, so bound each concurrent operation's cache explicitly.
         self.gdal_cachemax_mb: int = 512
-        # Populated by src_vector_intersects(); zero for tiles it never ran
-        # on (subset-filtered, or already existing at the destination) so
-        # sorting by complexity_score never trips over a missing attribute.
-        self.feature_count: int = 0
-        self.total_vertices: int = 0
-        self.complexity_score: int = 0
 
     def intersect_filter(self) -> TextClause:
         return text(f"""ST_Intersects(
@@ -177,35 +171,23 @@ class VectorSrcTile(Tile):
     def src_vector_intersects(self) -> bool:
         engine = _get_engine()
 
+        # This stage only needs to know whether any source geometry intersects
+        # the tile.  Stop at the first indexed match rather than scanning all
+        # matches to compute scheduling metadata.
         sql = (
-            select(
-                [
-                    literal_column("count(*)").label("feature_count"),
-                    literal_column("coalesce(sum(st_npoints(geom)), 0)").label(
-                        "total_vertices"
-                    ),
-                ]
-            )
+            select([literal_column("1")])
             .select_from(self.src_table())
             .where(self.intersect_filter())
+            .limit(1)
         )
 
         with engine.begin() as conn:
-            result = conn.execute(sql)
-            row = result.fetchone()
-
-        self.feature_count = int(row.feature_count) if row else 0
-        self.total_vertices = int(row.total_vertices) if row else 0
-        self.complexity_score = self.feature_count + self.total_vertices
-
-        exists = self.feature_count > 0
+            exists = conn.execute(sql).fetchone() is not None
 
         logger.debug(
             f"Tile id {self.tile_id} "
             f"{'exists' if exists else 'does not exist'} "
-            f"in database table {self.src.schema}.{self.src.table} "
-            f"(feature_count={self.feature_count}, "
-            f"total_vertices={self.total_vertices})"
+            f"in database table {self.src.schema}.{self.src.table}"
         )
         return exists
 
@@ -251,16 +233,7 @@ class VectorSrcTile(Tile):
         # Why store as GeoParquet? Could be almost anything, but
         # GeoParquet is both faster and more compact (without extra
         # processing) than GeoPackage, Shapefiles, GeoJSON, CSV.
-        total_started = perf_counter()
-
         phase_started = perf_counter()
-        logger.info(
-            f"PERF vector_fetch_db_start tile={self.tile_id} "
-            f"bounds=({self.bounds.left}, {self.bounds.bottom}, "
-            f"{self.bounds.right}, {self.bounds.top}) "
-            f"features={self.feature_count} vertices={self.total_vertices} "
-            f"complexity={self.complexity_score}"
-        )
         try:
             geodataframe = geopandas.read_postgis(sql, engine, geom_col=GEOMETRY_COLUMN)
         except Exception:
@@ -268,43 +241,20 @@ class VectorSrcTile(Tile):
                 f"PERF vector_fetch_db_failed tile={self.tile_id} "
                 f"bounds=({self.bounds.left}, {self.bounds.bottom}, "
                 f"{self.bounds.right}, {self.bounds.top}) "
-                f"features={self.feature_count} vertices={self.total_vertices} "
-                f"complexity={self.complexity_score} "
                 f"elapsed_s={perf_counter() - phase_started:.3f}"
             )
             raise
         geodataframe = geodataframe.set_crs("EPSG:4326")
-        db_read_seconds = perf_counter() - phase_started
-        fetched_features = len(geodataframe)
 
-        phase_started = perf_counter()
         tile_box = box(
             self.bounds.left, self.bounds.bottom, self.bounds.right, self.bounds.top
         )
         geodataframe[GEOMETRY_COLUMN] = geodataframe[GEOMETRY_COLUMN].apply(
             lambda geom: _clip_to_polygonal(geom, tile_box)
         )
-        clip_seconds = perf_counter() - phase_started
 
-        phase_started = perf_counter()
         geodataframe.to_parquet(dst, compression="snappy")
-        parquet_write_seconds = perf_counter() - phase_started
-        parquet_bytes = os.path.getsize(dst)
-
-        phase_started = perf_counter()
         self._prepare_raster_work_items(geodataframe)
-        raster_parts_seconds = perf_counter() - phase_started
-
-        logger.info(
-            f"PERF vector_fetch tile={self.tile_id} "
-            f"features={self.feature_count} vertices={self.total_vertices} "
-            f"complexity={self.complexity_score} fetched_features={fetched_features} "
-            f"db_read_s={db_read_seconds:.3f} clip_s={clip_seconds:.3f} "
-            f"parquet_write_s={parquet_write_seconds:.3f} "
-            f"raster_parts_s={raster_parts_seconds:.3f} "
-            f"parquet_bytes={parquet_bytes} "
-            f"total_s={perf_counter() - total_started:.3f}"
-        )
 
     def _raster_part_bounds(self) -> List[Tuple[float, float, float, float]]:
         """Return fixed compute-cell bounds in north-to-south row-major
@@ -361,7 +311,6 @@ class VectorSrcTile(Tile):
             f"Rasterizing {work_item.src} to {work_item.dst} "
             f"for {work_item.work_id}"
         )
-        started = perf_counter()
         cmd: List[str] = ["gdal_rasterize"]
         if self.layer.rasterize_method == "count":
             cmd += ["-burn", "1", "-add"]
@@ -398,12 +347,6 @@ class VectorSrcTile(Tile):
         ]
         env = {**get_gdal_env(), "GDAL_CACHEMAX": str(self.gdal_cachemax_mb)}
         run_gdal_subcommand(cmd, env=env)
-        logger.info(
-            f"PERF vector_rasterize_part tile={self.tile_id} "
-            f"part={work_item.index} bounds={work_item.bounds} "
-            f"parquet_bytes={os.path.getsize(work_item.src)} "
-            f"rasterize_s={perf_counter() - started:.3f}"
-        )
 
     def assemble_raster_work_items(
         self, work_items: List[VectorRasterWorkItem]
@@ -467,9 +410,7 @@ class VectorSrcTile(Tile):
         """
         src = f"{self.work_dir}/{self.tile_id}.parquet"
         dst = self.get_local_dst_uri(self.default_format)
-        parquet_bytes = os.path.getsize(src)
         logger.info(f"Rasterizing {src} to {dst}")
-        total_started = perf_counter()
 
         cmd: List[str] = ["gdal_rasterize"]
 
@@ -519,9 +460,7 @@ class VectorSrcTile(Tile):
                 **get_gdal_env(),
                 "GDAL_CACHEMAX": str(self.gdal_cachemax_mb),
             }
-            rasterize_started = perf_counter()
             run_gdal_subcommand(cmd, env=gdal_rasterize_env)
-            rasterize_seconds = perf_counter() - rasterize_started
         except GDALError:
             logger.error(f"Could not rasterize tile {self.tile_id}")
             raise
@@ -532,16 +471,4 @@ class VectorSrcTile(Tile):
             # instead of in a separate stage to assure we don't run out of memory
             # the transform stage uses all available memory for concurrent processes.
             # Having another stage which needs a lot of memory might cause the process to crash
-            postprocess_started = perf_counter()
             self.postprocessing()
-            postprocess_seconds = perf_counter() - postprocess_started
-
-            logger.info(
-                f"PERF vector_rasterize tile={self.tile_id} "
-                f"features={self.feature_count} vertices={self.total_vertices} "
-                f"complexity={self.complexity_score} "
-                f"parquet_bytes={parquet_bytes} "
-                f"rasterize_s={rasterize_seconds:.3f} "
-                f"postprocess_s={postprocess_seconds:.3f} "
-                f"total_s={perf_counter() - total_started:.3f}"
-            )
