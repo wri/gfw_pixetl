@@ -4,7 +4,7 @@ from typing import List
 import geopandas
 from retrying import retry
 from sqlalchemy import Column, Table, select, table, text
-from sqlalchemy.engine import ResultProxy, create_engine
+from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.url import URL
 from sqlalchemy.sql.elements import TextClause, literal_column
 
@@ -68,9 +68,7 @@ class VectorSrcTile(Tile):
         return order
 
     def src_table(self) -> Table:
-        src_table: Table = table(self.src.table)
-        src_table.schema = self.src.schema
-        return src_table
+        return table(self.src.table, schema=self.src.schema)
 
     @retry(
         retry_on_exception=retry_if_db_fell_over,
@@ -79,26 +77,25 @@ class VectorSrcTile(Tile):
         wait_random_max=180000,
     )  # Wait 60-180s between retries
     def src_vector_intersects(self) -> bool:
-        db_url: URL = URL(
+        db_url: URL = URL.create(
             "postgresql+psycopg2",
             host=GLOBALS.db_host,
             port=GLOBALS.db_port,
             username=GLOBALS.db_username,
-            password=GLOBALS.db_password,
+            password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
             database=GLOBALS.db_name,
         )
         engine = create_engine(db_url)
 
         sql = (
-            select([literal_column("gfw_fid")])
+            select(literal_column("gfw_fid"))
             .select_from(self.src_table())
             .where(self.intersect_filter())
             .limit(1)
         )
 
-        with engine.begin() as conn:
-            result: ResultProxy = conn.execute(sql)
-            exists: bool = False if result.fetchone() is None else True
+        with engine.connect() as conn:
+            exists: bool = conn.execute(sql).first() is not None
 
         logger.debug(
             f"Tile id {self.tile_id} "
@@ -116,16 +113,16 @@ class VectorSrcTile(Tile):
     def fetch_data(self) -> None:
         """Download all intersecting features to a local file."""
         prefix = f"{self.work_dir}"
-        os.makedirs(f"{prefix}", exist_ok=True)
+        os.makedirs(prefix, exist_ok=True)
 
         dst = os.path.join(prefix, f"{self.tile_id}.parquet")
 
-        db_url: URL = URL(
+        db_url: URL = URL.create(
             "postgresql+psycopg2",
             host=GLOBALS.db_host,
             port=GLOBALS.db_port,
             username=GLOBALS.db_username,
-            password=GLOBALS.db_password,
+            password=str(GLOBALS.db_password) if GLOBALS.db_password else None,
             database=GLOBALS.db_name,
         )
         engine = create_engine(db_url)
@@ -135,7 +132,8 @@ class VectorSrcTile(Tile):
 
         sql = (
             select(
-                [val_column.label(self.layer.field), geom_column.label(GEOMETRY_COLUMN)]
+                val_column.label(self.layer.field),
+                geom_column.label(GEOMETRY_COLUMN),
             )
             .select_from(self.src_table())
             .where(self.intersect_filter())
@@ -143,11 +141,14 @@ class VectorSrcTile(Tile):
         )
 
         # Read the rows into memory and then dump them into a local file
-        # for processing in the next stage
-        # Why store as GeoParquet? Could be almost anything, but
+        # for processing in the next stage.
         # GeoParquet is both faster and more compact (without extra
-        # processing) than GeoPackage, Shapefiles, GeoJSON, CSV.
-        geodataframe = geopandas.read_postgis(sql, engine)
+        # processing) than GeoPackage, Shapefiles, GeoJSON, or CSV.
+        geodataframe = geopandas.read_postgis(
+            sql,
+            engine,
+            geom_col=GEOMETRY_COLUMN,
+        )
         geodataframe = geodataframe.set_crs("EPSG:4326")
         geodataframe.to_parquet(dst, compression="snappy")
 
@@ -203,8 +204,8 @@ class VectorSrcTile(Tile):
         else:
             self.set_local_dst(self.default_format)
 
-            # invoking gdal-geotiff and compute stats here
-            # instead of in a separate stage to assure we don't run out of memory
-            # the transform stage uses all available memory for concurrent processes.
-            # Having another stage which needs a lot of memory might cause the process to crash
+            # Invoke gdal-geotiff and compute stats here instead of in a
+            # separate stage to ensure we don't run out of memory.
+            # The transform stage uses all available memory for concurrent
+            # processes; another memory-intensive stage could cause a crash.
             self.postprocessing()
