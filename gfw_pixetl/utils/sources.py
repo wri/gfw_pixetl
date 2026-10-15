@@ -1,9 +1,11 @@
 import json
 import os
+import time
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from urllib.parse import urlparse
 
+from botocore.exceptions import BotoCoreError, ClientError
 from geojson import FeatureCollection
 from shapely.geometry import shape
 
@@ -19,6 +21,52 @@ from gfw_pixetl.utils.path import create_dir, from_vsi
 from gfw_pixetl.utils.utils import DummyTile
 
 LOGGER = get_module_logger(__name__)
+
+DOWNLOAD_MAX_ATTEMPTS = 4
+DOWNLOAD_INITIAL_BACKOFF_SECONDS = 1.0
+DOWNLOAD_MAX_BACKOFF_SECONDS = 8.0
+
+
+def _http_status_code(exception: Exception) -> Optional[int]:
+    """Best-effort extraction of an HTTP status from cloud SDK exceptions."""
+    if isinstance(exception, ClientError):
+        return exception.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+    status = getattr(exception, "code", None)
+    if callable(status):
+        status = status()
+    if status is not None and hasattr(status, "value"):
+        status = status.value
+    try:
+        return int(status) if status is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_transient_download_error(exception: Exception) -> bool:
+    """Return True for cloud/network failures which are safe to retry."""
+    if isinstance(exception, BotoCoreError):
+        return True
+
+    if isinstance(exception, (TimeoutError, ConnectionError)):
+        return True
+
+    status = _http_status_code(exception)
+    if status == 429 or (status is not None and 500 <= status < 600):
+        return True
+
+    if isinstance(exception, ClientError):
+        code = str(exception.response.get("Error", {}).get("Code", ""))
+        return code in {
+            "SlowDown",
+            "RequestTimeout",
+            "RequestTimeoutException",
+            "Throttling",
+            "ThrottlingException",
+            "TooManyRequestsException",
+        }
+
+    return False
 
 
 def get_file_list_from_tiles_geojson(bucket: str, prefix: str) -> List[str]:
@@ -79,15 +127,33 @@ def download_source_file(args: Tuple[str, str]) -> Path:
 
     parts = urlparse(remote_file)
 
-    local_file = Path(os.path.join(basedir, parts.netloc, parts.path[1:]))
+    local_file = Path(os.path.join(basedir, str(parts.netloc), str(parts.path[1:])))
     os.makedirs(os.path.dirname(local_file), exist_ok=True)
 
     LOGGER.debug(f"Downloading remote file {remote_file} to {local_file}")
-    download_constructor[parts.scheme](
-        bucket=parts.netloc, key=parts.path[1:], dst=str(local_file)
-    )
 
-    return local_file
+    delay = DOWNLOAD_INITIAL_BACKOFF_SECONDS
+    for attempt in range(1, DOWNLOAD_MAX_ATTEMPTS + 1):
+        try:
+            download_constructor[parts.scheme](
+                bucket=str(parts.netloc), key=str(parts.path[1:]), dst=str(local_file)
+            )
+            return local_file
+        except Exception as exc:
+            if attempt == DOWNLOAD_MAX_ATTEMPTS or not _is_transient_download_error(
+                exc
+            ):
+                raise
+
+            LOGGER.warning(
+                f"Transient error downloading {remote_file} "
+                f"(attempt {attempt}/{DOWNLOAD_MAX_ATTEMPTS}): {exc}. "
+                f"Retrying in {delay:.1f}s."
+            )
+            time.sleep(delay)
+            delay = min(delay * 2, DOWNLOAD_MAX_BACKOFF_SECONDS)
+
+    raise AssertionError("download retry loop exited unexpectedly")
 
 
 def download_sources(source_uris: List[str], work_dir: str) -> List[str]:
